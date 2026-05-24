@@ -1,0 +1,101 @@
+[
+  {
+    "id": "MANUAL-001",
+    "projectId": "PRJ-20260523-0001",
+    "cover": {
+      "title": "星云科技视觉识别手册",
+      "subtitle": "Visual Identity Guidelines",
+      "version": "v1.0",
+      "date": "2026-05",
+      "companyName": "星云科技有限公司"
+    },
+    "brandColors": {
+      "primary": { "name": "品牌蓝", "hex": "#1A73E8", "cmyk": "C87 M53 Y0 K0", "rgb": "26,115,232" },
+      "secondary": { "name": "生长绿", "hex": "#34A853", "cmyk": "C75 M0 Y100 K0", "rgb": "52,168,83" },
+      "accent": { "name": "活力黄", "hex": "#FBBC04", "cmyk": "C0 M18 Y100 K0", "rgb": "251,188,4" },
+      "neutrals": [
+        { "name": "背景白", "hex": "#F8F9FA" },
+        { "name": "文字黑", "hex": "#202124" }
+      ]
+    },
+    "typography": {
+      "chinese": {
+        "heading": { "font": "Noto Sans SC", "weights": [700, 500] },
+        "body": { "font": "Noto Sans SC", "weights": [400, 300] }
+      },
+      "english": {
+        "heading": { "font": "Inter", "weights": [700, 600] },
+        "body": { "font": "Inter", "weights": [400] }
+      }
+    },
+    "logoVariants": [
+      { "name": "横版组合", "src": "/mock/manual/logo-horizontal.png" },
+      { "name": "竖版组合", "src": "/mock/manual/logo-vertical.png" },
+      { "name": "图标版", "src": "/mock/manual/logo-icon.png" },
+      { "name": "反白版", "src": "/mock/manual/logo-monochrome.png" }
+    ],
+    "auxiliaryGraphics": [
+      { "name": "辅助图形-基础", "src": "/mock/manual/pattern-base.svg" },
+      { "name": "辅助图形-应用", "src": "/mock/manual/pattern-applied.svg" }
+    ],
+    "applications": [
+      { "type": "business_card", "label": "名片", "mockupUrl": "/mock/mockups/business-card.jpg", "specs": "90×54mm, 300DPI" },
+      { "type": "letterhead", "label": "信纸", "mockupUrl": "/mock/mockups/letterhead.jpg", "specs": "A4, 210×297mm" },
+      { "type": "envelope", "label": "信封", "mockupUrl": "/mock/mockups/envelope.jpg", "specs": "DL 110×220mm" },
+      { "type": "ppt", "label": "PPT 模板", "mockupUrl": "/mock/mockups/ppt-template.jpg", "specs": "16:9" },
+      { "type": "signage", "label": "招牌", "mockupUrl": "/mock/mockups/signage.jpg", "specs": "横式灯箱" },
+      { "type": "uniform", "label": "工作证", "mockupUrl": "/mock/mockups/id-card.jpg", "specs": "85.5×54mm" }
+    ],
+    "referenceAnalysis": {
+      "used": true,
+      "extractedColors": ["#1565C0", "#0D47A1", "#E3F2FD"],
+      "extractedFonts": ["Inter", "Noto Sans SC"],
+      "styleSummary": "极简风格，大量留白，蓝色为主色调，圆角元素",
+      "analysisConfidence": 0.85
+    }
+  },
+  {
+    "id": "MANUAL-002",
+    "projectId": "PRJ-20260523-0003",
+    "cover": {
+      "title": "启航教育视觉识别手册",
+      "subtitle": "Visual Identity Guidelines",
+      "version": "v1.0",
+      "date": "2026-05",
+      "companyName": "启航教育集团"
+    },
+    "brandColors": {
+      "primary": { "name": "教育橙", "hex": "#FF6D00", "cmyk": "C0 M65 Y100 K0", "rgb": "255,109,0" },
+      "secondary": { "name": "成长蓝", "hex": "#2979FF", "cmyk": "C65 M40 Y0 K0", "rgb": "41,121,255" },
+      "accent": { "name": "阳光黄", "hex": "#FFD600", "cmyk": "C0 M10 Y100 K0", "rgb": "255,214,0" },
+      "neutrals": [
+        { "name": "背景白", "hex": "#FAFAFA" },
+        { "name": "文字灰", "hex": "#424242" }
+      ]
+    },
+    "typography": {
+      "chinese": {
+        "heading": { "font": "思源黑体", "weights": [700, 500] },
+        "body": { "font": "思源黑体", "weights": [400] }
+      },
+      "english": {
+        "heading": { "font": "Poppins", "weights": [700, 600] },
+        "body": { "font": "Poppins", "weights": [400] }
+      }
+    },
+    "logoVariants": [
+      { "name": "横版组合", "src": "/mock/manual/qihang-logo-h.png" },
+      { "name": "竖版组合", "src": "/mock/manual/qihang-logo-v.png" },
+      { "name": "图标版", "src": "/mock/manual/qihang-icon.png" }
+    ],
+    "auxiliaryGraphics": [
+      { "name": "辅助图形-书本", "src": "/mock/manual/qihang-book.svg" },
+      { "name": "辅助图形-星星", "src": "/mock/manual/qihang-star.svg" }
+    ],
+    "applications": [
+      { "type": "business_card", "label": "名片", "mockupUrl": "/mock/mockups/edu-card.jpg", "specs": "90×54mm" },
+      { "type": "letterhead", "label": "信纸", "mockupUrl": "/mock/mockups/edu-letterhead.jpg", "specs": "A4" },
+      { "type": "ppt", "label": "PPT 模板", "mockupUrl": "/mock/mockups/edu-ppt.jpg", "specs": "16:9" }
+    ]
+  }
+]

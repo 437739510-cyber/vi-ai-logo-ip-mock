@@ -1,0 +1,24 @@
+[
+  {
+    "id": "FAV-001",
+    "employeeId": "EMP-001",
+    "planId": "PLAN-002",
+    "projectId": "PRJ-20260523-0001",
+    "clientIndustry": "科技/互联网",
+    "styleLabel": "赛博霓虹",
+    "thumbnailUrl": "/mock/plans/nebula-plan-thumb-2.jpg",
+    "notes": "适合科技类客户的方案模板，色彩搭配好",
+    "collectedAt": "2026-05-23T14:00:00+08:00"
+  },
+  {
+    "id": "FAV-002",
+    "employeeId": "EMP-002",
+    "planId": "PLAN-004",
+    "projectId": "PRJ-20260523-0003",
+    "clientIndustry": "教育/培训",
+    "styleLabel": "活力教育橙",
+    "thumbnailUrl": "/mock/plans/qihang-plan-thumb-1.jpg",
+    "notes": "",
+    "collectedAt": "2026-05-22T16:30:00+08:00"
+  }
+]

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, FileText, Monitor, FolderDown, FileDown, Loader2, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,12 @@ export default function ExportPage({
 }) {
   const [exporting, setExporting] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string>("");
+
+  // 解析 params Promise（Next.js 15 App Router）
+  useEffect(() => {
+    params.then((p) => setProjectId(p.projectId));
+  }, [params]);
 
   const handleExport = async (id: string) => {
     setExporting(id);
@@ -40,7 +46,7 @@ export default function ExportPage({
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <Link
-        href={`/admin/projects/${params}`}
+        href={`/admin/projects/${projectId}`}
         className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />

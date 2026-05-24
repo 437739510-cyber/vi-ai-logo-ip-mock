@@ -1,0 +1,26 @@
+[
+  {
+    "employeeId": "EMP-001",
+    "name": "设计师小王",
+    "role": "designer",
+    "avatar": ""
+  },
+  {
+    "employeeId": "EMP-002",
+    "name": "设计师小李",
+    "role": "designer",
+    "avatar": ""
+  },
+  {
+    "employeeId": "EMP-003",
+    "name": "销售小张",
+    "role": "sales",
+    "avatar": ""
+  },
+  {
+    "employeeId": "EMP-004",
+    "name": "管理员",
+    "role": "admin",
+    "avatar": ""
+  }
+]
