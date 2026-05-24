@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="ng1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1A73E8;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#0D47A1;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="45" fill="url(#ng1)" opacity="0.95"/>
+  <circle cx="60" cy="60" r="30" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+  <circle cx="60" cy="60" r="18" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+  <circle cx="60" cy="60" r="3" fill="white"/>
+  <line x1="60" y1="15" x2="60" y2="30" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <line x1="60" y1="90" x2="60" y2="105" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <line x1="15" y1="60" x2="30" y2="60" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <line x1="90" y1="60" x2="105" y2="60" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <text x="120" y="52" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="700" fill="#1A73E8">Nebula</text>
+  <text x="120" y="78" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400" fill="#5F6368">Technology</text>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="tg1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2E7D32;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#43A047;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+  <path d="M40,80 Q40,30 60,30 Q80,30 80,80 L75,80 Q75,40 60,40 Q45,40 45,80 Z" fill="url(#tg1)"/>
+  <ellipse cx="60" cy="80" rx="25" ry="8" fill="url(#tg1)" opacity="0.7"/>
+  <path d="M55,30 L55,18 L65,18 L65,30" fill="none" stroke="url(#tg1)" stroke-width="3"/>
+  <text x="100" y="52" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="700" fill="#2E7D32">TeaTalks</text>
+  <text x="100" y="78" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400" fill="#666">Tea Culture</text>
+</svg>
