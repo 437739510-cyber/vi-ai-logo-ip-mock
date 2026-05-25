@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, Trash2 } from "lucide-react";
 import type { Project } from "@/types";
 
 interface ProjectTableProps {
   projects: Project[];
+  onDelete?: (projectId: string) => void;
+  deletingId?: string | null;
 }
 
-export function ProjectTable({ projects }: ProjectTableProps) {
+export function ProjectTable({ projects, onDelete, deletingId }: ProjectTableProps) {
   if (projects.length === 0) {
     return (
       <EmptyState
@@ -52,12 +54,24 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                 {new Date(project.createdAt).toLocaleDateString("zh-CN")}
               </td>
               <td className="py-3 px-2 text-right">
-                <Link
-                  href={`/admin/projects/${project.id}`}
-                  className="text-primary hover:underline text-xs font-medium"
-                >
-                  查看详情
-                </Link>
+                <div className="flex items-center justify-end gap-2">
+                  <Link
+                    href={`/admin/projects/${project.id}`}
+                    className="text-primary hover:underline text-xs font-medium"
+                  >
+                    查看详情
+                  </Link>
+                  {onDelete && (
+                    <button
+                      onClick={() => onDelete(project.id)}
+                      disabled={deletingId === project.id}
+                      className="text-danger hover:text-red-700 disabled:opacity-40 p-1 rounded hover:bg-danger/5 transition-colors"
+                      title="删除此项目"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}

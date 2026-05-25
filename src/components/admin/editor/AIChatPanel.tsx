@@ -4,34 +4,21 @@ import { useState, useRef, useEffect } from "react";
 import { MessageSquare, Send, X, Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Message {
+interface ChatMessage {
   role: "ai" | "user";
   content: string;
-}
-
-const MOCK_REPLIES: Record<string, string> = {
-  蓝色: "已将主色调从 #1A73E8 调整为 #1565C0（更深一度），您看一下预览区的变化。",
-  字体: "已将所有标题字体切换为 Noto Sans SC Bold，正文保持 Regular。需要调整字号吗？",
-  加: "已为您增加一页「名片应用规范」，包含标准布局、Logo 位置和字体字号标注。",
-  红色: "已将强调色从 #FBBC04 调整为 #E84343。预览区已实时更新，请查看效果。",
-  删除: "已将选中的辅助图形「pattern-1」从手册中移除。",
-};
-
-function getMockReply(input: string): string {
-  for (const [keyword, reply] of Object.entries(MOCK_REPLIES)) {
-    if (input.includes(keyword)) return reply;
-  }
-  return "好的，已按您的需求调整。请查看预览区的实时效果，如有进一步修改需求请继续告诉我。";
 }
 
 interface AIChatPanelProps {
   isOpen: boolean;
   onToggle: () => void;
+  projectId?: string;
+  manualContext?: string;
 }
 
-export function AIChatPanel({ isOpen, onToggle }: AIChatPanelProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "ai", content: "你好！我是 VI 设计助手。你可以告诉我需要修改什么，比如「把蓝色调暖一些」或「加一页名片应用规范」。", },
+export function AIChatPanel({ isOpen, onToggle, projectId, manualContext }: AIChatPanelProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { role: "ai", content: "你好！我是 VI 设计助手。你可以告诉我们需要修改什么，比如「把蓝色调暖一些」或「加一页名片应用规范」。「调整配色」「推荐字体」等等。" },
   ]);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -50,11 +37,32 @@ export function AIChatPanel({ isOpen, onToggle }: AIChatPanelProps) {
     setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setIsThinking(true);
 
-    await new Promise((r) => setTimeout(r, 1000));
+    try {
+      const apiMessages = messages
+        .filter((m) => m.role !== "system")
+        .map((m) => ({ role: m.role === "ai" ? "assistant" : "user", content: m.content }));
+      apiMessages.push({ role: "user", content: userMsg });
 
-    const reply = getMockReply(userMsg);
-    setMessages((prev) => [...prev, { role: "ai", content: reply }]);
-    setIsThinking(false);
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: apiMessages,
+          projectId,
+          manualContext: manualContext || null,
+        }),
+      });
+      const data = await res.json();
+      const reply = data.reply || "抱歉，我没有理解您的意思，请换个方式描述。";
+      setMessages((prev) => [...prev, { role: "ai", content: reply }]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "ai", content: "网络错误，请稍后再试。" },
+      ]);
+    } finally {
+      setIsThinking(false);
+    }
   };
 
   if (!isOpen) {

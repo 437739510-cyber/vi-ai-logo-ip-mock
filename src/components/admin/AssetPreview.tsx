@@ -35,8 +35,14 @@ export function AssetPreview({ label, files, emptyText = "暂无素材" }: Asset
             key={i}
             className="flex items-center gap-3 px-3 py-2 bg-neutral-50 rounded-lg text-sm"
           >
-            <div className="w-10 h-10 bg-neutral-200 rounded flex items-center justify-center text-xs text-neutral-500 shrink-0">
-              {file.fileName.split(".").pop()?.toUpperCase()}
+            <div className="w-12 h-12 bg-neutral-200 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+              {/\.(png|jpg|jpeg|svg|gif|webp)$/i.test(file.url) ? (
+                <img src={file.url} alt={file.fileName} className="w-full h-full object-contain" />
+              ) : (
+                <span className="text-xs font-semibold text-neutral-500">
+                  {file.fileName.split(".").pop()?.toUpperCase()}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-neutral-700 truncate">{file.fileName}</p>

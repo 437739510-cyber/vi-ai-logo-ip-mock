@@ -12,6 +12,11 @@ import type {
   ProjectFilters,
 } from "@/types";
 
+
+// ========== 内存存储（提交的数据暂存在这里，管理端可读取）==========
+const inMemorySubmissions: Submission[] = [];
+const inMemoryProjects: Project[] = [];
+let submissionCounter = 0;
 // ========== 导入语句（仅在 Mock 模式下加载） ==========
 async function loadJson<T>(path: string): Promise<T> {
   const res = await fetch(path);
@@ -22,7 +27,8 @@ async function loadJson<T>(path: string): Promise<T> {
 // ========== 客户提交 ==========
 
 export async function getSubmissions(): Promise<Submission[]> {
-  return loadJson<Submission[]>("/mock/submissions.json");
+  const staticList = await loadJson<Submission[]>("/mock/submissions.json");
+  return [...inMemorySubmissions, ...staticList];
 }
 
 export async function getSubmissionById(id: string): Promise<Submission | null> {
@@ -33,7 +39,12 @@ export async function getSubmissionById(id: string): Promise<Submission | null> 
 // ========== 项目 ==========
 
 export async function getProjects(filters?: ProjectFilters): Promise<Project[]> {
-  let list = await loadJson<Project[]>("/mock/projects.json");
+  let list = [...inMemoryProjects];
+  // 加载 static JSON 中的项目
+  const staticList = await loadJson<Project[]>("/mock/projects.json");
+  // 去重：如果内存中已有相同 ID 的项目，以内存为准
+  const staticFiltered = staticList.filter((sp: Project) => !inMemoryProjects.some((ip: Project) => ip.id === sp.id));
+  list = [...list, ...staticFiltered];
   if (filters) {
     if (filters.status !== "all") {
       list = list.filter((p) => p.status === filters.status);
@@ -57,14 +68,28 @@ export async function getProjectById(id: string): Promise<Project | null> {
 
 export async function getPlansByProject(projectId: string): Promise<AiGenerationPlan[]> {
   const list = await loadJson<AiGenerationPlan[]>("/mock/ai-plans.json");
-  return list.filter((p) => p.projectId === projectId);
+  // Also load runtime-generated plans
+  let runtime: AiGenerationPlan[] = [];
+  try {
+    const res = await fetch("/mock/ai-plans-runtime.json");
+    if (res.ok) runtime = await res.json();
+  } catch {}
+  const merged = [...list, ...runtime];
+  return merged.filter((p) => p.projectId === projectId);
 }
 
 // ========== VI 手册 ==========
 
 export async function getManualByProject(projectId: string): Promise<ViManual | null> {
   const list = await loadJson<ViManual[]>("/mock/vi-manuals.json");
-  return list.find((m) => m.projectId === projectId) ?? null;
+  // Also load runtime-generated manuals
+  let runtime: ViManual[] = [];
+  try {
+    const res = await fetch("/mock/vi-manuals-runtime.json");
+    if (res.ok) runtime = await res.json();
+  } catch {}
+  const merged = [...runtime, ...list];
+  return merged.find((m) => m.projectId === projectId) ?? null;
 }
 
 // ========== 收藏 ==========
@@ -88,26 +113,9 @@ export async function getEmployees(): Promise<Employee[]> {
 // ========== 咨询提交 ==========
 
 export async function submitConsultation(data: Record<string, unknown>): Promise<{ success: boolean; projectId: string }> {
-  // Mock: 模拟提交成功
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  const projectId = `VI-${dateStr}-${rand}`;
   console.log("[Mock] submitConsultation:", data);
-  return {
-    success: true,
-    projectId: `VI-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-  };
-}
-
-// ========== 辅助函数 ==========
-
-export function getStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    submitted: "已提交",
-    contacted: "已联系",
-    confirmed: "需求已确认",
-    ai_analysis: "AI 分析中",
-    designing: "设计制作中",
-    reviewing: "审核中",
-    delivered: "已交付",
-    closed: "已关闭",
-  };
-  return labels[status] ?? status;
+  return { success: true, projectId };
 }

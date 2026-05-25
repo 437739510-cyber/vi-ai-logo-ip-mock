@@ -1,40 +1,16 @@
 [
   {
-    "id": "PRJ-20260523-0001",
-    "submissionId": "SBM-20260523-0001",
-    "status": "ai_analysis",
-    "assignedTo": { "employeeId": "EMP-001", "name": "设计师小王", "role": "designer" },
-    "createdAt": "2026-05-23T10:30:00+08:00",
-    "updatedAt": "2026-05-23T11:00:00+08:00",
-    "timeline": [
-      { "status": "submitted", "timestamp": "2026-05-23T10:30:00+08:00" },
-      { "status": "confirmed", "timestamp": "2026-05-23T10:45:00+08:00" },
-      { "status": "ai_analysis", "timestamp": "2026-05-23T11:00:00+08:00" }
-    ]
-  },
-  {
-    "id": "PRJ-20260523-0002",
-    "submissionId": "SBM-20260523-0002",
+    "id": "VI-20260525-22WV",
+    "submissionId": "SBM-20260525-7075",
     "status": "submitted",
     "assignedTo": null,
-    "createdAt": "2026-05-22T14:20:00+08:00",
-    "updatedAt": "2026-05-22T14:20:00+08:00",
+    "createdAt": "2026-05-25T07:39:27.075Z",
+    "updatedAt": "2026-05-25T07:39:27.075Z",
     "timeline": [
-      { "status": "submitted", "timestamp": "2026-05-22T14:20:00+08:00" }
-    ]
-  },
-  {
-    "id": "PRJ-20260523-0003",
-    "submissionId": "SBM-20260523-0003",
-    "status": "designing",
-    "assignedTo": { "employeeId": "EMP-002", "name": "设计师小李", "role": "designer" },
-    "createdAt": "2026-05-21T09:15:00+08:00",
-    "updatedAt": "2026-05-23T08:00:00+08:00",
-    "timeline": [
-      { "status": "submitted", "timestamp": "2026-05-21T09:15:00+08:00" },
-      { "status": "confirmed", "timestamp": "2026-05-21T10:00:00+08:00" },
-      { "status": "ai_analysis", "timestamp": "2026-05-21T11:30:00+08:00" },
-      { "status": "designing", "timestamp": "2026-05-22T09:00:00+08:00" }
+      {
+        "status": "submitted",
+        "timestamp": "2026-05-25T07:39:27.075Z"
+      }
     ]
   }
 ]

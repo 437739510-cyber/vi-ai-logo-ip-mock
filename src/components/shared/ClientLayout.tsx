@@ -14,7 +14,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-neutral-100">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="text-lg font-bold text-neutral-900">
-            VI 手册生成
+            官氏VI手册生成
           </Link>
 
           {/* 桌面端导航 */}
@@ -67,7 +67,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       {/* 底部 */}
       <footer className="border-t border-neutral-100 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-sm text-neutral-400">
-          <p>&copy; 2026 VI 手册生成服务. All rights reserved.</p>
+          <p>&copy; 2026 官氏VI手册生成服务. All rights reserved.</p>
         </div>
       </footer>
     </div>

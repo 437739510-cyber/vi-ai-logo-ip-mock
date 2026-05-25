@@ -107,7 +107,7 @@ export default function EditorPage({
       </div>
 
       {/* AI 对话助手 */}
-      <AIChatPanel isOpen={chatOpen} onToggle={() => setChatOpen(!chatOpen)} />
+          <AIChatPanel isOpen={chatOpen} onToggle={() => setChatOpen(!chatOpen)} projectId={projectId} manualContext={JSON.stringify({ companyName: manual.cover.companyName, brandColors: manual.brandColors, typography: manual.typography })} />
     </div>
   );
 }

@@ -91,6 +91,7 @@ export interface Submission {
   clientName: string;
   companyName: string;
   phone: string;
+  email?: string;
   wechat?: string;
   industry: Industry;
   budgetRange?: BudgetRange;

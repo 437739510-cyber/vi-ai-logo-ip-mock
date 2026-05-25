@@ -28,10 +28,13 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-xl font-semibold text-neutral-900">工作台</h2>
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-primary uppercase tracking-wider">概览</p>
+          <h2 className="text-2xl font-bold text-neutral-900">工作台</h2>
+        </div>
         <div className="grid grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 bg-neutral-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-28 bg-neutral-100 rounded-2xl animate-pulse" />
           ))}
         </div>
       </div>
@@ -39,43 +42,29 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-neutral-900">工作台</h2>
-        <p className="text-sm text-neutral-400">
-          共 {totalCount} 个项目
-        </p>
+        <div>
+          <p className="text-xs font-medium text-primary uppercase tracking-wider">概览</p>
+          <h2 className="text-2xl font-bold text-neutral-900">工作台</h2>
+        </div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-100 rounded-lg">
+          <span className="text-sm font-medium text-neutral-500">共 {totalCount} 个项目</span>
+        </div>
       </div>
 
-      {/* 统计卡片 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="待处理"
-          value={pendingCount}
-          description="新提交未分配"
-          icon={<AlertCircle className="w-5 h-5" />}
-        />
-        <StatCard
-          title="进行中"
-          value={inProgressCount}
-          description="AI 分析 / 设计中"
-          icon={<Clock className="w-5 h-5" />}
-        />
-        <StatCard
-          title="本月已交付"
-          value={deliveredCount}
-          icon={<CheckCircle className="w-5 h-5" />}
-        />
-        <StatCard
-          title="项目总数"
-          value={totalCount}
-          icon={<FolderKanban className="w-5 h-5" />}
-        />
+        <StatCard title="待处理" value={pendingCount} description="新提交未分配" icon={<AlertCircle className="w-5 h-5" />} />
+        <StatCard title="进行中" value={inProgressCount} description="AI 分析 / 设计中" icon={<Clock className="w-5 h-5" />} />
+        <StatCard title="已交付" value={deliveredCount} icon={<CheckCircle className="w-5 h-5" />} />
+        <StatCard title="项目总数" value={totalCount} icon={<FolderKanban className="w-5 h-5" />} />
       </div>
 
-      {/* 最近动态 */}
-      <div className="bg-white rounded-xl border border-neutral-100 p-5">
-        <h3 className="text-sm font-semibold text-neutral-700 mb-4">最近动态</h3>
+      <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-sm font-bold text-neutral-900">最近动态</h3>
+          <span className="text-xs text-neutral-400">实时</span>
+        </div>
         <RecentActivityList />
       </div>
     </div>

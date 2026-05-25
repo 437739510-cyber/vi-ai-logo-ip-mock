@@ -1,0 +1,98 @@
+[
+  {
+    "id": "PLAN-1779695143127-0",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 1",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T07:45:43.127Z"
+  },
+  {
+    "id": "PLAN-1779695143127-1",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 2",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T07:45:43.127Z"
+  },
+  {
+    "id": "PLAN-1779695143127-2",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 3",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T07:45:43.127Z"
+  },
+  {
+    "id": "PLAN-1779698719470-0",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 1",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T08:45:19.470Z"
+  },
+  {
+    "id": "PLAN-1779698719471-1",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 2",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T08:45:19.471Z"
+  },
+  {
+    "id": "PLAN-1779698719471-2",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 3",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T08:45:19.471Z"
+  }
+]

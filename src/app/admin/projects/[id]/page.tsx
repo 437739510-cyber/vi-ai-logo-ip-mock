@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, Trash2, Sparkles, Loader2 } from "lucide-react";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AssetPreview } from "@/components/admin/AssetPreview";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -20,6 +21,9 @@ export default function ProjectDetailPage({
   const [plans, setPlans] = useState<AiGenerationPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [generatingManual, setGeneratingManual] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     (async () => {
@@ -39,7 +43,7 @@ export default function ProjectDetailPage({
         setSubmission(sub);
         setPlans(planList);
       } catch {
-        setError("加载失败");
+        setError("\u52A0\u8F7D\u5931\u8D25");
       } finally {
         setLoading(false);
       }
@@ -55,19 +59,103 @@ export default function ProjectDetailPage({
     );
   }
 
+  const handleDelete = async () => {
+    if (!project) return;
+    if (!window.confirm("\u786E\u5B9A\u8981\u5220\u9664\u6B64\u9879\u76EE\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/delete-project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: project.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        router.push("/admin/projects");
+      } else {
+        alert("\u5220\u9664\u5931\u8D25: " + (data.error || "\u672A\u77E5\u9519\u8BEF"));
+      }
+    } catch {
+      alert("\u7F51\u7EDC\u9519\u8BEF\uFF0C\u8BF7\u91CD\u8BD5");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleGenerateManual = async () => {
+    if (!project || !submission) return;
+    setGeneratingManual(true);
+    try {
+      // 先尝试分析参考手册（如果有的话）
+      let referenceAnalysis = null;
+      if (submission.referenceManual) {
+        const analysisRes = await fetch("/api/ai/analyze-manual", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pdfPath: submission.referenceManual.url }),
+        });
+        referenceAnalysis = await analysisRes.json();
+      }
+
+      // 调用 AI 生成完整手册
+      const generateRes = await fetch("/api/ai/generate-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          clientInfo: {
+            companyName: submission.companyName,
+            industry: submission.industry,
+            description: submission.description,
+            logoAssets: submission.logoAssets,
+            mascotAssets: submission.mascotAssets,
+          },
+          referenceAnalysis,
+        }),
+      });
+      const manual = await generateRes.json();
+
+      // 保存手册
+      await fetch("/api/ai/save-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manual }),
+      });
+
+      // 跳转到编辑器查看
+      router.push(`/admin/editor/${project.id}`);
+    } catch {
+      alert("\u751F\u6210\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+    } finally {
+      setGeneratingManual(false);
+    }
+  };
+
   if (error) return <ErrorState message={error} />;
   if (!project) return notFound();
 
   return (
     <div className="space-y-6">
-      {/* 返回 */}
-      <Link
-        href="/admin/projects"
-        className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        返回项目列表
-      </Link>
+      {/* 返回 + 删除 */}
+      <div className="flex items-center justify-between">
+        <Link
+          href="/admin/projects"
+          className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          返回项目列表
+        </Link>
+        {project && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-danger border border-danger/30 rounded-lg hover:bg-danger/5 disabled:opacity-50 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {deleting ? "删除中..." : "删除项目"}
+          </button>
+        )}
+      </div>
 
       {/* 项目标题 */}
       <div className="flex items-start justify-between">
@@ -162,7 +250,7 @@ export default function ProjectDetailPage({
         </section>
       )}
 
-      {/* AI 方案 */}
+      {/* AI 生成方案 */}
       <section className="bg-white rounded-xl border border-neutral-100 p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-neutral-700">AI 生成方案</h3>
@@ -174,7 +262,7 @@ export default function ProjectDetailPage({
           </Link>
         </div>
         {plans.length === 0 ? (
-          <p className="text-sm text-neutral-400">暂未生成方案</p>
+          <p className="text-sm text-neutral-400">尚未生成方案</p>
         ) : (
           <div className="grid grid-cols-3 gap-3">
             {plans.map((plan) => (
@@ -195,36 +283,59 @@ export default function ProjectDetailPage({
         )}
       </section>
 
+      {/* AI 一键生成完整手册 */}
+      <section className="bg-white rounded-xl border border-primary/20 p-6 space-y-4 bg-gradient-to-br from-primary/5 to-transparent">
+        <div className="flex items-center gap-2.5">
+          <Sparkles className="w-5 h-5 text-primary" />
+          <h3 className="text-sm font-bold text-neutral-900">AI 一键生成完整 VI 手册</h3>
+        </div>
+        <p className="text-xs text-neutral-500 leading-relaxed">
+          AI 将根据客户提交的 LOGO、IP 公仔和参考手册，自动生成一套完整的 VI 视觉识别手册，包括品牌色板、字体规范、Logo 变体、辅助图形和应用场景。
+        </p>
+        <button
+          onClick={handleGenerateManual}
+          disabled={generatingManual}
+          className="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+        >
+          {generatingManual ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              AI 正在生成中...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              AI 一键生成完整手册
+            </>
+          )}
+        </button>
+      </section>
+
       {/* 时间线 */}
       <section className="bg-white rounded-xl border border-neutral-100 p-5">
         <h3 className="text-sm font-semibold text-neutral-700 mb-4">项目时间线</h3>
         <div className="space-y-3">
           {project.timeline
-            .slice()
-            .reverse()
-            .map((entry, i) => (
-              <div key={i} className="flex items-center gap-3 text-sm">
-                <div className="w-2 h-2 rounded-full bg-primary/60 shrink-0" />
-                <div className="flex-1">
-                  <span className="text-neutral-700">
-                    {entry.status === "submitted"
-                      ? "已提交"
-                      : entry.status === "confirmed"
-                      ? "需求已确认"
-                      : entry.status === "ai_analysis"
-                      ? "AI 分析中"
-                      : entry.status === "designing"
-                      ? "设计制作中"
-                      : entry.status === "reviewing"
-                      ? "审核中"
-                      : "已交付"}
+            .sort((a: { timestamp: string }, b: { timestamp: string }) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            .map((entry: { status: string; timestamp: string }, i: number) => {
+              const statusLabels: Record<string, string> = {
+                submitted: "已提交",
+                confirmed: "需求确认中",
+                ai_analysis: "AI 分析中",
+                designing: "设计制作中",
+                reviewing: "审核中",
+                delivered: "已交付",
+              };
+              return (
+                <div key={i} className="flex items-center gap-3 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                  <span className="text-neutral-600">{statusLabels[entry.status] || entry.status}</span>
+                  <span className="text-xs text-neutral-400">
+                    {new Date(entry.timestamp).toLocaleString("zh-CN")}
                   </span>
                 </div>
-                <span className="text-xs text-neutral-400">
-                  {new Date(entry.timestamp).toLocaleString("zh-CN")}
-                </span>
-              </div>
-            ))}
+              );
+            })}
         </div>
       </section>
     </div>

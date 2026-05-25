@@ -3,11 +3,12 @@
 import { useCallback } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { cn } from "@/lib/utils";
+import { UploadCloud } from "lucide-react";
 
 interface FileUploadProps {
   onFiles: (files: File[]) => void;
   accept?: Record<string, string[]>;
-  maxSize?: number; // bytes
+  maxSize?: number;
   maxFiles?: number;
   multiple?: boolean;
   label?: string;
@@ -19,10 +20,10 @@ interface FileUploadProps {
 export function FileUpload({
   onFiles,
   accept,
-  maxSize = 20 * 1024 * 1024, // 20MB
+  maxSize = 20 * 1024 * 1024,
   maxFiles = 5,
   multiple = true,
-  label = "点击或拖拽文件到此处",
+  label = "鐐瑰嚮鎴栨嫋鎷芥枃浠跺埌姝ゅ",
   hint,
   className,
   disabled,
@@ -33,7 +34,7 @@ export function FileUpload({
         const reasons = rejections
           .map((r) => `${r.file.name}: ${r.errors.map((e) => e.message).join(", ")}`)
           .join("\n");
-        alert(`以下文件不符合要求：\n${reasons}`);
+        alert(`浠ヤ笅鏂囦欢涓嶇鍚堣姹傦細\n${reasons}`);
       }
       if (accepted.length > 0) {
         onFiles(accepted);
@@ -55,31 +56,35 @@ export function FileUpload({
     <div
       {...getRootProps()}
       className={cn(
-        "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
+        "relative overflow-hidden rounded-2xl border-2 border-dashed p-10 text-center cursor-pointer transition-all duration-300 group",
         isDragActive
-          ? "border-primary bg-primary/5"
-          : "border-neutral-200 hover:border-neutral-400",
+          ? "border-primary bg-primary-lighter scale-[1.02]"
+          : "border-neutral-200 hover:border-primary/50 hover:bg-neutral-50",
         disabled && "opacity-50 cursor-not-allowed",
         className
       )}
     >
+      {/* Decorative gradient on hover */}
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
       <input {...getInputProps()} />
-      <div className="flex flex-col items-center gap-2">
-        <svg
-          className="w-8 h-8 text-neutral-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      <div className="relative flex flex-col items-center gap-3">
+        <div
+          className={cn(
+            "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300",
+            isDragActive
+              ? "bg-primary text-white scale-110"
+              : "bg-neutral-100 text-neutral-400 group-hover:bg-primary/10 group-hover:text-primary"
+          )}
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-          />
-        </svg>
-        <p className="text-sm text-neutral-600">{isDragActive ? "释放以上传文件" : label}</p>
-        {hint && <p className="text-xs text-neutral-400">{hint}</p>}
+          <UploadCloud className="w-7 h-7" strokeWidth={1.5} />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-neutral-700">
+            {isDragActive ? "閲婃斁浠ヤ笂浼犳枃浠?" : label}
+          </p>
+          {hint && <p className="text-xs text-neutral-400">{hint}</p>}
+        </div>
       </div>
     </div>
   );

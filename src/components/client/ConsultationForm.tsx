@@ -10,29 +10,23 @@ import {
   BUDGET_OPTIONS,
   type ConsultationFormData,
 } from "@/lib/consultation-schema";
-import { submitConsultation } from "@/lib/mock";
 import { LogoUploadArea, MascotUploadArea, ReferenceUploadArea } from "./FileUploadArea";
 import { Loader2 } from "lucide-react";
-
-interface UploadedFile {
-  name: string;
-  size: number;
-}
-
-interface MascotItem extends UploadedFile {
-  name_value: string;
-  personality_value: string;
-}
 
 export function ConsultationForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // 文件状态
-  const [logoFiles, setLogoFiles] = useState<UploadedFile[]>([]);
-  const [mascotItems, setMascotItems] = useState<MascotItem[]>([]);
-  const [referenceFile, setReferenceFile] = useState<UploadedFile | null>(null);
+  // Store actual File objects for real upload
+  const [logoFileList, setLogoFileList] = useState<File[]>([]);
+  const [mascotFileList, setMascotFileList] = useState<File[]>([]);
+  const [referenceFileList, setReferenceFileList] = useState<File[]>([]);
+
+  // Mascot metadata
+  const [mascotNames, setMascotNames] = useState<string[]>([]);
+  const [mascotPersonalities, setMascotPersonalities] = useState<string[]>([]);
+
   const [referenceEnabled, setReferenceEnabled] = useState(true);
 
   const {
@@ -43,32 +37,23 @@ export function ConsultationForm() {
     resolver: zodResolver(consultationSchema),
   });
 
-  // 文件添加处理
-  const addLogoFiles = (files: File[]) => {
-    const newFiles = files.map((f) => ({ name: f.name, size: f.size }));
-    setLogoFiles((prev) => [...prev, ...newFiles].slice(0, 5));
-  };
+  // Uploaded file previews are derived from File[] state directly in component renders
 
-  const addMascotFiles = (files: File[]) => {
-    const newItems = files.map((f) => ({
-      name: f.name,
-      size: f.size,
-      name_value: "",
-      personality_value: "",
-    }));
-    setMascotItems((prev) => [...prev, ...newItems].slice(0, 10));
-  };
-
-  const addReferenceFile = (files: File[]) => {
-    if (files.length > 0) {
-      setReferenceFile({ name: files[0].name, size: files[0].size });
+  // Upload a list of files to /api/upload, returns file metadata array
+  async function uploadFiles(files: File[], fieldName = "files"): Promise<{ fileName: string; url: string; size: number }[]> {
+    if (files.length === 0) return [];
+    const formData = new FormData();
+    for (const f of files) {
+      formData.append(fieldName, f);
     }
-  };
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+    const data = await res.json();
+    return data.files || [];
+  }
 
-  // 提交处理
   const onSubmit = async (data: ConsultationFormData) => {
-    // 验证至少上传了 LOGO
-    if (logoFiles.length === 0) {
+    if (logoFileList.length === 0) {
       alert("请至少上传一个品牌 Logo");
       return;
     }
@@ -77,22 +62,48 @@ export function ConsultationForm() {
     setSubmitError(null);
 
     try {
-      const result = await submitConsultation({
-        ...data,
-        logoFiles: logoFiles.map((f) => f.name),
-        mascotItems: mascotItems.map((m) => ({
-          name: m.name,
-          name_value: m.name_value,
-          personality: m.personality_value,
-        })),
-        referenceFile: referenceFile?.name ?? null,
-        referenceEnabled,
+      // Step 1: Upload all files in parallel
+      const [logoAssets, mascotAssetsList, refAssets] = await Promise.all([
+        uploadFiles(logoFileList),
+        uploadFiles(mascotFileList, "files"),
+        referenceFileList.length > 0 ? uploadFiles(referenceFileList, "files") : Promise.resolve([] as { fileName: string; url: string; size: number }[]),
+      ]);
+
+      // Step 2: Build mascot items with metadata
+      const mascotItems = mascotAssetsList.map((file, i) => ({
+        name: mascotNames[i] || file.fileName,
+        personality: mascotPersonalities[i] || "",
+        files: [file],
+      }));
+
+      // Step 3: Build reference manual
+      const referenceManual = refAssets.length > 0
+        ? { ...refAssets[0], pageCount: 0, isReferenceEnabled: referenceEnabled, referenceMode: (referenceEnabled ? "weak" as const : "none" as const) }
+        : undefined;
+
+      // Step 4: Submit to /api/submit
+      const submitRes = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          logoFiles: logoAssets,
+          mascotItems,
+          referenceFile: referenceManual,
+          referenceEnabled,
+        }),
       });
 
-      // 跳转到确认页
+      if (!submitRes.ok) {
+        const errData = await submitRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Submit failed: ${submitRes.status}`);
+      }
+
+      const result = await submitRes.json();
       router.push(`/confirm?projectId=${result.projectId}`);
-    } catch {
-      setSubmitError("提交失败，请稍后重试");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "提交失败，请稍后重试";
+      setSubmitError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -107,7 +118,7 @@ export function ConsultationForm() {
           {/* 姓名 */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">
-              联系人姓名 <span className="text-danger">*</span>
+              联系人姓名<span className="text-danger">*</span>
             </label>
             <input
               {...register("clientName")}
@@ -162,7 +173,7 @@ export function ConsultationForm() {
           {/* 行业 */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">
-              所属行业 <span className="text-danger">*</span>
+              所属行业<span className="text-danger">*</span>
             </label>
             <select
               {...register("industry")}
@@ -217,26 +228,36 @@ export function ConsultationForm() {
         <h3 className="text-lg font-semibold text-neutral-900 mb-4">品牌素材</h3>
         <div className="space-y-6">
           <LogoUploadArea
-            files={logoFiles}
-            onAdd={addLogoFiles}
-            onRemove={(i) => setLogoFiles((prev) => prev.filter((_, idx) => idx !== i))}
+            files={logoFileList}
+            onAdd={(files) => setLogoFileList((prev) => [...prev, ...files].slice(0, 5))}
+            onRemove={(i) => setLogoFileList((prev) => prev.filter((_, idx) => idx !== i))}
           />
           <MascotUploadArea
-            items={mascotItems}
-            onAdd={addMascotFiles}
-            onRemove={(i) => setMascotItems((prev) => prev.filter((_, idx) => idx !== i))}
+            files={mascotFileList}
+            names={mascotNames}
+            personalities={mascotPersonalities}
+            onAdd={(files) => {
+              setMascotFileList((prev) => [...prev, ...files].slice(0, 10));
+              setMascotNames((prev) => [...prev, ...files.map(() => "")].slice(0, 10));
+              setMascotPersonalities((prev) => [...prev, ...files.map(() => "")].slice(0, 10));
+            }}
+            onRemove={(i) => {
+              setMascotFileList((prev) => prev.filter((_, idx) => idx !== i));
+              setMascotNames((prev) => prev.filter((_, idx) => idx !== i));
+              setMascotPersonalities((prev) => prev.filter((_, idx) => idx !== i));
+            }}
             onNameChange={(i, v) =>
-              setMascotItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, name_value: v } : item)))
+              setMascotNames((prev) => prev.map((item, idx) => (idx === i ? v : item)))
             }
             onPersonalityChange={(i, v) =>
-              setMascotItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, personality_value: v } : item)))
+              setMascotPersonalities((prev) => prev.map((item, idx) => (idx === i ? v : item)))
             }
           />
           <ReferenceUploadArea
-            file={referenceFile}
+            file={referenceFileList[0] || null}
             referenceEnabled={referenceEnabled}
-            onAdd={addReferenceFile}
-            onRemove={() => setReferenceFile(null)}
+            onAdd={(files) => setReferenceFileList(files.slice(0, 1))}
+            onRemove={() => setReferenceFileList([])}
             onToggleReference={setReferenceEnabled}
           />
         </div>
@@ -255,7 +276,7 @@ export function ConsultationForm() {
         {isSubmitting ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            提交中...
+            正在上传并提交...
           </>
         ) : (
           "提交需求"

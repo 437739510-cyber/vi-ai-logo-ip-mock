@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { getManualByProject, getProjectById } from "@/lib/mock";
+import { getManualByProject } from "@/lib/mock";
 import type { ViManual } from "@/types";
 
 const PAGES = [
@@ -28,6 +27,16 @@ export default function PreviewPage({
   params: Promise<{ projectId: string }>;
 }) {
   const [manual, setManual] = useState<ViManual | null>(null);
+  const DEFAULT_PREVIEW_MANUAL: ViManual = {
+    id: "",
+    projectId: "",
+    cover: { title: "品牌视觉识别手册", subtitle: "Visual Identity Guidelines", version: "v1.0", date: new Date().toISOString().slice(0, 7), companyName: "官氏品牌" },
+    brandColors: { primary: { name: "品牌色", hex: "#1A73E8" }, secondary: { name: "辅助色", hex: "#34A853" }, accent: { name: "强调色", hex: "#FBBC04" }, neutrals: [{ name: "背景白", hex: "#F8F9FA" }, { name: "文字黑", hex: "#202124" }] },
+    typography: { chinese: { heading: { font: "Noto Sans SC", weights: [700, 500] }, body: { font: "Noto Sans SC", weights: [400] } }, english: { heading: { font: "Inter", weights: [700, 600] }, body: { font: "Inter", weights: [400] } } },
+    logoVariants: [],
+    auxiliaryGraphics: [],
+    applications: [],
+  };
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +48,12 @@ export default function PreviewPage({
         const { projectId: id } = await params;
         setProjectId(id);
         const [m] = await Promise.all([getManualByProject(id)]);
-        if (m) setManual(m);
+        if (m) {
+          setManual(m);
+        } else {
+          // Use default manual when no manual exists for new projects
+          setManual({ ...DEFAULT_PREVIEW_MANUAL, projectId: id });
+        }
       } catch {
         setError("加载失败");
       } finally {
@@ -60,7 +74,7 @@ export default function PreviewPage({
   }
 
   if (error) return <ErrorState message={error} />;
-  if (!manual) return notFound();
+  if (!manual) return <ErrorState message="加载中..." />;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">

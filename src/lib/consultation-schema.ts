@@ -12,6 +12,11 @@ export const consultationSchema = z.object({
   phone: z
     .string()
     .regex(/^1[3-9]\d{9}$/, "请输入正确的手机号（11 位数字）"),
+  email: z
+    .string()
+    .email("请输入正确的邮箱地址")
+    .optional()
+    .or(z.literal("")),
   wechat: z
     .string()
     .max(50, "微信号不超过 50 个字符")
@@ -38,13 +43,12 @@ export const INDUSTRY_OPTIONS = [
   "文化/传媒",
   "制造业",
   "其他",
-] as const;
+];
 
 export const BUDGET_OPTIONS = [
   "3000以下",
   "3000-5000",
   "5000-10000",
-  "10000-30000",
-  "30000以上",
-  "待定",
-] as const;
+  "10000-20000",
+  "20000以上",
+];

@@ -1,0 +1,112 @@
+[
+  {
+    "id": "MANUAL-1779698251732",
+    "projectId": "VI-20260525-22WV",
+    "cover": {
+      "title": "品牌视觉识别手册",
+      "subtitle": "Visual Identity Guidelines",
+      "version": "v1.0",
+      "date": "2026-05",
+      "companyName": "海南华粤食品工业有限公司"
+    },
+    "brandColors": {
+      "primary": {
+        "name": "青绿色",
+        "hex": "#6DBE45",
+        "cmyk": "46 0 73 0",
+        "rgb": "109,190,69"
+      },
+      "secondary": {
+        "name": "阳光橙",
+        "hex": "#FF8C00",
+        "cmyk": "0 45 100 0",
+        "rgb": "255,140,0"
+      },
+      "accent": {
+        "name": "海天蓝",
+        "hex": "#00B4D8",
+        "cmyk": "100 0 10 0",
+        "rgb": "0,180,216"
+      },
+      "neutrals": [
+        {
+          "name": "椰壳棕",
+          "hex": "#8B5A2B"
+        },
+        {
+          "name": "沙滩米",
+          "hex": "#F5DEB3"
+        }
+      ]
+    },
+    "typography": {
+      "chinese": {
+        "heading": {
+          "font": "思源黑体",
+          "weights": [
+            700,
+            500
+          ]
+        },
+        "body": {
+          "font": "思源宋体",
+          "weights": [
+            400
+          ]
+        }
+      },
+      "english": {
+        "heading": {
+          "font": "Montserrat",
+          "weights": [
+            700,
+            600
+          ]
+        },
+        "body": {
+          "font": "Open Sans",
+          "weights": [
+            400
+          ]
+        }
+      }
+    },
+    "referenceAnalysis": {
+      "used": true,
+      "extractedColors": [],
+      "extractedFonts": [],
+      "styleSummary": "无法解析，内容为乱码",
+      "analysisConfidence": 0
+    },
+    "logoVariants": [
+      {
+        "name": "横版组合",
+        "src": "/mock/manual/logo-horizontal.png"
+      },
+      {
+        "name": "竖版组合",
+        "src": "/mock/manual/logo-vertical.png"
+      }
+    ],
+    "auxiliaryGraphics": [
+      {
+        "name": "辅助图形-基础",
+        "src": "/mock/manual/pattern-base.svg"
+      }
+    ],
+    "applications": [
+      {
+        "type": "business_card",
+        "label": "名片",
+        "mockupUrl": "/mock/mockups/business-card.jpg",
+        "specs": "90×54mm, 300DPI"
+      },
+      {
+        "type": "letterhead",
+        "label": "信纸",
+        "mockupUrl": "/mock/mockups/letterhead.jpg",
+        "specs": "A4, 210×297mm"
+      }
+    ]
+  }
+]

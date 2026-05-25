@@ -9,6 +9,7 @@ import type { Project, ProjectFilters } from "@/types";
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [filters, setFilters] = useState<ProjectFilters>({
     status: "all",
     search: "",
@@ -21,6 +22,28 @@ export default function ProjectsPage() {
       setLoading(false);
     });
   }, [filters]);
+
+  const handleDelete = async (projectId: string) => {
+    if (!window.confirm("确定要删除此项目吗？此操作不可撤销。")) return;
+    setDeletingId(projectId);
+    try {
+      const res = await fetch("/api/delete-project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      } else {
+        alert("删除失败: " + (data.error || "未知错误"));
+      }
+    } catch {
+      alert("网络错误，请重试");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -36,7 +59,7 @@ export default function ProjectsPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-neutral-100 p-4">
-          <ProjectTable projects={projects} />
+          <ProjectTable projects={projects} onDelete={handleDelete} deletingId={deletingId} />
         </div>
       )}
     </div>
