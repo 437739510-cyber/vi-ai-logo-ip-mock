@@ -1,7 +1,8 @@
 // API Route: POST /api/submit
-// Save client submission + create project (server-side, uses fs/promises)
+// Save to Supabase + local JSON fallback
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, writeFile, mkdir } from "fs/promises";
+import { supabaseAdmin } from "@/lib/supabase";
+import { writeFile, readFile, mkdir } from "fs/promises";
 import path from "path";
 
 const MOCK_DIR = path.join(process.cwd(), "public", "mock");
@@ -10,15 +11,11 @@ async function loadJson<T>(filePath: string): Promise<T> {
   try {
     const data = await readFile(filePath, "utf-8");
     return JSON.parse(data);
-  } catch {
-    return [] as unknown as T;
-  }
+  } catch { return [] as unknown as T; }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    await mkdir(MOCK_DIR, { recursive: true });
-
     const body = await req.json();
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
@@ -28,48 +25,53 @@ export async function POST(req: NextRequest) {
 
     const submission = {
       id: submissionId,
-      clientName: body.clientName || "",
-      companyName: body.companyName || "",
+      client_name: body.clientName || "",
+      company_name: body.companyName || "",
       phone: body.phone || "",
       wechat: body.wechat || "",
       email: body.email || "",
       industry: body.industry || "",
-      budgetRange: body.budgetRange || "",
+      budget_range: body.budgetRange || "",
       description: body.description || "",
-      logoAssets: body.logoFiles || [],
-      mascotAssets: body.mascotItems || [],
-      referenceManual: body.referenceFile
+      logo_assets: body.logoFiles || [],
+      mascot_assets: body.mascotItems || [],
+      reference_manual: body.referenceFile
         ? { fileName: body.referenceFile.fileName, url: body.referenceFile.url, pageCount: 0, referenceMode: body.referenceEnabled ? "weak" : "none" }
-        : undefined,
-      submittedAt: now.toISOString(),
+        : null,
+      submitted_at: now.toISOString(),
     };
 
     const project = {
       id: projectId,
-      submissionId,
+      submission_id: submissionId,
       status: "submitted",
-      assignedTo: null,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
       timeline: [{ status: "submitted", timestamp: now.toISOString() }],
     };
 
-    // Persist to submissions.json
+    // 写入 Supabase
+    const { error: subErr } = await supabaseAdmin.from("submissions").insert(submission);
+    if (subErr) throw new Error("Supabase insert submission: " + subErr.message);
+
+    const { error: projErr } = await supabaseAdmin.from("projects").insert(project);
+    if (projErr) throw new Error("Supabase insert project: " + projErr.message);
+
+    // 同时写本地 JSON 作为备份
+    await mkdir(MOCK_DIR, { recursive: true });
     const subsPath = path.join(MOCK_DIR, "submissions.json");
     const subs = await loadJson<any[]>(subsPath);
-    subs.unshift(submission);
-    await writeFile(subsPath, JSON.stringify(subs, null, 2), "utf-8");
+    subs.unshift({ ...submission, clientName: submission.client_name, companyName: submission.company_name });
+    await writeFile(subsPath, JSON.stringify(subs, null, 2));
 
-    // Persist to projects.json
-    const projPath = path.join(MOCK_DIR, "projects.json");
-    const projs = await loadJson<any[]>(projPath);
+    const projsPath = path.join(MOCK_DIR, "projects.json");
+    const projs = await loadJson<any[]>(projsPath);
     projs.unshift(project);
-    await writeFile(projPath, JSON.stringify(projs, null, 2), "utf-8");
+    await writeFile(projsPath, JSON.stringify(projs, null, 2));
 
-    console.log(`[API] Saved project: ${projectId}`);
-    return NextResponse.json({ success: true, projectId });
+    return NextResponse.json({ success: true, projectId, submissionId });
   } catch (error) {
-    console.error("[API/submit] Error:", error);
-    return NextResponse.json({ error: "Failed to save" }, { status: 500 });
+    console.error("[SUBMIT] Error:", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Submit failed" }, { status: 500 });
   }
 }

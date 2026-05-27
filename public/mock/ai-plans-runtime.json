@@ -94,5 +94,53 @@
     "referenceMode": "weak",
     "isFavorited": false,
     "generatedAt": "2026-05-25T08:45:19.471Z"
+  },
+  {
+    "id": "PLAN-1779755343000-0",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 1",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-26T00:29:03.000Z"
+  },
+  {
+    "id": "PLAN-1779755343000-1",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 2",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-26T00:29:03.000Z"
+  },
+  {
+    "id": "PLAN-1779755343000-2",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 3",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-26T00:29:03.000Z"
   }
 ]

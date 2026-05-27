@@ -39,7 +39,7 @@ export function AIChatPanel({ isOpen, onToggle, projectId, manualContext }: AICh
 
     try {
       const apiMessages = messages
-        .filter((m) => m.role !== "system")
+        .filter((m) => m.role !== ("system" as any))
         .map((m) => ({ role: m.role === "ai" ? "assistant" : "user", content: m.content }));
       apiMessages.push({ role: "user", content: userMsg });
 

@@ -1,6 +1,7 @@
 // API Route: POST /api/ai/save-manual
-// 保存 AI 生成的完整 VI 手册到 runtime JSON 文件
+// Save to Supabase + local JSON fallback
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
 import { writeFile, readFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -10,9 +11,7 @@ async function loadExistingManuals(): Promise<any[]> {
   try {
     const data = await readFile(RUNTIME_PATH, "utf-8");
     return JSON.parse(data);
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 export async function POST(req: NextRequest) {
@@ -24,15 +23,23 @@ export async function POST(req: NextRequest) {
 
     await mkdir(path.dirname(RUNTIME_PATH), { recursive: true });
 
+    // 写入 Supabase
+    const dbManual = {
+      id: manual.id,
+      project_id: manual.projectId,
+      plan_id: manual.planId || null,
+      status: manual.status || "draft",
+      pages: manual.pages || [],
+      generated_at: manual.generatedAt || new Date().toISOString(),
+    };
+    const { error: dbErr } = await supabaseAdmin.from("vi_manuals").upsert(dbManual);
+    if (dbErr) console.warn("[save-manual] Supabase warning:", dbErr.message);
+
+    // 本地备份
     const existing = await loadExistingManuals();
     const idx = existing.findIndex((m: any) => m.projectId === manual.projectId);
-
-    if (idx >= 0) {
-      existing[idx] = manual;
-    } else {
-      existing.push(manual);
-    }
-
+    if (idx >= 0) existing[idx] = manual;
+    else existing.push(manual);
     await writeFile(RUNTIME_PATH, JSON.stringify(existing, null, 2), "utf-8");
 
     return NextResponse.json({ success: true, manualId: manual.id });

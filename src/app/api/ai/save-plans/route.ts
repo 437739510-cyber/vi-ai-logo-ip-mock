@@ -1,6 +1,7 @@
 // API Route: POST /api/ai/save-plans
-// Save AI-generated plans to a runtime JSON file so the mock layer can read them
+// Save to Supabase + local JSON fallback
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
 import { writeFile, readFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -10,9 +11,7 @@ async function loadExistingPlans(): Promise<any[]> {
   try {
     const data = await readFile(RUNTIME_PATH, "utf-8");
     return JSON.parse(data);
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 export async function POST(req: NextRequest) {
@@ -24,21 +23,31 @@ export async function POST(req: NextRequest) {
 
     await mkdir(path.dirname(RUNTIME_PATH), { recursive: true });
 
-    // Merge with existing plans (avoid duplicates by id)
+    // 写入 Supabase
+    const supabasePlans = plans.map((p: any) => ({
+      id: p.id,
+      project_id: p.projectId || p.project_id || "",
+      name: p.name || "未命名方案",
+      style: p.style || "",
+      description: p.description || "",
+      colors: p.colors || [],
+      typography: p.typography || [],
+      preview_url: p.previewUrl || p.preview_url || "",
+      mockup_urls: p.mockupUrls || p.mockup_urls || [],
+      is_favorite: p.isFavorite || p.is_favorite || false,
+    }));
+    const { error: dbErr } = await supabaseAdmin.from("ai_plans").upsert(supabasePlans);
+    if (dbErr) console.warn("[save-plans] Supabase warning:", dbErr.message);
+
+    // 本地备份
     const existing = await loadExistingPlans();
     const merged = [...existing];
-
     for (const plan of plans) {
       const idx = merged.findIndex((p: any) => p.id === plan.id);
-      if (idx >= 0) {
-        merged[idx] = plan;
-      } else {
-        merged.push(plan);
-      }
+      if (idx >= 0) merged[idx] = plan;
+      else merged.push(plan);
     }
-
     await writeFile(RUNTIME_PATH, JSON.stringify(merged, null, 2), "utf-8");
-    console.log(`[API/save-plans] Saved ${plans.length} plans (total: ${merged.length})`);
 
     return NextResponse.json({ success: true, count: plans.length, total: merged.length });
   } catch (error) {

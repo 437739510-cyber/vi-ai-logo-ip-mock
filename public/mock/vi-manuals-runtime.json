@@ -1,6 +1,6 @@
 [
   {
-    "id": "MANUAL-1779698251732",
+    "id": "MANUAL-1779755369640",
     "projectId": "VI-20260525-22WV",
     "cover": {
       "title": "品牌视觉识别手册",
@@ -11,31 +11,31 @@
     },
     "brandColors": {
       "primary": {
-        "name": "青绿色",
-        "hex": "#6DBE45",
-        "cmyk": "46 0 73 0",
-        "rgb": "109,190,69"
+        "name": "椰林绿",
+        "hex": "#2E8B57",
+        "cmyk": "60 0 100 0",
+        "rgb": "46,139,87"
       },
       "secondary": {
-        "name": "阳光橙",
-        "hex": "#FF8C00",
-        "cmyk": "0 45 100 0",
-        "rgb": "255,140,0"
+        "name": "海洋蓝",
+        "hex": "#0077BE",
+        "cmyk": "85 30 0 0",
+        "rgb": "0,119,190"
       },
       "accent": {
-        "name": "海天蓝",
-        "hex": "#00B4D8",
-        "cmyk": "100 0 10 0",
-        "rgb": "0,180,216"
+        "name": "阳光橙",
+        "hex": "#FF8C00",
+        "cmyk": "0 55 100 0",
+        "rgb": "255,140,0"
       },
       "neutrals": [
         {
-          "name": "椰壳棕",
-          "hex": "#8B5A2B"
+          "name": "椰壳灰",
+          "hex": "#5A5A5A"
         },
         {
-          "name": "沙滩米",
-          "hex": "#F5DEB3"
+          "name": "椰奶白",
+          "hex": "#F5F5DC"
         }
       ]
     },
@@ -72,10 +72,120 @@
       }
     },
     "referenceAnalysis": {
-      "used": true,
+      "used": false,
       "extractedColors": [],
       "extractedFonts": [],
-      "styleSummary": "无法解析，内容为乱码",
+      "styleSummary": "数据损坏，无法分析",
+      "analysisConfidence": 0
+    },
+    "logoVariants": [
+      {
+        "name": "横版组合",
+        "src": "/mock/manual/logo-horizontal.png"
+      },
+      {
+        "name": "竖版组合",
+        "src": "/mock/manual/logo-vertical.png"
+      }
+    ],
+    "auxiliaryGraphics": [
+      {
+        "name": "辅助图形-基础",
+        "src": "/mock/manual/pattern-base.svg"
+      }
+    ],
+    "applications": [
+      {
+        "type": "business_card",
+        "label": "名片",
+        "mockupUrl": "/mock/mockups/business-card.jpg",
+        "specs": "90×54mm, 300DPI"
+      },
+      {
+        "type": "letterhead",
+        "label": "信纸",
+        "mockupUrl": "/mock/mockups/letterhead.jpg",
+        "specs": "A4, 210×297mm"
+      }
+    ]
+  },
+  {
+    "id": "MANUAL-1779792720697",
+    "projectId": "VI-20260526-8ORD",
+    "cover": {
+      "title": "品牌视觉识别手册",
+      "subtitle": "Visual Identity Guidelines",
+      "version": "v1.0",
+      "date": "2026-05",
+      "companyName": "anna"
+    },
+    "brandColors": {
+      "primary": {
+        "name": "科技蓝",
+        "hex": "#0066FF",
+        "cmyk": "100 70 0 0",
+        "rgb": "0,102,255"
+      },
+      "secondary": {
+        "name": "活力紫",
+        "hex": "#7B2FF7",
+        "cmyk": "58 81 0 0",
+        "rgb": "123,47,247"
+      },
+      "accent": {
+        "name": "电光绿",
+        "hex": "#00FF88",
+        "cmyk": "70 0 70 0",
+        "rgb": "0,255,136"
+      },
+      "neutrals": [
+        {
+          "name": "深灰",
+          "hex": "#2D2D2D"
+        },
+        {
+          "name": "浅灰",
+          "hex": "#F5F5F5"
+        }
+      ]
+    },
+    "typography": {
+      "chinese": {
+        "heading": {
+          "font": "Noto Sans SC",
+          "weights": [
+            700,
+            500
+          ]
+        },
+        "body": {
+          "font": "Noto Sans SC",
+          "weights": [
+            400
+          ]
+        }
+      },
+      "english": {
+        "heading": {
+          "font": "Inter",
+          "weights": [
+            700,
+            600
+          ]
+        },
+        "body": {
+          "font": "Inter",
+          "weights": [
+            400
+          ]
+        }
+      }
+    },
+    "referenceAnalysis": {
+      "used": false,
+      "extractedColors": [],
+      "extractedFonts": [],
+      "styleSummary": "",
       "analysisConfidence": 0
     },
     "logoVariants": [
