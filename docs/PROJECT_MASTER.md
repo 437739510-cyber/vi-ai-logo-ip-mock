@@ -2,6 +2,17 @@
 
 > AI Brand Guideline Builder / AI 品牌规范生成平台
 
+---
+
+**Last Updated:** 2026-05-31
+**Current Stage:** Brand Brain Beta
+**Current Priority:** Mascot Designer Agent
+**Next Priority:** Style Extractor
+**Blockers:** 无
+**Latest Milestones:** Business Profile V1 / Memory Adapter V1 / Manual Quality Score V1
+
+---
+
 ## 项目定位
 
 **Brand Brain** 是一个 AI 品牌顾问系统，而不是 AI 图片生成器。
