@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-05-30T22:04:11.445Z",
+  "totalClients": 1,
+  "totalProjects": 1,
+  "industryCoverage": {
+    "food_beverage": {
+      "subCategories": [
+        "hotpot"
+      ],
+      "projectCount": 0
+    },
+    "technology_it": {
+      "subCategories": [
+        "ai"
+      ],
+      "projectCount": 0
+    },
+    "retail_ecommerce": {
+      "subCategories": [],
+      "projectCount": 0
+    },
+    "education_training": {
+      "subCategories": [
+        "online_learning"
+      ],
+      "projectCount": 0
+    },
+    "healthcare_medical": {
+      "subCategories": [],
+      "projectCount": 0
+    },
+    "finance_legal": {
+      "subCategories": [],
+      "projectCount": 0
+    },
+    "culture_media": {
+      "subCategories": [],
+      "projectCount": 0
+    },
+    "manufacturing": {
+      "subCategories": [],
+      "projectCount": 0
+    },
+    "hospitality_tourism": {
+      "subCategories": [],
+      "projectCount": 0
+    },
+    "real_estate": {
+      "subCategories": [],
+      "projectCount": 0
+    },
+    "other": {
+      "subCategories": [],
+      "projectCount": 0
+    }
+  }
+}

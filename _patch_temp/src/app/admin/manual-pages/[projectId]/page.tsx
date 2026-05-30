@@ -3,11 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Loader2, Hand, Play, Trash2 } from "lucide-react";
-// Brand Brain imports
-import type { BrandProfile } from "@/lib/brand-analyzer";
-import type { ModulePlan, RecommendedModule } from "@/lib/module-planner";
-import { modulePlanToPages } from "@/lib/module-to-page";
-import { DecisionLayer } from "@/components/admin/DecisionLayer";
 
 interface ManualPage {
   pageId: string;
@@ -56,6 +51,50 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   const [currentGenPage, setCurrentGenPage] = useState(0);
   const [waitingForReview, setWaitingForReview] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const livePagesRef = useRef<ManualPage[]>([]);
+  const liveErrorsRef = useRef<{ pageId: string; label: string; error: string }[]>([]);
+
+  useEffect(() => {
+    livePagesRef.current = livePages;
+  }, [livePages]);
+
+  useEffect(() => {
+    liveErrorsRef.current = liveErrors;
+  }, [liveErrors]);
+
+  const getPageOrder = (pageId: string) => {
+    const idx = PAGE_LABELS.findIndex((p) => p.id === pageId);
+    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+  };
+
+  const upsertPage = (pages: ManualPage[], page: ManualPage) => {
+    const pageId = page.pageId || "page-unknown";
+    const existing = pages.findIndex((p) => p.pageId === pageId);
+    const next = existing >= 0 ? [...pages] : [...pages, page];
+    if (existing >= 0) next[existing] = page;
+    return next.sort((a, b) => getPageOrder(a.pageId) - getPageOrder(b.pageId));
+  };
+
+  const upsertError = (
+    errors: { pageId: string; label: string; error: string }[],
+    error: { pageId: string; label: string; error: string }
+  ) => {
+    const existing = errors.findIndex((e) => e.pageId === error.pageId);
+    const next = existing >= 0 ? [...errors] : [...errors, error];
+    if (existing >= 0) next[existing] = error;
+    return next.sort((a, b) => getPageOrder(a.pageId) - getPageOrder(b.pageId));
+  };
+
+  const setPagesSnapshot = () => {
+    setPagesData({
+      projectId,
+      pages: livePagesRef.current,
+      errors: liveErrorsRef.current,
+      generatedAt: new Date().toISOString(),
+      totalPages: livePagesRef.current.length,
+      failedPages: liveErrorsRef.current.length,
+    });
+  };
 
   useEffect(() => {
     params.then(async (p) => {
@@ -73,6 +112,8 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
         setPagesData(data);
         setLivePages(data.pages || []);
         setLiveErrors(data.errors || []);
+        livePagesRef.current = data.pages || [];
+        liveErrorsRef.current = data.errors || [];
       }
     } catch {}
 
@@ -120,28 +161,37 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   // Manual mode: generate one page at a time
   const startManualGenerate = async () => {
     if (!projectId || generating) return;
+    const existingPages = livePagesRef.current.length > 0 ? livePagesRef.current : (pagesData?.pages || []);
+    const existingErrors = liveErrorsRef.current.length > 0 ? liveErrorsRef.current : (pagesData?.errors || []);
+    const startAt = existingPages.length > 0 && existingPages.length < PAGE_LABELS.length ? existingPages.length : 0;
+
     setGenerating(true);
+    setMode("manual");
     setWaitingForReview(false);
-    setCurrentGenPage(0);
-    setLivePages([]);
-    setLiveErrors([]);
-    setCurrentPage(0);
-    setProgress({ done: 0, total: 11 });
-    await generateOnePage(0);
+    setCurrentGenPage(startAt);
+    setCurrentPage(Math.max(0, startAt - 1));
+    setProgress({ done: startAt, total: PAGE_LABELS.length });
+
+    if (startAt === 0) {
+      setLivePages([]);
+      setLiveErrors([]);
+      livePagesRef.current = [];
+      liveErrorsRef.current = [];
+    } else {
+      setLivePages(existingPages);
+      setLiveErrors(existingErrors);
+      livePagesRef.current = existingPages;
+      liveErrorsRef.current = existingErrors;
+    }
+
+    await generateOnePage(startAt);
   };
 
   const generateOnePage = async (pageIndex: number) => {
     if (pageIndex >= PAGE_LABELS.length) {
       setGenerating(false);
       setWaitingForReview(false);
-      setPagesData({
-        projectId,
-        pages: livePages,
-        errors: liveErrors,
-        generatedAt: new Date().toISOString(),
-        totalPages: livePages.length,
-        failedPages: liveErrors.length,
-      });
+      setPagesSnapshot();
       return;
     }
 
@@ -206,24 +256,172 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   };
 
   const handleManualEvent = (event: string, data: any, pageIndex: number) => {
+    const targetIndex = typeof data.index === "number" ? data.index : pageIndex;
+    const pageMeta = PAGE_LABELS[targetIndex] || PAGE_LABELS.find((p) => p.id === data.pageId);
+    const pageId = data.pageId || pageMeta?.id || "page-" + targetIndex;
+
     switch (event) {
-      case "page:done":
+      case "page:done": {
+        const nextPage: ManualPage = {
+          pageId,
+          label: pageMeta?.label || data.label || pageId,
+          url: data.url,
+        };
         setLivePages((prev) => {
-          const updated = [...prev];
-          updated[pageIndex] = { pageId: data.pageId || 'page-' + pageIndex, label: PAGE_LABELS[pageIndex]?.label || data.label, url: data.url };
-          return updated.filter(Boolean);
+          const next = upsertPage(prev, nextPage);
+          livePagesRef.current = next;
+          return next;
         });
-        setProgress((p) => ({ ...p, done: p.done + 1 }));
-        setCurrentPage(pageIndex);
+        setLiveErrors((prev) => {
+          const next = prev.filter((e) => e.pageId !== pageId);
+          liveErrorsRef.current = next;
+          return next;
+        });
+        setProgress((p) => ({ ...p, done: Math.max(p.done, targetIndex + 1) }));
+        setCurrentGenPage(targetIndex);
+        setCurrentPage(Math.max(0, targetIndex));
         setWaitingForReview(true);
         break;
-      case "page:fail":
-        setLiveErrors((prev) => [...prev, { pageId: data.pageId, label: data.label, error: data.error }]);
-        setProgress((p) => ({ ...p, done: p.done + 1 }));
+      }
+      case "page:fail": {
+        const nextError = {
+          pageId,
+          label: pageMeta?.label || data.label || pageId,
+          error: data.error || "Generation failed",
+        };
+        setLiveErrors((prev) => {
+          const next = upsertError(prev, nextError);
+          liveErrorsRef.current = next;
+          return next;
+        });
+        setProgress((p) => ({ ...p, done: Math.max(p.done, targetIndex + 1) }));
+        setCurrentGenPage(targetIndex);
+        setCurrentPage(Math.max(0, targetIndex));
         setWaitingForReview(true);
         break;
+      }
       case "done":
         break;
+    }
+  };
+
+  const handleAutoEvent = (event: string, data: any) => {
+    const targetIndex = typeof data.index === "number" ? data.index : 0;
+    const pageMeta = PAGE_LABELS[targetIndex] || PAGE_LABELS.find((p) => p.id === data.pageId);
+    const pageId = data.pageId || pageMeta?.id || "page-" + targetIndex;
+
+    switch (event) {
+      case "page:start":
+        setCurrentGenPage(targetIndex);
+        break;
+      case "page:done": {
+        const nextPage: ManualPage = {
+          pageId,
+          label: pageMeta?.label || data.label || pageId,
+          url: data.url,
+        };
+        setLivePages((prev) => {
+          const next = upsertPage(prev, nextPage);
+          livePagesRef.current = next;
+          return next;
+        });
+        setLiveErrors((prev) => {
+          const next = prev.filter((e) => e.pageId !== pageId);
+          liveErrorsRef.current = next;
+          return next;
+        });
+        setProgress((p) => ({ ...p, done: Math.max(p.done, targetIndex + 1) }));
+        setCurrentPage(targetIndex);
+        break;
+      }
+      case "page:fail": {
+        const nextError = {
+          pageId,
+          label: pageMeta?.label || data.label || pageId,
+          error: data.error || "Generation failed",
+        };
+        setLiveErrors((prev) => {
+          const next = upsertError(prev, nextError);
+          liveErrorsRef.current = next;
+          return next;
+        });
+        setProgress((p) => ({ ...p, done: Math.max(p.done, targetIndex + 1) }));
+        break;
+      }
+      case "done":
+        setGenerating(false);
+        setWaitingForReview(false);
+        setPagesSnapshot();
+        break;
+    }
+  };
+
+  const startAutoGenerate = async () => {
+    if (!projectId || generating) return;
+    setMode("auto");
+    setGenerating(true);
+    setWaitingForReview(false);
+    setCurrentGenPage(0);
+    setCurrentPage(0);
+    setLivePages([]);
+    setLiveErrors([]);
+    livePagesRef.current = [];
+    liveErrorsRef.current = [];
+    setProgress({ done: 0, total: PAGE_LABELS.length });
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const res = await fetch("/api/ai/generate-manual-pages-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          clientInfo: clientInfo || { companyName: "品牌名称", industry: "未指定" },
+          logoUrl, mascotUrl, refId: refId || undefined,
+          maxPages: PAGE_LABELS.length,
+          startPage: 0,
+          brandColors: realBrandColors || {
+            primary: { name: "品牌色", hex: "#1A73E8" },
+            secondary: { name: "辅助色", hex: "#34A853" },
+            accent: { name: "强调色", hex: "#FBBC04" },
+          },
+        }),
+        signal: controller.signal,
+      });
+
+      if (!res.body) throw new Error("No response body");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              handleAutoEvent(currentEvent, data);
+            } catch {}
+          }
+        }
+      }
+    } catch (e: any) {
+      if (e && e.name !== "AbortError") {
+        alert("生成失败: " + (e.message || String(e)));
+      }
+      setGenerating(false);
+      setWaitingForReview(false);
+    } finally {
+      abortRef.current = null;
     }
   };
 
@@ -232,14 +430,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     if (nextIdx >= PAGE_LABELS.length) {
       setGenerating(false);
       setWaitingForReview(false);
-      setPagesData({
-        projectId,
-        pages: livePages,
-        errors: liveErrors,
-        generatedAt: new Date().toISOString(),
-        totalPages: livePages.length,
-        failedPages: liveErrors.length,
-      });
+      setPagesSnapshot();
     } else {
       setWaitingForReview(false);
       generateOnePage(nextIdx);
@@ -247,9 +438,18 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   };
 
   const handleRegenerate = () => {
-    setLivePages((prev) => prev.filter((_, i) => i !== currentGenPage));
-    setLiveErrors((prev) => prev.filter((_, i) => i !== currentGenPage));
-    setProgress((p) => ({ ...p, done: Math.max(0, p.done - 1) }));
+    const pageId = PAGE_LABELS[currentGenPage]?.id;
+    setLivePages((prev) => {
+      const next = pageId ? prev.filter((p) => p.pageId !== pageId) : prev;
+      livePagesRef.current = next;
+      return next;
+    });
+    setLiveErrors((prev) => {
+      const next = pageId ? prev.filter((e) => e.pageId !== pageId) : prev;
+      liveErrorsRef.current = next;
+      return next;
+    });
+    setProgress((p) => ({ ...p, done: Math.max(0, currentGenPage) }));
     setWaitingForReview(false);
     generateOnePage(currentGenPage);
   };
@@ -260,14 +460,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     }
     setGenerating(false);
     setWaitingForReview(false);
-    setPagesData({
-      projectId,
-      pages: livePages,
-      errors: liveErrors,
-      generatedAt: new Date().toISOString(),
-      totalPages: livePages.length,
-      failedPages: liveErrors.length,
-    });
+    setPagesSnapshot();
   };
 
   const handleClearPages = async () => {
@@ -283,7 +476,10 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
         setPagesData(null);
         setLivePages([]);
         setLiveErrors([]);
-        setProgress({ done: 0, total: 11 });
+        livePagesRef.current = [];
+        liveErrorsRef.current = [];
+        setCurrentPage(0);
+        setProgress({ done: 0, total: PAGE_LABELS.length });
       } else {
         alert("\u5220\u9664\u5931\u8d25: " + (data.error || "\u672a\u77e5\u9519\u8bef"));
       }
@@ -291,6 +487,19 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
       alert("\u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5");
     }
   };
+
+  const displayPages = generating ? livePages : (pagesData?.pages || []);
+  const displayErrors = generating ? liveErrors : (pagesData?.errors || []);
+
+  useEffect(() => {
+    if (!generating || !waitingForReview || displayPages.length === 0) return;
+    const expectedPageId = PAGE_LABELS[currentGenPage]?.id;
+    if (!expectedPageId) return;
+    const idx = displayPages.findIndex((p) => p.pageId === expectedPageId);
+    if (idx >= 0 && currentPage !== idx) {
+      setCurrentPage(idx);
+    }
+  }, [generating, waitingForReview, currentGenPage, currentPage, displayPages.length]);
 
   if (loading) {
     return (
@@ -302,10 +511,9 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     );
   }
 
-  const displayPages = generating ? livePages : (pagesData?.pages || []);
-  const displayErrors = generating ? liveErrors : (pagesData?.errors || []);
-
-  const safeIdx = Math.min(currentPage, Math.max(0, displayPages.length - 1));
+  const safeIdx = displayPages.length === 0
+    ? 0
+    : Math.max(0, Math.min(currentPage, displayPages.length - 1));
   const currentImage = displayPages.length > 0 ? displayPages[safeIdx] : null;
 
   return (
@@ -354,7 +562,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
 
         <div className="flex gap-2">
           {mode === "auto" && (
-            <button onClick={() => {}/*auto generate*/} disabled={generating}
+            <button onClick={startAutoGenerate} disabled={generating}
               className="px-5 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-lg shadow-primary/20"
             >
               {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> {"\u751f\u6210\u4e2d"}{progress.done}/{progress.total}</> : <><Sparkles className="w-4 h-4" /> {displayPages.length > 0 ? "\u91cd\u65b0\u751f\u6210" : "AI \u751f\u6210\u5168\u90e8"}</>}
@@ -428,7 +636,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
             <div className="aspect-[1/1] max-h-[70vh] bg-white rounded-lg overflow-hidden flex items-center justify-center shadow-sm relative">
               {currentImage ? (
                 <>
-                  <img src={currentImage.url + "?t=" + Date.now()} alt={currentImage.label} className="max-w-full max-h-full object-contain" />
+                  <img key={currentImage.url} src={currentImage.url} alt={currentImage.label} className="max-w-full max-h-full object-contain" />
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 pt-8">
                     <span className="text-white text-lg font-bold drop-shadow-lg">
                       {"\u7b2c"}{safeIdx + 1}/{displayPages.length}{"\u9875 \u2014 "}{currentImage.label}

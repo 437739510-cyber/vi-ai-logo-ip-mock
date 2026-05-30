@@ -1,0 +1,19 @@
+[
+  {
+    "clientId": "????",
+    "companyName": "????",
+    "industry": "??",
+    "industryCategory": "other",
+    "hasLogo": false,
+    "hasMascot": false,
+    "brandStage": "unknown",
+    "projectIds": [
+      "VI-20260528-NDKW"
+    ],
+    "latestBrainResultId": "VI-20260528-NDKW",
+    "createdAt": "2026-05-30T22:04:11.435Z",
+    "updatedAt": "2026-05-30T22:04:11.435Z",
+    "projectCount": 1,
+    "targetAudience": "未指定"
+  }
+]

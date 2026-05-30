@@ -1,0 +1,765 @@
+[
+  {
+    "projectId": "VI-20260528-NDKW",
+    "clientId": "????",
+    "companyName": "????",
+    "brainResults": [
+      {
+        "timestamp": "2026-05-30T22:04:11.440Z",
+        "brandProfile": {
+          "brandType": "unknown",
+          "confidence": 0.3,
+          "brandPersona": [],
+          "industry": "??",
+          "industryCategory": "other",
+          "hasLogo": false,
+          "hasMascot": false,
+          "logoCount": 0,
+          "mascotCount": 0,
+          "brandStage": "unknown",
+          "targetAudience": "未指定",
+          "differentiators": [],
+          "visualDirection": "minimal_modern",
+          "brandPositioning": "???? — 品牌",
+          "brandVoice": [],
+          "brandArchetype": "regular_guy",
+          "analysis": {
+            "brandVisionKeywords": [],
+            "coreValueKeywords": [],
+            "marketKeywords": []
+          }
+        },
+        "modulePlan": {
+          "modulePlan": {
+            "profile": {
+              "brandType": "unknown",
+              "confidence": 0.3,
+              "brandPersona": [],
+              "industry": "??",
+              "industryCategory": "other",
+              "hasLogo": false,
+              "hasMascot": false,
+              "logoCount": 0,
+              "mascotCount": 0,
+              "brandStage": "unknown",
+              "targetAudience": "未指定",
+              "differentiators": [],
+              "visualDirection": "minimal_modern",
+              "brandPositioning": "???? — 品牌",
+              "brandVoice": [],
+              "brandArchetype": "regular_guy",
+              "analysis": {
+                "brandVisionKeywords": [],
+                "coreValueKeywords": [],
+                "marketKeywords": []
+              }
+            },
+            "industryProfile": {
+              "category": "other",
+              "label": "其他",
+              "designStyle": [
+                "简洁专业",
+                "可根据需求定制"
+              ],
+              "colorTendency": [
+                "中性色为主",
+                "品牌识别色"
+              ],
+              "typographyStyle": [
+                "通用无衬线体",
+                "清晰易读"
+              ],
+              "typicalModules": [
+                "品牌故事",
+                "Logo规范",
+                "品牌色",
+                "字体系统",
+                "办公应用系统",
+                "宣传物料"
+              ],
+              "recommendedPageRange": [
+                8,
+                12
+              ],
+              "visualKeywords": [
+                "clean",
+                "professional",
+                "versatile"
+              ],
+              "sampleBrands": []
+            },
+            "modules": [
+              {
+                "id": "cover",
+                "label": "封面",
+                "description": "VI手册封面，展示品牌名称、Logo和IP形象",
+                "priority": "essential",
+                "score": 100,
+                "estimatedPages": 1,
+                "reason": "所有VI手册都需要的封面页",
+                "protectedAssets": [
+                  "logo",
+                  "mascot"
+                ]
+              },
+              {
+                "id": "logo-specs",
+                "label": "Logo规范",
+                "description": "标准Logo、组合规范、最小尺寸、保护空间、错误用法",
+                "priority": "essential",
+                "score": 95,
+                "estimatedPages": 2,
+                "reason": "Logo是品牌最核心的视觉资产，需要完整规范",
+                "protectedAssets": [
+                  "logo"
+                ]
+              },
+              {
+                "id": "brand-story",
+                "label": "品牌故事",
+                "description": "品牌愿景、使命、核心价值与发展历程",
+                "priority": "essential",
+                "score": 90,
+                "estimatedPages": 1,
+                "reason": "帮助受众理解品牌起源与核心理念"
+              },
+              {
+                "id": "brand-colors",
+                "label": "品牌色彩系统",
+                "description": "主色、辅助色、强调色及应用规范",
+                "priority": "essential",
+                "score": 90,
+                "estimatedPages": 2,
+                "reason": "色彩系统是品牌识别的基础"
+              },
+              {
+                "id": "closing",
+                "label": "感谢/封底",
+                "description": "VI手册封底，含联系方式与版权信息",
+                "priority": "essential",
+                "score": 90,
+                "estimatedPages": 1,
+                "reason": "VI手册结束页，展示品牌联系方式",
+                "protectedAssets": [
+                  "logo",
+                  "mascot"
+                ]
+              },
+              {
+                "id": "typography",
+                "label": "字体系统",
+                "description": "中英文字体规范、字号层级、应用规则",
+                "priority": "essential",
+                "score": 85,
+                "estimatedPages": 2,
+                "reason": "统一字体系统确保品牌传达的一致性"
+              },
+              {
+                "id": "packaging",
+                "label": "产品包装系统",
+                "description": "产品包装设计规范与版式示例",
+                "priority": "recommended",
+                "score": 60,
+                "estimatedPages": 2,
+                "reason": "产品包装是品牌的重要接触点"
+              },
+              {
+                "id": "retail-store",
+                "label": "线下门店系统",
+                "description": "门店空间设计、陈列规范、导视系统",
+                "priority": "recommended",
+                "score": 55,
+                "estimatedPages": 2,
+                "reason": "餐饮/零售品牌的门店体验是最重要的品牌触点之一"
+              },
+              {
+                "id": "social-media",
+                "label": "社媒内容系统",
+                "description": "社交媒体封面、内容模板、视觉规范",
+                "priority": "recommended",
+                "score": 55,
+                "estimatedPages": 2,
+                "reason": "社媒内容是消费品牌与用户互动的主要渠道"
+              },
+              {
+                "id": "ip-specs",
+                "label": "IP形象规范",
+                "description": "IP公仔标准姿态、表情、应用规则与保护规范",
+                "priority": "recommended",
+                "score": 50,
+                "estimatedPages": 2,
+                "reason": "品牌拥有IP公仔，需建立完整IP使用规范以避免滥用",
+                "protectedAssets": [
+                  "mascot"
+                ]
+              },
+              {
+                "id": "office-apps",
+                "label": "办公应用系统",
+                "description": "名片、信封、PPT模板、邮件签名等办公物料规范",
+                "priority": "recommended",
+                "score": 45,
+                "estimatedPages": 2,
+                "reason": "办公物料是品牌日常对外输出的高频触点"
+              },
+              {
+                "id": "marketing-collateral",
+                "label": "宣传物料系统",
+                "description": "宣传册、海报、展会物料等应用规范",
+                "priority": "recommended",
+                "score": 40,
+                "estimatedPages": 1,
+                "reason": "线下宣传物料是品牌展示实力的重要窗口"
+              },
+              {
+                "id": "digital-products",
+                "label": "数字产品界面规范",
+                "description": "网站/App UI组件、数字广告规范",
+                "priority": "optional",
+                "score": 30,
+                "estimatedPages": 2,
+                "reason": "科技品牌的数字产品界面需要与品牌视觉统一"
+              },
+              {
+                "id": "signage-wayfinding",
+                "label": "空间导视系统",
+                "description": "室内外标识、指引系统、环境图形规范",
+                "priority": "optional",
+                "score": 25,
+                "estimatedPages": 2,
+                "reason": "酒店/旅游品牌的空间体验是品牌的核心组成部分"
+              },
+              {
+                "id": "event-exhibition",
+                "label": "展会/活动视觉规范",
+                "description": "展台设计、活动物料、赞助视觉规范",
+                "priority": "optional",
+                "score": 20,
+                "estimatedPages": 1,
+                "reason": "展会和活动是行业品牌展示专业形象的关键场合"
+              }
+            ],
+            "totalEstimatedPages": 25,
+            "pageRange": [
+              9,
+              25
+            ],
+            "summary": "??品牌 · 人格： · 推荐 6 个核心模块 + 6 个推荐模块 · 预估共 25 页",
+            "packageRecommendation": {
+              "recommended": {
+                "id": "basic_vi",
+                "name": "基础VI",
+                "description": "品牌视觉识别基础规范",
+                "targetClients": [
+                  "初创企业",
+                  "小微企业",
+                  "已有Logo但缺规范的客户",
+                  "B2B/制造/服务企业"
+                ],
+                "includedModules": [
+                  "cover",
+                  "logo-specs",
+                  "brand-colors",
+                  "typography",
+                  "office-apps",
+                  "closing"
+                ],
+                "optionalModules": [
+                  "brand-story",
+                  "marketing-collateral"
+                ],
+                "estimatedPages": [
+                  12,
+                  18
+                ],
+                "estimatedApiCalls": 8,
+                "estimatedMinutes": 8,
+                "features": [
+                  "Logo 完整规范（组合/网格/最小尺寸/保护空间/颜色/错误用法）",
+                  "色彩系统（主色/辅助色/配色原则）",
+                  "字体系统（中英文/字号层级）",
+                  "办公应用规范（名片/信纸/PPT）",
+                  "白底+品牌色，简洁专业"
+                ]
+              },
+              "confidence": 0,
+              "reason": "基于品牌基础信息推荐",
+              "alternatives": [
+                {
+                  "package": {
+                    "id": "brand_vi",
+                    "name": "品牌VI",
+                    "description": "完整品牌视觉识别体系",
+                    "targetClients": [
+                      "成长型企业",
+                      "品牌升级客户",
+                      "对外招商企业",
+                      "需要统一销售物料的客户"
+                    ],
+                    "includedModules": [
+                      "cover",
+                      "brand-story",
+                      "logo-specs",
+                      "brand-colors",
+                      "typography",
+                      "office-apps",
+                      "marketing-collateral",
+                      "social-media",
+                      "digital-products",
+                      "closing"
+                    ],
+                    "optionalModules": [
+                      "packaging",
+                      "retail-store",
+                      "event-exhibition"
+                    ],
+                    "estimatedPages": [
+                      18,
+                      30
+                    ],
+                    "estimatedApiCalls": 12,
+                    "estimatedMinutes": 12,
+                    "features": [
+                      "基础VI全部内容",
+                      "品牌架构与联合署名规范",
+                      "海报/资料封面/社交头像规范",
+                      "宣传物料系统",
+                      "数字媒体规范",
+                      "品牌故事与核心理念"
+                    ]
+                  },
+                  "reason": "备选方案（评分差 0 分）"
+                }
+              ]
+            }
+          },
+          "pagePlan": {
+            "pageIds": [
+              "cover",
+              "logo-interpretation",
+              "logo-usage",
+              "logo-variants",
+              "brand-story",
+              "brand-colors",
+              "color-psychology",
+              "closing",
+              "typography",
+              "packaging-1",
+              "packaging-2",
+              "store-signage",
+              "store-display",
+              "social-media-cover",
+              "social-media-template",
+              "ip-standard",
+              "ip-expression",
+              "ip-usage",
+              "business-card",
+              "letterhead",
+              "ppt-template",
+              "brochure",
+              "poster"
+            ],
+            "pageLabels": [
+              {
+                "id": "cover",
+                "label": "封面",
+                "description": "封面（核心）"
+              },
+              {
+                "id": "logo-interpretation",
+                "label": "Logo规范",
+                "description": "Logo规范（核心）"
+              },
+              {
+                "id": "logo-usage",
+                "label": "Logo规范",
+                "description": "Logo规范（核心）"
+              },
+              {
+                "id": "logo-variants",
+                "label": "Logo规范",
+                "description": "Logo规范（核心）"
+              },
+              {
+                "id": "brand-story",
+                "label": "品牌故事",
+                "description": "品牌故事（核心）"
+              },
+              {
+                "id": "brand-colors",
+                "label": "品牌色彩系统",
+                "description": "品牌色彩系统（核心）"
+              },
+              {
+                "id": "color-psychology",
+                "label": "品牌色彩系统",
+                "description": "品牌色彩系统（核心）"
+              },
+              {
+                "id": "closing",
+                "label": "感谢/封底",
+                "description": "感谢/封底（核心）"
+              },
+              {
+                "id": "typography",
+                "label": "字体系统",
+                "description": "字体系统（核心）"
+              },
+              {
+                "id": "packaging-1",
+                "label": "产品包装系统",
+                "description": "产品包装系统（推荐）"
+              },
+              {
+                "id": "packaging-2",
+                "label": "产品包装系统",
+                "description": "产品包装系统（推荐）"
+              },
+              {
+                "id": "store-signage",
+                "label": "线下门店系统",
+                "description": "线下门店系统（推荐）"
+              },
+              {
+                "id": "store-display",
+                "label": "线下门店系统",
+                "description": "线下门店系统（推荐）"
+              },
+              {
+                "id": "social-media-cover",
+                "label": "社媒内容系统",
+                "description": "社媒内容系统（推荐）"
+              },
+              {
+                "id": "social-media-template",
+                "label": "社媒内容系统",
+                "description": "社媒内容系统（推荐）"
+              },
+              {
+                "id": "ip-standard",
+                "label": "IP形象规范",
+                "description": "IP形象规范（推荐）"
+              },
+              {
+                "id": "ip-expression",
+                "label": "IP形象规范",
+                "description": "IP形象规范（推荐）"
+              },
+              {
+                "id": "ip-usage",
+                "label": "IP形象规范",
+                "description": "IP形象规范（推荐）"
+              },
+              {
+                "id": "business-card",
+                "label": "办公应用系统",
+                "description": "办公应用系统（推荐）"
+              },
+              {
+                "id": "letterhead",
+                "label": "办公应用系统",
+                "description": "办公应用系统（推荐）"
+              },
+              {
+                "id": "ppt-template",
+                "label": "办公应用系统",
+                "description": "办公应用系统（推荐）"
+              },
+              {
+                "id": "brochure",
+                "label": "宣传物料系统",
+                "description": "宣传物料系统（推荐）"
+              },
+              {
+                "id": "poster",
+                "label": "宣传物料系统",
+                "description": "宣传物料系统（推荐）"
+              }
+            ],
+            "totalPages": 23,
+            "sourceModules": [
+              {
+                "id": "cover",
+                "label": "封面",
+                "description": "VI手册封面，展示品牌名称、Logo和IP形象",
+                "priority": "essential",
+                "score": 100,
+                "estimatedPages": 1,
+                "reason": "所有VI手册都需要的封面页",
+                "protectedAssets": [
+                  "logo",
+                  "mascot"
+                ]
+              },
+              {
+                "id": "logo-specs",
+                "label": "Logo规范",
+                "description": "标准Logo、组合规范、最小尺寸、保护空间、错误用法",
+                "priority": "essential",
+                "score": 95,
+                "estimatedPages": 2,
+                "reason": "Logo是品牌最核心的视觉资产，需要完整规范",
+                "protectedAssets": [
+                  "logo"
+                ]
+              },
+              {
+                "id": "brand-story",
+                "label": "品牌故事",
+                "description": "品牌愿景、使命、核心价值与发展历程",
+                "priority": "essential",
+                "score": 90,
+                "estimatedPages": 1,
+                "reason": "帮助受众理解品牌起源与核心理念"
+              },
+              {
+                "id": "brand-colors",
+                "label": "品牌色彩系统",
+                "description": "主色、辅助色、强调色及应用规范",
+                "priority": "essential",
+                "score": 90,
+                "estimatedPages": 2,
+                "reason": "色彩系统是品牌识别的基础"
+              },
+              {
+                "id": "closing",
+                "label": "感谢/封底",
+                "description": "VI手册封底，含联系方式与版权信息",
+                "priority": "essential",
+                "score": 90,
+                "estimatedPages": 1,
+                "reason": "VI手册结束页，展示品牌联系方式",
+                "protectedAssets": [
+                  "logo",
+                  "mascot"
+                ]
+              },
+              {
+                "id": "typography",
+                "label": "字体系统",
+                "description": "中英文字体规范、字号层级、应用规则",
+                "priority": "essential",
+                "score": 85,
+                "estimatedPages": 2,
+                "reason": "统一字体系统确保品牌传达的一致性"
+              },
+              {
+                "id": "packaging",
+                "label": "产品包装系统",
+                "description": "产品包装设计规范与版式示例",
+                "priority": "recommended",
+                "score": 60,
+                "estimatedPages": 2,
+                "reason": "产品包装是品牌的重要接触点"
+              },
+              {
+                "id": "retail-store",
+                "label": "线下门店系统",
+                "description": "门店空间设计、陈列规范、导视系统",
+                "priority": "recommended",
+                "score": 55,
+                "estimatedPages": 2,
+                "reason": "餐饮/零售品牌的门店体验是最重要的品牌触点之一"
+              },
+              {
+                "id": "social-media",
+                "label": "社媒内容系统",
+                "description": "社交媒体封面、内容模板、视觉规范",
+                "priority": "recommended",
+                "score": 55,
+                "estimatedPages": 2,
+                "reason": "社媒内容是消费品牌与用户互动的主要渠道"
+              },
+              {
+                "id": "ip-specs",
+                "label": "IP形象规范",
+                "description": "IP公仔标准姿态、表情、应用规则与保护规范",
+                "priority": "recommended",
+                "score": 50,
+                "estimatedPages": 2,
+                "reason": "品牌拥有IP公仔，需建立完整IP使用规范以避免滥用",
+                "protectedAssets": [
+                  "mascot"
+                ]
+              },
+              {
+                "id": "office-apps",
+                "label": "办公应用系统",
+                "description": "名片、信封、PPT模板、邮件签名等办公物料规范",
+                "priority": "recommended",
+                "score": 45,
+                "estimatedPages": 2,
+                "reason": "办公物料是品牌日常对外输出的高频触点"
+              },
+              {
+                "id": "marketing-collateral",
+                "label": "宣传物料系统",
+                "description": "宣传册、海报、展会物料等应用规范",
+                "priority": "recommended",
+                "score": 40,
+                "estimatedPages": 1,
+                "reason": "线下宣传物料是品牌展示实力的重要窗口"
+              }
+            ]
+          },
+          "summary": {
+            "essentialModules": 6,
+            "recommendedModules": 6,
+            "totalPages": 23,
+            "pageIds": [
+              "cover",
+              "logo-interpretation",
+              "logo-usage",
+              "logo-variants",
+              "brand-story",
+              "brand-colors",
+              "color-psychology",
+              "closing",
+              "typography",
+              "packaging-1",
+              "packaging-2",
+              "store-signage",
+              "store-display",
+              "social-media-cover",
+              "social-media-template",
+              "ip-standard",
+              "ip-expression",
+              "ip-usage",
+              "business-card",
+              "letterhead",
+              "ppt-template",
+              "brochure",
+              "poster"
+            ],
+            "pageLabels": [
+              {
+                "id": "cover",
+                "label": "封面",
+                "description": "封面（核心）"
+              },
+              {
+                "id": "logo-interpretation",
+                "label": "Logo规范",
+                "description": "Logo规范（核心）"
+              },
+              {
+                "id": "logo-usage",
+                "label": "Logo规范",
+                "description": "Logo规范（核心）"
+              },
+              {
+                "id": "logo-variants",
+                "label": "Logo规范",
+                "description": "Logo规范（核心）"
+              },
+              {
+                "id": "brand-story",
+                "label": "品牌故事",
+                "description": "品牌故事（核心）"
+              },
+              {
+                "id": "brand-colors",
+                "label": "品牌色彩系统",
+                "description": "品牌色彩系统（核心）"
+              },
+              {
+                "id": "color-psychology",
+                "label": "品牌色彩系统",
+                "description": "品牌色彩系统（核心）"
+              },
+              {
+                "id": "closing",
+                "label": "感谢/封底",
+                "description": "感谢/封底（核心）"
+              },
+              {
+                "id": "typography",
+                "label": "字体系统",
+                "description": "字体系统（核心）"
+              },
+              {
+                "id": "packaging-1",
+                "label": "产品包装系统",
+                "description": "产品包装系统（推荐）"
+              },
+              {
+                "id": "packaging-2",
+                "label": "产品包装系统",
+                "description": "产品包装系统（推荐）"
+              },
+              {
+                "id": "store-signage",
+                "label": "线下门店系统",
+                "description": "线下门店系统（推荐）"
+              },
+              {
+                "id": "store-display",
+                "label": "线下门店系统",
+                "description": "线下门店系统（推荐）"
+              },
+              {
+                "id": "social-media-cover",
+                "label": "社媒内容系统",
+                "description": "社媒内容系统（推荐）"
+              },
+              {
+                "id": "social-media-template",
+                "label": "社媒内容系统",
+                "description": "社媒内容系统（推荐）"
+              },
+              {
+                "id": "ip-standard",
+                "label": "IP形象规范",
+                "description": "IP形象规范（推荐）"
+              },
+              {
+                "id": "ip-expression",
+                "label": "IP形象规范",
+                "description": "IP形象规范（推荐）"
+              },
+              {
+                "id": "ip-usage",
+                "label": "IP形象规范",
+                "description": "IP形象规范（推荐）"
+              },
+              {
+                "id": "business-card",
+                "label": "办公应用系统",
+                "description": "办公应用系统（推荐）"
+              },
+              {
+                "id": "letterhead",
+                "label": "办公应用系统",
+                "description": "办公应用系统（推荐）"
+              },
+              {
+                "id": "ppt-template",
+                "label": "办公应用系统",
+                "description": "办公应用系统（推荐）"
+              },
+              {
+                "id": "brochure",
+                "label": "宣传物料系统",
+                "description": "宣传物料系统（推荐）"
+              },
+              {
+                "id": "poster",
+                "label": "宣传物料系统",
+                "description": "宣传物料系统（推荐）"
+              }
+            ]
+          },
+          "resourceEstimate": {
+            "estimatedApiCalls": 23,
+            "estimatedTimeMinutes": 19,
+            "estimatedCost": "待计算"
+          }
+        },
+        "generatedUrls": []
+      }
+    ],
+    "status": "analyzed",
+    "createdAt": "2026-05-30T22:04:11.441Z",
+    "updatedAt": "2026-05-30T22:04:11.441Z"
+  }
+]

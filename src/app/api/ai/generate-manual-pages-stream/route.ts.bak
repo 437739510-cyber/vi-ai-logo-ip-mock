@@ -30,59 +30,9 @@ const PAGE_DEFS = [
   { id: "closing", label: "感谢观看", desc: "VI manual back cover with contact info" },
 ];
 
-const PAGE_ORDER = new Map(PAGE_DEFS.map((page, index) => [page.id, index]));
-
-type ManualPageResult = { pageId: string; label: string; url: string };
-type ManualPageError = { pageId: string; label: string; error: string };
-
-function sortByPageOrder<T extends { pageId: string }>(items: T[]): T[] {
-  return [...items].sort((a, b) => {
-    const ai = PAGE_ORDER.get(a.pageId) ?? Number.MAX_SAFE_INTEGER;
-    const bi = PAGE_ORDER.get(b.pageId) ?? Number.MAX_SAFE_INTEGER;
-    return ai - bi;
-  });
-}
-
-function mergeByPageId<T extends { pageId: string }>(oldItems: T[], newItems: T[]): T[] {
-  const merged = new Map<string, T>();
-  for (const item of oldItems || []) merged.set(item.pageId, item);
-  for (const item of newItems || []) merged.set(item.pageId, item);
-  return sortByPageOrder(Array.from(merged.values()));
-}
-
-function inferLogoElements(clientInfo: any): string[] {
-  const text = [clientInfo?.logoPhilosophy, clientInfo?.brandVision, clientInfo?.coreValues, clientInfo?.targetMarket]
-    .filter(Boolean)
-    .join(" ");
-  const candidates = ["椰树", "海浪", "太阳", "椰子", "北纬18度", "健康能量", "岛屿", "热带", "自然", "工坊"];
-  const matched = candidates.filter((item) => text.includes(item));
-  return matched.length > 0 ? matched : ["品牌图形", "品牌名称", "品牌识别符号"];
-}
-
-function buildAssetAnalysis(clientInfo: any, logoUrl?: string, mascotUrl?: string) {
-  return {
-    logo: {
-      hasLogo: Boolean(logoUrl),
-      logoUrl,
-      elements: inferLogoElements(clientInfo),
-      styleTags: ["行业相关", "品牌原始资产", "不可重绘", "不可变形"],
-      meaning: clientInfo?.logoPhilosophy || "客户原始 Logo 资产，必须保持外观一致。",
-    },
-    mascot: {
-      hasMascot: Boolean(mascotUrl),
-      mascotUrl,
-      name: clientInfo?.mascotName || "品牌IP公仔",
-      style: clientInfo?.mascotStyle || "客户原始 IP 公仔资产，必须保持外观一致。",
-      personality: clientInfo?.mascotPersonality || "亲和、可信赖、具备品牌识别度",
-      description: clientInfo?.mascotPhilosophy || "客户原始 IP 公仔资产，只允许等比例缩放和排版使用。",
-    },
-  };
-}
-
-
 /** Negative prompt for background generation (no text, no logos, no characters) */
 const NEGATIVE_PROMPT_BG =
-  "文字，LOGO，IP公仔，人物，五官，假标志，假吉祥物，品牌符号，变形，扭曲，" +
+  "文字，LOGO，IP公仔，人物，五官，变形，扭曲，" +
   "低画质，模糊，噪点，杂色，风格杂乱";
 
 function sse(controller: ReadableStreamDefaultController, event: string, data: unknown) {
@@ -234,8 +184,7 @@ async function getBackgroundPrompt(
   if (clientInfo?.targetMarket) instruction += "\n目标市场：" + clientInfo.targetMarket;
   if (clientInfo?.logoPhilosophy) instruction += "\nLOGO设计理念：" + clientInfo.logoPhilosophy;
   if (clientInfo?.mascotPhilosophy) instruction += "\nIP公仔设计理念：" + clientInfo.mascotPhilosophy;
-  instruction += "\n\n重要规则：生成的图片中不能包含任何文字、LOGO、IP公仔、人物、品牌符号或类似客户Logo/IP的图形。只生成纯背景/底图。";
-  instruction += "\n客户原始Logo和IP公仔会在后续SVG合成层叠加，背景生成阶段严禁AI重绘、仿造、改造这些品牌资产。";
+  instruction += "\n\n重要规则：生成的图片中不能包含任何文字、LOGO、IP公仔、人物。只生成纯背景/底图。";
   instruction += "\n品牌：" + companyName;
   instruction += "\n页面类型：" + pageDef.label;
   instruction += "\n主色：" + priHex + "，辅助色：" + secHex + "，强调色：" + accHex;
@@ -460,7 +409,6 @@ export async function POST(req: Request) {
         industry: clientInfo?.industry || "",
       },
       brandColors: brandColors || { primary: { hex: "#1A73E8" }, secondary: { hex: "#34A853" }, accent: { hex: "#FBBC04" } },
-      assetAnalysis: buildAssetAnalysis(clientInfo, logoUrl, mascotUrl),
       templateId: refId || undefined,
     });
     for (const bp of blueprints) {
@@ -482,8 +430,8 @@ export async function POST(req: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      const results: ManualPageResult[] = [];
-      const errors: ManualPageError[] = [];
+      const results: { pageId: string; label: string; url: string }[] = [];
+      const errors: { pageId: string; label: string; error: string }[] = [];
       const startTime = Date.now();
       const pageTimings: Record<string, number> = {};
       try {
@@ -544,32 +492,9 @@ export async function POST(req: Request) {
           }
         }
 
+        const pagesData = { projectId, pages: results, errors, generatedAt: new Date().toISOString(), totalPages: results.length, failedPages: errors.length };
         const dataPath = path.join(process.cwd(), "public", "mock", "manual-pages-" + projectId + ".json");
         await mkdir(path.dirname(dataPath), { recursive: true });
-
-        let oldPages: ManualPageResult[] = [];
-        let oldErrors: ManualPageError[] = [];
-        try {
-          const oldData = JSON.parse(await readFile(dataPath, "utf-8"));
-          oldPages = Array.isArray(oldData.pages) ? oldData.pages : [];
-          oldErrors = Array.isArray(oldData.errors) ? oldData.errors : [];
-        } catch {
-          // No previous generated file, or invalid JSON. Start fresh.
-        }
-
-        const failedPageIds = new Set(errors.map((error) => error.pageId));
-        const successfulPageIds = new Set(results.map((page) => page.pageId));
-        const mergedPages = mergeByPageId(oldPages, results).filter((page) => !failedPageIds.has(page.pageId));
-        const mergedErrors = mergeByPageId(oldErrors, errors).filter((error) => !successfulPageIds.has(error.pageId));
-
-        const pagesData = {
-          projectId,
-          pages: mergedPages,
-          errors: mergedErrors,
-          generatedAt: new Date().toISOString(),
-          totalPages: mergedPages.length,
-          failedPages: mergedErrors.length,
-        };
         await writeFile(dataPath, JSON.stringify(pagesData, null, 2), "utf-8");
 
         // Save generation log for monitoring

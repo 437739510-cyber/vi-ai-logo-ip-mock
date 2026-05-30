@@ -5,10 +5,15 @@
       "pageId": "cover",
       "label": "封面",
       "url": "/generated/1780137648370-cover-final.png"
+    },
+    {
+      "pageId": "brand-philosophy",
+      "label": "品牌核心理念",
+      "url": "/generated/1780149314883-brand-philosophy-final.png"
     }
   ],
   "errors": [],
-  "generatedAt": "2026-05-30T10:40:48.487Z",
-  "totalPages": 1,
+  "generatedAt": "2026-05-30T13:55:15.213Z",
+  "totalPages": 2,
   "failedPages": 0
 }
