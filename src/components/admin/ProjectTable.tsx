@@ -12,6 +12,14 @@ interface ProjectTableProps {
   deletingId?: string | null;
 }
 
+function formatDate(project: Project): string {
+  const raw = (project as any).createdAt || (project as any).created_at;
+  if (!raw) return "-";
+  const ts = new Date(raw).getTime();
+  if (isNaN(ts)) return "-";
+  return new Date(ts).toLocaleDateString("zh-CN");
+}
+
 export function ProjectTable({ projects, onDelete, deletingId }: ProjectTableProps) {
   if (projects.length === 0) {
     return (
@@ -51,7 +59,7 @@ export function ProjectTable({ projects, onDelete, deletingId }: ProjectTablePro
                 {project.assignedTo?.name ?? <span className="text-neutral-300">未分配</span>}
               </td>
               <td className="py-3 px-2 text-neutral-400 text-xs">
-                {new Date(project.createdAt).toLocaleDateString("zh-CN")}
+                {formatDate(project)}
               </td>
               <td className="py-3 px-2 text-right">
                 <div className="flex items-center justify-end gap-2">

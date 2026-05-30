@@ -24,6 +24,35 @@ export const consultationSchema = z.object({
     .or(z.literal("")),
   industry: z.string().min(1, "请选择所属行业"),
   budgetRange: z.string().optional(),
+  brandVision: z
+    .string()
+    .min(4, "请输入品牌愿景（至少 4 个字符）")
+    .max(200, "品牌愿景不超过 200 个字符"),
+  coreValues: z
+    .string()
+    .min(4, "请输入核心价值（至少 4 个字符）")
+    .max(500, "核心价值不超过 500 个字符"),
+  targetMarket: z
+    .string()
+    .min(4, "请输入目标市场（至少 4 个字符）")
+    .max(500, "目标市场不超过 500 个字符"),
+
+  brandColors: z.object({
+      primary: z.string().optional(),
+      secondary: z.string().optional(),
+      accent: z.string().optional(),
+    }).optional(),
+
+  logoPhilosophy: z
+    .string()
+    .max(500, "LOGO 设计理念不超过 500 个字符")
+    .optional()
+    .or(z.literal("")),
+  mascotPhilosophy: z
+    .string()
+    .max(500, "IP 公仔设计理念不超过 500 个字符")
+    .optional()
+    .or(z.literal("")),
   description: z
     .string()
     .max(500, "需求描述不超过 500 个字符")

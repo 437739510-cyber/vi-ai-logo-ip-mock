@@ -23,45 +23,93 @@ export async function POST(req: NextRequest) {
     const projectId = `VI-${dateStr}-${rand}`;
     const submissionId = `SBM-${dateStr}-${String(Date.now()).slice(-4)}`;
 
+    const isoNow = now.toISOString();
+
     const submission = {
       id: submissionId,
-      client_name: body.clientName || "",
-      company_name: body.companyName || "",
+      clientName: body.clientName || "",
+      companyName: body.companyName || "",
+      brandVision: body.brandVision || "",
+      coreValues: body.coreValues || "",
+      targetMarket: body.targetMarket || "",
+      logoPhilosophy: body.logoPhilosophy || "",
+      mascotPhilosophy: body.mascotPhilosophy || "",
       phone: body.phone || "",
       wechat: body.wechat || "",
       email: body.email || "",
       industry: body.industry || "",
-      budget_range: body.budgetRange || "",
+      budgetRange: body.budgetRange || "",
       description: body.description || "",
-      logo_assets: body.logoFiles || [],
-      mascot_assets: body.mascotItems || [],
-      reference_manual: body.referenceFile
-        ? { fileName: body.referenceFile.fileName, url: body.referenceFile.url, pageCount: 0, referenceMode: body.referenceEnabled ? "weak" : "none" }
+      logoAssets: body.logoFiles || [],
+      mascotAssets: body.mascotItems || [],
+      referenceManual: body.referenceFile
+        ? { fileName: body.referenceFile.fileName, url: body.referenceFile.url, pageCount: 0, isReferenceEnabled: true, referenceMode: body.referenceEnabled ? "weak" : "none" }
         : null,
-      submitted_at: now.toISOString(),
+      submittedAt: isoNow,
+      status: "submitted",
     };
 
     const project = {
       id: projectId,
-      submission_id: submissionId,
-      status: "submitted",
-      created_at: now.toISOString(),
-      updated_at: now.toISOString(),
-      timeline: [{ status: "submitted", timestamp: now.toISOString() }],
+      submissionId: submissionId,
+      status: "submitted" as const,
+      brandColors: body.brandColors || null,
+      createdAt: isoNow,
+      updatedAt: isoNow,
+      created_at: isoNow,
+      updated_at: isoNow,
+      assignedTo: null,
+      timeline: [{ status: "submitted" as const, timestamp: isoNow }],
     };
 
-    // 写入 Supabase
-    const { error: subErr } = await supabaseAdmin.from("submissions").insert(submission);
-    if (subErr) throw new Error("Supabase insert submission: " + subErr.message);
+    // Write to Supabase (silently skip if not configured)
+    try {
+      const supabaseSub = {
+        id: submissionId,
+        client_name: submission.clientName,
+        company_name: submission.companyName,
+        brand_vision: body.brandVision || "",
+        core_values: body.coreValues || "",
+        target_market: body.targetMarket || "",
+        logo_philosophy: body.logoPhilosophy || "",
+        mascot_philosophy: body.mascotPhilosophy || "",
+        phone: submission.phone,
+        wechat: submission.wechat,
+        email: submission.email,
+        industry: submission.industry,
+        budget_range: submission.budgetRange,
+        description: submission.description,
+        logo_assets: submission.logoAssets,
+        mascot_assets: submission.mascotAssets,
+        submitted_at: isoNow,
+        status: "submitted",
+      };
+      const { error: subErr } = await supabaseAdmin.from("submissions").insert(supabaseSub);
+      if (subErr) console.warn("[SUBMIT] Supabase submission error:", subErr.message);
+    } catch (e) {
+      console.warn("[SUBMIT] Supabase submission skipped:", e);
+    }
+    try {
+      const supabaseProj = {
+        id: projectId,
+        submission_id: submissionId,
+        status: "submitted",
+        brand_colors: body.brandColors || null,
+        created_at: isoNow,
+        updated_at: isoNow,
+      };
+      const { error: projErr } = await supabaseAdmin.from("projects").insert(supabaseProj);
+      if (projErr) console.warn("[SUBMIT] Supabase project error:", projErr.message);
+    } catch (e) {
+      console.warn("[SUBMIT] Supabase project skipped:", e);
+    }
 
-    const { error: projErr } = await supabaseAdmin.from("projects").insert(project);
-    if (projErr) throw new Error("Supabase insert project: " + projErr.message);
-
-    // 同时写本地 JSON 作为备份
+    // Local JSON backup — write once per file
     await mkdir(MOCK_DIR, { recursive: true });
+
     const subsPath = path.join(MOCK_DIR, "submissions.json");
     const subs = await loadJson<any[]>(subsPath);
-    subs.unshift({ ...submission, clientName: submission.client_name, companyName: submission.company_name });
+    subs.unshift(submission);
     await writeFile(subsPath, JSON.stringify(subs, null, 2));
 
     const projsPath = path.join(MOCK_DIR, "projects.json");

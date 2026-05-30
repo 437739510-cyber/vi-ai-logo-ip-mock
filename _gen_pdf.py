@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Combine generated VI manual page images into a single PDF."""
 import os, sys, json
 from PIL import Image
@@ -19,35 +19,42 @@ if not os.path.exists(pages_file):
     print(f"ERROR: No pages data found for {project_id}")
     sys.exit(1)
 
-with open(pages_file, 'r', encoding='utf-8') as f:
+with open(pages_file, "r", encoding="utf-8") as f:
     pages_data = json.load(f)
 
 if not pages_data.get("pages"):
     print("ERROR: No generated pages found")
     sys.exit(1)
 
-# Collect images in page order
-page_order = ["cover", "brand-colors", "typography", "logo-usage", "logo-variants", 
-              "auxiliary", "business-card", "letterhead", "ppt-template", "signage", "closing"]
+# New 11-page order matching the 2026-05-29 template
+page_order = [
+    "cover", "brand-philosophy", "logo-interpretation", "brand-colors",
+    "typography", "basic-spec", "stationery", "packaging", "marketing",
+    "summary", "closing"
+]
 
 images = []
 for page_id in page_order:
-    # Find the page in results
     for p in pages_data["pages"]:
         if p["pageId"] == page_id:
             filepath = os.path.join(project_dir, "public", p["url"].lstrip("/"))
             if os.path.exists(filepath):
                 img = Image.open(filepath).convert("RGB")
                 images.append(img)
-                print(f"  Added: {p['label']} ({filepath})")
+                print(f"  + {page_id}: {filepath}")
+            else:
+                print(f"  - {page_id}: file not found ({filepath})")
             break
 
 if not images:
-    print("ERROR: No image files found on disk")
+    print("ERROR: No valid images found")
     sys.exit(1)
 
-# Save as multipage PDF
-pdf_path = os.path.join(generated_dir, f"manual-{project_id}.pdf")
-images[0].save(pdf_path, "PDF", save_all=True, append_images=images[1:])
-print(f"PDF saved: {pdf_path}")
-print(f"Pages: {len(images)}")
+output_pdf = os.path.join(generated_dir, f"manual-{project_id}.pdf")
+if len(images) == 1:
+    images[0].save(output_pdf, "PDF", resolution=150, save_all=False)
+else:
+    images[0].save(output_pdf, "PDF", resolution=150, save_all=True, append_images=images[1:])
+
+print(f"\nPDF saved: {output_pdf}")
+print(f"Total pages: {len(images)}")

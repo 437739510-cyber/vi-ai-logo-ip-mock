@@ -6,6 +6,7 @@ import type { ViManual } from "@/types";
 interface CanvasPreviewProps {
   manual: ViManual;
   className?: string;
+  onChange?: React.Dispatch<React.SetStateAction<ViManual | null>>;
 }
 
 export function CanvasPreview({ manual, className }: CanvasPreviewProps) {
@@ -14,7 +15,7 @@ export function CanvasPreview({ manual, className }: CanvasPreviewProps) {
       {/* A4 比例预览 */}
       <div
         className="w-full max-w-[210mm] aspect-[210/297] bg-white rounded-lg border border-neutral-200 shadow-sm overflow-hidden"
-        style={{ fontFamily: manual.typography.chinese.heading.font }}
+        style={{ fontFamily: manual.typography.chinese.brandFont.font }}
       >
         {/* 页面内容 */}
         <div className="p-8 flex flex-col h-full">
@@ -50,8 +51,8 @@ export function CanvasPreview({ manual, className }: CanvasPreviewProps) {
 
             {/* 字体展示 */}
             <div className="text-xs text-neutral-400">
-              <p>标题：{manual.typography.chinese.heading.font}</p>
-              <p>正文：{manual.typography.chinese.body.font}</p>
+              <p>标题：{manual.typography.chinese.brandFont.font}</p>
+              <p>正文：{manual.typography.chinese.bodyFont.font}</p>
             </div>
           </div>
 

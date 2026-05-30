@@ -57,6 +57,10 @@ export function ConsultationForm() {
       alert("请至少上传一个品牌 Logo");
       return;
     }
+    if (mascotFileList.length === 0) {
+      alert("请至少上传一个 IP 公仔");
+      return;
+    }
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -221,10 +225,78 @@ export function ConsultationForm() {
             <p className="mt-1 text-xs text-danger">{errors.description.message}</p>
           )}
         </div>
+
+        {/* 品牌愿景 */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-neutral-700 mb-1">
+            品牌愿景 <span className="text-danger">*</span>
+          </label>
+          <textarea
+            {...register("brandVision")}
+            rows={3}
+            placeholder="例：成为行业领先的品牌视觉标杆，让每一个品牌都拥有专属的视觉语言"
+            className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+          />
+          {errors.brandVision && (
+            <p className="mt-1 text-xs text-danger">{errors.brandVision.message}</p>
+          )}
+        </div>
+
+        {/* 核心价值 */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-neutral-700 mb-1">
+            核心价值 <span className="text-danger">*</span>
+          </label>
+          <textarea
+            {...register("coreValues")}
+            rows={3}
+            placeholder="例：专业品质、创新突破、客户至上、诚信责任（请用顿号分隔多个价值）"
+            className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+          />
+          {errors.coreValues && (
+            <p className="mt-1 text-xs text-danger">{errors.coreValues.message}</p>
+          )}
+        </div>
+
+        {/* 目标市场 */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-neutral-700 mb-1">
+            目标市场 <span className="text-danger">*</span>
+          </label>
+          <textarea
+            {...register("targetMarket")}
+            rows={3}
+            placeholder="例：25-45岁追求品质生活的都市白领，注重品牌调性的中高端消费群体"
+            className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+          />
+          {errors.targetMarket && (
+            <p className="mt-1 text-xs text-danger">{errors.targetMarket.message}</p>
+          )}
+        </div>
       </section>
 
       {/* ========== 素材上传 ========== */}
       <section>
+      {/* ========== 品牌色选择 ========== */}
+      <section className="mt-8">
+        <h3 className="text-lg font-semibold text-neutral-900 mb-3">品牌色调</h3>
+        <p className="text-xs text-neutral-500 mb-4">选择您品牌的主色、辅助色和强调色，AI 生成时会优先使用这些颜色。</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">主色</label>
+            <input type="color" defaultValue="#1A73E8" {...register("brandColors.primary")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">辅助色</label>
+            <input type="color" defaultValue="#34A853" {...register("brandColors.secondary")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">强调色</label>
+            <input type="color" defaultValue="#FBBC04" {...register("brandColors.accent")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" />
+          </div>
+        </div>
+      </section>
+
         <h3 className="text-lg font-semibold text-neutral-900 mb-4">品牌素材</h3>
         <div className="space-y-6">
           <LogoUploadArea
@@ -260,6 +332,38 @@ export function ConsultationForm() {
             onRemove={() => setReferenceFileList([])}
             onToggleReference={setReferenceEnabled}
           />
+
+          {/* LOGO 设计理念 */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              LOGO 设计理念 <span className="text-neutral-400 text-xs">（选填，AI 会自动分析）</span>
+            </label>
+            <textarea
+              {...register("logoPhilosophy")}
+              rows={3}
+              placeholder="描述您的 LOGO 设计思路、图形含义、色彩选择原因等。如不填写，AI 将根据上传的 LOGO 图片自动分析生成。"
+              className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+            />
+            {errors.logoPhilosophy && (
+              <p className="mt-1 text-xs text-danger">{errors.logoPhilosophy.message}</p>
+            )}
+          </div>
+
+          {/* IP 公仔设计理念 */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              IP 公仔设计理念 <span className="text-neutral-400 text-xs">（选填，AI 会自动分析）</span>
+            </label>
+            <textarea
+              {...register("mascotPhilosophy")}
+              rows={3}
+              placeholder="描述您的 IP 公仔设计思路、角色设定、性格特点等。如不填写，AI 将根据上传的 IP 公仔图片自动分析生成。"
+              className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+            />
+            {errors.mascotPhilosophy && (
+              <p className="mt-1 text-xs text-danger">{errors.mascotPhilosophy.message}</p>
+            )}
+          </div>
         </div>
       </section>
 

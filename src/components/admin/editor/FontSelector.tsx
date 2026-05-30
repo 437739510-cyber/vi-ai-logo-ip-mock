@@ -86,22 +86,22 @@ export function FontSelector({ typography, onChange }: FontSelectorProps) {
           <p className="text-xs text-neutral-400 mb-2">中文</p>
           <FontGroup
             label="标题"
-            spec={typography.chinese.heading}
+            spec={typography.chinese.brandFont}
             onChange={(spec) =>
               onChange({
                 ...typography,
-                chinese: { ...typography.chinese, heading: spec },
+                chinese: { ...typography.chinese, brandFont: spec },
               })
             }
           />
           <div className="mt-3">
             <FontGroup
               label="正文"
-              spec={typography.chinese.body}
+              spec={typography.chinese.bodyFont}
               onChange={(spec) =>
                 onChange({
                   ...typography,
-                  chinese: { ...typography.chinese, body: spec },
+                  chinese: { ...typography.chinese, bodyFont: spec },
                 })
               }
             />
@@ -112,22 +112,22 @@ export function FontSelector({ typography, onChange }: FontSelectorProps) {
           <p className="text-xs text-neutral-400 mb-2">英文</p>
           <FontGroup
             label="标题"
-            spec={typography.english.heading}
+            spec={typography.english.brandFont}
             onChange={(spec) =>
               onChange({
                 ...typography,
-                english: { ...typography.english, heading: spec },
+                english: { ...typography.english, brandFont: spec },
               })
             }
           />
           <div className="mt-3">
             <FontGroup
               label="正文"
-              spec={typography.english.body}
+              spec={typography.english.bodyFont}
               onChange={(spec) =>
                 onChange({
                   ...typography,
-                  english: { ...typography.english, body: spec },
+                  english: { ...typography.english, bodyFont: spec },
                 })
               }
             />

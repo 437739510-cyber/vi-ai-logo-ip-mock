@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, Send, X, Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ViManual } from "@/types";
 
 interface ChatMessage {
   role: "ai" | "user";
@@ -10,10 +11,12 @@ interface ChatMessage {
 }
 
 interface AIChatPanelProps {
-  isOpen: boolean;
-  onToggle: () => void;
+  isOpen?: boolean;
+  onToggle?: () => void;
   projectId?: string;
   manualContext?: string;
+  manual?: ViManual | null;
+  onUpdate?: (updates: Partial<ViManual>) => void;
 }
 
 export function AIChatPanel({ isOpen, onToggle, projectId, manualContext }: AIChatPanelProps) {
@@ -65,10 +68,12 @@ export function AIChatPanel({ isOpen, onToggle, projectId, manualContext }: AICh
     }
   };
 
-  if (!isOpen) {
+  // When in inline mode (no isOpen/onToggle passed), show directly
+  // When in floating mode, show/minimize based on isOpen
+  if (isOpen === false) {
     return (
       <button
-        onClick={onToggle}
+        onClick={() => onToggle?.()}
         className="fixed bottom-6 right-6 w-12 h-12 bg-primary text-white rounded-full shadow-lg hover:bg-primary-dark transition-colors flex items-center justify-center z-50"
       >
         <MessageSquare className="w-5 h-5" />

@@ -3,99 +3,487 @@
     "id": "MANUAL-001",
     "projectId": "PRJ-20260523-0001",
     "cover": {
-      "title": "星云科技视觉识别手册",
+      "title": "星云科技视觉识别规范手册",
       "subtitle": "Visual Identity Guidelines",
-      "version": "v1.0",
+      "version": "V1.0",
       "date": "2026-05",
       "companyName": "星云科技有限公司"
     },
+    "tableOfContents": [
+      {
+        "chapter": "1. Logo 规范",
+        "pages": [
+          "1.1 标识诠释",
+          "1.2 标准组合",
+          "1.3 标识网格比例",
+          "1.4 最小尺寸和保护空间",
+          "1.5 标识颜色",
+          "1.6 单色黑与反白标识",
+          "1.7 背景控制",
+          "1.8 错误用法"
+        ]
+      },
+      {
+        "chapter": "2. 品牌色彩系统",
+        "pages": [
+          "2.1 色彩优先使用级",
+          "2.2 配色原则"
+        ]
+      },
+      {
+        "chapter": "3. 字体规范",
+        "pages": [
+          "3.1 中文字体",
+          "3.2 英文字体",
+          "3.3 字号层级"
+        ]
+      },
+      {
+        "chapter": "4. 辅助图形",
+        "pages": [
+          "4.1 设计理念",
+          "4.2 应用规范"
+        ]
+      },
+      {
+        "chapter": "5. 应用系统",
+        "pages": [
+          "5.1 办公用品",
+          "5.2 外部标识",
+          "5.3 数字媒体"
+        ]
+      }
+    ],
+    "logoSpecs": {
+      "explanation": "星云科技标识以抽象的星云螺旋结构为视觉核心,象征宇宙的浩瀚与科技的无界。标识整体线条流畅、结构平衡,传达出品牌在科技领域的专业性、严谨性与创新精神。主色调采用富有科技感的蓝色,寓意智慧、信赖与前沿探索。",
+      "conceptKeywords": [
+        "星云",
+        "科技",
+        "创新",
+        "专业",
+        "信赖"
+      ],
+      "standardCombinations": [
+        {
+          "type": "horizontal",
+          "label": "横版标识",
+          "imageUrl": "/mock/manual/logo-horizontal.png",
+          "description": "优先使用:商务传播/官网/文件页眉/广告落款",
+          "priority": "primary"
+        },
+        {
+          "type": "vertical",
+          "label": "竖版标识",
+          "imageUrl": "/mock/manual/logo-vertical.png",
+          "description": "辅助使用:封面/展板/礼品/社交头像",
+          "priority": "secondary"
+        }
+      ],
+      "gridSpec": {
+        "imageUrl": "/mock/manual/logo-grid.png",
+        "proportions": "8X x 3.5X",
+        "baseUnit": "X 为基础测量单位",
+        "description": "标识以图形标识视觉高度为3.5X,箭头端点、星云曲线外沿和字标基线共同构成统一比例关系。所有应用务必使用源文件,不得重新绘制。"
+      },
+      "clearSpace": {
+        "rule": "1X-1.5X",
+        "minimumSizes": [
+          {
+            "scenario": "印刷图形",
+            "minSize": "8mm",
+            "note": "小于该尺寸可能影响星云曲线识别"
+          },
+          {
+            "scenario": "数字图形",
+            "minSize": "32px",
+            "note": "适用于头像、导航、按钮等界面元素"
+          },
+          {
+            "scenario": "完整组合",
+            "minSize": "160px",
+            "note": "保证中文标准字清晰可读"
+          }
+        ]
+      },
+      "logoColors": [
+        {
+          "name": "品牌星云蓝",
+          "hex": "#1A73E8",
+          "rgb": "26,115,232",
+          "cmyk": "C87 M53 Y0 K0",
+          "usage": "主色,用于核心品牌元素"
+        },
+        {
+          "name": "智能高亮蓝",
+          "hex": "#2898F8",
+          "rgb": "40,152,248",
+          "cmyk": "C84 M39 Y0 K3",
+          "usage": "辅助色,用于渐变和高亮"
+        },
+        {
+          "name": "深海科技蓝",
+          "hex": "#0848D8",
+          "rgb": "8,72,216",
+          "cmyk": "C96 M67 Y0 K15",
+          "usage": "强调色,用于重要信息"
+        },
+        {
+          "name": "星云天青",
+          "hex": "#48A8F8",
+          "rgb": "72,168,248",
+          "cmyk": "C71 M32 Y0 K3",
+          "usage": "辅助色,用于轻量场景"
+        }
+      ],
+      "monochromeBlack": {
+        "imageUrl": "/mock/manual/logo-monochrome.png",
+        "usageRules": "适用于传真、单色印刷、雕刻、局部UV等工艺。在浅色背景下使用。"
+      },
+      "reversedOut": {
+        "imageUrl": "/mock/manual/logo-monochrome.png",
+        "usageRules": "适用于深色背景、深色材料、视频片尾和暗色界面。在深色背景下使用反白版本。"
+      },
+      "backgroundControl": {
+        "allowedBackgrounds": [
+          "纯白背景",
+          "品牌标准色纯色背景",
+          "极浅灰背景(10%灰度以内)",
+          "低复杂度的浅色图片区域"
+        ],
+        "prohibitedBackgrounds": [
+          "复杂图案背景",
+          "高对比度图片背景",
+          "与标识颜色冲突的同色系背景",
+          "深色背景(需要使用反白标识)"
+        ],
+        "grayscaleGuideUrl": "/mock/manual/bg-control.png"
+      },
+      "incorrectUsages": [
+        {
+          "title": "改变标识颜色",
+          "description": "不得更改标识的标准色,在深色背景上应使用反白版本。"
+        },
+        {
+          "title": "拉伸或压缩标识",
+          "description": "不得任意拉伸、压缩标识的长宽比例。"
+        },
+        {
+          "title": "旋转标识方向",
+          "description": "标识方向已经统一设定,不得旋转或翻转。"
+        },
+        {
+          "title": "替换标准字字体",
+          "description": "标准字为品牌专属设计,不得替换为其他字体。"
+        },
+        {
+          "title": "添加描边或阴影",
+          "description": "不得对标识添加描边、阴影、浮雕等效果。"
+        },
+        {
+          "title": "放入任意轮廓",
+          "description": "不得将标识放入任意形状的轮廓或背景框中。"
+        },
+        {
+          "title": "低对比背景使用",
+          "description": "避免将蓝色标识直接置于蓝色或深色背景上。"
+        },
+        {
+          "title": "过度作为纹样装饰",
+          "description": "不得将标识作为底纹或装饰图案重复使用。"
+        }
+      ],
+      "brandArchitecture": {
+        "model": "单一品牌识别体系",
+        "rules": "星云科技采用单一品牌识别体系。部门、产品、活动名称不得与主标识绑定生成新组合。联合传播时,星云标识应与合作方标识保持等高。"
+      }
+    },
     "brandColors": {
-      "primary": { "name": "品牌蓝", "hex": "#1A73E8", "cmyk": "C87 M53 Y0 K0", "rgb": "26,115,232" },
-      "secondary": { "name": "生长绿", "hex": "#34A853", "cmyk": "C75 M0 Y100 K0", "rgb": "52,168,83" },
-      "accent": { "name": "活力黄", "hex": "#FBBC04", "cmyk": "C0 M18 Y100 K0", "rgb": "251,188,4" },
+      "primary": {
+        "name": "品牌星云蓝",
+        "hex": "#1A73E8",
+        "rgb": "26,115,232",
+        "cmyk": "C87 M53 Y0 K0",
+        "usage": "用于核心品牌元素和重要信息,如Logo、标题、主按钮"
+      },
+      "secondary": {
+        "name": "生长绿",
+        "hex": "#34A853",
+        "rgb": "52,168,83",
+        "cmyk": "C75 M0 Y100 K0",
+        "usage": "用于辅助性品牌元素,如次级按钮、图标"
+      },
+      "accent": {
+        "name": "活力黄",
+        "hex": "#FBBC04",
+        "rgb": "251,188,4",
+        "cmyk": "C0 M18 Y100 K0",
+        "usage": "用于强调和促销元素,如折扣标签、重要提示"
+      },
       "neutrals": [
-        { "name": "背景白", "hex": "#F8F9FA" },
-        { "name": "文字黑", "hex": "#202124" }
-      ]
+        {
+          "name": "背景白",
+          "hex": "#F8F9FA",
+          "rgb": "248,249,250",
+          "cmyk": "C0 M0 Y0 K3",
+          "usage": "浅色背景"
+        },
+        {
+          "name": "浅灰",
+          "hex": "#E8EAED",
+          "rgb": "232,234,237",
+          "cmyk": "C0 M0 Y0 K4",
+          "usage": "卡片背景"
+        },
+        {
+          "name": "文字灰",
+          "hex": "#5F6368",
+          "rgb": "95,99,104",
+          "cmyk": "C0 M0 Y0 K55",
+          "usage": "辅助文字"
+        },
+        {
+          "name": "文字黑",
+          "hex": "#202124",
+          "rgb": "32,33,36",
+          "cmyk": "C0 M0 Y0 K90",
+          "usage": "正文颜色"
+        }
+      ],
+      "hierarchy": [
+        {
+          "level": "主色",
+          "colors": [
+            "品牌星云蓝(#1A73E8)"
+          ],
+          "usage": "Logo、品牌标题、主按钮、重要信息"
+        },
+        {
+          "level": "辅助色",
+          "colors": [
+            "生长绿(#34A853)",
+            "星云天青(#48A8F8)"
+          ],
+          "usage": "次级按钮、辅助图标、装饰元素"
+        },
+        {
+          "level": "强调色",
+          "colors": [
+            "活力黄(#FBBC04)"
+          ],
+          "usage": "促销标签、重要提示、特殊标注"
+        },
+        {
+          "level": "中性色",
+          "colors": [
+            "背景白(#F8F9FA)",
+            "文字灰(#5F6368)",
+            "文字黑(#202124)"
+          ],
+          "usage": "背景、正文、辅助文字"
+        }
+      ],
+      "matchingRules": "蓝色系为品牌主色调,绿色和黄色作为点缀色使用。正文使用文字黑(#202124),辅助文字使用文字灰(#5F6368)。背景优先使用背景白(#F8F9FA)。同一页面中使用的主色不超过2种。"
     },
     "typography": {
       "chinese": {
-        "heading": { "font": "Noto Sans SC", "weights": [700, 500] },
-        "body": { "font": "Noto Sans SC", "weights": [400, 300] }
+        "brandFont": {
+          "font": "Noto Sans SC",
+          "weights": [
+            700,
+            600,
+            500
+          ],
+          "style": "现代简洁无衬线"
+        },
+        "bodyFont": {
+          "font": "Noto Sans SC",
+          "weights": [
+            400,
+            300
+          ],
+          "style": "标准无衬线"
+        },
+        "sizeHierarchy": [
+          {
+            "level": "主标题 / H1",
+            "fontSize": "28pt",
+            "fontWeight": 700,
+            "lineHeight": "1.3",
+            "usage": "封面标题、章节标题"
+          },
+          {
+            "level": "副标题 / H2",
+            "fontSize": "20pt",
+            "fontWeight": 600,
+            "lineHeight": "1.4",
+            "usage": "页面主标题"
+          },
+          {
+            "level": "小标题 / H3",
+            "fontSize": "16pt",
+            "fontWeight": 500,
+            "lineHeight": "1.4",
+            "usage": "卡片标题"
+          },
+          {
+            "level": "正文",
+            "fontSize": "11pt",
+            "fontWeight": 400,
+            "lineHeight": "1.6",
+            "usage": "正文内容"
+          },
+          {
+            "level": "说明文字",
+            "fontSize": "9pt",
+            "fontWeight": 300,
+            "lineHeight": "1.5",
+            "usage": "辅助说明、脚注"
+          }
+        ]
       },
       "english": {
-        "heading": { "font": "Inter", "weights": [700, 600] },
-        "body": { "font": "Inter", "weights": [400] }
-      }
+        "brandFont": {
+          "font": "Inter",
+          "weights": [
+            700,
+            600,
+            500
+          ],
+          "style": "现代简洁无衬线"
+        },
+        "bodyFont": {
+          "font": "Inter",
+          "weights": [
+            400,
+            300
+          ],
+          "style": "标准无衬线"
+        },
+        "sizeHierarchy": [
+          {
+            "level": "Main Title / H1",
+            "fontSize": "36pt",
+            "fontWeight": 700,
+            "lineHeight": "1.2",
+            "usage": "Cover title"
+          },
+          {
+            "level": "Subtitle / H2",
+            "fontSize": "24pt",
+            "fontWeight": 600,
+            "lineHeight": "1.3",
+            "usage": "Section headers"
+          },
+          {
+            "level": "Body",
+            "fontSize": "11pt",
+            "fontWeight": 400,
+            "lineHeight": "1.6",
+            "usage": "Body content"
+          },
+          {
+            "level": "Caption",
+            "fontSize": "9pt",
+            "fontWeight": 300,
+            "lineHeight": "1.5",
+            "usage": "Captions and notes"
+          }
+        ]
+      },
+      "principles": [
+        "统一性:在同一设计中,应保持字体种类和字号使用的一致性",
+        "层级性:通过字号、字重和颜色变化,清晰区分信息层级",
+        "可读性:确保在不同媒介和尺寸下,字体都具有良好的可读性",
+        "中英文:中英文混排时,应使用配套的中英文字体组合"
+      ]
     },
-    "logoVariants": [
-      { "name": "横版组合", "src": "/mock/manual/logo-horizontal.png" },
-      { "name": "竖版组合", "src": "/mock/manual/logo-vertical.png" },
-      { "name": "图标版", "src": "/mock/manual/logo-icon.png" },
-      { "name": "反白版", "src": "/mock/manual/logo-monochrome.png" }
-    ],
-    "auxiliaryGraphics": [
-      { "name": "辅助图形-基础", "src": "/mock/manual/pattern-base.svg" },
-      { "name": "辅助图形-应用", "src": "/mock/manual/pattern-applied.svg" }
-    ],
-    "applications": [
-      { "type": "business_card", "label": "名片", "mockupUrl": "/mock/mockups/business-card.jpg", "specs": "90×54mm, 300DPI" },
-      { "type": "letterhead", "label": "信纸", "mockupUrl": "/mock/mockups/letterhead.jpg", "specs": "A4, 210×297mm" },
-      { "type": "envelope", "label": "信封", "mockupUrl": "/mock/mockups/envelope.jpg", "specs": "DL 110×220mm" },
-      { "type": "ppt", "label": "PPT 模板", "mockupUrl": "/mock/mockups/ppt-template.jpg", "specs": "16:9" },
-      { "type": "signage", "label": "招牌", "mockupUrl": "/mock/mockups/signage.jpg", "specs": "横式灯箱" },
-      { "type": "uniform", "label": "工作证", "mockupUrl": "/mock/mockups/id-card.jpg", "specs": "85.5×54mm" }
-    ],
-    "referenceAnalysis": {
-      "used": true,
-      "extractedColors": ["#1565C0", "#0D47A1", "#E3F2FD"],
-      "extractedFonts": ["Inter", "Noto Sans SC"],
-      "styleSummary": "极简风格，大量留白，蓝色为主色调，圆角元素",
-      "analysisConfidence": 0.85
+    "auxiliaryGraphics": {
+      "concept": "星云科技的辅助图形设计灵感来源于星云螺旋结构和数字数据节点,旨在强化品牌的科技属性和专业形象。辅助图形以抽象的几何线条和点阵构成,形成富有节奏感的图案,呼应了科技的精密与创新。",
+      "graphics": [
+        {
+          "name": "基础辅助图形",
+          "imageUrl": "/mock/manual/pattern-base.svg",
+          "applicationRules": "可作为背景纹理,以低透明度或浅色形式出现,不干扰主体信息"
+        },
+        {
+          "name": "应用辅助图形",
+          "imageUrl": "/mock/manual/pattern-applied.svg",
+          "applicationRules": "可用于边框、分隔线或特定区域的装饰,增加设计的细节和科技感"
+        }
+      ]
+    },
+    "applications": {
+      "office": [
+        {
+          "type": "business_card",
+          "label": "名片",
+          "imageUrl": "/mock/mockups/business-card.jpg",
+          "specs": "90x54mm, 300DPI",
+          "designRules": "正面:白色背景,Logo置于左上角,姓名居中,联系方式底部。背面:品牌蓝色背景,反白联系方式。"
+        },
+        {
+          "type": "letterhead",
+          "label": "信纸",
+          "imageUrl": "/mock/mockups/letterhead.jpg",
+          "specs": "A4, 210x297mm",
+          "designRules": "页眉放置横版组合标识,页脚放置公司信息。正文使用品牌字体。"
+        },
+        {
+          "type": "envelope",
+          "label": "信封",
+          "imageUrl": "/mock/mockups/envelope.jpg",
+          "specs": "DL 110x220mm",
+          "designRules": "左上角放置标准组合标识,右下角放置寄件人信息。"
+        },
+        {
+          "type": "ppt",
+          "label": "PPT 模板",
+          "imageUrl": "/mock/mockups/ppt-template.jpg",
+          "specs": "16:9",
+          "designRules": "封面:品牌蓝色渐变背景+Logo。内页:白色背景,右上角Logo,页脚品牌色线条。"
+        }
+      ],
+      "signage": [
+        {
+          "type": "storefront",
+          "label": "门头招牌",
+          "imageUrl": "/mock/mockups/signage.jpg",
+          "specs": "横式灯箱,比例16:5",
+          "designRules": "深色背景使用反白标识,浅色背景使用标准标识。品牌色灯箱边框。"
+        },
+        {
+          "type": "wayfinding",
+          "label": "导视系统",
+          "imageUrl": "/mock/mockups/signage.jpg",
+          "specs": "亚克力材质",
+          "designRules": "指示牌使用品牌蓝色为底色,文字反白。箭头与文字间距保持统一。"
+        }
+      ],
+      "digital": [
+        {
+          "type": "social_avatar",
+          "label": "社交媒体头像",
+          "imageUrl": "/mock/manual/logo-icon.png",
+          "specs": "圆形,200x200px",
+          "designRules": "使用竖版标识或图标版本。背景为品牌蓝色。四周保留10%留白。"
+        },
+        {
+          "type": "website_header",
+          "label": "网页页眉",
+          "imageUrl": "/mock/manual/logo-icon.png",
+          "specs": "1920x80px",
+          "designRules": "白色背景,左上角横版标识。右侧放置导航菜单。"
+        }
+      ],
+      "promotional": [
+        {
+          "type": "poster",
+          "label": "宣传海报",
+          "imageUrl": "/mock/mockups/signage.jpg",
+          "specs": "A3, 297x420mm",
+          "designRules": "保持大量留白,品牌色不超过30%版面。Logo置于左上或右下。"
+        }
+      ]
     }
-  },
-  {
-    "id": "MANUAL-002",
-    "projectId": "PRJ-20260523-0003",
-    "cover": {
-      "title": "启航教育视觉识别手册",
-      "subtitle": "Visual Identity Guidelines",
-      "version": "v1.0",
-      "date": "2026-05",
-      "companyName": "启航教育集团"
-    },
-    "brandColors": {
-      "primary": { "name": "教育橙", "hex": "#FF6D00", "cmyk": "C0 M65 Y100 K0", "rgb": "255,109,0" },
-      "secondary": { "name": "成长蓝", "hex": "#2979FF", "cmyk": "C65 M40 Y0 K0", "rgb": "41,121,255" },
-      "accent": { "name": "阳光黄", "hex": "#FFD600", "cmyk": "C0 M10 Y100 K0", "rgb": "255,214,0" },
-      "neutrals": [
-        { "name": "背景白", "hex": "#FAFAFA" },
-        { "name": "文字灰", "hex": "#424242" }
-      ]
-    },
-    "typography": {
-      "chinese": {
-        "heading": { "font": "思源黑体", "weights": [700, 500] },
-        "body": { "font": "思源黑体", "weights": [400] }
-      },
-      "english": {
-        "heading": { "font": "Poppins", "weights": [700, 600] },
-        "body": { "font": "Poppins", "weights": [400] }
-      }
-    },
-    "logoVariants": [
-      { "name": "横版组合", "src": "/mock/manual/qihang-logo-h.png" },
-      { "name": "竖版组合", "src": "/mock/manual/qihang-logo-v.png" },
-      { "name": "图标版", "src": "/mock/manual/qihang-icon.png" }
-    ],
-    "auxiliaryGraphics": [
-      { "name": "辅助图形-书本", "src": "/mock/manual/qihang-book.svg" },
-      { "name": "辅助图形-星星", "src": "/mock/manual/qihang-star.svg" }
-    ],
-    "applications": [
-      { "type": "business_card", "label": "名片", "mockupUrl": "/mock/mockups/edu-card.jpg", "specs": "90×54mm" },
-      { "type": "letterhead", "label": "信纸", "mockupUrl": "/mock/mockups/edu-letterhead.jpg", "specs": "A4" },
-      { "type": "ppt", "label": "PPT 模板", "mockupUrl": "/mock/mockups/edu-ppt.jpg", "specs": "16:9" }
-    ]
   }
 ]

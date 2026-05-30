@@ -1,0 +1,64 @@
+{
+  "projectId": "VI-20260528-NBAQ",
+  "pages": [
+    {
+      "pageId": "cover",
+      "label": "封面",
+      "url": "/generated/VI-20260528-NBAQ-cover.png"
+    },
+    {
+      "pageId": "brand-colors",
+      "label": "品牌色板",
+      "url": "/generated/VI-20260528-NBAQ-brand-colors.png"
+    },
+    {
+      "pageId": "typography",
+      "label": "字体规范",
+      "url": "/generated/VI-20260528-NBAQ-typography.png"
+    },
+    {
+      "pageId": "logo-usage",
+      "label": "Logo 规范",
+      "url": "/generated/VI-20260528-NBAQ-logo-usage.png"
+    },
+    {
+      "pageId": "logo-variants",
+      "label": "Logo 变体",
+      "url": "/generated/VI-20260528-NBAQ-logo-variants.png"
+    },
+    {
+      "pageId": "auxiliary",
+      "label": "辅助图形",
+      "url": "/generated/VI-20260528-NBAQ-auxiliary.png"
+    },
+    {
+      "pageId": "business-card",
+      "label": "名片",
+      "url": "/generated/VI-20260528-NBAQ-business-card.png"
+    },
+    {
+      "pageId": "letterhead",
+      "label": "信纸",
+      "url": "/generated/VI-20260528-NBAQ-letterhead.png"
+    },
+    {
+      "pageId": "ppt-template",
+      "label": "PPT 模板",
+      "url": "/generated/VI-20260528-NBAQ-ppt-template.png"
+    },
+    {
+      "pageId": "signage",
+      "label": "招牌",
+      "url": "/generated/VI-20260528-NBAQ-signage.png"
+    },
+    {
+      "pageId": "closing",
+      "label": "封底",
+      "url": "/generated/VI-20260528-NBAQ-closing.png"
+    }
+  ],
+  "errors": [],
+  "generatedAt": "2026-05-28T04:52:35.110Z",
+  "totalPages": 11,
+  "failedPages": 0
+}

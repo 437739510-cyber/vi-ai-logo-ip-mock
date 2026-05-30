@@ -56,6 +56,7 @@ export function MascotUploadArea({
       <div className="flex items-center gap-2 mb-3">
         <label className="text-sm font-semibold text-neutral-700">IP 公仔上传</label>
         {files.length > 0 && <span className="text-xs text-neutral-400 font-medium">({files.length}/10)</span>}
+        <span className="text-red-500 text-xs">* 必填</span>
       </div>
       {files.length > 0 && (
         <div className="mb-3 space-y-2">

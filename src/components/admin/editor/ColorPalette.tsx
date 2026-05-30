@@ -8,6 +8,9 @@ import { cn } from "@/lib/utils";
 interface BrandColor {
   name: string;
   hex: string;
+  cmyk?: string;
+  rgb?: string;
+  usage?: string;
 }
 
 interface ColorPaletteProps {
@@ -16,6 +19,8 @@ interface ColorPaletteProps {
     secondary: BrandColor;
     accent: BrandColor;
     neutrals: BrandColor[];
+    hierarchy?: { level: string; colors: string[]; usage: string }[];
+    matchingRules?: string;
   };
   onChange: (colors: ColorPaletteProps["colors"]) => void;
 }

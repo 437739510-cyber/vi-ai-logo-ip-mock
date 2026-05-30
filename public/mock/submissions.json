@@ -1,20 +1,242 @@
 [
   {
-    "id": "SBM-20260527-3184",
-    "client_name": "test",
-    "company_name": "test co",
-    "phone": "13800138000",
+    "id": "SBM-20260528-2325",
+    "clientName": "官家生",
+    "companyName": "椰岛⼯坊",
+    "phone": "13413049752",
     "wechat": "",
     "email": "",
-    "industry": "tech",
+    "industry": "餐饮/食品",
+    "budgetRange": "10000-20000",
+    "description": "",
+    "logoAssets": [
+      {
+        "fileName": "微信图片_20260521142348_482_5030.jpg",
+        "url": "/uploads/1779958421222-ewrw.jpg",
+        "size": 172832
+      }
+    ],
+    "mascotAssets": [
+      {
+        "name": "微信图片_20260525123226_486_777.png",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "微信图片_20260525123226_486_777.png",
+            "url": "/uploads/1779958421336-61rh.png",
+            "size": 1440185
+          }
+        ]
+      }
+    ],
+    "referenceManual": null,
+    "submittedAt": "2026-05-28T08:53:42.325Z",
+    "status": "submitted",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
+  },
+  {
+    "id": "SBM-20260528-3523",
+    "client_name": "官家生",
+    "company_name": "海南华亿食品工业有限公司",
+    "phone": "13413049752",
+    "wechat": "",
+    "email": "",
+    "industry": "零售/电商",
+    "budget_range": "5000-10000",
+    "description": "我们是一家台湾企业 1991年就在海南从事生产 NFC 100% 椰子水生产厂家。目前想在 网上直播带货销售我们的 NFC 100% 椰子水。",
+    "logo_assets": [
+      {
+        "fileName": "微信图片_20251219125236_1611_55.jpg",
+        "url": "/uploads/1779940762256-usyi.jpg",
+        "size": 38099
+      }
+    ],
+    "mascot_assets": [
+      {
+        "name": "微信图片_20260525123226_486_777.png",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "微信图片_20260525123226_486_777.png",
+            "url": "/uploads/1779940762257-p68z.png",
+            "size": 1440185
+          }
+        ]
+      }
+    ],
+    "reference_manual": null,
+    "submitted_at": "2026-05-28T03:59:23.523Z",
+    "clientName": "官家生",
+    "companyName": "海南华亿食品工业有限公司",
+    "logoAssets": [
+      {
+        "fileName": "微信图片_20251219125236_1611_55.jpg",
+        "url": "/uploads/1779940762256-usyi.jpg",
+        "size": 38099
+      }
+    ],
+    "mascotAssets": [
+      {
+        "name": "微信图片_20260525123226_486_777.png",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "微信图片_20260525123226_486_777.png",
+            "url": "/uploads/1779940762257-p68z.png",
+            "size": 1440185
+          }
+        ]
+      }
+    ],
+    "submittedAt": "2026-05-28T03:59:23.523Z",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
+  },
+  {
+    "id": "SBM-20260528-3523",
+    "client_name": "官家生",
+    "company_name": "海南华亿食品工业有限公司",
+    "phone": "13413049752",
+    "wechat": "",
+    "email": "",
+    "industry": "零售/电商",
+    "budget_range": "5000-10000",
+    "description": "我们是一家台湾企业 1991年就在海南从事生产 NFC 100% 椰子水生产厂家。目前想在 网上直播带货销售我们的 NFC 100% 椰子水。",
+    "logo_assets": [
+      {
+        "fileName": "微信图片_20251219125236_1611_55.jpg",
+        "url": "/uploads/1779940762256-usyi.jpg",
+        "size": 38099
+      }
+    ],
+    "mascot_assets": [
+      {
+        "name": "微信图片_20260525123226_486_777.png",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "微信图片_20260525123226_486_777.png",
+            "url": "/uploads/1779940762257-p68z.png",
+            "size": 1440185
+          }
+        ]
+      }
+    ],
+    "reference_manual": null,
+    "submitted_at": "2026-05-28T03:59:23.523Z",
+    "clientName": "官家生",
+    "companyName": "海南华亿食品工业有限公司",
+    "submittedAt": "2026-05-28T03:59:23.523Z",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
+  },
+  {
+    "id": "SBM-20260527-1638",
+    "client_name": "莎莎",
+    "company_name": "东莞市阿杜莫国际贸易有限公司",
+    "phone": "18782419465",
+    "wechat": "",
+    "email": "",
+    "industry": "医疗/健康",
     "budget_range": "",
     "description": "",
-    "logo_assets": [],
+    "logo_assets": [
+      {
+        "fileName": "IMG_9215.jpeg",
+        "url": "/uploads/1779892162673-9swy.jpeg",
+        "size": 167279
+      }
+    ],
+    "mascot_assets": [
+      {
+        "name": "IMG_9083.jpeg",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "IMG_9083.jpeg",
+            "url": "/uploads/1779892169204-73qc.jpeg",
+            "size": 7583267
+          }
+        ]
+      }
+    ],
+    "reference_manual": null,
+    "submitted_at": "2026-05-27T14:29:31.638Z",
+    "clientName": "莎莎",
+    "companyName": "东莞市阿杜莫国际贸易有限公司",
+    "logoAssets": [
+      {
+        "fileName": "IMG_9215.jpeg",
+        "url": "/uploads/1779892162673-9swy.jpeg",
+        "size": 167279
+      }
+    ],
+    "mascotAssets": [
+      {
+        "name": "IMG_9083.jpeg",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "IMG_9083.jpeg",
+            "url": "/uploads/1779892169204-73qc.jpeg",
+            "size": 7583267
+          }
+        ]
+      }
+    ],
+    "submittedAt": "2026-05-27T14:29:31.638Z",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
+  },
+  {
+    "id": "SBM-20260527-1159",
+    "client_name": "莎莎",
+    "company_name": "东莞市阿杜莫国际贸易有限公司",
+    "phone": "18782419465",
+    "wechat": "",
+    "email": "",
+    "industry": "医疗/健康",
+    "budget_range": "",
+    "description": "",
+    "logo_assets": [
+      {
+        "fileName": "IMG_8985.jpeg",
+        "url": "/uploads/1779891980313-7zld.jpeg",
+        "size": 7340147
+      }
+    ],
     "mascot_assets": [],
     "reference_manual": null,
-    "submitted_at": "2026-05-27T09:05:43.184Z",
-    "clientName": "test",
-    "companyName": "test co"
+    "submitted_at": "2026-05-27T14:26:21.159Z",
+    "clientName": "莎莎",
+    "companyName": "东莞市阿杜莫国际贸易有限公司",
+    "logoAssets": [
+      {
+        "fileName": "IMG_8985.jpeg",
+        "url": "/uploads/1779891980313-7zld.jpeg",
+        "size": 7340147
+      }
+    ],
+    "mascotAssets": [],
+    "submittedAt": "2026-05-27T14:26:21.159Z",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
   },
   {
     "id": "SBM-20260526-9277",
@@ -46,6 +268,11 @@
         ]
       }
     ],
-    "submittedAt": "2026-05-26T10:48:29.277Z"
+    "submittedAt": "2026-05-26T10:48:29.277Z",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
   }
 ]

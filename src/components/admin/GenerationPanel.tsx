@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Loader2, Wand2, ArrowRight } from "lucide-react";
 import { ReferenceModeSelector } from "./ReferenceModeSelector";
@@ -20,6 +20,27 @@ export function GenerationPanel({ projectId }: GenerationPanelProps) {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [industryAnalysis, setIndustryAnalysis] = useState<string | null>(null);
+  const [industryAnalysisLoading, setIndustryAnalysisLoading] = useState(false);
+
+  // 组件加载时自动获取行业 AI 分析
+  useEffect(() => {
+    (async () => {
+      setIndustryAnalysisLoading(true);
+      try {
+        const res = await fetch("/api/ai/analyze-industry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setIndustryAnalysis(data.summary || null);
+        }
+      } catch {}
+      setIndustryAnalysisLoading(false);
+    })();
+  }, [projectId]);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -28,7 +49,7 @@ export function GenerationPanel({ projectId }: GenerationPanelProps) {
       const res = await fetch("/api/ai/generate-scheme", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, referenceMode }),
+        body: JSON.stringify({ projectId, referenceMode, industryAnalysis }),
       });
       const schemes = await res.json();
 
@@ -44,6 +65,9 @@ export function GenerationPanel({ projectId }: GenerationPanelProps) {
           referenceMode,
           isFavorited: false,
           generatedAt: new Date().toISOString(),
+          colorPalette: s.colorPalette || undefined,
+          fontPairing: s.fontPairing || undefined,
+          description: s.description || undefined,
         }));
 
         // Step 3: Persist plans via save-plans API
@@ -84,8 +108,7 @@ export function GenerationPanel({ projectId }: GenerationPanelProps) {
           <Wand2 className="w-5 h-5 text-primary" />
           <h3 className="text-sm font-bold text-neutral-900">生成参数</h3>
         </div>
-        <ReferenceModeSelector value={referenceMode} onChange={setReferenceMode} />
-
+        <ReferenceModeSelector value={referenceMode} onChange={setReferenceMode} industryAnalysis={industryAnalysis || undefined} industryAnalysisLoading={industryAnalysisLoading} />
         <button
           onClick={handleGenerate}
           disabled={isGenerating}
@@ -144,7 +167,64 @@ export function GenerationPanel({ projectId }: GenerationPanelProps) {
                     已选中
                   </span>
                   <button
-                    onClick={() => router.push(`/admin/editor/${projectId}`)}
+                    onClick={async () => {
+                      const plan = plans.find((p) => p.id === selectedPlan);
+                      if (!plan) { router.push(`/admin/editor/${projectId}`); return; }
+                      try {
+                        // Build a manual from the selected plan's data
+                        const manual = {
+                          id: `MANUAL-${projectId}`,
+                          projectId,
+                          cover: { title: "", subtitle: "", version: "v1.0", date: new Date().toISOString().slice(0, 7), companyName: "" },
+                          tableOfContents: [],
+                          logoSpecs: {
+                            explanation: plan.description || "",
+                            conceptKeywords: [],
+                            standardCombinations: [],
+                            gridSpec: { imageUrl: "", proportions: "", baseUnit: "", description: "" },
+                            clearSpace: { rule: "", minimumSizes: [] },
+                            logoColors: [
+                              { name: "主色", hex: plan.colorPalette?.primary || "#1A73E8", cmyk: "", rgb: "" },
+                              { name: "辅助色", hex: plan.colorPalette?.secondary || "#34A853", cmyk: "", rgb: "" },
+                              { name: "强调色", hex: plan.colorPalette?.accent || "#FBBC04", cmyk: "", rgb: "" },
+                            ],
+                            monochromeBlack: null,
+                            reversedOut: null,
+                            backgroundControl: { allowedBackgrounds: [], prohibitedBackgrounds: [] },
+                            incorrectUsages: [],
+                          },
+                          brandColors: {
+                            primary: { name: "主色", hex: plan.colorPalette?.primary || "#1A73E8", cmyk: "", rgb: "" },
+                            secondary: { name: "辅助色", hex: plan.colorPalette?.secondary || "#34A853", cmyk: "", rgb: "" },
+                            accent: { name: "强调色", hex: plan.colorPalette?.accent || "#FBBC04", cmyk: "", rgb: "" },
+                            neutrals: [{ name: "背景", hex: "#F8F9FA" }, { name: "文字", hex: "#202124" }],
+                            hierarchy: [{ level: "主色", colors: ["主色"], usage: "" }],
+                            matchingRules: plan.description || "",
+                          },
+                          typography: {
+                            chinese: {
+                              brandFont: { font: plan.fontPairing?.heading || "Noto Sans SC", weights: [700, 500] },
+                              bodyFont: { font: plan.fontPairing?.body || "Noto Sans SC", weights: [400] },
+                              sizeHierarchy: [],
+                            },
+                            english: {
+                              brandFont: { font: plan.fontPairing?.heading || "Inter", weights: [700, 600] },
+                              bodyFont: { font: plan.fontPairing?.body || "Inter", weights: [400] },
+                              sizeHierarchy: [],
+                            },
+                            principles: [],
+                          },
+                          auxiliaryGraphics: { concept: "", graphics: [] },
+                          applications: { office: [], signage: [], digital: [] },
+                        };
+                        await fetch("/api/ai/save-manual", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ manual }),
+                        });
+                      } catch {}
+                      router.push(`/admin/editor/${projectId}`);
+                    }}
                     className="ml-2 px-3 py-1 text-xs bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors flex items-center gap-1"
                   >
                     确认并进入编辑器

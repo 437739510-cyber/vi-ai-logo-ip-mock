@@ -30,3 +30,23 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# temp scratch files
+_*.py
+_*.tsx
+_*.mjs
+_*.cjs
+
+# generated images
+public/generated/
+public/generated/**/*
+
+# uploaded PDFs
+public/uploads/*.pdf
+
+# npmrc.npmrc
+
+# tracking docs
+升级计划书.md
+进度追踪.md
+

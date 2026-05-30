@@ -1,0 +1,14 @@
+{
+  "projectId": "VI-20260528-NDKW",
+  "pages": [
+    {
+      "pageId": "cover",
+      "label": "封面",
+      "url": "/generated/1780137648370-cover-final.png"
+    }
+  ],
+  "errors": [],
+  "generatedAt": "2026-05-30T10:40:48.487Z",
+  "totalPages": 1,
+  "failedPages": 0
+}

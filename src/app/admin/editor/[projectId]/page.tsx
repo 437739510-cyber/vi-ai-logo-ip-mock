@@ -16,11 +16,49 @@ const DEFAULT_MANUAL: ViManual = {
   id: "",
   projectId: "",
   cover: { title: "品牌视觉识别手册", subtitle: "Visual Identity Guidelines", version: "v1.0", date: "2026-05", companyName: "品牌名称" },
-  brandColors: { primary: { name: "品牌色", hex: "#1A73E8" }, secondary: { name: "辅助色", hex: "#34A853" }, accent: { name: "强调色", hex: "#FBBC04" }, neutrals: [{ name: "背景", hex: "#F8F9FA" }, { name: "文字", hex: "#202124" }] },
-  typography: { chinese: { heading: { font: "Noto Sans SC", weights: [700, 500] }, body: { font: "Noto Sans SC", weights: [400] } }, english: { heading: { font: "Inter", weights: [700, 600] }, body: { font: "Inter", weights: [400] } } },
-  logoVariants: [],
-  auxiliaryGraphics: [],
-  applications: [],
+  tableOfContents: [],
+  logoSpecs: {
+    explanation: "",
+    conceptKeywords: [],
+    standardCombinations: [],
+    gridSpec: { imageUrl: "", proportions: "", baseUnit: "", description: "" },
+    clearSpace: { rule: "", minimumSizes: [] },
+    logoColors: [{ name: "品牌蓝", hex: "#1A73E8", cmyk: "", rgb: "" }],
+    monochromeBlack: null,
+    reversedOut: null,
+    backgroundControl: { allowedBackgrounds: [], prohibitedBackgrounds: [] },
+    incorrectUsages: [],
+  },
+  brandColors: {
+    primary: { name: "品牌蓝", hex: "#1A73E8", cmyk: "C87 M53 Y0 K0", rgb: "26,115,232" },
+    secondary: { name: "辅助绿", hex: "#34A853", cmyk: "C75 M0 Y100 K0", rgb: "52,168,83" },
+    accent: { name: "强调黄", hex: "#FBBC04", cmyk: "C0 M18 Y100 K0", rgb: "251,188,4" },
+    neutrals: [{ name: "背景", hex: "#F8F9FA", cmyk: "", rgb: "" }, { name: "文字", hex: "#202124", cmyk: "", rgb: "" }],
+    hierarchy: [],
+    matchingRules: "",
+  },
+  typography: {
+    chinese: {
+      brandFont: { font: "Noto Sans SC", weights: [700, 500] },
+      bodyFont: { font: "Noto Sans SC", weights: [400] },
+      sizeHierarchy: [],
+    },
+    english: {
+      brandFont: { font: "Inter", weights: [700, 600] },
+      bodyFont: { font: "Inter", weights: [400] },
+      sizeHierarchy: [],
+    },
+    principles: [],
+  },
+  auxiliaryGraphics: {
+    concept: "",
+    graphics: [],
+  },
+  applications: {
+    office: [],
+    signage: [],
+    digital: [],
+  },
 };
 
 export default function EditorPage({
@@ -28,11 +66,10 @@ export default function EditorPage({
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const [manual, setManual] = useState<ViManual>(DEFAULT_MANUAL);
+  const [manual, setManual] = useState<ViManual | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [projectId, setProjectId] = useState("");
-  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -40,7 +77,7 @@ export default function EditorPage({
         const { projectId: id } = await params;
         setProjectId(id);
         const m = await getManualByProject(id);
-        if (m) setManual(m);
+        setManual(m || { ...DEFAULT_MANUAL, projectId: id, id: `MANUAL-${id}` });
       } catch {
         setError("加载失败");
       } finally {
@@ -51,63 +88,67 @@ export default function EditorPage({
 
   if (loading) {
     return (
-      <div className="flex gap-6 h-[calc(100vh-8rem)] animate-pulse">
-        <div className="w-72 bg-neutral-100 rounded-xl" />
-        <div className="flex-1 bg-neutral-100 rounded-xl" />
+      <div className="animate-pulse space-y-4 p-8">
+        <div className="h-6 bg-neutral-200 rounded w-48" />
+        <div className="h-64 bg-neutral-100 rounded-xl" />
       </div>
     );
   }
 
   if (error) return <ErrorState message={error} />;
+  if (!manual) return notFound();
 
   return (
-    <div className="h-full flex flex-col">
-      {/* 顶栏 */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/admin/projects/${projectId}`}
-            className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-500 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <h2 className="text-lg font-semibold text-neutral-900">VI 编辑器</h2>
-          <span className="text-xs text-neutral-400 font-mono">{projectId}</span>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <Link
+          href={`/admin/projects/${projectId}`}
+          className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          返回项目详情
+        </Link>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-1.5 text-sm border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors flex items-center gap-1.5">
+          <Link
+            href={`/admin/preview/${projectId}`}
+            className="px-3 py-1.5 border border-neutral-200 text-sm rounded-lg hover:bg-neutral-50 transition-colors flex items-center gap-1.5"
+          >
             <Eye className="w-4 h-4" />
             预览手册
-          </button>
-          <button className="px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-1.5">
+          </Link>
+          <Link
+            href={`/admin/export/${projectId}`}
+            className="px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-1.5"
+          >
             <Download className="w-4 h-4" />
-            导出
-          </button>
+            导出交付
+          </Link>
         </div>
       </div>
 
-      {/* 编辑器主体 */}
-      <div className="flex gap-6 flex-1 min-h-0">
-        {/* 左侧面板 */}
-        <div className="w-72 shrink-0 overflow-y-auto space-y-6 bg-white rounded-xl border border-neutral-100 p-4">
+      <div className="grid grid-cols-[1fr_280px] gap-6">
+        {/* Left: Canvas */}
+        <div className="space-y-4">
+          <CanvasPreview manual={manual} onChange={setManual} />
+        </div>
+
+        {/* Right: Controls */}
+        <div className="space-y-4">
           <ColorPalette
             colors={manual.brandColors}
-            onChange={(brandColors) => setManual({ ...manual, brandColors })}
+            onChange={(colors) => setManual({ ...manual, brandColors: { ...colors, hierarchy: colors.hierarchy || [], matchingRules: colors.matchingRules || "", primary: { ...colors.primary, cmyk: colors.primary.cmyk || '', rgb: colors.primary.rgb || '' }, secondary: { ...colors.secondary, cmyk: colors.secondary.cmyk || '', rgb: colors.secondary.rgb || '' }, accent: { ...colors.accent, cmyk: colors.accent.cmyk || '', rgb: colors.accent.rgb || '' }, neutrals: colors.neutrals.map(n => ({ ...n, cmyk: n.cmyk || '', rgb: n.rgb || '' })) } })}
           />
           <FontSelector
             typography={manual.typography}
-            onChange={(typography) => setManual({ ...manual, typography })}
+            onChange={(t) => setManual({ ...manual, typography: t })}
+          />
+          <AIChatPanel
+            manual={manual}
+            onUpdate={(updates) => setManual({ ...manual, ...updates })}
           />
         </div>
-
-        {/* 右侧预览 */}
-        <div className="flex-1 overflow-y-auto bg-white rounded-xl border border-neutral-100 p-6 flex items-start justify-center">
-          <CanvasPreview manual={manual} className="max-w-[500px]" />
-        </div>
       </div>
-
-      {/* AI 对话助手 */}
-          <AIChatPanel isOpen={chatOpen} onToggle={() => setChatOpen(!chatOpen)} projectId={projectId} manualContext={JSON.stringify({ companyName: manual.cover.companyName, brandColors: manual.brandColors, typography: manual.typography })} />
     </div>
   );
 }
