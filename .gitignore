@@ -50,3 +50,14 @@ public/uploads/*.pdf
 升级计划书.md
 进度追踪.md
 
+
+# Node.js standalone
+node-v22*
+
+
+# Bridge / debug files
+_bridge/
+_dev*
+_inspect*
+_screenshot*
+
