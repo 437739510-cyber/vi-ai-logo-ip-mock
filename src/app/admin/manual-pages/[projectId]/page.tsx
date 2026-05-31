@@ -2,13 +2,15 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Loader2, Hand, Play, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Loader2, Hand, Play, Trash2, Wand2 } from "lucide-react";
 // Brand Brain imports
 import type { BrandProfile } from "@/lib/brand-analyzer";
 import type { ModulePlan, RecommendedModule } from "@/lib/module-planner";
 import { modulePlanToPages } from "@/lib/module-to-page";
 import { DecisionLayer } from "@/components/admin/DecisionLayer";
 import { generateMascotPromptSet, type MascotPromptSet } from "@/lib/mascot-prompt-strategy";
+import { generateIPCreationPlan } from "@/lib/ip-creation-plan";
 import { estimateFullCost } from "@/lib/billing/cost-estimator";
 
 interface ManualPage {
@@ -41,6 +43,7 @@ const PAGE_LABELS = [
 ];
 
 export default function ManualPagesViewer({ params }: { params: Promise<{ projectId: string }> }) {
+  const router = useRouter();
   const [projectId, setProjectId] = useState("");
   const [pagesData, setPagesData] = useState<PagesData | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
@@ -341,6 +344,32 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
       setStep(4);
     };
 
+    const handleEnterSandbox = async () => {
+      if (!mascotPromptSet || !brandAnalysis) return;
+      try {
+        const plan = generateIPCreationPlan({
+          mascotProfile: brandAnalysis.mascotProfile,
+          brandProfile: brandAnalysis.profile,
+          businessProfile: businessProfile as any || undefined,
+        });
+        const res = await fetch("/api/ip-sandbox/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: projectId,
+            accountId: "acc-default-001",
+            plan,
+          }),
+        });
+        const data = await res.json();
+        if (data.session) {
+          router.push("/admin/ip-sandbox/" + data.session.sessionId);
+        }
+      } catch (e) {
+        console.error("Failed to create sandbox session:", e);
+      }
+    };
+
     const handleConfirmModules = () => {
     const totalPages = selectedModules.reduce((sum, m) => sum + m.estimatedPages, 0);
     const imagesToGenerate = selectedModules.filter((m) => m.priority !== "essential" || m.estimatedPages > 1).length + 1;
@@ -388,6 +417,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
           mascotPromptSet={mascotPromptSet}
           onAcceptMascot={handleAcceptMascot}
           onDeclineMascot={handleDeclineMascot}
+          onEnterSandbox={handleEnterSandbox}
           costEstimate={costEstimate}
         />
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Check, X, Sparkles } from "lucide-react";
+import { Loader2, Check, X, Sparkles, Wand2 } from "lucide-react";
 import type { RecommendedModule } from "@/lib/module-planner";
 
 interface DecisionLayerProps {
@@ -21,6 +21,7 @@ interface DecisionLayerProps {
   mascotPromptSet?: any;
   onAcceptMascot?: () => void;
   onDeclineMascot?: () => void;
+  onEnterSandbox?: () => void;
   costEstimate?: { estimatedTotal: number; currentBalance: number; sufficient: boolean; items: { label: string; subtotal: number }[] };
 }
 
@@ -41,6 +42,7 @@ export function DecisionLayer({
   mascotPromptSet,
   onAcceptMascot,
   onDeclineMascot,
+  onEnterSandbox,
   costEstimate,
 }: DecisionLayerProps) {
   return (
@@ -341,6 +343,13 @@ export function DecisionLayer({
                   <button onClick={onAcceptMascot} className="px-6 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-all shadow-lg shadow-primary/20">
                     接受IP策略 →
                   </button>
+                  {(onEnterSandbox && (mascotPromptSet?.mode === "create_new" || mascotPromptSet?.mode === "protect_existing")) && (
+                    <button onClick={onEnterSandbox}
+                      className="px-6 py-2.5 border-2 border-primary/30 text-primary font-semibold rounded-xl hover:bg-primary/5 transition-all flex items-center gap-2">
+                      <Wand2 className="w-4 h-4" />
+                      IP Sandbox
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
