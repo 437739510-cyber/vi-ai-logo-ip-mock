@@ -9,6 +9,7 @@ import type { ModulePlan, RecommendedModule } from "@/lib/module-planner";
 import { modulePlanToPages } from "@/lib/module-to-page";
 import { DecisionLayer } from "@/components/admin/DecisionLayer";
 import { generateMascotPromptSet, type MascotPromptSet } from "@/lib/mascot-prompt-strategy";
+import { estimateFullCost } from "@/lib/billing/cost-estimator";
 
 interface ManualPage {
   pageId: string;
@@ -63,6 +64,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   const [analyzing, setAnalyzing] = useState(false);
   const [selectedModules, setSelectedModules] = useState<RecommendedModule[]>([]);
   const [generationConfirmed, setGenerationConfirmed] = useState(false);
+  const [costEstimate, setCostEstimate] = useState<any>(null);
   const [genPlan, setGenPlan] = useState<{pages: number; images: number; minutes: number} | null>(null);
   const [businessProfile, setBusinessProfile] = useState<{businessStage: string; businessGoal: string; budgetLevel: string} | null>(null);
 
@@ -342,8 +344,13 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     const handleConfirmModules = () => {
     const totalPages = selectedModules.reduce((sum, m) => sum + m.estimatedPages, 0);
     const imagesToGenerate = selectedModules.filter((m) => m.priority !== "essential" || m.estimatedPages > 1).length + 1;
+    const est = estimateFullCost(totalPages, {
+      hasBrandAnalyze: true,
+      hasMascotStrategy: !!mascotPromptSet,
+    });
     setGenPlan({ pages: totalPages, images: imagesToGenerate, minutes: Math.ceil(totalPages * 0.8) });
-    setStep(4);
+    setCostEstimate(est);
+    setStep(5);
   };
 
   const handleStartGeneration = () => {
@@ -381,6 +388,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
           mascotPromptSet={mascotPromptSet}
           onAcceptMascot={handleAcceptMascot}
           onDeclineMascot={handleDeclineMascot}
+          costEstimate={costEstimate}
         />
       </div>
     );

@@ -46,6 +46,7 @@ export interface AgentContext {
       accent?: { hex: string; name?: string };
     };
     referenceManual?: { url: string; fileName?: string };
+    businessProfile?: { businessStage?: string; businessGoal?: string; budgetLevel?: string };
   };
 
   /** Project identifier */

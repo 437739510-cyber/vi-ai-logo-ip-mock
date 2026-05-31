@@ -54,7 +54,9 @@ export async function POST(req: Request) {
     }
 
     const profile = result.context.brandProfile;
-    const modulePlan = result.context.modulePlan;
+    // Brand Planner wraps planModules() inside { modulePlan, pagePlan, summary }
+const rawPlan = result.context.modulePlan;
+const modulePlan = rawPlan?.modulePlan || rawPlan;
     const industryProfile = getProfileForBrand(profile);
 
     return new Response(

@@ -38,6 +38,7 @@ export interface ClientMemory {
   latestBrainResultId?: string;
   /** Latest business profile selection */
   latestBusinessProfile?: any;
+  latestMascotProfile?: any;
 
   /** Metadata */
   createdAt: string;
@@ -104,6 +105,7 @@ export interface BrainResultSnapshot {
   /** Asset guardian output */
   assetGuardResult: any;
   /** Generated page URLs */
+  mascotProfile?: any;
   generatedUrls: { pageId: string; label: string; url: string }[];
   /** Business profile (from Step 1.5) */
   businessProfile?: any;
@@ -183,8 +185,3 @@ export interface MemoryAdapter {
   getIndex(): Promise<MemoryIndex>;
   updateIndex(): Promise<void>;
 }
-  latestBusinessProfile?: any;
-  /** Latest mascot profile */
-  latestMascotProfile?: any;
-  /** Mascot profile from Mascot Designer */
-  mascotProfile?: any;

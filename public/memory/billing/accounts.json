@@ -1,0 +1,11 @@
+[
+  {
+    "accountId": "acc-default-001",
+    "companyName": "椰岛工坊",
+    "totalCredits": 500000,
+    "usedCredits": 42500,
+    "remainingCredits": 457500,
+    "lastUpdated": "2026-05-31T10:53:54.919608",
+    "warningThreshold": 50000
+  }
+]

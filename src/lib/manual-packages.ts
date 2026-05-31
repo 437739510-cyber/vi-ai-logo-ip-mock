@@ -13,6 +13,8 @@
  */
 
 import type { BrandProfile } from "./brand-analyzer";
+import type { BusinessProfile } from "./business-profile";
+import { calculateBusinessScore } from "./business-profile";
 
 // ========== Package Tier ==========
 
@@ -298,6 +300,86 @@ export function recommendPackage(profile: BrandProfile): PackageRecommendation {
 /**
  * Get all available packages for reference.
  */
+
+
+/**
+ * Combined recommendation: BrandProfile + BusinessProfile.
+ * Business score contributes 40% of the final decision.
+ */
+export function recommendPackageWithBusiness(
+  profile: BrandProfile,
+  business: BusinessProfile
+): PackageRecommendation {
+  // Get brand-side recommendation
+  const brandRec = recommendPackage(profile);
+
+  // Get business-side scores
+  const bizScore = calculateBusinessScore(business);
+
+  // Combined scores: 60% brand + 40% business
+  const PACKAGE_ORDER: ManualPackageType[] = ["basic_vi", "brand_vi", "brand_ip"];
+  const combined: { tier: ManualPackageType; score: number; def: PackageDefinition }[] = PACKAGE_ORDER.map((tier) => {
+    // Extract brand score from the original scoring logic by re-running internally
+    // We re-use recommendPackage which has internal scoring
+    const brandScore = getBrandScoreForPackage(profile, tier);
+    const biz = bizScore.scores[tier];
+    const finalScore = brandScore * 0.6 + biz * 0.4;
+    return { tier, score: finalScore, def: PACKAGE_DEFINITIONS[tier] };
+  });
+
+  const sorted = combined.sort((a, b) => b.score - a.score);
+  const top = sorted[0];
+  const runnerUp = sorted[1];
+
+  // Build reason combining brand and business factors
+  const reasons: string[] = [];
+  reasons.push(brandRec.reason);
+  reasons.push(`业务判断：${getBusinessStageLabel(business.businessStage)}，目标：${getBusinessGoalLabel(business.businessGoal)}，预算：${getBudgetLabel(business.budgetLevel)}`);
+
+  return {
+    recommended: top.def,
+    confidence: Math.min(1, top.score / 100),
+    reason: reasons.join("；"),
+    alternatives: [runnerUp].map((a) => ({
+      package: a.def,
+      reason: `备选方案（评分差 ${(top.score - a.score).toFixed(0)} 分）`,
+    })),
+  };
+}
+
+/** Extract brand-side score for a specific package tier */
+function getBrandScoreForPackage(profile: BrandProfile, tier: ManualPackageType): number {
+  let score = 0;
+  if (profile.hasMascot) { score += tier === "brand_ip" ? 40 : tier === "brand_vi" ? 10 : 0; }
+  if (profile.hasLogo) { score += tier === "basic_vi" ? 20 : tier === "brand_vi" ? 15 : 10; }
+  if (profile.brandType === "consumer" || profile.brandType === "hospitality" || profile.brandType === "retail") {
+    score += tier === "brand_vi" ? 20 : tier === "brand_ip" ? 30 : 0;
+  }
+  if (profile.brandType === "technology") { score += tier === "brand_vi" ? 25 : tier === "basic_vi" ? 5 : 0; }
+  if (profile.brandType === "industrial" || profile.brandType === "service") {
+    score += tier === "basic_vi" ? 25 : tier === "brand_vi" ? 10 : 0;
+  }
+  if (profile.industryCategory === "food_beverage") { score += tier === "brand_ip" ? 25 : tier === "brand_vi" ? 15 : 0; }
+  if (profile.industryCategory === "technology_it") { score += tier === "brand_vi" ? 15 : 0; }
+  const diffCount = profile.differentiators?.length || 0;
+  if (diffCount >= 3) { score += tier === "brand_vi" ? 10 : tier === "brand_ip" ? 15 : 0; }
+  return score;
+}
+
+function getBusinessStageLabel(s: string): string {
+  const m: Record<string, string> = { startup: "初创品牌", growth: "成长品牌", chain: "连锁品牌", enterprise: "企业级品牌" };
+  return m[s] || s;
+}
+function getBusinessGoalLabel(g: string): string {
+  const m: Record<string, string> = { branding: "建立品牌基础", packaging: "产品包装升级", franchise: "招商加盟", marketing: "营销推广" };
+  return m[g] || g;
+}
+function getBudgetLabel(b: string): string {
+  const m: Record<string, string> = { basic: "轻量版", standard: "标准版", premium: "高级版" };
+  return m[b] || b;
+}
+
+
 export function getAllPackages(): PackageDefinition[] {
   return PACKAGE_ORDER.map((tier) => PACKAGE_DEFINITIONS[tier]);
 }

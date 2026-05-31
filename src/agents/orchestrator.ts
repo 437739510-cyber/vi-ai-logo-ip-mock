@@ -247,7 +247,7 @@ export async function executeBrandBrainPipeline(
             : "Mascot Designer 推荐考虑IP公仔，适度提升此模块优先级";
         }
       }
-      modulePlan.totalEstimatedPages = modules.reduce((s, m) => s + (m.estimatedPages || 0), 0);
+      modulePlan.totalEstimatedPages = modules.reduce((s: number, m: any) => s + (m.estimatedPages || 0), 0);
     }
   }
 

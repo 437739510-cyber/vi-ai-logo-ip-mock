@@ -9,6 +9,7 @@ import {
   Star,
   Users,
   Grid3X3,
+  Wallet,
   ChevronLeft,
   Menu,
   X,
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/admin/favorites", label: "收藏", icon: Star },
   { href: "/admin/clients", label: "客户管理", icon: Users },
   { href: "/admin/templates", label: "模板库", icon: Grid3X3 },
+  { href: "/admin/billing", label: "Billing", icon: Wallet },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

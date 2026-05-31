@@ -21,6 +21,7 @@ interface DecisionLayerProps {
   mascotPromptSet?: any;
   onAcceptMascot?: () => void;
   onDeclineMascot?: () => void;
+  costEstimate?: { estimatedTotal: number; currentBalance: number; sufficient: boolean; items: { label: string; subtotal: number }[] };
 }
 
 export function DecisionLayer({
@@ -40,6 +41,7 @@ export function DecisionLayer({
   mascotPromptSet,
   onAcceptMascot,
   onDeclineMascot,
+  costEstimate,
 }: DecisionLayerProps) {
   return (
     <div className="space-y-8">
@@ -425,6 +427,33 @@ export function DecisionLayer({
               <div className="text-sm text-neutral-500 mt-1">预计耗时</div>
             </div>
           </div>
+
+          {costEstimate && (
+            <div className="bg-neutral-50 rounded-xl p-4 mb-4">
+              <h3 className="text-sm font-semibold text-neutral-700 mb-3">费用预估</h3>
+              <div className="space-y-2 mb-3">
+                {costEstimate.items.map((item, i) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="text-neutral-600">{item.label}</span>
+                    <span className="font-medium text-neutral-900">¥{item.subtotal.toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-sm pt-2 border-t border-neutral-200 font-semibold">
+                  <span className="text-neutral-700">合计</span>
+                  <span className="text-primary">¥{costEstimate.estimatedTotal.toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-white border border-neutral-200">
+                <span className="text-sm text-neutral-600">当前余额</span>
+                <span className={`text-sm font-bold ${costEstimate.sufficient ? 'text-green-600' : 'text-red-500'}`}>
+                  ¥{costEstimate.currentBalance.toFixed(2)}
+                </span>
+              </div>
+              {!costEstimate.sufficient && (
+                <p className="text-xs text-red-500 mt-2">余额不足，请先充值</p>
+              )}
+            </div>
+          )}
 
           <div className="bg-neutral-50 rounded-xl p-4 mb-8">
             <h3 className="text-sm font-semibold text-neutral-700 mb-3">包含模块</h3>
