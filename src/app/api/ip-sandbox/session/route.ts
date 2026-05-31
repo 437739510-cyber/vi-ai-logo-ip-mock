@@ -1,9 +1,9 @@
-/**
+﻿/**
  * IP Sandbox Session API
  *
- * POST /api/ip-sandbox/session — Create a new sandbox session from a plan
- * GET  /api/ip-sandbox/session?id=xxx — Get session status
- * PATCH /api/ip-sandbox/session — Advance session (approve/skip/retry/cancel)
+ * POST /api/ip-sandbox/session 鈥?Create a new sandbox session from a plan
+ * GET  /api/ip-sandbox/session?id=xxx 鈥?Get session status
+ * PATCH /api/ip-sandbox/session 鈥?Advance session (approve/skip/retry/cancel)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -161,6 +161,7 @@ export async function PATCH(req: NextRequest) {
         // Placeholder: simulate generation immediately
         const genResult = await generateStepImage({
           step,
+          brandName: body.brandName,
           brandProfile: body.brandProfile,
           mascotProfile: body.mascotProfile,
           promptSet: body.promptSet,
@@ -229,6 +230,7 @@ export async function PATCH(req: NextRequest) {
         // Re-simulate generation
         const retryResult = await generateStepImage({
           step: retried,
+          brandName: body.brandName,
           brandProfile: body.brandProfile,
           mascotProfile: body.mascotProfile,
           promptSet: body.promptSet,
