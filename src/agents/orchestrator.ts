@@ -7,9 +7,10 @@
  *   clientInfo
  *     → Brand Analyst → brandProfile
  *       → Brand Planner → modulePlan
- *         → Design Director → designDirection
- *           → Asset Guardian → assetGuardResult
- *             → Manual Composer → generationResult
+ *         → Mascot Designer → mascotProfile
+ *           → Design Director → designDirection
+ *             → Asset Guardian → assetGuardResult
+ *               → Manual Composer → generationResult
  *
  * Each agent runs sequentially, passing context to the next.
  * The orchestrator handles errors, tracks progress, and
@@ -20,6 +21,7 @@ import type { AgentContext, AgentId, OrchestratorConfig, OrchestratorMode, Agent
 import { DEFAULT_AGENT_SEQUENCE } from "./types";
 import { brandAnalystAgent } from "./brand-analyst";
 import { brandPlannerAgent } from "./brand-planner";
+import { mascotDesignerAgent } from "./mascot-designer";
 import { designDirectorAgent } from "./design-director";
 import { assetGuardianAgent } from "./asset-guardian-agent";
 import { manualComposerAgent } from "./manual-composer";
@@ -113,6 +115,7 @@ export async function executeBrandBrainPipeline(
   const agentMap: Record<AgentId, any> = {
     "brand-analyst": brandAnalystAgent,
     "brand-planner": brandPlannerAgent,
+    "mascot-designer": mascotDesignerAgent,
     "design-director": designDirectorAgent,
     "asset-guardian": assetGuardianAgent,
     "manual-composer": manualComposerAgent,
@@ -171,6 +174,9 @@ export async function executeBrandBrainPipeline(
           case "brand-planner":
             context.modulePlan = result.data;
             break;
+          case "mascot-designer":
+            context.mascotProfile = result.data;
+            break;
           case "design-director":
             context.designDirection = result.data;
             break;
@@ -224,10 +230,31 @@ export async function executeBrandBrainPipeline(
     }
   }
 
+  // === Post-processing: Adjust modules based on Mascot Designer recommendation ===
+  if (pipelineSuccess && context.mascotProfile && context.modulePlan) {
+    const mascot = context.mascotProfile;
+    const modulePlan = context.modulePlan.modulePlan;
+    const boostModes = new Set(["create_new", "optional_recommend"]);
+    if (boostModes.has(mascot.mode) && mascot.recommendedModules?.length > 0 && modulePlan?.modules) {
+      const modules = modulePlan.modules;
+      const boostIds = new Set([...mascot.recommendedModules, "ip-specs"]);
+      for (const mod of modules) {
+        if (boostIds.has(mod.id)) {
+          mod.score = Math.min(100, (mod.score || 0) + 25);
+          mod.priority = "essential";
+          mod.reason = mascot.mode === "create_new"
+            ? "Mascot Designer 判定品牌需要IP公仔，自动提升此模块优先级"
+            : "Mascot Designer 推荐考虑IP公仔，适度提升此模块优先级";
+        }
+      }
+      modulePlan.totalEstimatedPages = modules.reduce((s, m) => s + (m.estimatedPages || 0), 0);
+    }
+  }
+
   // === Memory: Write project results ===
   if (pipelineSuccess && context.brandProfile) {
     try {
-      // Save client memory
+      // Save client memory (including mascot profile)
       const clientMem: ClientMemory = {
         clientId: clientInfo?.companyName?.replace(/[\s\/]/g, "_") || projectId,
         companyName: clientInfo?.companyName || "",
@@ -238,6 +265,8 @@ export async function executeBrandBrainPipeline(
         brandStage: context.brandProfile?.brandStage || "unknown",
         projectIds: existingClient ? [...new Set([...existingClient.projectIds, projectId])] : [projectId],
         latestBrainResultId: projectId,
+        latestBusinessProfile: clientInfo?.businessProfile || undefined,
+        latestMascotProfile: context.mascotProfile || undefined,
         createdAt: existingClient?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         projectCount: (existingClient?.projectCount || 0) + (existingClient ? 0 : 1),
@@ -245,15 +274,17 @@ export async function executeBrandBrainPipeline(
       };
       await memory.saveClient(clientMem);
 
-      // Save project memory
+      // Save project memory (including mascot profile in snapshot)
       const snapshot: BrainResultSnapshot = {
         timestamp: new Date().toISOString(),
         brandProfile: context.brandProfile,
         packageRecommendation: context.modulePlan?.packageRecommendation,
         modulePlan: context.modulePlan,
+        mascotProfile: context.mascotProfile || undefined,
         designDirection: context.designDirection,
         assetGuardResult: context.assetGuardResult,
         generatedUrls: [],
+        businessProfile: clientInfo?.businessProfile || undefined,
       };
       const projMem: ProjectMemory = {
         projectId,

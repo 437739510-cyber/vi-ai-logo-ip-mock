@@ -148,3 +148,25 @@ vi-ai-logo-ip-mock/
 
 - `_patch_temp/` — ChatGPT 补丁产物，稳定后可删除
 - `.bak` 文件 — page.tsx.bak, route.ts.bak，确认旧代码没问题后可删除
+**Brand Brain Beta+** — 完整闭环（含 IP 策略）已完成。
+| 品牌分析 | ✅ |
+| 商业信息 | ✅ |
+| IP 策略 | ✅ |
+| IP 提示词生成 | ✅ |
+| IP 策略预览 UI | ✅ |
+| 套餐推荐 | ✅ |
+| 模块规划 | ✅ |
+| 生成管道 | ✅（现有，未修改） |
+| 质量评分 | ✅ |
+| 记忆系统 | ✅ |
+| Agent 架构 | ✅（7 agents + orchestrator） |
+| Decision Layer UI | ✅（5 步向导） |
+| GitHub 提交 | ✅（master, 021c7e6） |
+
+### P0 — 文档完善（当前）
+
+完成文档体系更新，固化项目知识。
+
+### P1 — IP Creation Plan
+
+调用通义万相/图片 API 实际生成 IP 形象图。

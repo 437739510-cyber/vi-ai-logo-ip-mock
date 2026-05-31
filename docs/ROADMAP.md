@@ -6,7 +6,7 @@
 Alpha ─── Beta ─── Gamma ─── Delta ─── V1.0
   │         │        │         │         │
   ▼         ▼        ▼         ▼         ▼
-分析     记忆+评分  IP创建   案例学习   商业发布
+分析     记忆+评分  IP策略   案例学习   商业发布
 ```
 
 ---
@@ -66,15 +66,37 @@ Alpha ─── Beta ─── Gamma ─── Delta ─── V1.0
 
 ## Gamma — IP Creation System
 
-**状态：🔜 开发中**
+**状态：✅ 完成（IP 策略阶段）**
 
-目标：让系统"能创造 IP"
+目标：让系统"能判断 IP 策略"
 
-- [ ] Mascot Designer Agent — 客户无 IP 时自动推荐 IP 策略
-- [ ] 两种模式：protect_existing / create_new / not_needed
-- [ ] 行业推荐矩阵
-- [ ] Memory 扩展 (ClientMemory.latestMascotProfile)
-- [ ] Module Planner 联动 (自动添加 IP 模块)
+### Mascot Designer Agent
+
+- [x] MascotProfile 3 种模式 (protect_existing / create_new / optional_recommend / not_needed)
+- [x] 5 因子评分推荐逻辑（行业/品牌/目标/人格/特殊行业覆盖）
+- [x] Module depth 分层 (minimal / light / full)
+- [x] Orchestrator 集成 + Memory 写入
+- [x] Module Planner 联动（create_new 时自动提升 IP 模块优先级）
+
+### Mascot Prompt Strategy V1
+
+- [x] MascotPromptSet 类型 (strategyPrompt / imagePrompt / negativePrompt)
+- [x] protect_existing 模式下 imagePrompt = null（禁止重绘）
+- [x] create_new 模式下 12 要素提示词（含品牌上下文）
+- [x] 7 种 MascotType 风格参考
+- [x] verifyMascotPromptSet() 验证函数
+
+### Mascot Prompt Preview UI
+
+- [x] Decision Layer 升级为 5 步向导（新增 Step 3: IP策略确认）
+- [x] 6 种 IP 状态可视展示（徽标 + 策略 + 提示词 + 禁止项 + 保护规则）
+- [x] 接受/拒绝 IP 策略按钮
+- [x] 拒绝后自动移除 IP 模块
+
+### 待实现
+
+- [ ] IP Creation Plan — 实际调用图片生成 API 创建 IP 形象
+- [ ] IP Billing System — API 余额与消耗追踪
 
 ---
 

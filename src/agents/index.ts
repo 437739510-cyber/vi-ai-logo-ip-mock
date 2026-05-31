@@ -19,3 +19,4 @@ export {
   type OrchestratorEventType,
   type OrchestratorCallback,
 } from "./orchestrator";
+export { mascotDesignerAgent, mascotDesignerIdentity, type MascotProfile, type MascotDesignMode, recommendMascot } from "./mascot-designer";

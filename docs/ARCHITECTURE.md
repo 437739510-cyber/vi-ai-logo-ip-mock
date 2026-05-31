@@ -164,3 +164,5 @@ Agent 之间通过 `AgentContext` 共享数据，Orchestrator 按顺序传递 co
 - `src/app/api/ai/generate-manual-pages-stream/route.ts` — SSE 流式生成 API
 
 新系统通过 `module-to-page.ts` 将模块推荐转换为 pageIds，再喂入原有生成流程。
+│  plan-only mode: Brand Analyst → Brand Planner → Mascot Designer │
+│  full mode: + Design Director → Asset Guardian → Manual Comp     │

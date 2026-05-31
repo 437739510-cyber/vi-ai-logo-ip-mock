@@ -8,6 +8,7 @@ import type { BrandProfile } from "@/lib/brand-analyzer";
 import type { ModulePlan, RecommendedModule } from "@/lib/module-planner";
 import { modulePlanToPages } from "@/lib/module-to-page";
 import { DecisionLayer } from "@/components/admin/DecisionLayer";
+import { generateMascotPromptSet, type MascotPromptSet } from "@/lib/mascot-prompt-strategy";
 
 interface ManualPage {
   pageId: string;
@@ -56,6 +57,15 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   const [currentGenPage, setCurrentGenPage] = useState(0);
   const [waitingForReview, setWaitingForReview] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  // ===== Brand Brain - Decision Layer =====
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [brandAnalysis, setBrandAnalysis] = useState<any>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [selectedModules, setSelectedModules] = useState<RecommendedModule[]>([]);
+  const [generationConfirmed, setGenerationConfirmed] = useState(false);
+  const [genPlan, setGenPlan] = useState<{pages: number; images: number; minutes: number} | null>(null);
+  const [businessProfile, setBusinessProfile] = useState<{businessStage: string; businessGoal: string; budgetLevel: string} | null>(null);
+
 
   useEffect(() => {
     params.then(async (p) => {
@@ -292,6 +302,54 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     }
   };
 
+  const runBrandAnalysis = async () => {
+    setAnalyzing(true);
+    try {
+      const res = await fetch("/api/brand/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientInfo: clientInfo || { companyName: "品牌名称", industry: "未指定" }, projectId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBrandAnalysis(data.data);
+        const plan = data.data.modulePlan;
+        setSelectedModules(plan.modules.filter((m: RecommendedModule) => m.priority === "essential" || m.priority === "recommended"));
+        setStep(2);
+      }
+    } catch (e) {
+      console.error("Brand analysis failed:", e);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const toggleModule = (modId: string) => {
+    setSelectedModules((prev) => prev.filter((m) => m.id !== modId));
+  };
+
+  const handleAcceptMascot = () => {
+      setMascotAccepted(true);
+      setStep(4);
+    };
+
+    const handleDeclineMascot = () => {
+      setMascotAccepted(false);
+      setSelectedModules((prev) => prev.filter((m) => m.id !== "ip-specs"));
+      setStep(4);
+    };
+
+    const handleConfirmModules = () => {
+    const totalPages = selectedModules.reduce((sum, m) => sum + m.estimatedPages, 0);
+    const imagesToGenerate = selectedModules.filter((m) => m.priority !== "essential" || m.estimatedPages > 1).length + 1;
+    setGenPlan({ pages: totalPages, images: imagesToGenerate, minutes: Math.ceil(totalPages * 0.8) });
+    setStep(4);
+  };
+
+  const handleStartGeneration = () => {
+    setGenerationConfirmed(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -301,6 +359,33 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
       </div>
     );
   }
+  // ===== Decision Layer: Step Wizard =====
+  if (!generationConfirmed) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8">
+        <DecisionLayer
+          step={step}
+          analyzing={analyzing}
+          brandAnalysis={brandAnalysis}
+          selectedModules={selectedModules}
+          genPlan={genPlan}
+          clientInfo={clientInfo}
+          onRunAnalysis={runBrandAnalysis}
+          onToggleModule={toggleModule}
+          onAddModule={(mod: RecommendedModule) => setSelectedModules((prev) => [...prev, mod])}
+          onGoToStep={setStep}
+          onConfirmModules={handleConfirmModules}
+          onStartGeneration={handleStartGeneration}
+          businessProfile={businessProfile || undefined}
+          onBusinessProfileChange={setBusinessProfile}
+          mascotPromptSet={mascotPromptSet}
+          onAcceptMascot={handleAcceptMascot}
+          onDeclineMascot={handleDeclineMascot}
+        />
+      </div>
+    );
+  }
+
 
   const displayPages = generating ? livePages : (pagesData?.pages || []);
   const displayErrors = generating ? liveErrors : (pagesData?.errors || []);
@@ -494,3 +579,6 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     </div>
   );
 }
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [mascotPromptSet, setMascotPromptSet] = useState<MascotPromptSet | null>(null);
+  const [mascotAccepted, setMascotAccepted] = useState(true);

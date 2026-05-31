@@ -36,6 +36,8 @@ export interface ClientMemory {
 
   /** Latest brain analysis result reference */
   latestBrainResultId?: string;
+  /** Latest business profile selection */
+  latestBusinessProfile?: any;
 
   /** Metadata */
   createdAt: string;
@@ -103,6 +105,8 @@ export interface BrainResultSnapshot {
   assetGuardResult: any;
   /** Generated page URLs */
   generatedUrls: { pageId: string; label: string; url: string }[];
+  /** Business profile (from Step 1.5) */
+  businessProfile?: any;
 }
 
 export interface ProjectMemory {
@@ -121,11 +125,19 @@ export interface ProjectMemory {
   selectedModules?: string[];
   totalGeneratedPages?: number;
 
-  /** Quality assessment */
-  qualityScore?: number;
+
   clientFeedback?: string;
 
   /** Status tracking */
+  /** Quality assessment result */
+  qualityScore?: {
+    total: number;
+    dimensions: Record<string, number>;
+    issues: { severity: string; category: string; message: string; affectedPages?: string[] }[];
+    flags: string[];
+    checkedAt: string;
+  };
+
   status: "analyzed" | "planned" | "generated" | "delivered";
 
   /** Metadata */
@@ -171,3 +183,8 @@ export interface MemoryAdapter {
   getIndex(): Promise<MemoryIndex>;
   updateIndex(): Promise<void>;
 }
+  latestBusinessProfile?: any;
+  /** Latest mascot profile */
+  latestMascotProfile?: any;
+  /** Mascot profile from Mascot Designer */
+  mascotProfile?: any;

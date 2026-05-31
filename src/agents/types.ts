@@ -10,6 +10,7 @@
 export type AgentId =
   | "brand-analyst"
   | "brand-planner"
+  | "mascot-designer"
   | "design-director"
   | "asset-guardian"
   | "manual-composer";
@@ -60,6 +61,9 @@ export interface AgentContext {
 
   /** Brand Planner output */
   modulePlan?: any;
+
+  /** Mascot Designer output */
+  mascotProfile?: any;
 
   /** Design Director output */
   designDirection?: any;
@@ -124,6 +128,7 @@ export interface OrchestratorConfig {
 export const DEFAULT_AGENT_SEQUENCE: AgentId[] = [
   "brand-analyst",
   "brand-planner",
+  "mascot-designer",
   "design-director",
   "asset-guardian",
   "manual-composer",
@@ -140,6 +145,12 @@ export const AGENT_IDENTITIES: Record<AgentId, AgentIdentity> = {
     id: "brand-planner",
     name: "品牌规划师",
     description: "根据品牌画像，规划 VI 手册的模块结构和页面清单",
+    version: "1.0.0",
+  },
+  "mascot-designer": {
+    id: "mascot-designer",
+    name: "IP形象设计师",
+    description: "分析品牌是否需要IP公仔，已有IP时保护原图，无IP时推荐IP设计策略",
     version: "1.0.0",
   },
   "design-director": {
