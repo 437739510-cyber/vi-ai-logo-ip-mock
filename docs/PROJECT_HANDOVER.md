@@ -7,15 +7,15 @@
 
 ## 当前版本
 
-**v0.7-alpha** (commit `e5bb8e0`, tag `v0.7-alpha`)
+**v0.7-alpha** + Knowledge Documentation V1 (commit `4bf1fdf`)
 
 ## 当前阶段
 
-Brand Brain 已完成七层架构（Analysis → Knowledge → Decision → Memory → Billing → Sandbox → Provider）。WanxiangProvider 已实现，ProviderRegistry 已注册。真实图片生成链搭建完毕，仅需开通 DashScope 账户即可启用。
+Brand Brain 七层架构 + Knowledge Documentation V1 均已落盘。当前是理想的话题切换节点。
 
 ## 当前任务
 
-Wanxiang Provider 收尾（已实现，待 DashScope 开通后验证真实调用）
+等待 ChatGPT 在新对话中重新确认下一步指令
 
 ## 当前负责人
 
@@ -25,16 +25,15 @@ Wanxiang Provider 收尾（已实现，待 DashScope 开通后验证真实调用
 
 ## 最后决策
 
-1. Wanxiang Provider Design 通过 → 进入实现 ✅
+1. Wanxiang Provider 实现完成，v0.7-alpha 已打 tag ✅
 2. Provider Metrics V1 通过 ✅
-3. 对话切换协议 V1 通过 ✅
-4. 下一阶段候选：Knowledge Documentation V1（沉淀课件知识）
+3. Knowledge Documentation V1 完成（6 份文档，来自 9 个 PDF 来源） ✅
+4. 对话切换协议 V1 已建立 ✅
+5. 下一阶段待 ChatGPT 确认
 
 ## 下一步计划
 
-1. 开通 DashScope 服务后验证真实图片生成（1 次调用）
-2. 或者进入 Knowledge Documentation V1
-3. 由 ChatGPT 确认后执行
+1. 切换新对话
 
 ## 不要做的事项
 
