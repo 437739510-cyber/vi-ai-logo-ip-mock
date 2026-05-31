@@ -84,3 +84,30 @@ export interface ImageProvider {
   /** Generate a variant (retry with different seed) */
   generateVariant(params: GenerateImageParams): Promise<GenerateImageResult>;
 }
+
+// ========== Provider Metrics ==========
+
+/** Per-provider aggregated statistics */
+export interface ProviderMetrics {
+  providerName: string;
+  totalCalls: number;
+  successCalls: number;
+  failedCalls: number;
+  totalCost: number;
+  averageLatencyMs: number;
+  totalDurationMs: number;
+  lastCalledAt: string | null;
+  createdAt: string;
+}
+
+/** Snapshot of a single provider call */
+export interface ProviderCallLog {
+  providerName: string;
+  method: "generateImage" | "generateVariant";
+  success: boolean;
+  cost: number;
+  durationMs: number;
+  stepId: string;
+  errorMessage?: string;
+  timestamp: string;
+}

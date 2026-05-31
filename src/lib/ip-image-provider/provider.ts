@@ -3,10 +3,20 @@
  *
  * Manages available image providers and selects the best one.
  * Fallback chain: Wanxiang → Flux → Midjourney → Mock (guaranteed)
+ *
+ * All registered providers are automatically wrapped with
+ * MetricsProvider for transparent call statistics.
  */
 
-import type { ImageProvider } from "./types";
+import type { ImageProvider, ProviderMetrics, ProviderCallLog } from "./types";
 import { MockProvider } from "./mock-provider";
+import {
+  MetricsProvider,
+  getProviderMetrics,
+  getAllProviderMetrics,
+  getRecentCalls,
+  getProviderCalls,
+} from "./metrics-provider";
 
 export class ProviderRegistry {
   private providers: Map<string, ImageProvider> = new Map();
@@ -15,17 +25,18 @@ export class ProviderRegistry {
   /**
    * Register a provider with optional priority.
    * Higher priority = checked first.
+   * Automatically wrapped with MetricsProvider.
    */
   register(provider: ImageProvider, priority: number = 0): void {
-    this.providers.set(provider.name, provider);
+    const wrapped = new MetricsProvider(provider);
+    this.providers.set(provider.name, wrapped);
     if (!this.priorityOrder.includes(provider.name)) {
       this.priorityOrder.push(provider.name);
     }
-    // Re-sort by priority (maintained externally, but we keep insertion order)
   }
 
   /**
-   * Get a provider by name.
+   * Get a provider by name (returns the MetricsProvider wrapper).
    */
   get(name: string): ImageProvider | undefined {
     return this.providers.get(name);
@@ -36,7 +47,6 @@ export class ProviderRegistry {
    * Falls back to MockProvider if nothing else is available.
    */
   async getActive(): Promise<ImageProvider> {
-    // Check registered providers in priority order
     for (const name of this.priorityOrder) {
       const provider = this.providers.get(name);
       if (provider && (await provider.isAvailable())) {
@@ -44,13 +54,15 @@ export class ProviderRegistry {
       }
     }
 
-    // Fallback: check mock provider
     if (this.providers.has("mock")) {
       return this.providers.get("mock")!;
     }
 
-    // Last resort: always available
-    return new MockProvider();
+    const mock = new MockProvider();
+    const wrapped = new MetricsProvider(mock);
+    this.providers.set("mock", wrapped);
+    this.priorityOrder.push("mock");
+    return wrapped;
   }
 
   /**
@@ -73,6 +85,27 @@ export class ProviderRegistry {
     const provider = this.providers.get(name);
     if (!provider) return false;
     return provider.isAvailable();
+  }
+
+  /**
+   * Get metrics for a specific provider.
+   */
+  getMetrics(providerName: string): ProviderMetrics | undefined {
+    return getProviderMetrics(providerName);
+  }
+
+  /**
+   * Get metrics for all registered providers.
+   */
+  getAllMetrics(): ProviderMetrics[] {
+    return getAllProviderMetrics();
+  }
+
+  /**
+   * Get recent call log.
+   */
+  getRecentCalls(limit?: number): ProviderCallLog[] {
+    return getRecentCalls(limit);
   }
 }
 
