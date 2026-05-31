@@ -1,0 +1,17 @@
+
+> vi-ai-logo-ip-mock@0.1.0 dev
+> next dev --turbopack --port 3003
+
+ ⚠ Runtime config is deprecated and the `serverRuntimeConfig` configuration option will be removed in Next.js 16.
+   ▲ Next.js 15.5.18 (Turbopack)
+   - Local:        http://localhost:3003
+   - Network:      http://192.168.0.8:3003
+   - Environments: .env.local
+
+ ✓ Starting...
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 704ms
+ ✓ Ready in 2.8s
+ ○ Compiling / ...
+ ✓ Compiled / in 6.1s
+ GET /api/billing/summary 200 in 1921ms
