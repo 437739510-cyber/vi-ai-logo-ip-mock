@@ -56,6 +56,13 @@ Alpha ─── Beta ─── Gamma ─── Delta ─── V1.0
 - [x] JSON Adapter 持久化
 - [x] Memory 初始化和预载
 
+### 字体安全系统
+
+- [x] FontProfile 数据结构 (license / commercialSafe / provider)
+- [x] 10 个商用安全字体收录 (5 CN + 5 EN)
+- [x] recommendFonts() 行业匹配推荐
+- [x] 全部 API 可用
+
 ### 质量评分
 
 - [x] ManualQualityScore — 5 维度评分
