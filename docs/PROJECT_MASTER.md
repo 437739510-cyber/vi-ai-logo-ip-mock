@@ -1,17 +1,26 @@
-# Brand Brain — Project Master
+﻿# Brand Brain — Project Master
 
-> AI Brand Guideline Builder / AI 品牌规范生成平台
+> AI Brand Guideline Builder / AI 品牌顾问平台
+
+---
+
+**Last Updated:** 2026-05-31 — HANDOVER-UPDATE-002
+**Current Version:** **Brand Brain v1.0** (CLOSED)
+**Status:** **PRODUCTION VERIFIED** — Lead Capture PASS (VI-20260531-16C4)
+**Current Blocker:** None — Production Lead Capture PASS
+**Next Milestone:** COMMERCIAL-VALIDATION-001 — First Real Client Delivery
+
+**Key Documents:**
+- [PROJECT_STATUS_v1.0_RC.md](./PROJECT_STATUS_v1.0_RC.md) — RC 状态评估
+- [PROJECT_CONSOLIDATION_V1.md](./PROJECT_CONSOLIDATION_V1.md) — 项目收口 v1
+- [BUSINESS_ROADMAP.md](./BUSINESS_ROADMAP.md) — 商业化路线图
+- [PROJECT_HANDOVER.md](./PROJECT_HANDOVER.md) — 对话切换交接包
+- [BUILD_DIAGNOSTIC_REPORT.md](./BUILD_DIAGNOSTIC_REPORT.md) — 构建诊断与 Node 版本策略
 
 ---
 
-**Last Updated:** 2026-05-31
-**Current Stage:** Brand Brain Beta+
-**Current Priority:** 完善文档体系
-**Next Priority:** IP Creation Plan / Billing System / Style Extractor
-**Blockers:** 无
-**Latest Milestones:** Mascot Designer Agent V1 / Mascot Prompt Strategy V1 / Mascot Prompt Preview UI V1
-
----
+> Brand Brain 不仅是 AI 品牌顾问系统。它同时具备创业孵化与商业化潜力。
+> 商业路线图见 [BUSINESS_ROADMAP.md](./BUSINESS_ROADMAP.md)，创业申报材料见 [STARTUP_APPLICATION_BRIEF.md](./STARTUP_APPLICATION_BRIEF.md)。
 
 ## 项目定位
 
@@ -21,9 +30,23 @@
 
 ## 当前阶段
 
-**Brand Brain Beta+**
+**Brand Brain v1.0 RC** — Release Candidate，已完成所有核心系统研发与验证。
 
-已完成完整闭环：分析 → 商业信息 → IP策略 → 套餐推荐 → 模块规划 → 生成计划 → 质量评分 → 记忆存档
+## 已完成里程碑
+
+| 里程碑 | 状态 | 说明 |
+|--------|------|------|
+| Governance V2 | ✅ | 架构治理，SSOT 建立 |
+| Governance V3 | ✅ | Memory 生产化，Supabase Adapter |
+| V4 Production Validation | ✅ | 椰岛工坊 Phase 1/2 验证 |
+| Quality Score Phase 1 | ✅ | Logging Only 接入 Memory |
+| Brand Analyst Mapping Fix | ✅ | 字段映射修复，confidence 0.3 → 0.75 |
+| Business Roadmap | ✅ | 商业化路线 + 收口交接机制 |
+| Startup Application Brief | ✅ | 创业基地申报材料 |
+| CONSOLIDATION-001/002 | ✅ | 项目收口 + RC 状态评估 |
+| Storage Migration | ✅ | 本地文件 → Supabase Storage |
+| Build Diagnostic & Fix | ✅ | Node v22 锁定 + BOM 修复 |
+| Generation API Fix | ✅ | 参数顺序错误诊断与修复 |
 
 ## 当前系统闭环
 
@@ -42,68 +65,94 @@ Decision Layer（用户确认）
    ↓
 Generation Pipeline（生成）
    ↓
+Supabase Storage（云存储）
+   ↓
 Quality Score（质量评分）
    ↓
 Memory System（记忆存档）
 ```
 
-## 已完成模块
-
-| 模块 | 文件 | 状态 | 说明 |
-|------|------|------|------|
-| Brand Analyzer | `src/lib/brand-analyzer.ts` | ✅ | 品牌类型、人格、定位、原型、语气 |
-| Industry Knowledge | `src/lib/industry-knowledge.ts` | ✅ | 10+ 行业分类与视觉特征 |
-| Package System | `src/lib/manual-packages.ts` | ✅ | 3 个套餐 (basic_vi / brand_vi / brand_ip) |
-| Business Profile | `src/lib/business-profile.ts` | ✅ | 商业三要素评分 (stage/goal/budget) |
-| Module Planner | `src/lib/module-planner.ts` | ✅ | 15 个模块评分 + 双因子排序 |
-| Module-to-Page Bridge | `src/lib/module-to-page.ts` | ✅ | 模块 → pageIds 转换桥 |
-| Memory System | `src/lib/memory/` | ✅ | 客户/行业/项目 三级记忆 JSON 存储 |
-| Manual Quality Score | `src/lib/manual-quality-score.ts` | ✅ | 5 维度评分 (0-100) |
-| Asset Guardian | `src/lib/asset-guardian.ts` | ✅ | 品牌资产保护策略 |
-| Decision Layer UI | `src/components/admin/DecisionLayer.tsx` | ✅ | 5 步决策向导 UI |
-| Agent Architecture | `src/agents/` (7 agents + orchestrator) | ✅ | 统一 Agent 契约接口 |
-| Brand Analyze API | `POST /api/brand/analyze` | ✅ | 使用 Orchestrator plan-only 模式 |
-| **Mascot Designer Agent** | `src/agents/mascot-designer.ts` | ✅ | IP 策略判断 3 种模式 |
-| **Mascot Prompt Strategy** | `src/lib/mascot-prompt-strategy.ts` | ✅ | IP 提示词生成引擎 |
-| **Mascot Prompt Preview UI** | Step 3 in DecisionLayer | ✅ | IP 策略确认与预览 |
-
-## 核心约束
-
-1. **Logo 和 IP 是受保护品牌资产** — 禁止 AI 重绘、改色、改材质、重新设计
-2. **已有 IP 不重绘** — protect_existing 模式下 imagePrompt = null
-3. **Asset Guardian 必须保留** — 保护逻辑不能绕过
-4. **PAGE_DEFS 暂时保留** — 生成层稳定基础不删除
-5. **增量开发** — 不推翻旧系统，新系统作为前置决策层运行
-6. **Decision Layer 优先级高于 Visual Layer** — 先确保分析正确，再优化视觉
-
-## 禁止事项
-
-- 不要 AI 重绘 Logo
-- 不要 AI 重绘已有 IP
-- 不要删除 Asset Guardian
-- 不要删除 PAGE_DEFS（当前阶段）
-- 不要不经过 Memory 直接生成
-- 不要在未确认 Business Profile 前进入生成
-- 不要在用户未确认 IP 策略前强推 IP 模块
-
 ## 技术栈
 
-- **框架**: Next.js 15.5.18 (Turbopack)
+- **框架**: Next.js 15.5.18 (Turbopack dev / webpack production)
 - **语言**: TypeScript
-- **AI 模型**: DeepSeek (品牌分析), 通义万相 (图片生成 — 尚未接入)
-- **存储**: JSON 文件 (public/memory/)，V1 暂不引入数据库
+- **Node**: 22.14.0 LTS（锁定，不兼容 v24）
+- **AI 模型**: DeepSeek (品牌分析/背景提示词), 通义万相 (背景图生成)
+- **数据库**: Supabase (Memory + Storage)
+- **部署**: Vercel / 本地 `next start`
+- **存储**: Supabase Storage (brand-brain-generated bucket) + 本地 filesystem fallback
 
-## 下一阶段候选（未排序）
+## 基础设施
 
-| 候选 | 说明 |
+| 组件 | 标识 | 状态 |
+|------|------|------|
+| GitHub | `437739510-cyber/vi-ai-logo-ip-mock` | ✅ master |
+| Vercel | `vi-ai-logo-ip-mock` | ✅ Build 通过 |
+| Supabase | `fzoscrutqhdfzwnjgjvs` | ✅ Memory + Storage 生产就绪 |
+
+## 当前验证状态
+
+| 组件 | 状态 |
 |------|------|
-| A. IP Creation Plan | 实际调用图片生成 API 创建 IP |
-| B. Billing System | API 余额与消耗追踪 |
-| C. Style Extractor | 从参考手册提取版式/颜色/字体风格 |
-| D. Case Memory | 优秀案例知识库 |
-| E. Anti-Pattern Memory | 常见错误模式库 |
-| F. Quality Score V2 | 引入图像识别层面的自动评分 |
+| Build (Node v22.14.0) | ✅ 20.4s |
+| TypeScript 编译 | ✅ 0 错误 |
+| Supabase Memory 读写 | ✅ V3-P0a/b/c 通过 |
+| Supabase Storage 上传 | ✅ 直接测试通过 |
+| DeepSeek API | ✅ 正常 |
+| Aliyun Tongyi Wanxiang | ✅ 正常 |
+| Generation API (SSE) | ✅ 24s 跑通单页 |
+| Local filesystem fallback | ✅ 保留 |
+
+## 冻结区 — 禁止修改
+
+```
+❌ Generation Layer (page-planner, render-blueprint, design-rules, generate-manual-pages-stream)
+❌ SVG / Cover / Font Layer
+❌ Asset Guardian (lib + agent)
+❌ Agent implementations (src/agents/*.ts)
+❌ MemoryAdapter Interface (memory/types.ts)
+❌ JsonMemoryAdapter
+❌ Provider Layer
+❌ Database schema
+❌ UI components (DecisionLayer, editor, etc.)
+```
+
+## 环境变量 (`.env.local`)
+
+```
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_KEY
+NEXT_PUBLIC_MEMORY_ADAPTER=json (dev) / supabase (production)
+DEEPSEEK_API_KEY
+ALIYUN_API_KEY
+ADMIN_PASSWORD
+XYQ_ACCESS_KEY
+NEXT_PUBLIC_USE_MOCK=false
+```
+
+## 下一步（唯一优先）
+
+```
+RC-DEPLOYMENT-006
+Yedao Full Mode Final Validation
+↓
+PROJECT CLOSURE v1.0
+↓
+Commercial Pilot（商业试点）
+```
+
+## Business Documentation
+
+> Brand Brain 不仅是技术项目，同时具备创业孵化与商业化潜力。
+
+| 文档 | 用途 |
+|------|------|
+| [BUSINESS_ROADMAP.md](./BUSINESS_ROADMAP.md) | 商业化路线图、收口流程、交接机制 |
+| [STARTUP_APPLICATION_BRIEF.md](./STARTUP_APPLICATION_BRIEF.md) | 创业基地申报简介 |
+| Future Business Plan | （规划中）商业计划书、路演 PPT、财务预测 |
 
 ## 项目来源
 
-原项目 `vi-ai-logo-ip-mock` 从 VI 手册生成工具演化而来。经过多轮重构后升级为 Brand Brain 品牌顾问系统。详细信息见 [HANDOVER.md](./HANDOVER.md)。
+原项目 `vi-ai-logo-ip-mock` 从 VI 手册生成工具演化而来。经过多轮重构后升级为 Brand Brain 品牌顾问系统。详细信息见 [HANDOVER.md](./HANDOVER.md) 和 [PROJECT_CONSOLIDATION_V1.md](./PROJECT_CONSOLIDATION_V1.md)。
+

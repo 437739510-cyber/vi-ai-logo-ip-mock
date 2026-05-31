@@ -12,6 +12,7 @@ import { renderBlueprintToSvg } from "@/lib/render-blueprint";
 import type { PageBlueprint } from "@/lib/page-planner";
 import { validateBlueprintAgainstRules } from "@/lib/design-rules";
 import { saveGenerationLog, type GenerationLogEntry } from "@/lib/generation-logger";
+import { supabaseAdmin } from "@/lib/supabase";
 
 const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
 const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
@@ -337,8 +338,37 @@ async function generateBackground(
  * 2. If background fails, create a solid-color fallback
  * 3. Composite SVG overlay (text, logo, IP) onto the background
  */
+
+/** Upload a PNG buffer to Supabase Storage, returns public URL or null (fallback to local filesystem) */
+async function uploadToSupabaseStorage(
+  buffer: Buffer,
+  projectId: string,
+  fileName: string
+): Promise<string | null> {
+  try {
+    const filePath = `${projectId}/${fileName}`;
+    const { data, error } = await supabaseAdmin.storage
+      .from("brand-brain-generated")
+      .upload(filePath, buffer, {
+        contentType: "image/png",
+        upsert: true,
+      });
+    if (error) {
+      console.warn(`[supabase-storage] Upload failed for ${fileName}:`, error.message);
+      return null;
+    }
+    const { data: urlData } = supabaseAdmin.storage
+      .from("brand-brain-generated")
+      .getPublicUrl(filePath);
+    return urlData.publicUrl;
+  } catch (e) {
+    console.warn(`[supabase-storage] Upload error for ${fileName}:`, String(e));
+    return null;
+  }
+}
 async function assemblePage(
   pageDef: typeof PAGE_DEFS[0],
+  projectId: string,
   clientInfo: any,
   brandColors: any,
   logoUrl: string | undefined,
@@ -398,11 +428,18 @@ async function assemblePage(
   if (bgPath) {
     try {
       const svgBuf = Buffer.from(svgContent);
-      await sharp(bgPath)
+      const pngBuffer = await sharp(bgPath)
         .composite([{ input: svgBuf, top: 0, left: 0 }])
         .png()
-        .toFile(outputPath);
-      // Clean up temp bg file
+        .toBuffer();
+      // Try Supabase Storage first
+      const supabaseUrl = await uploadToSupabaseStorage(pngBuffer, projectId, outputFileName);
+      if (supabaseUrl) {
+        try { await unlink(bgPath); } catch {}
+        return supabaseUrl;
+      }
+      // Fallback: write locally
+      await writeFile(outputPath, pngBuffer);
       try { await unlink(bgPath); } catch {}
       return `/generated/${outputFileName}`;
     } catch (e) {
@@ -414,7 +451,12 @@ async function assemblePage(
   // Fallback: render SVG directly (sharp converts SVG to PNG)
   try {
     const svgBuf = Buffer.from(svgContent);
-    await sharp(svgBuf).resize(1024, 1024).png().toFile(outputPath);
+    const pngBuffer = await sharp(svgBuf).resize(1024, 1024).png().toBuffer();
+    // Try Supabase Storage first
+    const supabaseUrl = await uploadToSupabaseStorage(pngBuffer, projectId, outputFileName);
+    if (supabaseUrl) return supabaseUrl;
+    // Fallback: write locally
+    await writeFile(outputPath, pngBuffer);
     return `/generated/${outputFileName}`;
   } catch (e2) {
     console.error(`[assemblePage] SVG fallback also failed for ${pageDef.id}:`, String(e2));
@@ -497,7 +539,7 @@ export async function POST(req: Request) {
             const pageStart = Date.now();
           try {
             imageUrl = await assemblePage(
-              page, clientInfo, brandColors,
+              page, projectId, clientInfo, brandColors,
               logoUrl, mascotUrl,
               dashscopeKey, deepseekKey,
               i, totalToGenerate,

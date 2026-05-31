@@ -2,14 +2,56 @@
  * Brand Brain — Memory System Index
  *
  * Convenience exports + initialization helper.
+ * Adapter selection controlled by NEXT_PUBLIC_MEMORY_ADAPTER.
+ *
+ * Valid values:
+ *   "json"     → JsonMemoryAdapter (default, for local development)
+ *   "supabase" → SupabaseMemoryAdapter (for production)
+ *
+ * No auto mode. Explicit selection required for production.
  */
 
-export { JsonMemoryAdapter, getMemoryAdapter } from "./json-adapter";
+export { JsonMemoryAdapter } from "./json-adapter";
+export { SupabaseMemoryAdapter } from "./supabase-adapter";
+export { generateClientId } from "./client-id";
 export type { MemoryAdapter, ClientMemory, IndustryMemory, ProjectMemory, BrainResultSnapshot, MemoryIndex } from "./types";
 
-import { getMemoryAdapter } from "./json-adapter";
+import { JsonMemoryAdapter } from "./json-adapter";
+import { SupabaseMemoryAdapter } from "./supabase-adapter";
 import { getAllIndustryProfiles, getSubCategories } from "../industry-knowledge";
-import type { IndustryMemory } from "./types";
+import type { IndustryMemory, MemoryAdapter } from "./types";
+
+let _instance: MemoryAdapter | null = null;
+
+/**
+ * Get the memory adapter based on NEXT_PUBLIC_MEMORY_ADAPTER.
+ *
+ * "json"     → JsonMemoryAdapter (default)
+ * "supabase" → SupabaseMemoryAdapter
+ *
+ * @throws Error if NEXT_PUBLIC_MEMORY_ADAPTER is set to an unrecognized value
+ */
+export function getMemoryAdapter(): MemoryAdapter {
+  if (_instance) return _instance;
+
+  const adapterType = process.env.NEXT_PUBLIC_MEMORY_ADAPTER || "json";
+
+  switch (adapterType) {
+    case "json":
+      _instance = new JsonMemoryAdapter();
+      break;
+    case "supabase":
+      _instance = new SupabaseMemoryAdapter();
+      break;
+    default:
+      throw new Error(
+        `Unknown NEXT_PUBLIC_MEMORY_ADAPTER value: "${adapterType}". ` +
+        `Valid values: "json" (local dev), "supabase" (production).`
+      );
+  }
+
+  return _instance;
+}
 
 /**
  * Initialize the memory system with pre-loaded industry knowledge.

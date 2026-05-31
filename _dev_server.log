@@ -15,3 +15,226 @@
  ○ Compiling / ...
  ✓ Compiled / in 6.1s
  GET /api/billing/summary 200 in 1921ms
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\server\edge\chunks\_be702585._.js']
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1756ms
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.gitqy7851ar'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.gitqy7851ar'
+}
+ ✓ Compiled /_not-found/page in 307ms
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.irkoeh3o26i'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.irkoeh3o26i'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.ug02j1724c9'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.ug02j1724c9'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.sxiu7a5168c'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.sxiu7a5168c'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.ufwiqx7jxqh'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.ufwiqx7jxqh'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\server\edge\chunks\_be702585._.js']
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.fe9c37q8po9'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.fe9c37q8po9'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.iriypligkiq'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.iriypligkiq'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.7fvki0myfak'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.7fvki0myfak'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.4j5grleg4yi'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.4j5grleg4yi'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.j3csgzpy41g'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.j3csgzpy41g'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\server\edge\chunks\_be702585._.js']
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.0ehv3pgps1ht'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.0ehv3pgps1ht'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.ldycq5movsp'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.ldycq5movsp'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.mcklmaogw6'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.mcklmaogw6'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.u8766vfuka'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.u8766vfuka'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.9acjx6klnar'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.9acjx6klnar'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\server\edge\chunks\_be702585._.js']
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.mya7ka7lw8g'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.mya7ka7lw8g'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.3r8u79h3y47'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.3r8u79h3y47'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.234g8hmnhlfh'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.234g8hmnhlfh'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.90ptfuqetza'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.90ptfuqetza'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.w42z2h0uq0q'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.w42z2h0uq0q'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\server\edge\chunks\_be702585._.js']
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.4c0gwahyv9q'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.4c0gwahyv9q'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.t0egvpu9pjc'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.t0egvpu9pjc'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.qxfvksq4z0o'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.qxfvksq4z0o'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.8w23gymdp9j'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.8w23gymdp9j'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.u0aryl2qspb'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.u0aryl2qspb'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\server\edge\chunks\_be702585._.js']
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.n7f9ry55q9j'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.n7f9ry55q9j'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.9kiuucfafm'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.9kiuucfafm'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.acr2kze6db8'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.acr2kze6db8'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.vi556m8mlc'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.vi556m8mlc'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.ccxz1j5xfac'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.ccxz1j5xfac'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\server\edge\chunks\_be702585._.js']
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.tnjl9okluff'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.tnjl9okluff'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.s7rqbg3w8uk'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.s7rqbg3w8uk'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.54aavtcq33c'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.54aavtcq33c'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.n02yapw5oto'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.n02yapw5oto'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock\.next\static\development\_buildManifest.js.tmp.ie9hoj9cgpn'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Administrator\\Documents\\Codex\\vi-ai-logo-ip-mock\\.next\\static\\development\\_buildManifest.js.tmp.ie9hoj9cgpn'
+}
+[?25h
+
+C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock>

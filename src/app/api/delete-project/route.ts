@@ -21,28 +21,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "projectId required" }, { status: 400 });
     }
 
-    // 从 Supabase 删除
+    // Delete from Supabase
     const { error: delErr } = await supabaseAdmin.from("projects").delete().eq("id", projectId);
     if (delErr) throw new Error("Supabase delete: " + delErr.message);
 
-    // 同时删除关联数据
+    // Delete related data
     await supabaseAdmin.from("ai_plans").delete().eq("project_id", projectId);
     await supabaseAdmin.from("vi_manuals").delete().eq("project_id", projectId);
     await supabaseAdmin.from("manual_pages").delete().eq("project_id", projectId);
     await supabaseAdmin.from("favorites").delete().eq("project_id", projectId);
 
-    // 本地备份也删除
-    const projPath = path.join(MOCK_DIR, "projects.json");
-    const projects: any[] = await loadJson(projPath);
-    const target = projects.find((p: any) => p.id === projectId);
-    const updatedProjects = projects.filter((p: any) => p.id !== projectId);
-    await writeFile(projPath, JSON.stringify(updatedProjects, null, 2), "utf-8");
+    // Local JSON backup cleanup - only on local dev, skip on Vercel (read-only filesystem)
+    if (process.env.VERCEL !== "1") {
+      const projPath = path.join(MOCK_DIR, "projects.json");
+      const projects: any[] = await loadJson(projPath);
+      const target = projects.find((p: any) => p.id === projectId);
+      const updatedProjects = projects.filter((p: any) => p.id !== projectId);
+      await writeFile(projPath, JSON.stringify(updatedProjects, null, 2), "utf-8");
 
-    if (target?.submissionId) {
-      const subPath = path.join(MOCK_DIR, "submissions.json");
-      const submissions: any[] = await loadJson(subPath);
-      const updatedSubs = submissions.filter((s: any) => s.id !== target.submissionId);
-      await writeFile(subPath, JSON.stringify(updatedSubs, null, 2), "utf-8");
+      if (target?.submissionId) {
+        const subPath = path.join(MOCK_DIR, "submissions.json");
+        const submissions: any[] = await loadJson(subPath);
+        const updatedSubs = submissions.filter((s: any) => s.id !== target.submissionId);
+        await writeFile(subPath, JSON.stringify(updatedSubs, null, 2), "utf-8");
+      }
     }
 
     return NextResponse.json({ success: true, message: `Deleted ${projectId}` });

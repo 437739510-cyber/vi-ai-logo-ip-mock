@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Brand Brain — Orchestrator
  *
  * The central coordinator that manages the agent pipeline.
@@ -17,6 +17,129 @@
  * provides a unified interface for the frontend to consume.
  */
 
+// ========== Quality Score Calculation (Phase 1: Logging Only) ==========
+
+interface PhaseScore {
+  score: number;
+  gate: "PASS" | "WARN" | "FAIL";
+  flags: string[];
+  dimensions: Record<string, number>;
+}
+
+function calculatePhaseA(context: AgentContext): PhaseScore {
+  const bp = context.brandProfile;
+  if (!bp) {
+    return { score: 0, gate: "FAIL", flags: ["no_brand_profile"], dimensions: {} };
+  }
+
+  let score = 0;
+  const dims: Record<string, number> = {};
+
+  const confScore = Math.round(bp.confidence * 40);
+  score += confScore;
+  dims.confidence = confScore;
+
+  const typeScore = (bp.brandType !== "unknown" && bp.brandType !== undefined) ? 15 : 0;
+  score += typeScore;
+  dims.brandType = typeScore;
+
+  const personaScore = Math.min(Math.round(((bp.brandPersona?.length || 0) / 6) * 15), 15);
+  score += personaScore;
+  dims.brandPersona = personaScore;
+
+  const stageScore = (bp.brandStage !== "unknown" && bp.brandStage !== undefined) ? 10 : 0;
+  score += stageScore;
+  dims.brandStage = stageScore;
+
+  const diffScore = Math.min((bp.differentiators?.length || 0) * 2, 10);
+  score += diffScore;
+  dims.differentiators = diffScore;
+
+  const visScore = (bp.visualDirection !== "minimal_modern" && bp.visualDirection !== undefined) ? 10 : 0;
+  score += visScore;
+  dims.visualDirection = visScore;
+
+  score = Math.min(100, Math.round(score));
+  let gate: "PASS" | "WARN" | "FAIL" = "PASS";
+  const flags: string[] = [];
+  if (score < 40) { gate = "FAIL"; flags.push("brand_analysis_failed"); }
+  else if (score < 70) { gate = "WARN"; flags.push("brand_analysis_low_confidence"); }
+
+  return { score, gate, flags, dimensions: dims };
+}
+
+function calculatePhaseB(context: AgentContext): PhaseScore {
+  const mp = context.modulePlan;
+  if (!mp) {
+    return { score: 0, gate: "FAIL", flags: ["no_module_plan"], dimensions: {} };
+  }
+
+  const plan = mp.modulePlan || mp;
+  const modules = plan.modules || [];
+
+  let score = 0;
+  const dims: Record<string, number> = {};
+
+  dims.planExists = 20;
+  score += 20;
+
+  const essentialCount = modules.filter((m: any) => m.priority === "essential").length;
+  const essScore = Math.min(essentialCount * 5, 25);
+  score += essScore;
+  dims.essentialModules = essScore;
+
+  const totalScore = Math.min(modules.length * 1.5, 15);
+  score += totalScore;
+  dims.totalModules = Math.round(totalScore);
+
+  const pkgScore = plan.packageRecommendation ? 20 : 0;
+  score += pkgScore;
+  dims.packageRecommendation = pkgScore;
+
+  const pages = plan.totalEstimatedPages || 0;
+  const pageScore = (pages >= 10 && pages <= 50) ? 20 : (pages > 0 ? 10 : 0);
+  score += pageScore;
+  dims.totalEstimatedPages = pageScore;
+
+  score = Math.min(100, Math.round(score));
+  let gate: "PASS" | "WARN" | "FAIL" = "PASS";
+  const flags: string[] = [];
+  if (score < 50) { gate = "FAIL"; flags.push("module_plan_failed"); }
+  else if (score < 70) { gate = "WARN"; flags.push("module_plan_low_quality"); }
+
+  return { score, gate, flags, dimensions: dims };
+}
+
+function buildQualityScore(context: AgentContext): {
+  total: number;
+  dimensions: Record<string, number>;
+  flags: string[];
+  phaseA: PhaseScore;
+  phaseB: PhaseScore | null;
+  checkedAt: string;
+} {
+  const phaseA = calculatePhaseA(context);
+  const phaseB = calculatePhaseB(context);
+
+  const available = [phaseA];
+  if (phaseB.score > 0) available.push(phaseB);
+  const total = Math.round(available.reduce((s, p) => s + p.score, 0) / available.length);
+
+  const allFlags = [...phaseA.flags];
+  if (phaseB) allFlags.push(...phaseB.flags);
+
+  return {
+    total,
+    dimensions: { ...phaseA.dimensions, ...(phaseB?.dimensions || {}) },
+    flags: allFlags,
+    phaseA,
+    phaseB: phaseB.score > 0 ? phaseB : null,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+
+
 import type { AgentContext, AgentId, OrchestratorConfig, OrchestratorMode, AgentResult } from "./types";
 import { DEFAULT_AGENT_SEQUENCE } from "./types";
 import { brandAnalystAgent } from "./brand-analyst";
@@ -27,6 +150,40 @@ import { assetGuardianAgent } from "./asset-guardian-agent";
 import { manualComposerAgent } from "./manual-composer";
 import { getMemoryAdapter } from "@/lib/memory";
 import type { ClientMemory, ProjectMemory, BrainResultSnapshot } from "@/lib/memory";
+/**
+ * Reverse mapping: encoded industry value → human-readable label used by brand-analyzer.
+ * The analyzer expects labels like "餐饮/食品", but callers may pass "food_beverage".
+ */
+const ENCODED_INDUSTRY_TO_LABEL: Record<string, string> = {
+  "food_beverage": "餐饮/食品",
+  "technology_it": "科技/互联网",
+  "retail_ecommerce": "零售/电商",
+  "education_training": "教育/培训",
+  "healthcare_medical": "医疗/健康",
+  "finance_legal": "金融/法律",
+  "culture_media": "文化/传媒",
+  "manufacturing": "制造业",
+  "hospitality_tourism": "酒店/旅游",
+};
+
+/**
+ * Normalize raw clientInfo to match the field names expected by analyzeBrand().
+ * Fixes known field mismatches without modifying agent code.
+ */
+function normalizeClientInfo(raw: any): any {
+  return {
+    companyName: raw.companyName,
+    industry: ENCODED_INDUSTRY_TO_LABEL[raw.industry] || raw.industry || "",
+    brandVision: raw.brandVision || raw.brandDescription || "",
+    coreValues: raw.coreValues || raw.brandDescription?.slice(0, 50) || "",
+    targetMarket: raw.targetMarket || raw.businessProfile?.targetAudience || "",
+    logoPhilosophy: raw.logoPhilosophy || "",
+    mascotPhilosophy: raw.mascotPhilosophy || "",
+    logoAssets: raw.logoAssets || [],
+    mascotAssets: raw.mascotAssets || [],
+  };
+}
+
 
 export type OrchestratorEventType =
   | "orchestrator:start"
@@ -64,6 +221,10 @@ export async function executeBrandBrainPipeline(
   results: Record<AgentId, AgentResult>;
 }> {
   const mode = options?.mode || "full";
+  // Normalize clientInfo field names to match what analyzeBrand() expects.
+  // This fixes the Yedao brandDescription→brandVision mismatch.
+  const normalizedClientInfo = normalizeClientInfo(clientInfo);
+
   const onEvent = options?.onEvent;
 
   // Determine agent sequence based on mode
@@ -87,7 +248,7 @@ export async function executeBrandBrainPipeline(
   let existingClient: ClientMemory | null = null;
   let existingProject: ProjectMemory | null = null;
   try {
-    existingClient = await memory.findClientByCompany(clientInfo?.companyName || "");
+    existingClient = await memory.findClientByCompany(normalizedClientInfo?.companyName || "");
     existingProject = await memory.getProject(projectId);
   } catch (e) {
     console.warn("[orchestrator] Memory read failed:", e);
@@ -98,7 +259,7 @@ export async function executeBrandBrainPipeline(
 
   // Initialize context
   const context: AgentContext = {
-    clientInfo,
+    clientInfo: normalizedClientInfo,
     projectId,
     metadata: {
       startTime: Date.now(),
@@ -256,16 +417,16 @@ export async function executeBrandBrainPipeline(
     try {
       // Save client memory (including mascot profile)
       const clientMem: ClientMemory = {
-        clientId: clientInfo?.companyName?.replace(/[\s\/]/g, "_") || projectId,
-        companyName: clientInfo?.companyName || "",
-        industry: clientInfo?.industry || "",
+        clientId: normalizedClientInfo?.companyName?.replace(/[\s\/]/g, "_") || projectId,
+        companyName: normalizedClientInfo?.companyName || "",
+        industry: normalizedClientInfo?.industry || "",
         industryCategory: context.brandProfile?.industryCategory || "",
-        hasLogo: (clientInfo?.logoAssets?.length || 0) > 0,
-        hasMascot: (clientInfo?.mascotAssets?.length || 0) > 0,
+        hasLogo: (normalizedClientInfo?.logoAssets?.length || 0) > 0,
+        hasMascot: (normalizedClientInfo?.mascotAssets?.length || 0) > 0,
         brandStage: context.brandProfile?.brandStage || "unknown",
         projectIds: existingClient ? [...new Set([...existingClient.projectIds, projectId])] : [projectId],
         latestBrainResultId: projectId,
-        latestBusinessProfile: clientInfo?.businessProfile || undefined,
+        latestBusinessProfile: normalizedClientInfo?.businessProfile || undefined,
         latestMascotProfile: context.mascotProfile || undefined,
         createdAt: existingClient?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -284,19 +445,33 @@ export async function executeBrandBrainPipeline(
         designDirection: context.designDirection,
         assetGuardResult: context.assetGuardResult,
         generatedUrls: [],
-        businessProfile: clientInfo?.businessProfile || undefined,
+        businessProfile: normalizedClientInfo?.businessProfile || undefined,
       };
+      const qs = buildQualityScore(context);
       const projMem: ProjectMemory = {
         projectId,
         clientId: clientMem.clientId,
-        companyName: clientInfo?.companyName || "",
+        companyName: normalizedClientInfo?.companyName || "",
         brainResults: existingProject ? [...existingProject.brainResults, snapshot] : [snapshot],
         status: context.generationResult ? "generated" : "analyzed",
         createdAt: existingProject?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        qualityScore: {
+          total: qs.total,
+          dimensions: qs.dimensions,
+          issues: [],
+          flags: qs.flags,
+          checkedAt: qs.checkedAt,
+        },
       };
       await memory.saveProject(projMem);
       console.log("[orchestrator] Memory saved for project:", projectId);
+      console.log("[orchestrator] Quality Score:", JSON.stringify({
+        total: qs.total,
+        phaseA: qs.phaseA.gate + " (" + qs.phaseA.score + ")",
+        phaseB: qs.phaseB ? qs.phaseB.gate + " (" + qs.phaseB.score + ")" : "N/A",
+        flags: qs.flags,
+      }));
     } catch (e) {
       console.warn("[orchestrator] Memory write failed:", e);
     }
@@ -331,3 +506,4 @@ function emitEvent(callback: OrchestratorCallback | undefined, event: Orchestrat
     }
   }
 }
+
