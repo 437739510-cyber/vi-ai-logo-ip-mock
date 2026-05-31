@@ -69,6 +69,9 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   const [generationConfirmed, setGenerationConfirmed] = useState(false);
   const [costEstimate, setCostEstimate] = useState<any>(null);
   const [genPlan, setGenPlan] = useState<{pages: number; images: number; minutes: number} | null>(null);
+  const [mascotPromptSet, setMascotPromptSet] = useState(null);
+  const [mascotAccepted, setMascotAccepted] = useState(true);
+
   const [businessProfile, setBusinessProfile] = useState<{businessStage: string; businessGoal: string; budgetLevel: string} | null>(null);
 
 
@@ -617,6 +620,3 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     </div>
   );
 }
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [mascotPromptSet, setMascotPromptSet] = useState<MascotPromptSet | null>(null);
-  const [mascotAccepted, setMascotAccepted] = useState(true);
