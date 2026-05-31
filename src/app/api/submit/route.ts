@@ -1,4 +1,4 @@
-// API Route: POST /api/submit
+﻿// API Route: POST /api/submit
 // Save to Supabase + local JSON fallback
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -104,18 +104,20 @@ export async function POST(req: NextRequest) {
       console.warn("[SUBMIT] Supabase project skipped:", e);
     }
 
-    // Local JSON backup — write once per file
-    await mkdir(MOCK_DIR, { recursive: true });
+    // Local JSON backup — Vercel production only writes to Supabase
+    if (process.env.VERCEL !== "1") {
+      await mkdir(MOCK_DIR, { recursive: true });
 
-    const subsPath = path.join(MOCK_DIR, "submissions.json");
-    const subs = await loadJson<any[]>(subsPath);
-    subs.unshift(submission);
-    await writeFile(subsPath, JSON.stringify(subs, null, 2));
+      const subsPath = path.join(MOCK_DIR, "submissions.json");
+      const subs = await loadJson<any[]>(subsPath);
+      subs.unshift(submission);
+      await writeFile(subsPath, JSON.stringify(subs, null, 2));
 
-    const projsPath = path.join(MOCK_DIR, "projects.json");
-    const projs = await loadJson<any[]>(projsPath);
-    projs.unshift(project);
-    await writeFile(projsPath, JSON.stringify(projs, null, 2));
+      const projsPath = path.join(MOCK_DIR, "projects.json");
+      const projs = await loadJson<any[]>(projsPath);
+      projs.unshift(project);
+      await writeFile(projsPath, JSON.stringify(projs, null, 2));
+    }
 
     return NextResponse.json({ success: true, projectId, submissionId });
   } catch (error) {
@@ -123,3 +125,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Submit failed" }, { status: 500 });
   }
 }
+
