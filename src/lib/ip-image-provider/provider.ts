@@ -1,8 +1,8 @@
-/**
- * IP Image Provider Layer — Provider Registry
+﻿/**
+ * IP Image Provider Layer 鈥?Provider Registry
  *
  * Manages available image providers and selects the best one.
- * Fallback chain: Wanxiang → Flux → Midjourney → Mock (guaranteed)
+ * Fallback chain: Wanxiang 鈫?Flux 鈫?Midjourney 鈫?Mock (guaranteed)
  *
  * All registered providers are automatically wrapped with
  * MetricsProvider for transparent call statistics.
@@ -10,6 +10,7 @@
 
 import type { ImageProvider, ProviderMetrics, ProviderCallLog } from "./types";
 import { MockProvider } from "./mock-provider";
+import { WanxiangProvider } from "./wanxiang-provider";
 import {
   MetricsProvider,
   getProviderMetrics,
@@ -121,6 +122,9 @@ export function getDefaultRegistry(): ProviderRegistry {
   if (!_defaultRegistry) {
     _defaultRegistry = new ProviderRegistry();
     _defaultRegistry.register(new MockProvider(), 0);
+    // Register WanxiangProvider with higher priority
+    // If WANXIANG_API_KEY is configured, it will be selected over Mock
+    _defaultRegistry.register(new WanxiangProvider(), 10);
   }
   return _defaultRegistry;
 }

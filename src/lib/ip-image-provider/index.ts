@@ -1,5 +1,5 @@
-/**
- * IP Image Provider Layer — Central Exports
+﻿/**
+ * IP Image Provider Layer 鈥?Central Exports
  */
 
 export type {
@@ -17,6 +17,7 @@ export {
 } from "./provider";
 
 export { MockProvider } from "./mock-provider";
+export { WanxiangProvider } from "./wanxiang-provider";
 
 export {
   MetricsProvider,
