@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,18 @@ import {
 } from "@/lib/consultation-schema";
 import { LogoUploadArea, MascotUploadArea, ReferenceUploadArea } from "./FileUploadArea";
 import { Loader2 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+// File size limits (matching FileUploadArea hints)
+const MAX_LOGO_SIZE = 20 * 1024 * 1024;      // 20MB
+const MAX_MASCOT_SIZE = 20 * 1024 * 1024;    // 20MB
+const MAX_PDF_SIZE = 50 * 1024 * 1024;       // 50MB
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const STORAGE_BUCKET = "brand-brain-generated";
+const STORAGE_PREFIX = "uploads/form-assets";
 
 export function ConsultationForm() {
   const router = useRouter();
@@ -39,17 +51,44 @@ export function ConsultationForm() {
 
   // Uploaded file previews are derived from File[] state directly in component renders
 
-  // Upload a list of files to /api/upload, returns file metadata array
-  async function uploadFiles(files: File[], fieldName = "files"): Promise<{ fileName: string; url: string; size: number }[]> {
+  // Upload files directly to Supabase Storage from the browser.
+  // Bypasses Vercel Serverless Function 4.5MB payload limit.
+  async function uploadFiles(files: File[], type: "logo" | "mascot" | "pdf"): Promise<{ fileName: string; url: string; size: number }[]> {
     if (files.length === 0) return [];
-    const formData = new FormData();
+
+    const limits: Record<string, number> = { logo: MAX_LOGO_SIZE, mascot: MAX_MASCOT_SIZE, pdf: MAX_PDF_SIZE };
+    const limit = limits[type];
     for (const f of files) {
-      formData.append(fieldName, f);
+      if (f.size > limit) {
+        const sizeMB = (f.size / (1024 * 1024)).toFixed(1);
+        const limitMB = (limit / (1024 * 1024)).toFixed(0);
+        throw new Error(`${f.name} (${sizeMB}MB) 超过文件大小限制 (${limitMB}MB)`);
+      }
     }
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-    const data = await res.json();
-    return data.files || [];
+
+    const results: { fileName: string; url: string; size: number }[] = [];
+    for (const file of files) {
+      const ext = file.name.split(".").pop() || "";
+      const timestamp = Date.now();
+      const rand = Math.random().toString(36).slice(2, 6);
+      const safeName = `${timestamp}-${rand}.${ext}`;
+      const storagePath = `${STORAGE_PREFIX}/${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(storagePath, file, { contentType: file.type, upsert: false });
+
+      if (uploadError) {
+        throw new Error(`上传失败: ${uploadError.message}`);
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(storagePath);
+
+      results.push({ fileName: file.name, url: publicUrlData.publicUrl, size: file.size });
+    }
+    return results;
   }
 
   const onSubmit = async (data: ConsultationFormData) => {
@@ -68,9 +107,9 @@ export function ConsultationForm() {
     try {
       // Step 1: Upload all files in parallel
       const [logoAssets, mascotAssetsList, refAssets] = await Promise.all([
-        uploadFiles(logoFileList),
-        uploadFiles(mascotFileList, "files"),
-        referenceFileList.length > 0 ? uploadFiles(referenceFileList, "files") : Promise.resolve([] as { fileName: string; url: string; size: number }[]),
+        uploadFiles(logoFileList, "logo"),
+        uploadFiles(mascotFileList, "mascot"),
+        referenceFileList.length > 0 ? uploadFiles(referenceFileList, "pdf") : Promise.resolve([] as { fileName: string; url: string; size: number }[]),
       ]);
 
       // Step 2: Build mascot items with metadata
@@ -389,3 +428,6 @@ export function ConsultationForm() {
     </form>
   );
 }
+
+
+
