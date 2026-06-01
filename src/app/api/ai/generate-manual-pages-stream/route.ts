@@ -122,8 +122,8 @@ function renderPageSvg(
   const accHex = brandColors?.accent?.hex || "#FBBC04";
 
   // Common styles
- const titleFont = '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
- const bodyFont = '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+ const titleFont = 'sans-serif';
+ const bodyFont = 'sans-serif';
 
  let svg = `<svg width="${pw}" height="${ph}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`;
  svg += `<defs>`;
@@ -156,7 +156,7 @@ function renderPageSvg(
 
     // Brand Name in brush/calligraphic font
     const nameY = logoDataUri ? 370 : 200;
-    svg += `<text x="${pw/2}" y="${nameY}" text-anchor="middle" font-family="'STXingkai','LiSu','KaiTi','Noto Sans SC','PingFang SC',sans-serif" font-size="52" font-weight="bold" fill="#FFFFFF" filter="url(#shadow)">${companyName}</text>`;
+    svg += `<text x="${pw/2}" y="${nameY}" text-anchor="middle" font-family="sans-serif" font-size="52" font-weight="bold" fill="#FFFFFF" filter="url(#shadow)">${companyName}</text>`;
 
     // Subtitle
     svg += `<text x="${pw/2}" y="${nameY + 65}" text-anchor="middle" font-family="${titleFont}" font-size="26" font-weight="700" fill="#FFFFFF" opacity="0.95">品牌视觉识别系统（VI）规范手册</text>`;
