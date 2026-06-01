@@ -69,6 +69,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   const [selectedModules, setSelectedModules] = useState<RecommendedModule[]>([]);
   const [generationConfirmed, setGenerationConfirmed] = useState(false);
   const [costEstimate, setCostEstimate] = useState<any>(null);
+  const [modelBalances, setModelBalances] = useState<any>(null);
   const [genPlan, setGenPlan] = useState<{pages: number; images: number; minutes: number} | null>(null);
   const [mascotPromptSet, setMascotPromptSet] = useState<MascotPromptSet | null>(null);
   const [mascotAccepted, setMascotAccepted] = useState(true);
@@ -464,17 +465,43 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     const handleConfirmModules = async () => {
     const totalPages = selectedModules.reduce((sum, m) => sum + m.estimatedPages, 0);
     const imagesToGenerate = selectedModules.filter((m) => m.priority !== "essential" || m.estimatedPages > 1).length + 1;
-    // Fetch real DashScope balance from server-side API
-    let currentBalance = 0;
+    // Fetch real balances from server-side APIs
+    let dashscopeBalance: number | null = null;
+    let dashscopeError: string | undefined;
+    let deepseekBalance: number | null = null;
+    let deepseekError: string | undefined;
+    
+    // Fetch DashScope balance
     try {
       const balRes = await fetch("/api/billing/dashscope-balance");
       if (balRes.ok) {
         const balData = await balRes.json();
         if (balData.availableAmount !== null && balData.availableAmount !== undefined) {
-          currentBalance = balData.availableAmount;
+          dashscopeBalance = balData.availableAmount;
+        } else {
+          dashscopeError = balData.error;
         }
+      } else {
+        try { const e = await balRes.json(); dashscopeError = e.error; } catch {}
       }
-    } catch {}
+    } catch { dashscopeError = "请求失败"; }
+
+    // Fetch DeepSeek balance
+    try {
+      const dsRes = await fetch("/api/billing/deepseek-balance");
+      if (dsRes.ok) {
+        const dsData = await dsRes.json();
+        if (dsData.balance !== null && dsData.balance !== undefined) {
+          deepseekBalance = dsData.balance;
+        } else {
+          deepseekError = dsData.error;
+        }
+      } else {
+        try { const e = await dsRes.json(); deepseekError = e.error; } catch {}
+      }
+    } catch { deepseekError = "请求失败"; }
+
+    const currentBalance = dashscopeBalance ?? 0;
     const est = estimateFullCost(totalPages, {
       hasBrandAnalyze: true,
       hasMascotStrategy: !!mascotPromptSet,
@@ -482,6 +509,12 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     });
     setGenPlan({ pages: totalPages, images: imagesToGenerate, minutes: Math.ceil(totalPages * 0.8) });
     setCostEstimate(est);
+    setModelBalances({
+      deepseek: deepseekBalance,
+      dashscope: dashscopeBalance,
+      deepseekError,
+      dashscopeError,
+    });
     setStep(5);
   };
 
@@ -522,6 +555,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
           onDeclineMascot={handleDeclineMascot}
           onEnterSandbox={handleEnterSandbox}
           costEstimate={costEstimate}
+          modelBalances={modelBalances}
         />
       </div>
     );

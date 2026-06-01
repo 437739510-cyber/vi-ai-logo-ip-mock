@@ -23,6 +23,13 @@ interface DecisionLayerProps {
   onDeclineMascot?: () => void;
   onEnterSandbox?: () => void;
   costEstimate?: { estimatedTotal: number; currentBalance: number; sufficient: boolean; items: { label: string; subtotal: number }[] };
+  /** Separate model balances for display */
+  modelBalances?: {
+    deepseek: number | null;
+    dashscope: number | null;
+    deepseekError?: string;
+    dashscopeError?: string;
+  };
 }
 
 export function DecisionLayer({
@@ -44,6 +51,7 @@ export function DecisionLayer({
   onDeclineMascot,
   onEnterSandbox,
   costEstimate,
+  modelBalances,
 }: DecisionLayerProps) {
   return (
     <div className="space-y-8">
@@ -452,15 +460,38 @@ export function DecisionLayer({
                   <span className="text-primary">¥{costEstimate.estimatedTotal.toFixed(2)}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-white border border-neutral-200">
-                <span className="text-sm text-neutral-600">当前余额</span>
-                <span className={`text-sm font-bold ${costEstimate.sufficient ? 'text-green-600' : 'text-red-500'}`}>
-                  ¥{costEstimate.currentBalance.toFixed(2)}
-                </span>
+              <div className="py-2 px-3 rounded-lg bg-white border border-neutral-200">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-neutral-500">模型账户余额</span>
+                </div>
+                {modelBalances && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-600">DeepSeek</span>
+                      <span className="font-medium text-green-600">
+                        {modelBalances.deepseek !== null
+                          ? "¥" + modelBalances.deepseek.toFixed(2)
+                          : (modelBalances.deepseekError || "读取失败")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-600">通义万相</span>
+                      <span className="font-medium text-green-600">
+                        {modelBalances.dashscope !== null
+                          ? "¥" + modelBalances.dashscope.toFixed(2)
+                          : (modelBalances.dashscopeError || "读取失败")}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {!modelBalances && (
+                  <div className="text-sm">
+                    <span className={`font-bold ${costEstimate.sufficient ? 'text-green-600' : 'text-red-500'}`}>
+                      ¥{costEstimate.currentBalance.toFixed(2)}
+                    </span>
+                  </div>
+                )}
               </div>
-              {!costEstimate.sufficient && (
-                <p className="text-xs text-red-500 mt-2">余额不足，请先充值</p>
-              )}
             </div>
           )}
 
