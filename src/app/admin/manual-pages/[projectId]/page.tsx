@@ -134,6 +134,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
           failedPages: 0,
         });
         setLivePages(pages);
+        setGenerationConfirmed(true);
         loadedFromSupabase = true;
       }
     } catch {}
