@@ -470,8 +470,8 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
       const balRes = await fetch("/api/billing/dashscope-balance");
       if (balRes.ok) {
         const balData = await balRes.json();
-        if (balData.balance !== null && balData.balance !== undefined) {
-          currentBalance = balData.balance;
+        if (balData.availableAmount !== null && balData.availableAmount !== undefined) {
+          currentBalance = balData.availableAmount;
         }
       }
     } catch {}

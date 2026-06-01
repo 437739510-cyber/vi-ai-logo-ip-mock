@@ -19,7 +19,8 @@ const BSS_ENDPOINT = "https://business.aliyuncs.com";
 const BSS_API_VERSION = "2017-12-14";
 
 interface BalanceResponse {
-  balance: number;
+  availableAmount: number;
+  availableCashAmount: number;
   currency: string;
   source: "aliyun_api" | "env_var" | "error";
 }
@@ -106,7 +107,8 @@ async function queryFromAliyunApi(): Promise<BalanceResponse | null> {
     }
 
     return {
-      balance: availableAmount,
+      availableAmount: availableAmount,
+      availableCashAmount: parseFloat(body?.Data?.AvailableCashAmount) || 0,
       currency: body?.Data?.Currency || "CNY",
       source: "aliyun_api",
     };
@@ -124,7 +126,7 @@ function queryFromEnvVar(): BalanceResponse | null {
   if (!raw) return null;
   const balance = parseFloat(raw);
   if (isNaN(balance)) return null;
-  return { balance, currency: "CNY", source: "env_var" };
+  return { availableAmount: balance, availableCashAmount: balance, currency: "CNY", source: "env_var" };
 }
 
 export async function GET() {
@@ -143,7 +145,8 @@ export async function GET() {
   // Neither available
   return NextResponse.json(
     {
-      balance: null,
+      availableAmount: null,
+      availableCashAmount: null,
       currency: "CNY",
       source: "error",
       error: "余额读取失败，请检查阿里云账务权限或设置 DASHSCOPE_ACCOUNT_BALANCE 环境变量",
