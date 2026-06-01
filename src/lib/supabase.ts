@@ -9,4 +9,8 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY!;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // 服务端用（API Route 中操作数据库）
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+// 注意：不要改成模块级 createClient，否则浏览器端 import 本模块会崩溃
+// 因为 SUPABASE_SERVICE_KEY 没有 NEXT_PUBLIC_ 前缀，浏览器端为 undefined
+export const supabaseAdmin = supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : (null as unknown as ReturnType<typeof createClient>);
