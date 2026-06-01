@@ -86,6 +86,18 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   // Auto-generate mascot prompt set when entering Step 3
   useEffect(() => {
     if (step === 3 && !mascotPromptSet && brandAnalysis) {
+      // Guard: mascotProfile may be missing from brand analysis response
+      if (!brandAnalysis.mascotProfile) {
+        setMascotPromptSet({
+          mode: "not_needed",
+          strategyPrompt: "品牌分析暂未生成IP策略，可继续下一步。",
+          imagePrompt: null,
+          negativePrompt: "",
+          usageNotes: [],
+          restrictions: [],
+        });
+        return;
+      }
       const promptSet = generateMascotPromptSet({
         mascotProfile: brandAnalysis.mascotProfile,
         brandProfile: brandAnalysis.profile,
