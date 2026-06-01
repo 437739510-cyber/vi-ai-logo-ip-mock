@@ -3,7 +3,7 @@
 // Compatible with Vercel Serverless (no Python / Pillow dependency)
 import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument } from "pdf-lib";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 import path from "path";
 
 const STORAGE_BUCKET = "brand-brain-generated";
@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Fetch manual pages from Supabase vi_manuals
-    const { data: manuals, error: manualErr } = await supabaseAdmin
+    // Use anon key (supabase) for read-only queries — supabaseAdmin may be null in production
+    const { data: manuals, error: manualErr } = await supabase
       .from("vi_manuals")
       .select("pages, generated_at, pdf_url")
       .eq("project_id", projectId)
@@ -50,8 +51,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Return cached pdf_url if available
+    // Return cached pdf_url if available
     if (manuals[0].pdf_url) {
-      console.log("[export-pdf] Returning cached PDF:", manuals[0].pdf_url);
       return NextResponse.json({
         success: true,
         url: manuals[0].pdf_url,
@@ -126,36 +127,19 @@ export async function POST(req: NextRequest) {
 
     const pdfBytes = await pdfDoc.save();
 
+
+
+
     // 5. Upload PDF to Supabase Storage
+    // Try supabaseAdmin first (has full write access), fall back to supabase (anon)
     const pdfPath = `${projectId}/manual-${projectId}.pdf`;
-    const { error: uploadErr } = await supabaseAdmin.storage
+    const storageClient = supabaseAdmin ?? supabase;
+    const { error: uploadErr } = await storageClient.storage
       .from(STORAGE_BUCKET)
       .upload(pdfPath, pdfBytes, {
         contentType: "application/pdf",
         upsert: true,
       });
-
-    if (uploadErr) {
-      console.error("[export-pdf] Storage upload error:", uploadErr);
-      return NextResponse.json({ error: "Failed to upload PDF" }, { status: 500 });
-    }
-
-    // 6. Get public URL
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(pdfPath);
-
-    const publicUrl = publicUrlData?.publicUrl;
-
-    // Save pdf_url to vi_manuals for caching
-    try {
-      await supabaseAdmin
-        .from("vi_manuals")
-        .update({ pdf_url: publicUrl })
-        .eq("project_id", projectId);
-    } catch (cacheErr) {
-      console.warn("[export-pdf] Failed to cache pdf_url:", cacheErr);
-    }
 
     return NextResponse.json({
       success: true,
@@ -170,3 +154,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+    if (uploadErr) {
+      console.error("[export-pdf] Storage upload error:", uploadErr);
+      return NextResponse.json({ error: "Failed to upload PDF" }, { status: 500 });
+    }
+    // 6. Get public URL
+    const { data: publicUrlData } = storageClient.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(pdfPath);
+
+    const publicUrl = publicUrlData?.publicUrl;
+    // Save pdf_url to vi_manuals for caching
+    try {
+      // Use whichever client succeeded for storage (likely has write access)
+      await (supabaseAdmin ?? supabase)
+        .from("vi_manuals")
+        .update({ pdf_url: publicUrl })
+        .eq("project_id", projectId);
+    } catch (cacheErr) {
+      console.warn("[export-pdf] Failed to cache pdf_url:", cacheErr);
+    }
