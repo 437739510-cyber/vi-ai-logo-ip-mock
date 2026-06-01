@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     // 1. Fetch manual pages from Supabase vi_manuals
     const { data: manuals, error: manualErr } = await supabaseAdmin
       .from("vi_manuals")
-      .select("pages, generated_at")
+      .select("pages, generated_at, pdf_url")
       .eq("project_id", projectId)
       .order("generated_at", { ascending: false })
       .limit(1);
@@ -47,6 +47,19 @@ export async function POST(req: NextRequest) {
 
     if (!manuals || manuals.length === 0 || !manuals[0].pages) {
       return NextResponse.json({ error: "No generated pages found for this project" }, { status: 404 });
+    }
+
+    // Return cached pdf_url if available
+    if (manuals[0].pdf_url) {
+      console.log("[export-pdf] Returning cached PDF:", manuals[0].pdf_url);
+      return NextResponse.json({
+        success: true,
+        url: manuals[0].pdf_url,
+        pdfUrl: manuals[0].pdf_url,
+        downloadUrl: manuals[0].pdf_url,
+        message: "PDF from cache",
+        totalPages: 0,
+      });
     }
 
     const pages = manuals[0].pages as { pageId: string; label: string; url: string }[];
@@ -133,6 +146,16 @@ export async function POST(req: NextRequest) {
       .getPublicUrl(pdfPath);
 
     const publicUrl = publicUrlData?.publicUrl;
+
+    // Save pdf_url to vi_manuals for caching
+    try {
+      await supabaseAdmin
+        .from("vi_manuals")
+        .update({ pdf_url: publicUrl })
+        .eq("project_id", projectId);
+    } catch (cacheErr) {
+      console.warn("[export-pdf] Failed to cache pdf_url:", cacheErr);
+    }
 
     return NextResponse.json({
       success: true,

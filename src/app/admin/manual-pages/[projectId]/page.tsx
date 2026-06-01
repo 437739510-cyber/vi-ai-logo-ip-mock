@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Loader2, Hand, Play, Trash2, Wand2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Loader2, Hand, Play, Trash2, Wand2, Download } from "lucide-react";
 // Brand Brain imports
 import type { BrandProfile } from "@/lib/brand-analyzer";
 import type { ModulePlan, RecommendedModule } from "@/lib/module-planner";
@@ -61,6 +61,8 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   const [mode, setMode] = useState<"auto" | "manual">("manual");
   const [currentGenPage, setCurrentGenPage] = useState(0);
   const [waitingForReview, setWaitingForReview] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   // ===== Brand Brain - Decision Layer =====
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -378,6 +380,35 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     });
   };
 
+  const handleDownloadPdf = async () => {
+    if (!projectId) return;
+    setPdfLoading(true);
+    try {
+      const res = await fetch("/api/ai/export-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      const data = await res.json();
+      if (data.downloadUrl) {
+        setPdfUrl(data.downloadUrl);
+        // Auto-download
+        const a = document.createElement("a");
+        a.href = data.downloadUrl;
+        a.download = projectId + "-VI手册.pdf";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        alert("PDF 生成失败: " + (data.error || "未知错误"));
+      }
+    } catch (e: any) {
+      alert("PDF 下载失败: " + (e.message || String(e)));
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   const handleClearPages = async () => {
     if (!window.confirm("\u786e\u5b9a\u8981\u5220\u9664\u5df2\u751f\u6210\u7684\u6240\u6709\u9875\u9762\u5417\uff1f\u6b64\u64cd\u4f5c\u4e0d\u53ef\u64a4\u9500\u3002")) return;
     try {
@@ -626,6 +657,13 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
               className="px-5 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-all flex items-center gap-2 shadow-lg shadow-primary/20"
             >
               <Hand className="w-4 h-4" /> {displayPages.length > 0 ? "\u7ee7\u7eed\u751f\u6210" : "\u5f00\u59cb\u9010\u5f20\u751f\u6210"}
+            </button>
+          )}
+          {displayPages.length > 0 && !generating && (
+            <button onClick={handleDownloadPdf} disabled={pdfLoading}
+              className="px-3 py-2.5 border border-blue-200 text-blue-600 text-sm font-medium rounded-xl hover:bg-blue-50 transition-all flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" /> {pdfLoading ? "生成中..." : "下载 PDF"}
             </button>
           )}
           {displayPages.length > 0 && !generating && (
