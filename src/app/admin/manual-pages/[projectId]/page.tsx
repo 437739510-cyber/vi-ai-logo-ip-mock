@@ -69,7 +69,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   const [generationConfirmed, setGenerationConfirmed] = useState(false);
   const [costEstimate, setCostEstimate] = useState<any>(null);
   const [genPlan, setGenPlan] = useState<{pages: number; images: number; minutes: number} | null>(null);
-  const [mascotPromptSet, setMascotPromptSet] = useState(null);
+  const [mascotPromptSet, setMascotPromptSet] = useState<MascotPromptSet | null>(null);
   const [mascotAccepted, setMascotAccepted] = useState(true);
 
   const [businessProfile, setBusinessProfile] = useState<{businessStage: string; businessGoal: string; budgetLevel: string} | null>(null);
@@ -82,6 +82,20 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
       setLoading(false);
     });
   }, [params]);
+
+  // Auto-generate mascot prompt set when entering Step 3
+  useEffect(() => {
+    if (step === 3 && !mascotPromptSet && brandAnalysis) {
+      const promptSet = generateMascotPromptSet({
+        mascotProfile: brandAnalysis.mascotProfile,
+        brandProfile: brandAnalysis.profile,
+        businessProfile: (businessProfile as any) || undefined,
+        industryProfile: brandAnalysis.industryProfile,
+      });
+      setMascotPromptSet(promptSet);
+    }
+  }, [step, brandAnalysis, businessProfile]);
+
 
   const loadData = async (pid: string) => {
     try {
