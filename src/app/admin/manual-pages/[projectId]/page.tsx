@@ -461,12 +461,24 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
       }
     };
 
-    const handleConfirmModules = () => {
+    const handleConfirmModules = async () => {
     const totalPages = selectedModules.reduce((sum, m) => sum + m.estimatedPages, 0);
     const imagesToGenerate = selectedModules.filter((m) => m.priority !== "essential" || m.estimatedPages > 1).length + 1;
+    // Fetch real DashScope balance from server-side API
+    let currentBalance = 0;
+    try {
+      const balRes = await fetch("/api/billing/dashscope-balance");
+      if (balRes.ok) {
+        const balData = await balRes.json();
+        if (balData.balance !== null && balData.balance !== undefined) {
+          currentBalance = balData.balance;
+        }
+      }
+    } catch {}
     const est = estimateFullCost(totalPages, {
       hasBrandAnalyze: true,
       hasMascotStrategy: !!mascotPromptSet,
+      currentBalance,
     });
     setGenPlan({ pages: totalPages, images: imagesToGenerate, minutes: Math.ceil(totalPages * 0.8) });
     setCostEstimate(est);
