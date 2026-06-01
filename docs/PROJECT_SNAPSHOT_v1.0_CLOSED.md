@@ -20,11 +20,10 @@ Brand Brain v1.0 已完成全部研发、验证、生产修复。系统可正常
 | Storage Migration（本地→Supabase Storage） | ✅ |
 | Generation API Fix | ✅ |
 | RC-DEPLOYMENT-006（Full Mode 端到端验证） | ✅ PASS |
-| PROD-SMOKE-001（EROFS 修复） | ✅ CLOSED |
-| PROD-SMOKE-002（413 修复，客户端直传 Supabase） | ✅ CLOSED |
-| PROD-SMOKE-003（Supabase Storage RLS Policy） | ✅ CLOSED |
-| PROD-SMOKE-004（/api/submit EROFS 修复） | ✅ CLOSED |
-| PROD-SMOKE-005（/api/delete-project EROFS 修复） | ✅ CLOSED |
+| PROD-SMOKE-001~005（生产环境修复） | ✅ ALL CLOSED |
+| PROD-PDF-002（Python→pdf-lib PDF导出重写） | ✅ CLOSED |
+| PROD-IP-002（Step 3 无限 spinner 修复） | ✅ CLOSED |
+| PROD-UI-ERROR-002（mascotProfile null guard） | ✅ CLOSED |
 | Vercel Production 部署验证 | ✅ Ready Latest |
 
 ## 生产验证结果
@@ -33,12 +32,18 @@ Brand Brain v1.0 已完成全部研发、验证、生产修复。系统可正常
 |--------|------|
 | 生产站点可访问 | ✅ PASS |
 | 表单提交（8MB Logo + 资料） | ✅ PASS（项目编号：VI-20260531-16C4） |
-| Supabase Storage 写入 | ✅ PASS |
-| /api/submit 生产写入 | ✅ PASS |
-| 后台登录（ADMIN_PASSWORD） | ✅ PASS |
-| 项目删除 | ✅ PASS |
+| Supabase Storage 读写 | ✅ PASS |
+| 后台登录 & 项目管理 | ✅ PASS |
+| 品牌分析 API | ✅ PASS |
+| Step 3 IP策略 | ✅ PASS（已修复无限 spinner + null guard） |
+| PDF 导出 | ✅ PASS（pdf-lib + Supabase Storage） |
 | HTTP 401/403/404/500 | 0 |
 | 部署状态 | Ready Latest |
+
+## 已知说明
+
+- 参考 VI 手册为可选项，没有时系统以降级模式运行（`/mock/reference/` 404 已被 try/catch 处理）
+- `/api/brand/analyze` 不返回 `mascotProfile`，前端已有 null guard 保护
 
 ## 商业准备
 
@@ -73,9 +78,10 @@ Brand Brain v1.0 已完成全部研发、验证、生产修复。系统可正常
 - 生产站点：https://vi-ai-logo-ip-mock.vercel.app
 - 后台管理：https://vi-ai-logo-ip-mock.vercel.app/admin/login
 - 后台密码：环境变量 ADMIN_PASSWORD
-- Supabase 项目：vi-ai-logo-ip-mock
+- Supabase 项目：fzoscrutqhdfzwnjgjvs
 - Storage Bucket：brand-brain-generated
 - GitHub：https://github.com/437739510-cyber/vi-ai-logo-ip-mock
+- Node 版本：22.x（Vercel Project Settings 已锁定）
 
 ## 关键环境变量
 

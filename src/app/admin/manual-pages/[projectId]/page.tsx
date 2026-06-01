@@ -8,6 +8,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Loader2, Hand, Play, Tr
 import type { BrandProfile } from "@/lib/brand-analyzer";
 import type { ModulePlan, RecommendedModule } from "@/lib/module-planner";
 import { modulePlanToPages } from "@/lib/module-to-page";
+import { supabaseAdmin } from "@/lib/supabase";
 import { DecisionLayer } from "@/components/admin/DecisionLayer";
 import { generateMascotPromptSet, type MascotPromptSet } from "@/lib/mascot-prompt-strategy";
 import { generateIPCreationPlan } from "@/lib/ip-creation-plan";
@@ -109,54 +110,115 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   }, [step, brandAnalysis, businessProfile]);
 
 
-  const loadData = async (pid: string) => {
+    const loadData = async (pid: string) => {
+    // --- Load generated manual pages ---
+    // Try Supabase first (production), fall back to mock files (local dev)
+    let loadedFromSupabase = false;
+
     try {
-      const res = await fetch("/mock/manual-pages-" + pid + ".json");
-      if (res.ok) {
-        const data = await res.json();
-        setPagesData(data);
-        setLivePages(data.pages || []);
-        setLiveErrors(data.errors || []);
+      const { data: manuals } = await supabaseAdmin
+        .from("vi_manuals")
+        .select("pages, generated_at")
+        .eq("project_id", pid)
+        .order("generated_at", { ascending: false })
+        .limit(1);
+      if (manuals && manuals.length > 0 && manuals[0].pages) {
+        const pages = manuals[0].pages;
+        setPagesData({
+          projectId: pid,
+          pages: pages,
+          errors: [],
+          generatedAt: manuals[0].generated_at,
+          totalPages: pages.length,
+          failedPages: 0,
+        });
+        setLivePages(pages);
+        loadedFromSupabase = true;
       }
     } catch {}
 
+    // Fallback: mock files (local dev)
+    if (!loadedFromSupabase) {
+      try {
+        const res = await fetch("/mock/manual-pages-" + pid + ".json");
+        if (res.ok) {
+          const data = await res.json();
+          setPagesData(data);
+          setLivePages(data.pages || []);
+          setLiveErrors(data.errors || []);
+        }
+      } catch {}
+    }
+
+    // --- Load submission / client info ---
     try {
-      const projRes = await fetch("/mock/projects.json");
-      const projects = await projRes.json();
-      const project = projects.find((p: any) => p.id === pid);
-      if (project) {
+      const { data: projects } = await supabaseAdmin
+        .from("projects")
+        .select("submission_id")
+        .eq("id", pid)
+        .limit(1);
+      if (projects && projects.length > 0 && projects[0].submission_id) {
+        const { data: subs } = await supabaseAdmin
+          .from("submissions")
+          .select("*")
+          .eq("id", projects[0].submission_id)
+          .limit(1);
+        if (subs && subs.length > 0) {
+          const sub = subs[0];
+          setClientInfo(sub);
+          if (sub?.logoAssets?.length > 0) setLogoUrl(sub.logoAssets[0].url);
+          if (sub?.mascotAssets?.length > 0) {
+            const f = sub.mascotAssets[0]?.files;
+            if (f?.length > 0) setMascotUrl(f[0].url);
+          }
+          const priColor = sub?.brandColors?.primary?.hex || "#1A73E8";
+          const secColor = sub?.brandColors?.secondary?.hex || "#34A853";
+          const accColor = sub?.brandColors?.accent?.hex || "#FBBC04";
+          setRealBrandColors({
+            primary: { name: "品牌色", hex: priColor },
+            secondary: { name: "辅助色", hex: secColor },
+            accent: { name: "强调色", hex: accColor },
+          });
+        }
+      }
+    } catch {}
+
+    // Fallback: mock submission files (local dev)
+    if (!loadedFromSupabase) {
+      try {
+        const projRes = await fetch("/mock/projects.json");
+        if (!projRes.ok) return;
+        const projects = await projRes.json();
+        const project = projects.find((p: any) => p.id === pid);
+        if (!project) return;
         const subRes = await fetch("/mock/submissions.json");
+        if (!subRes.ok) return;
         const subs = await subRes.json();
         const sub = subs.find((s: any) => s.id === project.submissionId);
-        if (sub) setClientInfo(sub);
-        if (sub?.logoAssets?.length > 0) {
-          setLogoUrl(sub.logoAssets[0].url);
-        }
+        if (!sub) return;
+        setClientInfo(sub);
+        if (sub?.logoAssets?.length > 0) setLogoUrl(sub.logoAssets[0].url);
         if (sub?.mascotAssets?.length > 0) {
-          const firstMascotFiles = sub.mascotAssets[0]?.files;
-          if (firstMascotFiles?.length > 0) {
-            setMascotUrl(firstMascotFiles[0].url);
-          }
+          const f = sub.mascotAssets[0]?.files;
+          if (f?.length > 0) setMascotUrl(f[0].url);
         }
-        const priColor = sub?.brandColors?.primary?.hex
-          || (sub?.referenceManual?.analysis?.brandColors?.[0]?.match(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})/)?.[0])
-          || '#1A73E8';
-        const secColor = sub?.brandColors?.secondary?.hex || '#34A853';
-        const accColor = sub?.brandColors?.accent?.hex || '#FBBC04';
+        const priColor = sub?.brandColors?.primary?.hex || "#1A73E8";
+        const secColor = sub?.brandColors?.secondary?.hex || "#34A853";
+        const accColor = sub?.brandColors?.accent?.hex || "#FBBC04";
         setRealBrandColors({
-          primary: { name: "\u54c1\u724c\u8272", hex: priColor },
-          secondary: { name: "\u8f85\u52a9\u8272", hex: secColor },
-          accent: { name: "\u5f3a\u8c03\u8272", hex: accColor },
+          primary: { name: "品牌色", hex: priColor },
+          secondary: { name: "辅助色", hex: secColor },
+          accent: { name: "强调色", hex: accColor },
         });
-      }
-    } catch {}
+      } catch {}
+    }
 
+    // --- Load reference file (optional, 404 is OK) ---
     try {
-      const idxRes = await fetch("/mock/reference/ref-" + pid + "-index.json");
+      const idxRes = await fetch("/mock/reference/ref-" + pid + ".json");
       if (idxRes.ok) {
-        const refIndex = await idxRes.json();
-        const activeRef = refIndex.find((r: any) => r.active === true);
-        if (activeRef) setRefId(activeRef.refId);
+        const refData = await idxRes.json();
+        if (refData.refId) setRefId(refData.refId);
       }
     } catch {}
   };
