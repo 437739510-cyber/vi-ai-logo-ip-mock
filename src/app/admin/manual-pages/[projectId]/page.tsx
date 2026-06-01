@@ -8,7 +8,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Loader2, Hand, Play, Tr
 import type { BrandProfile } from "@/lib/brand-analyzer";
 import type { ModulePlan, RecommendedModule } from "@/lib/module-planner";
 import { modulePlanToPages } from "@/lib/module-to-page";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { DecisionLayer } from "@/components/admin/DecisionLayer";
 import { generateMascotPromptSet, type MascotPromptSet } from "@/lib/mascot-prompt-strategy";
 import { generateIPCreationPlan } from "@/lib/ip-creation-plan";
@@ -116,7 +116,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     let loadedFromSupabase = false;
 
     try {
-      const { data: manuals } = await supabaseAdmin
+      const { data: manuals } = await supabase
         .from("vi_manuals")
         .select("pages, generated_at")
         .eq("project_id", pid)
@@ -152,13 +152,13 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
 
     // --- Load submission / client info ---
     try {
-      const { data: projects } = await supabaseAdmin
+      const { data: projects } = await supabase
         .from("projects")
         .select("submission_id")
         .eq("id", pid)
         .limit(1);
       if (projects && projects.length > 0 && projects[0].submission_id) {
-        const { data: subs } = await supabaseAdmin
+        const { data: subs } = await supabase
           .from("submissions")
           .select("*")
           .eq("id", projects[0].submission_id)
