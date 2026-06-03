@@ -3,7 +3,7 @@
  * 
  * 使用 ClientLayout 提供全局客户端状态（主题、侧边栏等）
  */
-import ClientLayout from "@/components/shared/ClientLayout";
+import { ClientLayout } from "@/components/shared/ClientLayout";
 
 export default function DiscoveryLayout({
   children,
