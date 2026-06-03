@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Return cached pdf_url if available
-    // Return cached pdf_url if available
     if (manuals[0].pdf_url) {
       return NextResponse.json({
         success: true,
@@ -127,9 +126,6 @@ export async function POST(req: NextRequest) {
 
     const pdfBytes = await pdfDoc.save();
 
-
-
-
     // 5. Upload PDF to Supabase Storage
     // Try supabaseAdmin first (has full write access), fall back to supabase (anon)
     const pdfPath = `${projectId}/manual-${projectId}.pdf`;
@@ -140,6 +136,29 @@ export async function POST(req: NextRequest) {
         contentType: "application/pdf",
         upsert: true,
       });
+
+    if (uploadErr) {
+      console.error("[export-pdf] Storage upload error:", uploadErr);
+      return NextResponse.json({ error: "Failed to upload PDF" }, { status: 500 });
+    }
+
+    // 6. Get public URL
+    const { data: publicUrlData } = storageClient.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(pdfPath);
+
+    const publicUrl = publicUrlData?.publicUrl;
+
+    // Save pdf_url to vi_manuals for caching
+    try {
+      // Use whichever client succeeded for storage (likely has write access)
+      await (supabaseAdmin ?? supabase)
+        .from("vi_manuals")
+        .update({ pdf_url: publicUrl })
+        .eq("project_id", projectId);
+    } catch (cacheErr) {
+      console.warn("[export-pdf] Failed to cache pdf_url:", cacheErr);
+    }
 
     return NextResponse.json({
       success: true,
@@ -154,23 +173,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-    if (uploadErr) {
-      console.error("[export-pdf] Storage upload error:", uploadErr);
-      return NextResponse.json({ error: "Failed to upload PDF" }, { status: 500 });
-    }
-    // 6. Get public URL
-    const { data: publicUrlData } = storageClient.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(pdfPath);
-
-    const publicUrl = publicUrlData?.publicUrl;
-    // Save pdf_url to vi_manuals for caching
-    try {
-      // Use whichever client succeeded for storage (likely has write access)
-      await (supabaseAdmin ?? supabase)
-        .from("vi_manuals")
-        .update({ pdf_url: publicUrl })
-        .eq("project_id", projectId);
-    } catch (cacheErr) {
-      console.warn("[export-pdf] Failed to cache pdf_url:", cacheErr);
-    }
