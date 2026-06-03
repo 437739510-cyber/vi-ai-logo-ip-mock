@@ -12,16 +12,12 @@ import {
 } from "@/lib/consultation-schema";
 import { LogoUploadArea, MascotUploadArea, ReferenceUploadArea } from "./FileUploadArea";
 import { Loader2 } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 // File size limits (matching FileUploadArea hints)
 const MAX_LOGO_SIZE = 20 * 1024 * 1024;      // 20MB
 const MAX_MASCOT_SIZE = 20 * 1024 * 1024;    // 20MB
 const MAX_PDF_SIZE = 50 * 1024 * 1024;       // 50MB
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const STORAGE_BUCKET = "brand-brain-generated";
 const STORAGE_PREFIX = "uploads/form-assets";
 
