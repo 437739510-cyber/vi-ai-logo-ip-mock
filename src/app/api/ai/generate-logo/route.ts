@@ -58,6 +58,8 @@ export async function POST(req: NextRequest) {
     const companyName = clientInfo.companyName || "品牌";
 
     console.log(`[generate-logo] Generating ${logoSuggestions.prompts.length} logos for: ${companyName}`);
+    // V12: 更新项目状态为"Logo生成中"
+    await supabaseAdmin.from("projects").update({ status: "logo_generating", updated_at: new Date().toISOString() }).eq("id", projectId);
     console.log(`[generate-logo] Style: ${logoSuggestions.style} | Concept: ${logoSuggestions.concept}`);
 
     // Step 2: 逐个生成Logo（串行避免429）
@@ -123,6 +125,8 @@ export async function POST(req: NextRequest) {
       .update({ client_info: updatedInfo, updated_at: new Date().toISOString() })
       .eq("id", projectId);
 
+    // V12: 更新项目状态为"Logo生成完成"
+    await supabaseAdmin.from("projects").update({ status: "logo_generated", updated_at: new Date().toISOString() }).eq("id", projectId);
     return NextResponse.json({
       success: true,
       projectId,

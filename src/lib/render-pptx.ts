@@ -285,6 +285,24 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
 }
 
 // ========== Logo Interpretation — V6: 直接用opts字段 ==========
+
+// ========== Extract Keywords Helper ==========
+function extractKeywords(text: string): string[] {
+  if (!text) return [];
+  // 优先找逗号分隔的词组
+  if (text.includes(',')) {
+    return text.split(/[,，]/).map(k => k.trim()).filter(k => k.length > 0).slice(0, 6);
+  }
+  // 按常见分隔符分割
+  const parts = text.split(/[。；;、\n\r\t]+/).filter(p => p.trim().length > 0);
+  const result: string[] = [];
+  for (const part of parts) {
+    const words = part.split(/[\s]+/).filter(w => w.length >= 2 && w.length <= 8);
+    result.push(...words);
+    if (result.length >= 6) break;
+  }
+  return result.slice(0, 6);
+}
 function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, "标识诠释", bc);
 
@@ -297,10 +315,22 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
     slide.addShape("rect", { x: (SW - 3.5) / 2, y: 1.6, w: 3.5, h: 3.5, fill: { color: "F5F5F5" }, rectRadius: 0.1 });
   }
 
-  // V6: 设计理念 — 直接用opts
+  // V12: 品牌故事叙事
   const philosophy = opts.logoPhilosophy || fta(bp, ["logo-philosophy","logo-meaning","logo-concept"]) || "Logo 凝练了品牌核心视觉要素，体现品牌独特识别性。";
-  slide.addText("设计理念", { x: MARGIN + LEFT_BAR_W, y: 5.8, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri, fontFace: "Microsoft YaHei" });
-  slide.addText(philosophy, { x: MARGIN + LEFT_BAR_W, y: 6.4, w: CONTENT_W, h: 1.5, fontSize: 13, color: "444444", lineSpacingMultiple: 1.6 });
+  slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: 5.6, w: 0.08, h: 1.8, fill: { color: bc.pri }, rectRadius: 0.03 });
+  slide.addText("设计理念", { x: MARGIN + LEFT_BAR_W + 0.25, y: 5.6, w: CONTENT_W - 0.3, h: 0.45, fontSize: 17, bold: true, color: bc.pri, fontFace: "Microsoft YaHei" });
+  slide.addText(philosophy, { x: MARGIN + LEFT_BAR_W + 0.25, y: 6.1, w: CONTENT_W - 0.3, h: 1.3, fontSize: 13, color: "444444", lineSpacingMultiple: 1.6 });
+  // 核心视觉要素
+  const kwY = 7.5;
+  slide.addText("核心视觉要素", { x: MARGIN + LEFT_BAR_W, y: kwY, w: CONTENT_W, h: 0.4, fontSize: 14, bold: true, color: bc.pri });
+  const keywords = extractKeywords(philosophy);
+  const kwW = (CONTENT_W - 0.2) / 3;
+  for (let ki = 0; ki < Math.min(keywords.length, 3); ki++) {
+    const kx = MARGIN + LEFT_BAR_W + ki * (kwW + 0.1);
+    slide.addShape("oval", { x: kx, y: kwY + 0.5, w: 0.6, h: 0.6, fill: { color: bc.pri } });
+    slide.addText(String(ki + 1), { x: kx, y: kwY + 0.5, w: 0.6, h: 0.6, fontSize: 14, color: "FFFFFF", align: "center", valign: "middle", bold: true });
+    slide.addText(keywords[ki], { x: kx + 0.7, y: kwY + 0.5, w: kwW - 0.7, h: 0.6, fontSize: 12, color: "333333", valign: "middle" });
+  }
 
   // IP公仔区域
   if (opts.mascotData) {
@@ -327,30 +357,37 @@ function renderColors(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPpt
   const startX = (SW - totalW) / 2;
   const startY = 1.6;
 
+  // V12: 圆形色卡
+  const circleSize = 2.0;
+  const circleGap = 0.6;
+  const circleTotalW = circleSize * 3 + circleGap * 2;
+  const circleStartX = (SW - circleTotalW) / 2;
+
   for (let i = 0; i < 3; i++) {
     const c = colors[i];
-    const x = startX + i * (blockW + gap);
+    const x = circleStartX + i * (circleSize + circleGap);
     const isWhite = c.hex === "FFFFFF" || c.hex === "FFF";
-    slide.addShape("rect", {
-      x, y: startY, w: blockW, h: blockH,
-      fill: { color: c.hex }, rectRadius: 0.1,
+    slide.addShape("oval", {
+      x, y: startY, w: circleSize, h: circleSize,
+      fill: { color: c.hex },
       line: isWhite ? { color: "CCCCCC", width: 1 } : undefined,
-      shadow: { type: "outer", blur: 4, offset: 2, color: "000000", opacity: 0.08 },
+      shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 },
     });
     const textColor = isLight(c.hex) ? "333333" : "FFFFFF";
-    slide.addText(c.name, { x, y: startY + 0.3, w: blockW, h: 0.4, fontSize: 13, color: textColor, align: "center", transparency: 40 });
-    slide.addText(c.label, { x, y: startY + blockH + 0.15, w: blockW, h: 0.4, fontSize: 13, bold: true, color: "333333", align: "center" });
-    slide.addText(`#${c.hex}`, { x, y: startY + blockH + 0.55, w: blockW, h: 0.3, fontSize: 12, color: "555555", align: "center" });
+    // V12: 圆形色卡标签
+    slide.addText(c.name, { x, y: startY + 0.3, w: circleSize, h: 0.4, fontSize: 13, color: textColor, align: "center", transparency: 40 });
+    slide.addText(c.label, { x, y: startY + circleSize + 0.15, w: circleSize, h: 0.4, fontSize: 13, bold: true, color: "333333", align: "center" });
+    slide.addText(`#${c.hex}`, { x, y: startY + circleSize + 0.55, w: circleSize, h: 0.3, fontSize: 12, color: "555555", align: "center" });
     const rgb = hex2rgb(c.hex);
     if (rgb) {
-      slide.addText(`RGB: ${rgb.r}, ${rgb.g}, ${rgb.b}`, { x, y: startY + blockH + 0.85, w: blockW, h: 0.3, fontSize: 11, color: "777777", align: "center" });
+      slide.addText(`RGB: ${rgb.r}, ${rgb.g}, ${rgb.b}`, { x, y: startY + circleSize + 0.85, w: circleSize, h: 0.3, fontSize: 11, color: "777777", align: "center" });
       const cmyk = rgb2cmyk(rgb);
-      if (cmyk) slide.addText(`CMYK: ${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}`, { x, y: startY + blockH + 1.15, w: blockW, h: 0.3, fontSize: 11, color: "777777", align: "center" });
+      if (cmyk) slide.addText(`CMYK: ${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}`, { x, y: startY + circleSize + 1.15, w: circleSize, h: 0.3, fontSize: 11, color: "777777", align: "center" });
     }
   }
 
   // 色彩组合
-  const comboY = startY + blockH + 1.8;
+  const comboY = startY + circleSize + 1.8;
   slide.addText("色彩组合示例", { x: MARGIN + LEFT_BAR_W, y: comboY, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
   const combos = [
     { colors: [bc.pri, bc.sec], label: "主色 + 辅助色" },

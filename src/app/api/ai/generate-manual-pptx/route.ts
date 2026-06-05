@@ -286,6 +286,8 @@ export async function POST(req: NextRequest) {
     console.log("[generate-pptx] Colors:", JSON.stringify(realColors));
 
     // ===== Step 2.5: AI 品牌分析 =====
+    // V12: 更新项目状态
+    await supabaseAdmin.from("projects").update({ status: "brand_analyzing", updated_at: new Date().toISOString() }).eq("id", projectId);
     let brandProfile: any = null;
     let effectiveBrandVision = brandVision;
     let effectiveCoreValues = coreValues;
@@ -378,6 +380,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ===== Step 3: 加载 Logo/Mascot =====
+    // V12: 场景图渲染中
+    await supabaseAdmin.from("projects").update({ status: "scene_rendering", updated_at: new Date().toISOString() }).eq("id", projectId);
     let logoData: string | null = null;
     let mascotData: string | null = null;
     let mascotSplitViews: string[] | null = null;
@@ -470,6 +474,8 @@ export async function POST(req: NextRequest) {
     console.log("[generate-pptx] Blueprints:", blueprints.length, "pages");
 
     // ===== Step 6: 渲染 PPTX =====
+    // V12: PPTX组装中
+    await supabaseAdmin.from("projects").update({ status: "pptx_assembling", updated_at: new Date().toISOString() }).eq("id", projectId);
     const buffer = await renderPptxToBuffer(blueprints, {
       projectName: projectId,
       companyName,
@@ -494,6 +500,8 @@ export async function POST(req: NextRequest) {
     await writeFile(path.join(outputDir, fileName), buffer);
 
     console.log("[generate-pptx] ===== DONE =====", fileName, `(${imgSuccess} images, ${blueprints.length} pages)`);
+    // V12: 更新项目状态为"完成"
+    await supabaseAdmin.from("projects").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", projectId);
 
     return NextResponse.json({
       success: true,

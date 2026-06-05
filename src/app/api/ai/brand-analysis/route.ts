@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("[brand-analysis] Analyzing:", clientInfo.companyName, "| Industry:", clientInfo.industry);
+    // V12: 更新项目状态为"品牌分析中"
+    await supabaseAdmin.from("projects").update({ status: "brand_analyzing", updated_at: new Date().toISOString() }).eq("id", projectId);
 
     // 构建分析prompt
     const analysisPrompt = buildAnalysisPrompt(clientInfo);
@@ -211,6 +213,8 @@ export async function POST(req: NextRequest) {
     if (dbError) {
       console.warn("[brand-analysis] DB save failed:", dbError.message);
     }
+    // V12: 更新项目状态为"品牌分析完成"
+    await supabaseAdmin.from("projects").update({ status: "brand_analyzed", updated_at: new Date().toISOString() }).eq("id", projectId);
 
     return NextResponse.json({
       success: true,
