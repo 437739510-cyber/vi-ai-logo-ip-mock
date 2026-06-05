@@ -1,0 +1,48 @@
+# Manus Documentation
+
+## Docs
+
+- [Browser Operator](https://manus.im/docs/features/browser-operator.md): A browser extension that transforms your web browser into an autonomous agent.
+- [Cloud browser](https://manus.im/docs/features/cloud-browser.md): Manus's cloud-based browser that operates like a real person
+- [Manus Collab](https://manus.im/docs/features/collab.md): Real-time collaboration on AI tasks—one workspace, one version, zero confusion
+- [Data Analysis & Visualization](https://manus.im/docs/features/data-visualization.md): Turn raw data into presentation-ready insights in minutes
+- [Design View](https://manus.im/docs/features/design-view.md): Manus Design View is a powerful extension of the Manus agent that transforms your creative process into a seamless AI design workflow, giving you granular control over every detail.
+- [Desktop](https://manus.im/docs/features/desktop.md)
+- [Mail Manus](https://manus.im/docs/features/mail-manus.md): Email-based task interface for Manus AI agent
+- [Meeting minutes](https://manus.im/docs/features/meeting-minutes.md)
+- [Multimedia Processing](https://manus.im/docs/features/multi-modal.md): Generate and understand images, video, voice, and speech
+- [Projects](https://manus.im/docs/features/projects.md): Projects let you create persistent workspaces with shared instructions and files, so every new task starts with the right context. Organize recurring workflows, collaborate with your team, and eliminate repetitive setup.
+- [Scheduled Tasks](https://manus.im/docs/features/scheduled-tasks.md): Automate recurring work—run tasks on schedules or at specific times
+- [Manus Skills](https://manus.im/docs/features/skills.md)
+- [Manus Slides](https://manus.im/docs/features/slides.md): Manus creates complete presentations from a simple description. It conducts research, develops content, designs slides, generates visuals, and writes detailed speaker notes—delivering presentation-ready decks in minutes.
+- [Wide Research](https://manus.im/docs/features/wide-research.md): Parallel multi-agent system for large-scale research and processing tasks.
+- [Custom MCP Servers](https://manus.im/docs/integrations/custom-mcp.md): Build integrations with your internal tools and proprietary systems
+- [Data Sources](https://manus.im/docs/integrations/data-sources.md): Access premium third-party data APIs integrated into Manus
+- [Integrate Manus with Your Existing Tools](https://manus.im/docs/integrations/integrations.md): Connect Manus to your tools and workflows
+- [Manus API](https://manus.im/docs/integrations/manus-api.md): Programmatic access to Manus as a complete AI agent
+- [Manus Browser Operator ](https://manus.im/docs/integrations/manus-browser-operator.md): Local browser automation with your authenticated sessions
+- [MCP Connectors](https://manus.im/docs/integrations/mcp-connectors.md): Connect Manus to your team’s tools and enable context-driven creation — moving from idea to validation to live app faster than ever.
+- [Nano Banana Pro](https://manus.im/docs/integrations/nano-banana-pro.md): AI-powered image generation for visually stunning slides and graphics
+- [Slack Integration](https://manus.im/docs/integrations/slack-integration.md): Bring Manus into your team conversations
+- [Zapier ](https://manus.im/docs/integrations/zapier.md): Connect Manus to 8,000+ apps with no-code automation
+- [Plans and Pricing](https://manus.im/docs/introduction/plans.md): Manus AI operates on a credit-based system that gives you flexibility and control over your usage. Credits are consumed based on the complexity and resources required for each task.
+- [Welcome](https://manus.im/docs/introduction/welcome.md): Learn about Manus and how to get started
+- [Access Control](https://manus.im/docs/website-builder/access-control.md): Manage access for your web application
+- [Built-in AI Capabilities](https://manus.im/docs/website-builder/ai-capabilities.md): Learn how to incorporate AI capabilities into your web application
+- [App Publishing (mobile)](https://manus.im/docs/website-builder/app-publishing.md)
+- [Cloud Infrastructure](https://manus.im/docs/website-builder/cloud-infrastructure.md): Fully managed cloud infrastructure for Manus apps—backend, database, file storage, and one‑command deployment
+- [Code Control](https://manus.im/docs/website-builder/code-control.md): Get full access to your app’s code so you can copy what you need or download the entire codebase and stay fully in control.
+- [Custom Domains: Professionalize Your Brand](https://manus.im/docs/website-builder/custom-domains.md): Your site goes live on a professional, branded URL in minutes.
+- [Editing and Previewing](https://manus.im/docs/website-builder/editing-and-previewing.md): Manus lets you build and refine your web app with instant feedback and natural-language edits
+- [Getting started](https://manus.im/docs/website-builder/getting-started.md): Description of your new file.
+- [Usage and Pricing](https://manus.im/docs/website-builder/getting-started/usage-and-pricing.md): This document outlines the billing structure for websites built with Manus. It covers how you are charged for building, hosting, and powering experiences for your users.
+- [GitHub Integration](https://manus.im/docs/website-builder/github-integration.md): Export your Manus project to a private GitHub repo, then keep working from either place. Manus and GitHub stay in step by automatically sending new changes and pulling the latest updates, so you can use your favorite coding tools without losing sync.
+- [Import from Figma: From Design to App in One Step](https://manus.im/docs/website-builder/import-figma.md): Turn your Figma designs into a working web app by sharing links to the frame and describing what you want
+- [Make a Copy](https://manus.im/docs/website-builder/make-a-copy.md)
+- [Notifications](https://manus.im/docs/website-builder/notifications.md): Get real time updates on your web applications
+- [Payments](https://manus.im/docs/website-builder/payments.md): How to monetize your builds
+- [Project Analytics ](https://manus.im/docs/website-builder/project-analytics.md): Understand your users with integrated analytics, providing you with valuable insights into how users are interacting with your site
+- [Publishing](https://manus.im/docs/website-builder/publishing.md): Build and go live
+- [Schedules](https://manus.im/docs/website-builder/schedules.md)
+- [Search Engine Optimization](https://manus.im/docs/website-builder/seo.md): Built-in SEO for sites created and published on Manus
+- [Third-Party Integrations](https://manus.im/docs/website-builder/third-party-integrations.md): Connect Stripe, Google Maps, or any REST API—secure keys, simple natural‑language setup.

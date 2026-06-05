@@ -30,17 +30,20 @@ interface PagesData {
 }
 
 const PAGE_LABELS = [
-  { id: "cover", label: "\u5c01\u9762" },
-  { id: "brand-philosophy", label: "\u54c1\u724c\u6838\u5fc3\u7406\u5ff5" },
-  { id: "logo-interpretation", label: "\u6807\u8bc6\u8be0\u91ca" },
-  { id: "brand-colors", label: "\u6807\u51c6\u8272\u5f69\u89c4\u8303" },
-  { id: "typography", label: "\u5b57\u4f53\u7cfb\u7edf" },
-  { id: "basic-spec", label: "\u57fa\u7840\u89c4\u8303" },
-  { id: "stationery", label: "\u529e\u516c\u5e94\u7528\u7cfb\u7edf" },
-  { id: "packaging", label: "\u4ea7\u54c1\u5305\u88c5\u7cfb\u7edf" },
-  { id: "marketing", label: "\u8425\u9500\u5c55\u793a\u7cfb\u7edf" },
-  { id: "summary", label: "\u603b\u7ed3" },
-  { id: "closing", label: "\u611f\u8c22\u89c2\u770b" },
+  { id: "cover", label: "封面" },
+  { id: "toc", label: "目录" },
+  { id: "brand-philosophy", label: "品牌核心理念" },
+  { id: "logo-interpretation", label: "标识诠释" },
+  { id: "brand-colors", label: "标准色彩规范" },
+  { id: "typography", label: "字体系统" },
+  { id: "basic-spec", label: "基础规范" },
+  { id: "mascot-spec", label: "IP公仔规范" },
+  { id: "stationery", label: "办公应用系统" },
+  { id: "packaging", label: "产品包装系统" },
+  { id: "marketing", label: "营销展示系统" },
+  { id: "digital", label: "数字应用规范" },
+  { id: "summary", label: "总结" },
+  { id: "closing", label: "感谢观看" },
 ];
 
 export default function ManualPagesViewer({ params }: { params: Promise<{ projectId: string }> }) {
@@ -51,7 +54,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [clientInfo, setClientInfo] = useState<any>(null);
-  const [progress, setProgress] = useState({ done: 0, total: 11 });
+  const [progress, setProgress] = useState({ done: 0, total: 14 });
   const [livePages, setLivePages] = useState<ManualPage[]>([]);
   const [liveErrors, setLiveErrors] = useState<{ pageId: string; label: string; error: string }[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
@@ -236,7 +239,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     setLivePages([]);
     setLiveErrors([]);
     setCurrentPage(0);
-    setProgress({ done: 0, total: 11 });
+    setProgress({ done: 0, total: 14 });
     await generateOnePage(0);
   };
 
@@ -384,23 +387,37 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
     if (!projectId) return;
     setPdfLoading(true);
     try {
-      const res = await fetch("/api/ai/export-pdf", {
+      const res = await fetch("/api/ai/export-pdf-v6", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ projectId, pages: pagesData?.pages }),
       });
-      const data = await res.json();
-      if (data.downloadUrl) {
-        setPdfUrl(data.downloadUrl);
-        // Auto-download
+      // V6: API returns PDF binary directly
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/pdf")) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = data.downloadUrl;
+        a.href = url;
         a.download = projectId + "-VI手册.pdf";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       } else {
-        alert("PDF 生成失败: " + (data.error || "未知错误"));
+        // Fallback: old JSON response format
+        const data = await res.json();
+        if (data.downloadUrl) {
+          setPdfUrl(data.downloadUrl);
+          const a = document.createElement("a");
+          a.href = data.downloadUrl;
+          a.download = projectId + "-VI手册.pdf";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } else {
+          alert("PDF 生成失败: " + (data.error || "未知错误"));
+        }
       }
     } catch (e: any) {
       alert("PDF 下载失败: " + (e.message || String(e)));
@@ -422,7 +439,7 @@ export default function ManualPagesViewer({ params }: { params: Promise<{ projec
         setPagesData(null);
         setLivePages([]);
         setLiveErrors([]);
-        setProgress({ done: 0, total: 11 });
+        setProgress({ done: 0, total: 14 });
       } else {
         alert("\u5220\u9664\u5931\u8d25: " + (data.error || "\u672a\u77e5\u9519\u8bef"));
       }

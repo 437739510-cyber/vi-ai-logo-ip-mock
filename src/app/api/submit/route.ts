@@ -1,4 +1,4 @@
-﻿// API Route: POST /api/submit
+// API Route: POST /api/submit
 // Save to Supabase + local JSON fallback
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
       email: body.email || "",
       industry: body.industry || "",
       budgetRange: body.budgetRange || "",
+      province: body.province || "",
+      city: body.city || "",
       description: body.description || "",
       logoAssets: body.logoFiles || [],
       mascotAssets: body.mascotItems || [],
@@ -78,6 +80,8 @@ export async function POST(req: NextRequest) {
         email: submission.email,
         industry: submission.industry,
         budget_range: submission.budgetRange,
+        province: submission.province,
+        city: submission.city,
         description: submission.description,
         logo_assets: submission.logoAssets,
         mascot_assets: submission.mascotAssets,
@@ -125,4 +129,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Submit failed" }, { status: 500 });
   }
 }
-

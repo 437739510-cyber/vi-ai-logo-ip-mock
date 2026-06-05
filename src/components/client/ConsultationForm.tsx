@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -10,6 +10,7 @@ import {
   BUDGET_OPTIONS,
   type ConsultationFormData,
 } from "@/lib/consultation-schema";
+import { PROVINCE_CITY_DATA, PROVINCE_OPTIONS } from "@/lib/province-city-data";
 import { LogoUploadArea, MascotUploadArea, ReferenceUploadArea } from "./FileUploadArea";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -23,8 +24,10 @@ const STORAGE_PREFIX = "uploads/form-assets";
 
 export function ConsultationForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [prefillLoading, setPrefillLoading] = useState(false);
 
   // Store actual File objects for real upload
   const [logoFileList, setLogoFileList] = useState<File[]>([]);
@@ -37,18 +40,69 @@ export function ConsultationForm() {
 
   const [referenceEnabled, setReferenceEnabled] = useState(true);
 
+  // Province/City state
+  const [selectedProvince, setSelectedProvince] = useState("");
+  const [cityOptions, setCityOptions] = useState<string[]>([]);
+
   const {
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<ConsultationFormData>({
     resolver: zodResolver(consultationSchema),
   });
 
-  // Uploaded file previews are derived from File[] state directly in component renders
+  // Province change handler
+  const handleProvinceChange = (province: string) => {
+    setSelectedProvince(province);
+    setValue("province", province);
+    setValue("city", "");
+    setCityOptions(province ? (PROVINCE_CITY_DATA[province] || []) : []);
+  };
+
+  // Prefill from interview
+  useEffect(() => {
+    const fromInterview = searchParams.get("from") === "interview";
+    const sid = searchParams.get("sid");
+    if (!fromInterview || !sid) return;
+
+    setPrefillLoading(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("submissions")
+          .select("*")
+          .eq("id", sid)
+          .single();
+
+        if (error || !data) {
+          console.warn("Prefill: submission not found", error);
+          return;
+        }
+
+        // Prefill form fields from interview data
+        if (data.company_name) setValue("companyName", data.company_name);
+        if (data.industry) setValue("industry", data.industry);
+        if (data.brand_vision) setValue("brandVision", data.brand_vision);
+        if (data.core_values) setValue("coreValues", data.core_values);
+        if (data.target_market) setValue("targetMarket", data.target_market);
+        if (data.logo_philosophy) setValue("logoPhilosophy", data.logo_philosophy);
+        if (data.mascot_philosophy) setValue("mascotPhilosophy", data.mascot_philosophy);
+        if (data.description) setValue("description", data.description);
+        if (data.province) {
+          handleProvinceChange(data.province);
+          if (data.city) setValue("city", data.city);
+        }
+      } catch (e) {
+        console.warn("Prefill failed:", e);
+      } finally {
+        setPrefillLoading(false);
+      }
+    })();
+  }, [searchParams]);
 
   // Upload files directly to Supabase Storage from the browser.
-  // Bypasses Vercel Serverless Function 4.5MB payload limit.
   async function uploadFiles(files: File[], type: "logo" | "mascot" | "pdf"): Promise<{ fileName: string; url: string; size: number }[]> {
     if (files.length === 0) return [];
 
@@ -88,14 +142,7 @@ export function ConsultationForm() {
   }
 
   const onSubmit = async (data: ConsultationFormData) => {
-    if (logoFileList.length === 0) {
-      alert("请至少上传一个品牌 Logo");
-      return;
-    }
-    if (mascotFileList.length === 0) {
-      alert("请至少上传一个 IP 公仔");
-      return;
-    }
+    // Logo and Mascot uploads are optional - checks removed
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -148,6 +195,15 @@ export function ConsultationForm() {
     }
   };
 
+  if (prefillLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <span className="ml-2 text-neutral-500">正在加载访谈数据...</span>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       {/* ========== 基本信息 ========== */}
@@ -169,14 +225,14 @@ export function ConsultationForm() {
             )}
           </div>
 
-          {/* 公司 */}
+          {/* 公司/店铺名 */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">
-              公司名称 <span className="text-danger">*</span>
+              公司名或店铺名 <span className="text-danger">*</span>
             </label>
             <input
               {...register("companyName")}
-              placeholder="请输入公司名称"
+              placeholder="请输入公司名或店铺名"
               className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
             {errors.companyName && (
@@ -207,6 +263,47 @@ export function ConsultationForm() {
               placeholder="选填"
               className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
+          </div>
+
+          {/* 省份 */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              所在省份 <span className="text-danger">*</span>
+            </label>
+            <select
+              {...register("province")}
+              value={selectedProvince}
+              onChange={(e) => handleProvinceChange(e.target.value)}
+              className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-white"
+            >
+              <option value="">请选择省份</option>
+              {PROVINCE_OPTIONS.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            {errors.province && (
+              <p className="mt-1 text-xs text-danger">{errors.province.message}</p>
+            )}
+          </div>
+
+          {/* 城市 */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              所在城市 <span className="text-danger">*</span>
+            </label>
+            <select
+              {...register("city")}
+              disabled={!selectedProvince}
+              className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-white disabled:bg-neutral-50 disabled:text-neutral-400"
+            >
+              <option value="">{selectedProvince ? "请选择城市" : "请先选择省份"}</option>
+              {cityOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            {errors.city && (
+              <p className="mt-1 text-xs text-danger">{errors.city.message}</p>
+            )}
           </div>
 
           {/* 行业 */}
@@ -315,19 +412,19 @@ export function ConsultationForm() {
       {/* ========== 品牌色选择 ========== */}
       <section className="mt-8">
         <h3 className="text-lg font-semibold text-neutral-900 mb-3">品牌色调</h3>
-        <p className="text-xs text-neutral-500 mb-4">选择您品牌的主色、辅助色和强调色，AI 生成时会优先使用这些颜色。</p>
+        <p className="text-xs text-neutral-500 mb-4">选择您品牌的主色、辅助色和强调色。如不确定可留白，AI 会根据行业和素材自动推荐品牌色。</p>
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">主色</label>
-            <input type="color" defaultValue="#1A73E8" {...register("brandColors.primary")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" />
+            <input type="color" defaultValue="#FFFFFF" {...register("brandColors.primary")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" />
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">辅助色</label>
-            <input type="color" defaultValue="#34A853" {...register("brandColors.secondary")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" />
+            <input type="color" defaultValue="#FFFFFF" {...register("brandColors.secondary")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" />
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">强调色</label>
-            <input type="color" defaultValue="#FBBC04" {...register("brandColors.accent")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" />
+            <input type="color" defaultValue="#FFFFFF" {...register("brandColors.accent")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" />
           </div>
         </div>
       </section>
@@ -424,6 +521,3 @@ export function ConsultationForm() {
     </form>
   );
 }
-
-
-

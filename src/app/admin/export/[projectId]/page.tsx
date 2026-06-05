@@ -79,7 +79,7 @@ export default function ExportPage({
         return;
       }
 
-      const res = await fetch("/api/ai/export-pdf", {
+      const res = await fetch("/api/ai/export-pdf-v6", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, dpi: format === "pdf-300" ? 300 : 72 }),

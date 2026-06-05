@@ -1,0 +1,189 @@
+ChatGPT → Codex
+
+06_BRAND_DISCOVERY_FRAMEWORK V2 已评审通过。
+
+V2 中新增的 5 个模块方向正确：
+
+1. 
+
+Brand Confidence Score
+
+2. 
+
+Contradiction Detection
+
+3. 
+
+Diagnosis Summary
+
+4. 
+
+Anti-Pattern Check
+
+5. 
+
+Humanization Layer
+
+可以进入下一阶段。
+
+下一任务
+
+请开始输出：
+
+07_DECISION_LAYER_V2.md
+
+内容必须包括：
+
+1. 
+
+Question Tree JSON 数据结构
+
+2. 
+
+Confidence Score 算法实现方案
+
+3. 
+
+Contradiction Detection 规则与数据结构
+
+4. 
+
+Anti-Pattern Check 规则与触发逻辑
+
+5. 
+
+Humanization Engine 集成方式
+
+6. 
+
+Diagnosis Summary 模板
+
+7. 
+
+Brand Brief Generator 输入 / 输出格式
+
+8. 
+
+与现有 Brand Analyzer、Memory、Knowledge Hub 的接口关系
+
+重要提醒
+
+这仍然是设计文档，不是开发任务。
+
+不要写 React 页面。
+
+不要改 API。
+
+不要动 Layout Engine。
+
+不要开始 DNA Engine。
+
+1
+
+另一个并行任务
+
+请同时准备：
+
+09_MANUS_INTEGRATION_FEASIBILITY.md
+
+目的：
+
+验证 Manus 是否真的可作为执行层接入 Brand Brain。
+
+必须回答：
+
+1. 
+
+Manus 是否有正式 API？
+
+2. 
+
+如何认证？
+
+3. 
+
+如何创建任务？
+
+4. 
+
+如何传入 Brand Brief？
+
+5. 
+
+是否支持文件上传？
+
+6. 
+
+是否能返回生成结果？
+
+7. 
+
+返回格式是什么？
+
+8. 
+
+是否能拿到 PDF / 图片 / 文档？
+
+9. 
+
+价格、并发、限制是什么？
+
+10. 
+
+如果 Manus 无法稳定接入，替代方案是什么？
+
+当前路线确认
+
+保留：
+
+• 
+
+Next.js
+
+• 
+• 
+
+Supabase
+Admin
+
+• 
+
+Billing
+
+• 
+
+Memory
+
+• 
+
+PDF
+
+• 
+
+Upload
+
+暂停：
+
+• 
+
+DNA Engine
+
+• 
+
+Maturity Engine
+
+• 
+
+Layout Engine V2
+
+• 
+
+当前 VI 生成链路继续扩展
+
+主线：
+
+Discovery ↓ Diagnosis ↓ Brand Brief ↓ Manus feasibility verification ↓ VI Manual
+
+2
+
+

@@ -10,6 +10,7 @@ import {
   Users,
   Grid3X3,
   Wallet,
+  GraduationCap,
   ChevronLeft,
   Menu,
   X,
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/admin/projects", label: "项目列表", icon: FolderKanban },
   { href: "/admin/favorites", label: "收藏", icon: Star },
   { href: "/admin/clients", label: "客户管理", icon: Users },
+  { href: "/admin/students", label: "大学生管理", icon: GraduationCap },
   { href: "/admin/templates", label: "模板库", icon: Grid3X3 },
   { href: "/admin/billing", label: "Billing", icon: Wallet },
 ];
@@ -40,6 +42,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             VI 管理后台
           </Link>
         </div>
+        
         <nav className="flex-1 py-4 px-3 space-y-1">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -60,6 +63,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+        
         <div className="p-3 border-t border-neutral-100">
           <Link
             href="/"
@@ -73,10 +77,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
       {/* 主内容区 */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* 顶部栏（桌面 + 移动） */}
         <header className="h-14 md:h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-4 md:px-6 shrink-0">
           <div className="flex items-center gap-3">
-            {/* 移动端菜单按钮 */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-500"
@@ -85,13 +87,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </button>
             <h1 className="text-base md:text-lg font-semibold text-neutral-900">管理后台</h1>
           </div>
-          {/* 移动端底部导航显示当前页面标识 */}
           <span className="md:hidden text-xs text-neutral-400">
             {NAV_ITEMS.find((item) => isActive(item.href))?.label || ""}
           </span>
         </header>
 
-        {/* 移动端下拉菜单 */}
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-b border-neutral-200 px-3 py-2 space-y-1">
             {NAV_ITEMS.map((item) => {
@@ -124,11 +124,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {/* 页面内容 */}
         <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </div>
 
-      {/* 移动端底部导航栏 */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 flex z-50">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;

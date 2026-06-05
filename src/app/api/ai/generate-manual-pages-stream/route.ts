@@ -1,37 +1,32 @@
 // API Route: POST /api/ai/generate-manual-pages-stream
-// Server-Sent Events: one page at a time
-// Hybrid approach:
-// 1. Generate clean background via Tongyi Wanxiang (no text, no logo in image)
-// 2. Composite LOGO, IP, and text via sharp SVG overlay for pixel-perfect control
-import { writeFile, mkdir, unlink, rename, readFile } from "fs/promises";
-import { getCachedProcessedPath, processAndCacheImage } from "@/lib/image-cache";
+// V4: 设计决策引擎(DeepSeek) + 写实图生成(万相2.7) + 14页A4竖版渲染
+import { writeFile, mkdir, readFile } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
-import { planPages } from "@/lib/page-planner";
-import { renderBlueprintToSvg } from "@/lib/render-blueprint";
-import type { PageBlueprint } from "@/lib/page-planner";
-import { validateBlueprintAgainstRules } from "@/lib/design-rules";
 import { saveGenerationLog, type GenerationLogEntry } from "@/lib/generation-logger";
+import { renderProfessionalPage } from "@/lib/vi-page-renderer";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
-
+// ===== V4: 14页 PAGE_DEFS =====
 const PAGE_DEFS = [
-  { id: "cover", label: "封面", desc: "VI manual cover page with brand name and logo" },
-  { id: "brand-philosophy", label: "品牌核心理念", desc: "Brand vision, core values and target market" },
-  { id: "logo-interpretation", label: "标识诠释", desc: "Logo design concept and element explanation" },
-  { id: "brand-colors", label: "标准色彩规范", desc: "Brand standard color palette and color psychology" },
-  { id: "typography", label: "字体系统", desc: "Chinese and English font system specification" },
-  { id: "basic-spec", label: "基础规范", desc: "Logo clear space, minimum sizes, incorrect usage" },
-  { id: "stationery", label: "办公应用系统", desc: "Business card, envelope and letterhead design" },
-  { id: "packaging", label: "产品包装系统", desc: "Product packaging design with brand identity" },
-  { id: "marketing", label: "营销展示系统", desc: "Marketing posters and application scenarios" },
-  { id: "summary", label: "总结", desc: "Brand visual asset management summary" },
-  { id: "closing", label: "感谢观看", desc: "VI manual back cover with contact info" },
+  { id: "cover", label: "封面", desc: "VI manual cover page" },
+  { id: "toc", label: "目录", desc: "Table of contents" },
+  { id: "brand-philosophy", label: "品牌核心理念", desc: "Brand vision, core values" },
+  { id: "logo-interpretation", label: "标识诠释", desc: "Logo design concept" },
+  { id: "brand-colors", label: "标准色彩规范", desc: "Brand color palette" },
+  { id: "typography", label: "字体系统", desc: "Font system specification" },
+  { id: "basic-spec", label: "基础规范", desc: "Logo usage guidelines" },
+  { id: "mascot-spec", label: "IP公仔规范", desc: "Mascot guidelines" },
+  { id: "stationery", label: "办公应用系统", desc: "Stationery design" },
+  { id: "packaging", label: "产品包装系统", desc: "Product packaging" },
+  { id: "marketing", label: "营销展示系统", desc: "Marketing materials" },
+  { id: "digital", label: "数字应用规范", desc: "Digital application guidelines" },
+  { id: "summary", label: "总结", desc: "Brand asset summary" },
+  { id: "closing", label: "感谢观看", desc: "Back cover" },
 ];
 
-const PAGE_ORDER = new Map(PAGE_DEFS.map((page, index) => [page.id, index]));
+const TOTAL_PAGES = PAGE_DEFS.length;
+const PAGE_ORDER = new Map(PAGE_DEFS.map((p, i) => [p.id, i]));
 
 type ManualPageResult = { pageId: string; label: string; url: string };
 type ManualPageError = { pageId: string; label: string; error: string };
@@ -51,47 +46,356 @@ function mergeByPageId<T extends { pageId: string }>(oldItems: T[], newItems: T[
   return sortByPageOrder(Array.from(merged.values()));
 }
 
-function inferLogoElements(clientInfo: any): string[] {
-  const text = [clientInfo?.logoPhilosophy, clientInfo?.brandVision, clientInfo?.coreValues, clientInfo?.targetMarket]
-    .filter(Boolean)
-    .join(" ");
-  const candidates = ["椰树", "海浪", "太阳", "椰子", "北纬18度", "健康能量", "岛屿", "热带", "自然", "工坊"];
-  const matched = candidates.filter((item) => text.includes(item));
-  return matched.length > 0 ? matched : ["品牌图形", "品牌名称", "品牌识别符号"];
-}
-
-function buildAssetAnalysis(clientInfo: any, logoUrl?: string, mascotUrl?: string) {
-  return {
-    logo: {
-      hasLogo: Boolean(logoUrl),
-      logoUrl,
-      elements: inferLogoElements(clientInfo),
-      styleTags: ["行业相关", "品牌原始资产", "不可重绘", "不可变形"],
-      meaning: clientInfo?.logoPhilosophy || "客户原始 Logo 资产，必须保持外观一致。",
-    },
-    mascot: {
-      hasMascot: Boolean(mascotUrl),
-      mascotUrl,
-      name: clientInfo?.mascotName || "品牌IP公仔",
-      style: clientInfo?.mascotStyle || "客户原始 IP 公仔资产，必须保持外观一致。",
-      personality: clientInfo?.mascotPersonality || "亲和、可信赖、具备品牌识别度",
-      description: clientInfo?.mascotPhilosophy || "客户原始 IP 公仔资产，只允许等比例缩放和排版使用。",
-    },
-  };
-}
-
-
-/** Negative prompt for background generation (no text, no logos, no characters) */
-const NEGATIVE_PROMPT_BG =
-  "文字，LOGO，IP公仔，人物，五官，假标志，假吉祥物，品牌符号，变形，扭曲，" +
-  "低画质，模糊，噪点，杂色，风格杂乱";
-
 function sse(controller: ReadableStreamDefaultController, event: string, data: unknown) {
   controller.enqueue(new TextEncoder().encode("event: " + event + "\ndata: " + JSON.stringify(data) + "\n\n"));
 }
 
-/** Read image via cache (auto-bg-removed), return base64 data URI for embedding in SVG */
-async function imageToDataUri(filePath: string): Promise<string | null> {
+// ===== V4: DesignDecision 类型 =====
+export interface DesignDecision {
+  colorScheme: {
+    primary:   { hex: string; oklch: string; name: string; nameEn: string; meaning: string };
+    secondary: { hex: string; oklch: string; name: string; nameEn: string; meaning: string };
+    accent:    { hex: string; oklch: string; name: string; nameEn: string; meaning: string };
+    reasoning: string;
+  };
+  pageLayouts: Array<{
+    pageId: string;
+    layout: 'center-hero' | 'left-sidebar' | 'left-image-right-text' | 'full-image' | 'grid' | 'standard';
+    fontSize: { title: number; subtitle: number; body: number };
+    needsRealPhoto: boolean;
+  }>;
+  photoPrompts: Array<{
+    pageId: string;
+    prompt: string;
+    promptCn: string;
+    refImages: ('logo' | 'mascot')[];
+    refStrength: number;
+  }>;
+  typography: {
+    heading: { family: string; weights: number[] };
+    body: { family: string; weights: number[] };
+    modularScale: number;
+  };
+  logoIntegrationStrategy: 'wanxiang-ref' | 'prompt-desc' | 'composite';
+}
+
+// V3 fallback 默认值
+const DEFAULT_DECISION: DesignDecision = {
+  colorScheme: {
+    primary:   { hex: "#1A73E8", oklch: "0.55 0.2 260", name: "品牌主色", nameEn: "Primary", meaning: "专业信赖" },
+    secondary: { hex: "#34A853", oklch: "0.60 0.18 145", name: "辅助色", nameEn: "Secondary", meaning: "成长活力" },
+    accent:    { hex: "#FBBC04", oklch: "0.80 0.16 90", name: "强调色", nameEn: "Accent", meaning: "亮点吸引" },
+    reasoning: "默认色彩方案",
+  },
+  pageLayouts: [
+    { pageId: "cover", layout: "center-hero", fontSize: { title: 44, subtitle: 16, body: 12 }, needsRealPhoto: false },
+    { pageId: "toc", layout: "standard", fontSize: { title: 20, subtitle: 9, body: 12 }, needsRealPhoto: false },
+    { pageId: "brand-philosophy", layout: "left-sidebar", fontSize: { title: 20, subtitle: 9, body: 12 }, needsRealPhoto: false },
+    { pageId: "logo-interpretation", layout: "standard", fontSize: { title: 20, subtitle: 9, body: 11 }, needsRealPhoto: false },
+    { pageId: "brand-colors", layout: "grid", fontSize: { title: 20, subtitle: 9, body: 10 }, needsRealPhoto: false },
+    { pageId: "typography", layout: "standard", fontSize: { title: 20, subtitle: 9, body: 10 }, needsRealPhoto: false },
+    { pageId: "basic-spec", layout: "standard", fontSize: { title: 20, subtitle: 9, body: 10 }, needsRealPhoto: false },
+    { pageId: "mascot-spec", layout: "standard", fontSize: { title: 20, subtitle: 9, body: 11 }, needsRealPhoto: false },
+    { pageId: "stationery", layout: "left-image-right-text", fontSize: { title: 20, subtitle: 9, body: 10 }, needsRealPhoto: true },
+    { pageId: "packaging", layout: "left-image-right-text", fontSize: { title: 20, subtitle: 9, body: 10 }, needsRealPhoto: true },
+    { pageId: "marketing", layout: "left-image-right-text", fontSize: { title: 20, subtitle: 9, body: 10 }, needsRealPhoto: true },
+    { pageId: "digital", layout: "grid", fontSize: { title: 20, subtitle: 9, body: 10 }, needsRealPhoto: false },
+    { pageId: "summary", layout: "standard", fontSize: { title: 20, subtitle: 9, body: 11 }, needsRealPhoto: false },
+    { pageId: "closing", layout: "center-hero", fontSize: { title: 28, subtitle: 12, body: 10 }, needsRealPhoto: false },
+  ],
+  photoPrompts: [
+    { pageId: "stationery", prompt: "Flat lay office stationery with brand logo on bamboo mat background, professional business card and envelope, high-end product photography", promptCn: "办公文具平铺展示", refImages: ["logo"], refStrength: 0.7 },
+    { pageId: "packaging", prompt: "Product packaging display with brand mascot and logo, gift box and shopping bag on clean background, commercial photography", promptCn: "产品包装展示", refImages: ["logo", "mascot"], refStrength: 0.65 },
+    { pageId: "marketing", prompt: "Brand storefront exterior with prominent logo signage, tropical atmosphere, professional architectural photography", promptCn: "品牌门店展示", refImages: ["logo"], refStrength: 0.7 },
+  ],
+  typography: {
+    heading: { family: "Noto Sans SC", weights: [700, 800] },
+    body: { family: "Noto Sans SC", weights: [400, 500] },
+    modularScale: 1.25,
+  },
+  logoIntegrationStrategy: "wanxiang-ref",
+};
+
+// ===== V4 Phase 1: 设计决策引擎 =====
+const DESIGN_DIRECTOR_PROMPT = `你是品牌VI设计总监，拥有20年专业经验。根据品牌信息，输出完整的VI设计决策。
+
+## 设计红线（必须遵守）
+1. 不用纯黑#000000，用深灰#333333替代
+2. 不用紫蓝渐变配色
+3. 不用嵌套卡片布局
+4. 不用Inter/Roboto等默认字体
+5. 不用灰色文字配彩色背景
+6. 行宽不超过75个字符
+7. 间距使用4px网格系统（4/8/12/16/20/24/32/40/48/64）
+8. 标题字号用模块化比例（1.25 Major Third 或 1.333 Perfect Fourth）
+9. 色彩用OKLCH空间计算，确保无障碍对比度
+10. 主色60% + 辅色30% + 强调色10%
+11. 避免低饱和度全灰配色
+12. 中文字体优先选择思源黑体/思源宋体系列
+
+## 行业色彩倾向
+- 餐饮/食品：暖色系(红橙黄)，传递食欲与温暖
+- 科技/互联网：冷色系(蓝紫)，传递专业与创新
+- 金融/保险：深色系(深蓝/深绿)，传递稳重与信赖
+- 零售/时尚：鲜明色系，传递活力与个性
+- 教育/文化：中性色系(蓝绿)，传递知性与成长
+- 健康/医疗：清新色系(蓝白绿)，传递安全与关怀
+- 工业/制造：厚重色系(深蓝/深灰)，传递力量与精密
+- 旅游/休闲：明亮色系(蓝绿橙)，传递自由与愉悦
+
+## 输出要求
+输出严格JSON，字段如下：
+{
+  "colorScheme": {
+    "primary": {"hex": "#...", "oklch": "...", "name": "中文名", "nameEn": "English", "meaning": "色彩寓意"},
+    "secondary": {"hex": "#...", "oklch": "...", "name": "中文名", "nameEn": "English", "meaning": "色彩寓意"},
+    "accent": {"hex": "#...", "oklch": "...", "name": "中文名", "nameEn": "English", "meaning": "色彩寓意"},
+    "reasoning": "配色理由"
+  },
+  "pageLayouts": [
+    {"pageId": "...", "layout": "standard|center-hero|left-sidebar|left-image-right-text|full-image|grid", "fontSize": {"title": 20, "subtitle": 9, "body": 11}, "needsRealPhoto": false}
+  ],
+  "photoPrompts": [
+    {"pageId": "stationery|packaging|marketing", "prompt": "English prompt for Wanxiang 2.7", "promptCn": "中文描述", "refImages": ["logo"], "refStrength": 0.7}
+  ],
+  "typography": {
+    "heading": {"family": "Noto Sans SC", "weights": [700, 800]},
+    "body": {"family": "Noto Sans SC", "weights": [400, 500]},
+    "modularScale": 1.25
+  },
+  "logoIntegrationStrategy": "wanxiang-ref"
+}
+
+pageLayouts必须包含全部14页：cover, toc, brand-philosophy, logo-interpretation, brand-colors, typography, basic-spec, mascot-spec, stationery, packaging, marketing, digital, summary, closing。
+photoPrompts只给stationery/packaging/marketing三页写实图prompt。
+refImages中logo必选，有IP公仔时marketing和packaging加mascot。`;
+
+async function generateDesignDecision(
+  clientInfo: any,
+  brandColors: any,
+  hasMascot: boolean,
+  deepseekKey: string,
+): Promise<DesignDecision> {
+  const brief = [
+    `公司名：${clientInfo?.companyName || "未提供"}`,
+    `行业：${clientInfo?.industry || "未提供"}`,
+    `品牌愿景：${clientInfo?.brandVision || "未提供"}`,
+    `核心价值：${clientInfo?.coreValues || "未提供"}`,
+    `目标市场：${clientInfo?.targetMarket || "未提供"}`,
+    `品牌定位：${clientInfo?.brandPositioning || "未提供"}`,
+    `品牌性格：${clientInfo?.brandPersona || "未提供"}`,
+    `品牌原型：${clientInfo?.brandArchetype || "未提供"}`,
+    `Logo理念：${clientInfo?.logoPhilosophy || "未提供"}`,
+    `IP理念：${clientInfo?.mascotPhilosophy || "无"}`,
+    `是否有IP公仔：${hasMascot ? "是" : "否"}`,
+    brandColors?.primary ? `已有主色：${brandColors.primary.hex}` : "无已有色彩",
+  ].join("\n");
+
+  try {
+    const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${deepseekKey}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: DESIGN_DIRECTOR_PROMPT },
+          { role: "user", content: `请为以下品牌生成VI设计决策：\n\n${brief}` },
+        ],
+        temperature: 0.7,
+        max_tokens: 3000,
+        response_format: { type: "json_object" },
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!resp.ok) {
+      console.warn(`[V4-DesignDecision] DeepSeek failed: ${resp.status}, using defaults`);
+      return DEFAULT_DECISION;
+    }
+
+    const data = await resp.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      console.warn("[V4-DesignDecision] Empty response, using defaults");
+      return DEFAULT_DECISION;
+    }
+
+    const decision = JSON.parse(content) as DesignDecision;
+
+    // 验证关键字段
+    if (!decision.colorScheme?.primary?.hex || !decision.pageLayouts?.length || !decision.photoPrompts?.length) {
+      console.warn("[V4-DesignDecision] Missing critical fields, using defaults");
+      return DEFAULT_DECISION;
+    }
+
+    // 如果有已提取的品牌色，覆盖AI提取的色彩（以已有为准）
+    if (brandColors?.primary?.hex) {
+      decision.colorScheme.primary.hex = brandColors.primary.hex;
+      if (brandColors.primary.name) decision.colorScheme.primary.name = brandColors.primary.name;
+    }
+    if (brandColors?.secondary?.hex) {
+      decision.colorScheme.secondary.hex = brandColors.secondary.hex;
+    }
+    if (brandColors?.accent?.hex) {
+      decision.colorScheme.accent.hex = brandColors.accent.hex;
+    }
+
+    console.log("[V4-DesignDecision] Success:", decision.colorScheme.primary.hex, decision.colorScheme.reasoning?.slice(0, 80));
+    return decision;
+  } catch (e) {
+    console.warn("[V4-DesignDecision] Error, using defaults:", String(e));
+    return DEFAULT_DECISION;
+  }
+}
+
+// ===== V4 Phase 2: 写实图生成 =====
+const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+
+interface PhotoResult {
+  pageId: string;
+  base64: string | null;  // base64 data URI or null on failure
+}
+
+async function generateSinglePhoto(
+  prompt: string,
+  logoBase64: string | null,
+  mascotBase64: string | null,
+  refImages: ('logo' | 'mascot')[],
+  refStrength: number,
+  aliyunKey: string,
+): Promise<string | null> {
+  try {
+    // 构建content数组：先放参考图，再放文字prompt
+    const content: any[] = [];
+
+    if (refImages.includes('logo') && logoBase64) {
+      content.push({ image: logoBase64 });
+    }
+    if (refImages.includes('mascot') && mascotBase64) {
+      content.push({ image: mascotBase64 });
+    }
+    content.push({ text: prompt });
+
+    const body: any = {
+      model: "wan2.7-image-pro",
+      input: {
+        messages: [{
+          role: "user",
+          content,
+        }],
+      },
+      parameters: {
+        size: "800*1130",       // A4竖版比例
+        n: 1,
+        watermark: false,
+        ref_strength: refStrength,
+      },
+    };
+
+    const resp = await fetch(DASHSCOPE_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${aliyunKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!resp.ok) {
+      console.warn(`[V4-Photo] Wanxiang failed: ${resp.status}`);
+      return null;
+    }
+
+    const data = await resp.json();
+    const imageUrl = data?.output?.choices?.[0]?.message?.content?.[0]?.image;
+    if (!imageUrl) {
+      console.warn("[V4-Photo] No image in response");
+      return null;
+    }
+
+    // 下载图片并转base64
+    const imgResp = await fetch(imageUrl);
+    if (!imgResp.ok) return null;
+    const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+    return "data:image/png;base64," + imgBuf.toString("base64");
+  } catch (e) {
+    console.warn(`[V4-Photo] Error:`, String(e));
+    return null;
+  }
+}
+
+async function generateRealPhotos(
+  designDecision: DesignDecision,
+  logoBase64: string | null,
+  mascotBase64: string | null,
+  aliyunKey: string,
+): Promise<Map<string, string | null>> {
+  const results = new Map<string, string | null>();
+
+  // 并行生成3张写实图
+  const photoTasks = designDecision.photoPrompts.map(async (pp) => {
+    const base64 = await generateSinglePhoto(
+      pp.prompt,
+      logoBase64,
+      mascotBase64,
+      pp.refImages,
+      pp.refStrength,
+      aliyunKey,
+    );
+    results.set(pp.pageId, base64);
+    console.log(`[V4-Photo] ${pp.pageId}: ${base64 ? "OK" : "FAILED"}`);
+  });
+
+  await Promise.allSettled(photoTasks);
+  return results;
+}
+
+// ===== 图片处理工具 =====
+
+async function processImageToDataUri(
+  filePath: string,
+  options?: { cropThreeView?: boolean }
+): Promise<string | null> {
+  try {
+    let pipeline = sharp(filePath);
+    const meta = await pipeline.metadata();
+    const w = meta.width || 1;
+    const h = meta.height || 1;
+
+    // Step 1: trim去白边（修复：使用对象参数）
+    pipeline = sharp(filePath).trim({ threshold: 10 });
+
+    const trimmedMeta = await pipeline.metadata();
+    const tw = trimmedMeta.width || w;
+    const th = trimmedMeta.height || h;
+
+    // Step 2: 三视图裁剪中间1/3
+    if (options?.cropThreeView && tw > th * 1.5) {
+      const cropWidth = Math.floor(tw / 3);
+      pipeline = sharp(filePath)
+        .trim({ threshold: 10 })
+        .extract({ left: cropWidth, top: 0, width: cropWidth, height: th });
+    }
+
+    const buf = await pipeline.png().toBuffer();
+    return "data:image/png;base64," + buf.toString("base64");
+  } catch (e) {
+    console.warn("[processImage] sharp failed, raw fallback:", String(e));
+    try {
+      const buf = await readFile(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      const mime = ext === ".svg" ? "image/svg+xml" : ext === ".png" ? "image/png" : ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : "image/png";
+      return "data:" + mime + ";base64," + buf.toString("base64");
+    } catch { return null; }
+  }
+}
+
+/** 读取图片原始base64（不trim，用于万相2.7参考图） */
+async function imageToRawBase64(filePath: string): Promise<string | null> {
   try {
     const buf = await readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
@@ -100,246 +404,6 @@ async function imageToDataUri(filePath: string): Promise<string | null> {
   } catch { return null; }
 }
 
-
-/**
- * Create a pixel-perfect SVG page for a VI manual.
- * This replaces AI-generated text with programmatic SVG for precise control.
- * Background image is composited separately.
- */
-function renderPageSvg(
-  pageId: string,
-  companyName: string,
-  brandColors: any,
-  logoDataUri: string | null,
-  mascotDataUri: string | null,
-  pageIndex: number,
-  totalPages: number,
-  refAnalysis?: any
-): string {
-  const pw = 1024, ph = 1024; // page dimensions
-  const priHex = brandColors?.primary?.hex || "#1A73E8";
-  const secHex = brandColors?.secondary?.hex || "#34A853";
-  const accHex = brandColors?.accent?.hex || "#FBBC04";
-
-  // Common styles
- const titleFont = 'sans-serif';
- const bodyFont = 'sans-serif';
-
- let svg = `<svg width="${pw}" height="${ph}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`;
- svg += `<defs>`;
- svg += `<filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.15"/></filter>`;
- svg += `</defs>`;
-
-   if (pageId === "cover") {
-    // === COVER PAGE: 椰岛工坊 VI Manual Cover ===
-    // Brand background color: #005032 (deep green)
-    svg += `<rect x="0" y="0" width="${pw}" height="${ph}" fill="#005032"/>`;
-    svg += `<rect x="0" y="${ph-6}" width="${pw}" height="6" fill="#0078B4"/>`;
-
-    // Subtle decorative wave lines (bottom area)
-    svg += `<path d="M0 ${ph-60} Q ${pw/4} ${ph-80} ${pw/2} ${ph-60} T ${pw} ${ph-60}" stroke="#0078B4" stroke-width="1.5" fill="none" opacity="0.15"/>`;
-    svg += `<path d="M0 ${ph-45} Q ${pw/4} ${ph-65} ${pw/2} ${ph-45} T ${pw} ${ph-45}" stroke="#0078B4" stroke-width="1" fill="none" opacity="0.1"/>`;
-
-    // Corner accents
-    svg += `<rect x="30" y="30" width="50" height="3" fill="#0078B4" opacity="0.3"/>`;
-    svg += `<rect x="30" y="30" width="3" height="50" fill="#0078B4" opacity="0.3"/>`;
-    svg += `<rect x="${pw-80}" y="30" width="50" height="3" fill="#0078B4" opacity="0.3"/>`;
-    svg += `<rect x="${pw-33}" y="30" width="3" height="50" fill="#0078B4" opacity="0.3"/>`;
-
-    // LOGO: Top-center, ~460px width
-    if (logoDataUri) {
-      const logoW = 460, logoH = 200;
-      const logoX = (pw - logoW) / 2;
-      const logoY = 90;
-      svg += `<image x="${logoX}" y="${logoY}" width="${logoW}" height="${logoH}" href="${logoDataUri}" preserveAspectRatio="xMidYMid meet" filter="url(#shadow)"/>`;
-    }
-
-    // Brand Name in brush/calligraphic font
-    const nameY = logoDataUri ? 370 : 200;
-    svg += `<text x="${pw/2}" y="${nameY}" text-anchor="middle" font-family="sans-serif" font-size="52" font-weight="bold" fill="#FFFFFF" filter="url(#shadow)">${companyName}</text>`;
-
-    // Subtitle
-    svg += `<text x="${pw/2}" y="${nameY + 65}" text-anchor="middle" font-family="${titleFont}" font-size="26" font-weight="700" fill="#FFFFFF" opacity="0.95">品牌视觉识别系统（VI）规范手册</text>`;
-    svg += `<line x1="${pw/2 - 140}" y1="${nameY + 80}" x2="${pw/2 + 140}" y2="${nameY + 80}" stroke="#0078B4" stroke-width="2" opacity="0.5"/>`;
-
-    // English subtitle
-    svg += `<text x="${pw/2}" y="${nameY + 110}" text-anchor="middle" font-family="${bodyFont}" font-size="16" font-weight="300" fill="#FFFFFF" opacity="0.8" letter-spacing="4">VISUAL IDENTITY GUIDELINES</text>`;
-
-    // IP Mascot: Right side, vertically centered
-    if (mascotDataUri) {
-      const mSize = 280;
-      const mX = pw - mSize - 50;
-      const mY = (ph - mSize) / 2 + 30;
-      svg += `<image x="${mX}" y="${mY}" width="${mSize}" height="${mSize}" href="${mascotDataUri}" preserveAspectRatio="xMidYMid meet" opacity="0.95" filter="url(#shadow)"/>`;
-    }
-
-    // Bottom info
-    const bottomY = ph - 100;
-    svg += `<text x="${pw/2}" y="${bottomY}" text-anchor="middle" font-family="${bodyFont}" font-size="15" fill="#FFFFFF" opacity="0.9">品牌总监：林晓薇 / Brand Director</text>`;
-    svg += `<text x="${pw/2}" y="${bottomY + 28}" text-anchor="middle" font-family="${bodyFont}" font-size="13" fill="#FFFFFF" opacity="0.7">2024年第三季度 · 第3版</text>`;
-  } else if (pageId === "closing") {
-    // === CLOSING PAGE: Thank you / back cover ===
-    svg += `<text x="${pw/2}" y="${ph/2-40}" text-anchor="middle" font-family="${titleFont}" font-size="36" font-weight="700" fill="#FFFFFF" opacity="0.9">感谢观看</text>`;
-    svg += `<text x="${pw/2}" y="${ph/2+20}" text-anchor="middle" font-family="${titleFont}" font-size="16" fill="#FFFFFF" opacity="0.6">${companyName} · 品牌视觉识别系统 (VI) 规范手册</text>`;
-    svg += `<text x="${pw/2}" y="${ph-80}" text-anchor="middle" font-family="${bodyFont}" font-size="13" fill="#FFFFFF" opacity="0.5">如有疑问，请咨询品牌管理部</text>`;
-    if (mascotDataUri) {
-      const mSize = 140;
-      svg += `<image x="${(pw-mSize)/2}" y="${ph/2+50}" width="${mSize}" height="${mSize}" href="${mascotDataUri}" preserveAspectRatio="xMidYMid meet" opacity="0.8"/>`;
-    }
-
-    // Bottom decorative bar
-    svg += `<rect x="0" y="${ph-6}" width="${pw}" height="6" fill="${accHex}"/>`;
-  } else {
-    // === INNER PAGES: Content page layout ===
-    // Top brand bar
-    svg += `<rect x="0" y="0" width="${pw}" height="4" fill="${accHex}"/>`;
-
-    // Page title at top
-    const label = PAGE_DEFS.find(p => p.id === pageId)?.label || pageId;
-    svg += `<text x="50" y="55" font-family="${titleFont}" font-size="26" font-weight="700" fill="${priHex}">${label}</text>`;
-    svg += `<line x1="50" y1="68" x2="250" y2="68" stroke="${accHex}" stroke-width="2" opacity="0.6"/>`;
-
-    // Company name at top-right
-    svg += `<text x="${pw-50}" y="55" text-anchor="end" font-family="${bodyFont}" font-size="14" fill="#888">${companyName}</text>`;
-
-    // Page number at bottom-right
-    svg += `<text x="${pw-50}" y="${ph-30}" text-anchor="end" font-family="${bodyFont}" font-size="12" fill="#AAA">${pageIndex + 1} / ${totalPages}</text>`;
-
-    // Decorative bottom line
-    svg += `<rect x="50" y="${ph-50}" width="${pw-100}" height="1" fill="${secHex}" opacity="0.2"/>`;
-
-    // Content area hint (placeholder that page-specific content will be shown)
-    // The actual content area is left for the AI-generated background to fill in
-  }
-
-  svg += `</svg>`;
-  return svg;
-}
-
-/** Get a background-only prompt from DeepSeek, guided by reference analysis */
-async function getBackgroundPrompt(
-  pageDef: typeof PAGE_DEFS[0],
-  clientInfo: any,
-  brandColors: any,
-  apiKey: string,
-  refAnalysis?: any
-): Promise<string> {
-  const companyName = clientInfo?.companyName || "品牌名称";
-  const priHex = brandColors?.primary?.hex || "#1A73E8";
-  const secHex = brandColors?.secondary?.hex || "#34A853";
-  const accHex = brandColors?.accent?.hex || "#FBBC04";
-
-  let instruction = "你是一个企业VI手册背景设计师。请生成一张通义万相背景图提示词。";
-  if (clientInfo?.brandVision) instruction += "\n品牌愿景：" + clientInfo.brandVision;
-  if (clientInfo?.coreValues) instruction += "\n核心价值：" + clientInfo.coreValues;
-  if (clientInfo?.targetMarket) instruction += "\n目标市场：" + clientInfo.targetMarket;
-  if (clientInfo?.logoPhilosophy) instruction += "\nLOGO设计理念：" + clientInfo.logoPhilosophy;
-  if (clientInfo?.mascotPhilosophy) instruction += "\nIP公仔设计理念：" + clientInfo.mascotPhilosophy;
-  instruction += "\n\n重要规则：生成的图片中不能包含任何文字、LOGO、IP公仔、人物、品牌符号或类似客户Logo/IP的图形。只生成纯背景/底图。";
-  instruction += "\n客户原始Logo和IP公仔会在后续SVG合成层叠加，背景生成阶段严禁AI重绘、仿造、改造这些品牌资产。";
-  instruction += "\n品牌：" + companyName;
-  instruction += "\n页面类型：" + pageDef.label;
-  instruction += "\n主色：" + priHex + "，辅助色：" + secHex + "，强调色：" + accHex;
-
-  // Inject reference analysis if available
-  if (refAnalysis && refAnalysis.analysis) {
-    const ra = refAnalysis.analysis;
-    instruction += "\n\n参考设计风格：";
-    if (ra.visualMood) instruction += "\n- 视觉情绪：" + ra.visualMood;
-    if (ra.colorPalette) instruction += "\n- 色彩方案：" + ra.colorPalette;
-    if (ra.visualHierarchy) instruction += "\n- 视觉层次：" + ra.visualHierarchy;
-  }
-
-  instruction += "\n\n风格要求：企业VI商业风格，干净简洁，高质量，渐变或微纹理背景，矢量质感，高清8K";
-  instruction += "\n反向提示词：" + NEGATIVE_PROMPT_BG;
-  instruction += "\n输出要求：只输出通义万相提示词本身，不要解释。";
-
-  try {
-    const resp = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          { role: "system", content: "你是一个企业VI设计提示词工程师。严格按照要求输出通义万相文生图prompt。" },
-          { role: "user", content: instruction },
-        ],
-      }),
-    });
-    if (!resp.ok) throw new Error("DeepSeek error: " + resp.status);
-    const data = await resp.json();
-    return data.choices[0].message.content.trim();
-  } catch {
-    // Simple fallback background prompt
-    return `企业VI手册${pageDef.label}页面背景，品牌色${priHex}，简洁渐变色背景，商务质感，轻微纹理，无文字，无LOGO，无人物`;
-  }
-}
-
-/** Generate background image via Tongyi Wanxiang */
-async function generateBackground(
-  prompt: string,
-  apiKey: string
-): Promise<string | null> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const body: any = {
-        model: "wan2.7-image-pro",
-        input: {
-          messages: [{
-            role: "user",
-            content: [{ text: prompt }]
-          }]
-        },
-        parameters: {
-          size: "1024*1024",
-          n: 1,
-          seed: Math.floor(Math.random() * 999999),
-          negative_prompt: NEGATIVE_PROMPT_BG,
-          prompt_relevance: 0.95,
-        },
-      };
-
-      const resp = await fetch(DASHSCOPE_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
-        body: JSON.stringify(body),
-      });
-      const rawText = await resp.text();
-      if (!resp.ok) { await new Promise(r => setTimeout(r, 2000)); continue; }
-      let data;
-      try { data = JSON.parse(rawText); } catch { await new Promise(r => setTimeout(r, 2000)); continue; }
-      const imgUrl = data.output?.choices?.[0]?.message?.content?.find((c: any) => c.type === "image")?.image;
-      if (imgUrl) return imgUrl;
-      if (data.output?.task_id) {
-        for (let i = 0; i < 60; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          try {
-            const tr = await fetch("https://dashscope.aliyuncs.com/api/v1/tasks/" + data.output.task_id, {
-              headers: { Authorization: "Bearer " + apiKey },
-            });
-            if (!tr.ok) continue;
-            const td = JSON.parse(await tr.text());
-            if (td.output?.task_status === "SUCCEEDED") {
-              const u = td.output?.results?.[0]?.image_url;
-              if (u) return u;
-            }
-            if (td.output?.task_status === "FAILED") break;
-          } catch { continue; }
-        }
-      }
-    } catch { await new Promise(r => setTimeout(r, 2000)); }
-  }
-  return null;
-}
-
-/**
- * Hybrid page assembly:
- * 1. Generate background image via Tongyi Wanxiang (no text/logo)
- * 2. If background fails, create a solid-color fallback
- * 3. Composite SVG overlay (text, logo, IP) onto the background
- */
-
-/** Upload a PNG buffer to Supabase Storage, returns public URL or null (fallback to local filesystem) */
 async function uploadToSupabaseStorage(
   buffer: Buffer,
   projectId: string,
@@ -349,12 +413,9 @@ async function uploadToSupabaseStorage(
     const filePath = `${projectId}/${fileName}`;
     const { data, error } = await supabaseAdmin.storage
       .from("brand-brain-generated")
-      .upload(filePath, buffer, {
-        contentType: "image/png",
-        upsert: true,
-      });
+      .upload(filePath, buffer, { contentType: "image/png", upsert: true });
     if (error) {
-      console.warn(`[supabase-storage] Upload failed for ${fileName}:`, error.message);
+      console.warn(`[supabase] Upload failed:`, error.message);
       return null;
     }
     const { data: urlData } = supabaseAdmin.storage
@@ -362,10 +423,12 @@ async function uploadToSupabaseStorage(
       .getPublicUrl(filePath);
     return urlData.publicUrl;
   } catch (e) {
-    console.warn(`[supabase-storage] Upload error for ${fileName}:`, String(e));
+    console.warn(`[supabase] Error:`, String(e));
     return null;
   }
 }
+
+// ===== V4 页面装配 =====
 async function assemblePage(
   pageDef: typeof PAGE_DEFS[0],
   projectId: string,
@@ -373,154 +436,58 @@ async function assemblePage(
   brandColors: any,
   logoUrl: string | undefined,
   mascotUrl: string | undefined,
-  dashscopeKey: string,
-  deepseekKey: string,
   pageIndex: number,
-  totalPages: number,
-  refAnalysis?: any, blueprint?: PageBlueprint
+  designDecision: DesignDecision,
+  realPhotoMap: Map<string, string | null>,
+  logoDataUri: string | null,
+  mascotDataUri: string | null,
 ): Promise<string | null> {
-  const companyName = clientInfo?.companyName || "品牌名称";
-  const priHex = brandColors?.primary?.hex || "#1A73E8";
   const outputDir = path.join(process.cwd(), "public", "generated");
   await mkdir(outputDir, { recursive: true });
 
-  // Step 1: Generate background
-  const bgPrompt = await getBackgroundPrompt(pageDef, clientInfo, brandColors, deepseekKey, refAnalysis);
-  let bgPath: string | null = null;
-  const bgUrl = await generateBackground(bgPrompt, dashscopeKey);
+  // 获取该页的写实图
+  const realPhotoBase64 = realPhotoMap.get(pageDef.id) || null;
 
-  if (bgUrl) {
-    try {
-      const bgFileName = `bg-${Date.now()}-${pageDef.id}.png`;
-      bgPath = path.join(outputDir, bgFileName);
-      const imgResp = await fetch(bgUrl);
-      if (imgResp.ok) {
-        const buf = Buffer.from(await imgResp.arrayBuffer());
-        await writeFile(bgPath, buf);
-      } else { bgPath = null; }
-    } catch { bgPath = null; }
-  }
+  // 用 V4 渲染器生成 A4竖版 SVG
+  const svgContent = renderProfessionalPage(
+    pageDef.id, clientInfo, brandColors,
+    logoDataUri, mascotDataUri,
+    pageIndex, TOTAL_PAGES,
+    designDecision, realPhotoBase64,
+  );
 
-  // Step 2: Load logo/mascot as data URIs for embedding in SVG
-  let logoDataUri: string | null = null;
-  let mascotDataUri: string | null = null;
-  if (logoUrl) {
-    const logoFullPath = path.join(process.cwd(), "public", logoUrl.replace(/^\//, ""));
-    logoDataUri = await imageToDataUri(logoFullPath);
-    if (!logoDataUri) try { logoDataUri = "data:image/png;base64," + (await readFile(logoFullPath)).toString("base64"); } catch(e) { console.warn("[logo] fallback failed:", String(e)); }
-  }
-  if (mascotUrl) {
-    const mascotFullPath = path.join(process.cwd(), "public", mascotUrl.replace(/^\//, ""));
-    mascotDataUri = await imageToDataUri(mascotFullPath);
-    if (!mascotDataUri) try { mascotDataUri = "data:image/png;base64," + (await readFile(mascotFullPath)).toString("base64"); } catch(e) { console.warn("[mascot] fallback failed:", String(e)); }
-  }
-
-  // Step 3: Create SVG overlay
-  const svgContent = blueprint
-    ? renderBlueprintToSvg(blueprint, logoDataUri, mascotDataUri)
-    : renderPageSvg(pageDef.id, companyName, brandColors, logoDataUri, mascotDataUri, pageIndex, totalPages, refAnalysis);
-
-  // Step 4: Composite: if we have a background, overlay SVG on it; else just render SVG on brand color
+  // SVG → PNG（保持A4比例）
   const outputFileName = `${Date.now()}-${pageDef.id}-final.png`;
-  const outputPath = path.join(outputDir, outputFileName);
 
-  // Try composite with background first
-  if (bgPath) {
-    try {
-      const svgBuf = Buffer.from(svgContent);
-      const pngBuffer = await sharp(bgPath)
-        .composite([{ input: svgBuf, top: 0, left: 0 }])
-        .png()
-        .toBuffer();
-      // Try Supabase Storage first
-      const supabaseUrl = await uploadToSupabaseStorage(pngBuffer, projectId, outputFileName);
-      if (supabaseUrl) {
-        try { await unlink(bgPath); } catch {}
-        return supabaseUrl;
-      }
-      // Fallback: write locally
-      await writeFile(outputPath, pngBuffer);
-      try { await unlink(bgPath); } catch {}
-      return `/generated/${outputFileName}`;
-    } catch (e) {
-      console.warn(`[assemblePage] Composite failed for ${pageDef.id}, trying SVG fallback:`, String(e));
-      // Fall through to SVG-only fallback
-    }
-  }
-
-  // Fallback: render SVG directly (sharp converts SVG to PNG)
   try {
     const svgBuf = Buffer.from(svgContent);
-    const pngBuffer = await sharp(svgBuf).resize(1024, 1024).png().toBuffer();
-    // Try Supabase Storage first
+    const pngBuffer = await sharp(svgBuf)
+      .resize({ width: 1200, fit: 'inside', withoutEnlargement: true })
+      .png({ quality: 90 })
+      .toBuffer();
+
     const supabaseUrl = await uploadToSupabaseStorage(pngBuffer, projectId, outputFileName);
     if (supabaseUrl) return supabaseUrl;
-    // Fallback: write locally
+
+    const outputPath = path.join(outputDir, outputFileName);
     await writeFile(outputPath, pngBuffer);
     return `/generated/${outputFileName}`;
-  } catch (e2) {
-    console.error(`[assemblePage] SVG fallback also failed for ${pageDef.id}:`, String(e2));
+  } catch (e) {
+    console.error(`[assemblePage] SVG→PNG failed for ${pageDef.id}:`, String(e));
     return null;
   }
 }
 
+// ===== POST 主流程 =====
 export async function POST(req: Request) {
   const { projectId, clientInfo, brandColors, logoUrl, mascotUrl, maxPages, refId, startPage } = await req.json();
   const startIdx = startPage ?? 0;
   const totalToGenerate = maxPages || PAGE_DEFS.length;
   if (!projectId) return new Response(JSON.stringify({ error: "projectId required" }), { status: 400 });
 
-  const dashscopeKey = process.env.ALIYUN_API_KEY;
   const deepseekKey = process.env.DEEPSEEK_API_KEY;
-  if (!dashscopeKey || !deepseekKey) return new Response(JSON.stringify({ error: "API keys not configured" }), { status: 500 });
-
-  // Load reference analysis if refId is provided
-  let refPageMapping: Record<string, any> | null = null;
-  if (refId) {
-    try {
-      const refPath = path.join(process.cwd(), "public", "mock", "reference", `ref-${refId}.json`);
-      const refContent = await readFile(refPath, "utf-8");
-      const refData = JSON.parse(refContent);
-      refPageMapping = refData.pageMapping || null;
-      console.log(`[generate] Loaded ref analysis: ${refId}, pages: ${Object.keys(refPageMapping || {}).length}`);
-    } catch (e) {
-      console.warn(`[generate] Could not load ref analysis ${refId}:`, String(e));
-    }
-  }
-
-  // Generate Page Blueprints using Page Planner
-  let pageBlueprints: Record<string, PageBlueprint> = {};
-  try {
-    const blueprints = await planPages({
-      clientInfo: {
-        companyName: clientInfo?.companyName || "",
-        brandVision: clientInfo?.brandVision || "",
-        coreValues: clientInfo?.coreValues || "",
-        targetMarket: clientInfo?.targetMarket || "",
-        logoPhilosophy: clientInfo?.logoPhilosophy || "",
-        mascotPhilosophy: clientInfo?.mascotPhilosophy || "",
-        industry: clientInfo?.industry || "",
-      },
-      brandColors: brandColors || { primary: { hex: "#1A73E8" }, secondary: { hex: "#34A853" }, accent: { hex: "#FBBC04" } },
-      assetAnalysis: buildAssetAnalysis(clientInfo, logoUrl, mascotUrl),
-      templateId: refId || undefined,
-    });
-    for (const bp of blueprints) {
-      pageBlueprints[bp.pageId] = bp;
-    }
-  } catch (e) {
-    console.warn("[generate] Page Planner error, falling back to hardcoded:", String(e));
-  }
-
-  // Phase 9: Validate all blueprints against design rules
-  for (const [pid, bp] of Object.entries(pageBlueprints)) {
-    const { valid, results } = validateBlueprintAgainstRules(bp, pid);
-    if (!valid) {
-      const failedRules = results.filter(r => !r.passed).map(r => r.ruleId + ": " + r.message);
-      console.warn("[generate] Rule validation issues for " + pid + ":", failedRules);
-    }
-  }
-
+  const aliyunKey = process.env.ALIYUN_API_KEY;
+  if (!deepseekKey || !aliyunKey) return new Response(JSON.stringify({ error: "API keys not configured" }), { status: 500 });
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -528,64 +495,71 @@ export async function POST(req: Request) {
       const errors: ManualPageError[] = [];
       const startTime = Date.now();
       const pageTimings: Record<string, number> = {};
+
       try {
+        // ===== V4 Phase 1: 设计决策 =====
+        sse(controller, "page:start", { pageId: "design-decision", label: "AI设计决策", index: -1, total: 0 });
+        const designDecision = await generateDesignDecision(
+          clientInfo, brandColors, Boolean(mascotUrl), deepseekKey,
+        );
+        sse(controller, "page:done", { pageId: "design-decision", label: "AI设计决策完成", url: "", index: -1, total: 0 });
+
+        // ===== V4 Phase 2: 写实图生成 =====
+        // 先处理Logo/IP图片（两套：trim版给渲染器，原始版给万相参考）
+        let logoDataUri: string | null = null;
+        let mascotDataUri: string | null = null;
+        let logoRawBase64: string | null = null;
+        let mascotRawBase64: string | null = null;
+
+        if (logoUrl) {
+          const logoPath = path.join(process.cwd(), "public", logoUrl.replace(/^\//, ""));
+          logoDataUri = await processImageToDataUri(logoPath, { cropThreeView: false });
+          logoRawBase64 = await imageToRawBase64(logoPath);
+        }
+        if (mascotUrl) {
+          const mascotPath = path.join(process.cwd(), "public", mascotUrl.replace(/^\//, ""));
+          mascotDataUri = await processImageToDataUri(mascotPath, { cropThreeView: true });
+          mascotRawBase64 = await imageToRawBase64(mascotPath);
+        }
+
+        sse(controller, "page:start", { pageId: "real-photos", label: "生成品牌写实图", index: -2, total: 0 });
+        const realPhotoMap = await generateRealPhotos(
+          designDecision, logoRawBase64, mascotRawBase64, aliyunKey,
+        );
+        const photoCount = Array.from(realPhotoMap.values()).filter(Boolean).length;
+        sse(controller, "page:done", { pageId: "real-photos", label: `写实图生成完成(${photoCount}/3)`, url: "", index: -2, total: 0 });
+
+        // ===== V4 Phase 3: 逐页渲染 =====
         for (let i = startIdx; i < startIdx + totalToGenerate && i < PAGE_DEFS.length; i++) {
           const page = PAGE_DEFS[i];
           sse(controller, "page:start", { pageId: page.id, label: page.label, index: i, total: totalToGenerate });
 
-          const pageRef = refPageMapping ? refPageMapping[page.id] : null;
-
+          const pageStart = Date.now();
           let imageUrl: string | null = null;
-            const pageStart = Date.now();
+
           try {
             imageUrl = await assemblePage(
               page, projectId, clientInfo, brandColors,
-              logoUrl, mascotUrl,
-              dashscopeKey, deepseekKey,
-              i, totalToGenerate,
-              pageRef,
-              pageBlueprints[page.id]
+              logoUrl, mascotUrl, i,
+              designDecision, realPhotoMap,
+              logoDataUri, mascotDataUri,
             );
           } catch (e) {
             console.error(`[generate] assemblePage error for ${page.id}:`, String(e));
           }
 
+          pageTimings[page.id] = Date.now() - pageStart;
+
           if (imageUrl) {
             results.push({ pageId: page.id, label: page.label, url: imageUrl });
-
-          // Run quality check (fire-and-forget)
-          let qualityScore: number | null = null;
-          try {
-            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001";
-            const qcRes = await fetch(baseUrl + "/api/ai/quality-check", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                imagePath: imageUrl,
-                pageId: page.id,
-                brandColors: brandColors || {},
-              }),
-              signal: AbortSignal.timeout(10000),
-            });
-            if (qcRes.ok) {
-              const qcData = await qcRes.json();
-              qualityScore = qcData.overallScore;
-              pageTimings[page.id] = Date.now() - pageStart;
-              if (!qcData.passed) {
-                console.warn("[generate] Quality alert: " + page.id + " score=" + qcData.overallScore + " suggestions: " + qcData.suggestions.join("; "));
-              }
-            }
-          } catch (qcErr) {
-            // Quality check failure is non-fatal
-            if (!pageTimings[page.id]) pageTimings[page.id] = Date.now() - pageStart;
-          }
-            sse(controller, "page:done", { pageId: page.id, label: page.label, url: imageUrl, index: i, total: PAGE_DEFS.length });
+            sse(controller, "page:done", { pageId: page.id, label: page.label, url: imageUrl, index: i, total: TOTAL_PAGES });
           } else {
             errors.push({ pageId: page.id, label: page.label, error: "Generation failed" });
             sse(controller, "page:fail", { pageId: page.id, label: page.label, error: "Generation failed", index: i });
           }
         }
 
+        // ===== 保存结果 =====
         const dataPath = path.join(process.cwd(), "public", "mock", "manual-pages-" + projectId + ".json");
         await mkdir(path.dirname(dataPath), { recursive: true });
 
@@ -595,14 +569,12 @@ export async function POST(req: Request) {
           const oldData = JSON.parse(await readFile(dataPath, "utf-8"));
           oldPages = Array.isArray(oldData.pages) ? oldData.pages : [];
           oldErrors = Array.isArray(oldData.errors) ? oldData.errors : [];
-        } catch {
-          // No previous generated file, or invalid JSON. Start fresh.
-        }
+        } catch { /* first time */ }
 
-        const failedPageIds = new Set(errors.map((error) => error.pageId));
-        const successfulPageIds = new Set(results.map((page) => page.pageId));
-        const mergedPages = mergeByPageId(oldPages, results).filter((page) => !failedPageIds.has(page.pageId));
-        const mergedErrors = mergeByPageId(oldErrors, errors).filter((error) => !successfulPageIds.has(error.pageId));
+        const failedPageIds = new Set(errors.map(e => e.pageId));
+        const successfulPageIds = new Set(results.map(p => p.pageId));
+        const mergedPages = mergeByPageId(oldPages, results).filter(p => !failedPageIds.has(p.pageId));
+        const mergedErrors = mergeByPageId(oldErrors, errors).filter(e => !successfulPageIds.has(e.pageId));
 
         const pagesData = {
           projectId,
@@ -614,7 +586,7 @@ export async function POST(req: Request) {
         };
         await writeFile(dataPath, JSON.stringify(pagesData, null, 2), "utf-8");
 
-        // Save generation log for monitoring
+        // Save generation log
         try {
           const logEntry: GenerationLogEntry = {
             projectId,
@@ -624,20 +596,19 @@ export async function POST(req: Request) {
             successfulPages: results.length,
             failedPages: errors.length,
             durationMs: Date.now() - startTime,
-            pages: PAGE_DEFS.slice(0, totalToGenerate).map(p => ({
+            pages: PAGE_DEFS.slice(startIdx, startIdx + totalToGenerate).map(p => ({
               pageId: p.id,
               label: p.label,
               success: results.some(r => r.pageId === p.id),
-              qualityScore: null as number | null,
-              qualityPassed: null as boolean | null,
+              qualityScore: null,
+              qualityPassed: null,
               durationMs: pageTimings[p.id] || 0,
             })),
           };
           await saveGenerationLog(logEntry);
-        } catch (logErr) {
-          // Logging failure is non-fatal
-        }
-        sse(controller, "done", { totalPages: results.length, failedPages: errors.length, totalToGenerate: totalToGenerate });
+        } catch { /* non-fatal */ }
+
+        sse(controller, "done", { totalPages: results.length, failedPages: errors.length, totalToGenerate });
       } catch (error) {
         sse(controller, "error", { message: error instanceof Error ? error.message : String(error) });
       } finally {
@@ -654,5 +625,3 @@ export async function POST(req: Request) {
     },
   });
 }
-
-

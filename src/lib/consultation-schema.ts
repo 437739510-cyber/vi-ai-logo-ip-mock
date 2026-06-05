@@ -7,8 +7,8 @@ export const consultationSchema = z.object({
     .max(20, "姓名不超过 20 个字符"),
   companyName: z
     .string()
-    .min(2, "请输入公司名称")
-    .max(100, "公司名称不超过 100 个字符"),
+    .min(2, "请输入公司名或店铺名")
+    .max(100, "公司名或店铺名不超过 100 个字符"),
   phone: z
     .string()
     .regex(/^1[3-9]\d{9}$/, "请输入正确的手机号（11 位数字）"),
@@ -22,6 +22,8 @@ export const consultationSchema = z.object({
     .max(50, "微信号不超过 50 个字符")
     .optional()
     .or(z.literal("")),
+  province: z.string().min(1, "请选择省份"),
+  city: z.string().min(1, "请选择城市"),
   industry: z.string().min(1, "请选择所属行业"),
   budgetRange: z.string().optional(),
   brandVision: z
@@ -55,7 +57,7 @@ export const consultationSchema = z.object({
     .or(z.literal("")),
   description: z
     .string()
-    .max(500, "需求描述不超过 500 个字符")
+    .max(1000, "需求描述不超过 1000 个字符")
     .optional()
     .or(z.literal("")),
 });

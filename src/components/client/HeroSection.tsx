@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-neutral-50 to-white">
-      {/* 背景装饰 */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-primary/5" />
         <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-secondary/5" />
@@ -20,9 +19,9 @@ export function HeroSection() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            上传您的品牌素材
+            老店，也值得被认真看见
             <br />
-            <span className="text-primary">AI 为您生成专业 VI 手册</span>
+            <span className="text-primary">AI 帮你把招牌变成品牌</span>
           </motion.h1>
 
           <motion.p
@@ -31,8 +30,8 @@ export function HeroSection() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15 }}
           >
-            上传 Logo 和 IP 公仔，AI 自动分析品牌风格，生成完整的视觉识别手册。
-            专业团队精修交付，让您的品牌从第一步就与众不同。
+            一家开了十年的老面馆，招牌比隔壁奶茶店还丑——不是你的错，是没人帮你。
+            我们用 AI 生成 LOGO、IP 公仔、VI 手册，大学生上门拍照代发，让你从巷子深处变成整条街最靓的店。
           </motion.p>
 
           <motion.div
@@ -42,10 +41,10 @@ export function HeroSection() {
             transition={{ duration: 0.6, delay: 0.3 }}
           >
             <Link
-              href="/consultation"
+              href="/interview"
               className="inline-flex items-center px-6 py-3 bg-primary text-white text-base font-medium rounded-xl hover:bg-primary-dark transition-colors shadow-sm"
             >
-              免费获取方案
+              开始品牌访谈
             </Link>
             <Link
               href="/progress"

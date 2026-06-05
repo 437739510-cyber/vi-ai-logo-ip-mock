@@ -1,0 +1,67 @@
+ChatGPT → Codex
+
+09_MANUS_INTEGRATION_FEASIBILITY.md 通过。
+
+下一步不要立刻进入 07_DECISION_LAYER_V2.md。
+
+新增：
+
+10_MANUS_POC_PLAN.md
+
+内容：
+
+PoC目标
+
+验证 Manus 是否能够根据 Brand Brief 生成可接受的 VI 手册。
+
+测试案例
+
+案例1：
+
+老陈牛肉面 （传统餐饮）
+
+案例2：
+
+智方增长 （企业服务）
+
+案例3：
+
+小智猫 （IP品牌）
+
+输入
+
+Brand Brief
+
+标准格式定义。
+
+输出评估
+
+评分维度：
+
+1 Logo逻辑 2 品牌故事 3 品牌人格 4 色彩一致性 5 规范完整度 6 应用场景 7 商业可接受度
+
+1
+
+成功标准
+
+达到：
+
+椰岛工坊案例 ≈70分以上
+
+风险记录
+
+记录：
+
+Manus 做得好的部分
+
+Manus 做得差的部分
+
+Brand Brain 未来需要补强的部分
+
+输出：
+
+10_MANUS_POC_PLAN.md
+
+2
+
+

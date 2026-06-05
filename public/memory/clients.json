@@ -1,19 +1,19 @@
 [
   {
-    "clientId": "test",
-    "companyName": "test",
-    "industry": "",
-    "industryCategory": "other",
-    "hasLogo": false,
-    "hasMascot": false,
+    "clientId": "椰岛⼯坊",
+    "companyName": "椰岛⼯坊",
+    "industry": "餐饮/食品",
+    "industryCategory": "food_beverage",
+    "hasLogo": true,
+    "hasMascot": true,
     "brandStage": "unknown",
     "projectIds": [
-      "__test__"
+      "VI-20260528-NDKW"
     ],
-    "latestBrainResultId": "__test__",
-    "createdAt": "2026-05-31T09:25:37.396Z",
-    "updatedAt": "2026-05-31T09:25:37.396Z",
+    "latestBrainResultId": "VI-20260528-NDKW",
+    "createdAt": "2026-06-04T15:04:00.329Z",
+    "updatedAt": "2026-06-04T15:56:22.916Z",
     "projectCount": 1,
-    "targetAudience": "test"
+    "targetAudience": "精准覆盖高端酒店采购与健身博主群体"
   }
 ]

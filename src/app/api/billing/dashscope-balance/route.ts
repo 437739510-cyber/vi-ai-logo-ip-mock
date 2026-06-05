@@ -1,156 +1,151 @@
-/**
- * DashScope / Aliyun Account Balance Query
- *
- * Tries to query real Aliyun account balance via BssOpenApi QueryAccountBalance.
- * Falls back to DASHSCOPE_ACCOUNT_BALANCE env var if AK credentials not configured.
- *
- * Env vars for real-time query:
- *   ALIBABA_CLOUD_ACCESS_KEY_ID
- *   ALIBABA_CLOUD_ACCESS_KEY_SECRET
- *
- * Fallback env var (manual update):
- *   DASHSCOPE_ACCOUNT_BALANCE
- */
+import { NextResponse } from 'next/server';
 
-import { NextResponse } from "next/server";
-import crypto from "node:crypto";
+// Alibaba Cloud BSS API - QueryAccountBalance
+// Requires: ALIBABA_CLOUD_ACCESS_KEY_ID + ALIBABA_CLOUD_ACCESS_KEY_SECRET
+// RAM user needs AliyunBSSReadOnlyAccess permission
 
-const BSS_ENDPOINT = "https://business.aliyuncs.com";
-const BSS_API_VERSION = "2017-12-14";
+const ACCESS_KEY_ID = process.env.ALIBABA_CLOUD_ACCESS_KEY_ID || '';
+const ACCESS_KEY_SECRET = process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET || '';
 
-interface BalanceResponse {
-  availableAmount: number;
-  availableCashAmount: number;
-  currency: string;
-  source: "aliyun_api" | "env_var" | "error";
+interface BssBalanceData {
+  AvailableCashAmount?: string;
+  AvailableAmount?: string;
+  CreditAmount?: string;
+  Currency?: string;
 }
 
-/**
- * Percent-encode per Aliyun RESTful API spec (uppercase hex, unreserved chars excluded).
- */
 function percentEncode(str: string): string {
   return encodeURIComponent(str)
-    .replace(/!/g, "%21")
-    .replace(/'/g, "%27")
-    .replace(/\(/g, "%28")
-    .replace(/\)/g, "%29")
-    .replace(/\*/g, "%2A");
+    .replace(/\+/g, '%20')
+    .replace(/\*/g, '%2A')
+    .replace(/%7E/g, '~')
+    .replace(/!/g, '%21')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29');
 }
 
-/**
- * Build Aliyun RESTful API signature.
- */
-function signRequest(
-  params: Record<string, string>,
-  accessKeySecret: string
-): string {
-  // Sort keys alphabetically
-  const sortedKeys = Object.keys(params).sort();
-  const canonicalizedQuery = sortedKeys
-    .map((key) => percentEncode(key) + "=" + percentEncode(params[key]))
-    .join("&");
-
-  const stringToSign = "GET&" + percentEncode("/") + "&" + percentEncode(canonicalizedQuery);
-
-  const hmac = crypto.createHmac("sha1", accessKeySecret + "&");
-  hmac.update(stringToSign);
-  return hmac.digest("base64");
-}
-
-/**
- * Call Aliyun BssOpenApi QueryAccountBalance using AccessKey auth.
- */
-async function queryFromAliyunApi(): Promise<BalanceResponse | null> {
-  const accessKeyId = process.env.ALIBABA_CLOUD_ACCESS_KEY_ID;
-  const accessKeySecret = process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET;
-
-  if (!accessKeyId || !accessKeySecret) {
-    return null; // Keys not configured, fall through
+async function callBssApi(action: string): Promise<{ success: boolean; data?: BssBalanceData; message?: string }> {
+  if (!ACCESS_KEY_ID || !ACCESS_KEY_SECRET) {
+    return { success: false, message: 'AccessKey not configured' };
   }
 
   const params: Record<string, string> = {
-    Action: "QueryAccountBalance",
-    Format: "JSON",
-    Version: BSS_API_VERSION,
-    AccessKeyId: accessKeyId,
-    SignatureMethod: "HMAC-SHA1",
-    SignatureVersion: "1.0",
-    SignatureNonce: Date.now().toString() + Math.random().toString(36).slice(2),
-    Timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+    Action: action,
+    Format: 'JSON',
+    Version: '2017-12-14',
+    AccessKeyId: ACCESS_KEY_ID,
+    SignatureMethod: 'HMAC-SHA1',
+    SignatureVersion: '1.0',
+    SignatureNonce: Math.random().toString(36).substring(2, 15) + Date.now().toString(36),
+    Timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
   };
 
-  const signature = signRequest(params, accessKeySecret);
+  const sortedKeys = Object.keys(params).sort();
+  const canonicalizedQueryString = sortedKeys
+    .map(key => `${percentEncode(key)}=${percentEncode(params[key])}`)
+    .join('&');
+
+  const stringToSign = `GET&${percentEncode('/')}&${percentEncode(canonicalizedQueryString)}`;
+
+  const crypto = await import('crypto');
+  const signature = crypto
+    .createHmac('sha1', ACCESS_KEY_SECRET + '&')
+    .update(stringToSign)
+    .digest('base64');
+
   params.Signature = signature;
 
-  const queryString = Object.entries(params)
-    .map(([k, v]) => encodeURIComponent(k) + "=" + encodeURIComponent(v))
-    .join("&");
+  const url = `https://business.aliyuncs.com/?${sortedKeys
+    .map(key => `${percentEncode(key)}=${percentEncode(params[key])}`)
+    .join('&')}&Signature=${percentEncode(signature)}`;
 
   try {
-    const res = await fetch(BSS_ENDPOINT + "/?" + queryString, {
-      method: "GET",
-      headers: { "Accept": "application/json" },
-      signal: AbortSignal.timeout(10000),
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!res.ok) {
-      console.error("[dashscope-balance] Aliyun API error:", res.status, await res.text());
-      return null;
+    const data = await response.json();
+
+    if (data.Code === '200' || data.Success === true) {
+      return { success: true, data: data.Data };
+    } else {
+      return {
+        success: false,
+        message: data.Message || `BSS API error (${data.Code || response.status})`,
+      };
     }
-
-    const body = await res.json();
-    const availableAmount = parseFloat(body?.Data?.AvailableAmount);
-
-    if (isNaN(availableAmount)) {
-      console.error("[dashscope-balance] Unexpected Aliyun response:", JSON.stringify(body));
-      return null;
-    }
-
-    return {
-      availableAmount: availableAmount,
-      availableCashAmount: parseFloat(body?.Data?.AvailableCashAmount) || 0,
-      currency: body?.Data?.Currency || "CNY",
-      source: "aliyun_api",
-    };
-  } catch (err) {
-    console.error("[dashscope-balance] Aliyun API call failed:", err);
-    return null;
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Network error';
+    return { success: false, message: msg };
   }
-}
-
-/**
- * Fallback: read from DASHSCOPE_ACCOUNT_BALANCE env var.
- */
-function queryFromEnvVar(): BalanceResponse | null {
-  const raw = process.env.DASHSCOPE_ACCOUNT_BALANCE;
-  if (!raw) return null;
-  const balance = parseFloat(raw);
-  if (isNaN(balance)) return null;
-  return { availableAmount: balance, availableCashAmount: balance, currency: "CNY", source: "env_var" };
 }
 
 export async function GET() {
-  // Try Aliyun API first
-  const apiResult = await queryFromAliyunApi();
-  if (apiResult) {
-    return NextResponse.json(apiResult);
-  }
+  try {
+    const result = await callBssApi('QueryAccountBalance');
 
-  // Fallback: env var
-  const envResult = queryFromEnvVar();
-  if (envResult) {
-    return NextResponse.json(envResult);
-  }
+    if (result.success && result.data) {
+      const balance = result.data;
+      const availableAmount = parseFloat(balance.AvailableAmount || '0');
+      const cashAmount = parseFloat(balance.AvailableCashAmount || '0');
+      const currency = balance.Currency || 'CNY';
 
-  // Neither available
-  return NextResponse.json(
-    {
-      availableAmount: null,
-      availableCashAmount: null,
-      currency: "CNY",
-      source: "error",
-      error: "余额读取失败，请检查阿里云账务权限或设置 DASHSCOPE_ACCOUNT_BALANCE 环境变量",
-    },
-    { status: 503 }
-  );
+      // IMPORTANT: Frontend reads "availableAmount" field (not "balance")
+      return NextResponse.json({
+        provider: 'Tongyi Wanxiang (Alibaba Cloud)',
+        availableAmount: availableAmount,  // Frontend reads this field
+        cashBalance: cashAmount,
+        balance: availableAmount,  // Also provide "balance" for compatibility
+        currency,
+        source: 'BSS QueryAccountBalance',
+        status: 'active',
+        detail: `Available: ${currency} ${availableAmount.toFixed(2)} / Cash: ${currency} ${cashAmount.toFixed(2)}`,
+      });
+    }
+
+    // Fallback: test API key validity
+    const dashscopeKey =
+      process.env.DASHSCOPE_API_KEY ||
+      process.env.ALIYUN_API_KEY ||
+      process.env.WANXIANG_API_KEY ||
+      '';
+
+    if (dashscopeKey) {
+      return NextResponse.json({
+        provider: 'Tongyi Wanxiang (Alibaba Cloud)',
+        availableAmount: -1,
+        balance: -1,
+        currency: 'CNY',
+        source: 'fallback',
+        status: 'key_configured',
+        detail: `BSS query failed: ${result.message}. API Key configured, check Alibaba Cloud console for balance`,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        provider: 'Tongyi Wanxiang (Alibaba Cloud)',
+        availableAmount: null,
+        balance: null,
+        currency: 'CNY',
+        error: result.message || 'Cannot query balance',
+        detail: 'Please configure ALIBABA_CLOUD_ACCESS_KEY_ID + ALIBABA_CLOUD_ACCESS_KEY_SECRET and grant AliyunBSSReadOnlyAccess',
+      },
+      { status: 500 }
+    );
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Internal error';
+    return NextResponse.json(
+      {
+        provider: 'Tongyi Wanxiang (Alibaba Cloud)',
+        availableAmount: null,
+        balance: null,
+        currency: 'CNY',
+        error: msg,
+      },
+      { status: 500 }
+    );
+  }
 }

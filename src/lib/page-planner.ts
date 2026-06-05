@@ -144,6 +144,7 @@ export interface PagePlannerInput {
 
 const PAGE_LABELS: Record<string, string> = {
   cover: "品牌视觉识别系统 (VI) 规范手册",
+  toc: "目录",
   "brand-philosophy": "品牌核心理念",
   "logo-interpretation": "标识诠释",
   "brand-colors": "标准色彩规范",
@@ -163,7 +164,7 @@ const PAGE_LABELS: Record<string, string> = {
  */
 export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[]> {
   const pageIds = input.pageIds || [
-    "cover", "brand-philosophy", "logo-interpretation", "brand-colors",
+    "cover", "toc", "brand-philosophy", "logo-interpretation", "brand-colors",
     "typography", "basic-spec", "stationery", "packaging",
     "marketing", "summary", "closing",
   ];

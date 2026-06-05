@@ -31,6 +31,8 @@ export default function ProjectDetailPage({
 }) {
   const [project, setProject] = useState<Project | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
+  const [pptxLoading, setPptxLoading] = useState(false);
+  const [pptxError, setPptxError] = useState("");
   const [plans, setPlans] = useState<AiGenerationPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +49,13 @@ export default function ProjectDetailPage({
   const [generatedManuals, setGeneratedManuals] = useState<any[]>([]);
   const [exportingPdf, setExportingPdf] = useState<string | null>(null);
   const [deletingManual, setDeletingManual] = useState<string | null>(null);
+  const [generatingPptx, setGeneratingPptx] = useState(false);
+  const [pptxResult, setPptxResult] = useState<{url: string; pageCount: number; fileName: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // V7: AI分析面板状态
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
 
   /** Load generated manual files for this project */
   const loadGeneratedManuals = async (projectId: string) => {
@@ -142,7 +150,7 @@ export default function ProjectDetailPage({
       const res = await fetch("/api/ai/list-references", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: project.id, refId }),
+        body: JSON.stringify({ projectId: project.id }),
       });
       if (res.ok) {
         // Reload to show active state
@@ -203,16 +211,16 @@ export default function ProjectDetailPage({
         {templateInfo && (
           <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
             <p className="text-xs font-semibold text-blue-800 mb-1">
-              \u6a21\u677f\u5e93 - \u7ed3\u6784\u5316\u8bbe\u8ba1\u7cfb\u7edf
+              模板库 - 结构化设计系统
               <span className="ml-2 text-[10px] font-normal text-blue-600">
-                \u8d28\u91cf\u8bc4\u5206: {templateInfo.qualityScore}/100
+                质量评分: {templateInfo.qualityScore}/100
               </span>
             </p>
 
             {templateInfo.matchedTemplates && templateInfo.matchedTemplates.length > 0 && (
               <div>
                 <p className="text-[10px] font-medium text-blue-700 mb-1">
-                  \u5339\u914d\u5df2\u6709\u6a21\u677f\uff08\u6309\u76f8\u4f3c\u5ea6\u6392\u5e8f\uff09:
+                  匹配已有模板（按相似度排序）:
                 </p>
                 <div className="space-y-1">
                   {templateInfo.matchedTemplates.map((mt: any, i: number) => (
@@ -224,7 +232,7 @@ export default function ProjectDetailPage({
                           mt.matchScore >= 40 ? "bg-amber-100 text-amber-700" :
                           "bg-neutral-100 text-neutral-500"
                         }`}>
-                          {mt.matchScore}% \u5339\u914d
+                          {mt.matchScore}% 匹配
                         </span>
                       </span>
                     </div>
@@ -270,22 +278,102 @@ export default function ProjectDetailPage({
     );
   };
 
-  /** Export manual as PDF */
+  // V7: AI品牌分析
+  const handleAnalyze = async () => {
+    if (!project) return;
+    setAnalyzing(true);
+    setAnalysisResult(null);
+    setPptxError("");
+    try {
+      const res = await fetch("/api/ai/analyze-brand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          clientInfo: {
+            companyName: submission?.companyName || submission?.clientName || "",
+            industry: submission?.industry || "",
+            brandVision: submission?.brandVision || "",
+            coreValues: submission?.coreValues || "",
+            targetMarket: submission?.targetMarket || "",
+            logoPhilosophy: submission?.logoPhilosophy || "",
+            mascotPhilosophy: submission?.mascotPhilosophy || "",
+          },
+          brandColors: submission?.brandColors || project.brandColors,
+        }),
+      });
+      if (!res.ok) throw new Error("分析失败");
+      const data = await res.json();
+      if (data.success) setAnalysisResult(data.analysis);
+      else throw new Error(data.error || "分析失败");
+    } catch (e: any) {
+      setPptxError(e.message || "分析出错");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  /** Generate PPTX via PptxGenJS engine + AI场景图 */
+  const handleGeneratePptx = async () => {
+    if (!project) return;
+    setGeneratingPptx(true);
+    setPptxError("");
+    setPptxResult(null);
+    try {
+      const res = await fetch('/api/ai/generate-manual-pptx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: project.id,
+          clientInfo: {
+            companyName: submission?.companyName || submission?.clientName || project.name || '',
+            brandVision: submission?.brandVision || '',
+            coreValues: submission?.coreValues || '',
+            targetMarket: submission?.targetMarket || '',
+            industry: submission?.industry || '',
+            logoPhilosophy: submission?.logoPhilosophy || '',
+            mascotPhilosophy: submission?.mascotPhilosophy || '',
+          },
+          brandColors: submission?.brandColors || project.brandColors || {
+            primary: { hex: '#1A73E8' },
+            secondary: { hex: '#34A853' },
+            accent: { hex: '#FBBC04' },
+          },
+          logoUrl: submission?.logoAssets?.[0]?.url || '',
+          mascotUrl: submission?.mascotAssets?.[0]?.files?.[0]?.url || '',
+          mascotFiles: submission?.mascotAssets?.flatMap((m: any) => m.files || []) || [],
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPptxResult({ url: data.url, pageCount: data.pageCount, fileName: data.fileName });
+        setAnalysisResult(null);
+        await loadGeneratedManuals(project.id);
+      } else {
+        setPptxError(data.error || '生成失败');
+      }
+    } catch (e: any) {
+      setPptxError(e.message || '网络错误');
+    } finally {
+      setGeneratingPptx(false);
+    }
+  };
+
   const handleExportPdf = async (manualId: string) => {
     setExportingPdf(manualId);
     try {
-      const res = await fetch("/api/ai/export-pdf", {
+      const res = await fetch("/api/ai/export-pdf-v6", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId: manualId }),
       });
-      if (!res.ok) throw new Error("\u5bfc\u51fa\u5931\u8d25");
+      if (!res.ok) throw new Error("导出失败");
       const data = await res.json();
       if (data.url) {
         window.open(data.url, "_blank");
       }
     } catch (err: any) {
-      alert("PDF \u5bfc\u51fa\u5931\u8d25: " + (err.message || "\u672a\u77e5\u9519\u8bef"));
+      alert("PDF 导出失败: " + (err.message || "未知错误"));
     } finally {
       setExportingPdf(null);
     }
@@ -293,7 +381,7 @@ export default function ProjectDetailPage({
 
   /** Delete generated manual */
   const handleDeleteManual = async (manualId: string) => {
-    if (!window.confirm("\u786e\u5b9a\u8981\u5220\u9664\u8be5\u624b\u518c\u5417\uff1f\u6b64\u64cd\u4f5c\u4e0d\u53ef\u64a4\u9500\u3002")) return;
+    if (!window.confirm("确定要删除该手册吗？此操作不可撤销。")) return;
     setDeletingManual(manualId);
     try {
       const res = await fetch("/api/ai/delete-generated", {
@@ -305,10 +393,10 @@ export default function ProjectDetailPage({
       if (data.success) {
         await loadGeneratedManuals(project!.id);
       } else {
-        alert("\u5220\u9664\u5931\u8d25: " + (data.error || "\u672a\u77e5\u9519\u8bef"));
+        alert("删除失败: " + (data.error || "未知错误"));
       }
     } catch {
-      alert("\u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5");
+      alert("网络错误，请重试");
     } finally {
       setDeletingManual(null);
     }
@@ -349,6 +437,7 @@ export default function ProjectDetailPage({
 
   if (error) return <ErrorState message={error} />;
   if (!project) return notFound();
+
 
   return (
     <div className="space-y-6">
@@ -542,7 +631,7 @@ export default function ProjectDetailPage({
         )}
       </section>
 
-      {/* Reference PDF upload + analysis section (replaces "AI 一键生成完整手册") */}
+      {/* Reference PDF upload + analysis section */}
       <section className="bg-white rounded-xl border border-amber-200 p-6 space-y-4 bg-gradient-to-br from-amber-50/60 to-transparent">
         <div className="flex items-center gap-2.5">
           <FileText className="w-5 h-5 text-amber-600" />
@@ -589,13 +678,132 @@ export default function ProjectDetailPage({
         {renderRefHistory()}
       </section>
 
+      {/* V7: 品牌大脑 — AI分析 + PptxGenJS+AI场景图生成 */}
+      <section className="bg-white rounded-xl border border-blue-200 p-6 space-y-4 bg-gradient-to-br from-blue-50 to-transparent">
+        <div className="flex items-center gap-2.5">
+          <Sparkles className="w-5 h-5 text-blue-600" />
+          <div>
+            <h3 className="text-sm font-bold text-neutral-900">🧠 品牌大脑 · AI智能生成</h3>
+            <p className="text-[11px] text-neutral-500 mt-0.5">先AI分析行业和品牌定位，确认后生成专业VI手册（PptxGenJS + AI写实场景图）</p>
+          </div>
+        </div>
+
+        {!analysisResult ? (
+          <button
+            onClick={handleAnalyze}
+            disabled={analyzing}
+            className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50"
+          >
+            {analyzing ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> AI 分析中...</>
+            ) : (
+              <><Sparkles className="w-4 h-4" /> 🧠 开始AI分析</>
+            )}
+          </button>
+        ) : (
+          <div className="space-y-4">
+            {/* 分析结果面板 */}
+            <div className="bg-white rounded-xl border border-blue-100 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-blue-700 font-bold text-sm">
+                <CheckCircle className="w-4 h-4" /> AI 分析完成
+              </div>
+              {/* 行业识别 */}
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                <span className="text-2xl">{analysisResult.industry?.icon}</span>
+                <div>
+                  <div className="font-bold text-sm">{analysisResult.industry?.label}</div>
+                  <div className="text-[11px] text-neutral-500">{analysisResult.industry?.reason}</div>
+                </div>
+              </div>
+              {/* 品牌色 */}
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg shadow-sm" style={{ backgroundColor: `#${(analysisResult.brandColors?.primary || '').replace('#', '')}` }} />
+                <div>
+                  <div className="text-xs font-bold">品牌主色 {analysisResult.brandColors?.primary}</div>
+                  <div className="text-[11px] text-neutral-500">{analysisResult.brandColors?.analysis}（{analysisResult.brandColors?.source}）</div>
+                </div>
+              </div>
+              {/* 场景物料 */}
+              <div>
+                <div className="text-xs font-bold text-neutral-700 mb-1.5">场景物料</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {Object.entries(analysisResult.sceneMaterials || {}).map(([key, mat]: [string, any]) => (
+                    <div key={key} className="bg-neutral-50 rounded-lg p-2">
+                      <div className="text-[11px] font-bold text-neutral-700">{mat.title}</div>
+                      {mat.items?.map((item: string, i: number) => (
+                        <div key={i} className="text-[10px] text-neutral-500">· {item}</div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* 页面列表 */}
+              <div className="text-[11px] text-neutral-500">
+                共 {analysisResult.pageCount} 页：{analysisResult.pageList?.join(" → ")}
+              </div>
+              {/* 费用预估 */}
+              <div className="flex items-center gap-2 text-[11px] text-amber-700 bg-amber-50 rounded-lg p-2">
+                <span>💰</span>
+                <span>预估费用：{analysisResult.costEstimate?.images}张AI场景图 × ¥{analysisResult.costEstimate?.costPerImage} = ¥{analysisResult.costEstimate?.total?.toFixed(2)}/份</span>
+              </div>
+            </div>
+            {/* 确认按钮 */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleGeneratePptx}
+                disabled={generatingPptx}
+                className="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50"
+              >
+                {generatingPptx ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> 生成中...（AI图片需约2分钟）</>
+                ) : (
+                  <>✅ 确认并生成VI手册</>
+                )}
+              </button>
+              <button
+                onClick={() => setAnalysisResult(null)}
+                disabled={generatingPptx}
+                className="px-4 py-3 border border-neutral-300 text-neutral-600 font-medium rounded-xl hover:bg-neutral-50 transition-all disabled:opacity-50"
+              >
+                返回
+              </button>
+            </div>
+          </div>
+        )}
+
+        {pptxError && (
+          <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 p-2 rounded-lg">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            {pptxError}
+          </div>
+        )}
+
+        {pptxResult && (
+          <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-blue-600" />
+              <div>
+                <p className="text-xs font-medium text-blue-700">生成成功！{pptxResult.pageCount} 页</p>
+              </div>
+            </div>
+            <a
+              href={pptxResult.url}
+              download
+              className="px-3 py-1.5 text-[11px] font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-1"
+            >
+              <Download className="w-3.5 h-3.5" /> 下载 PPTX
+            </a>
+          </div>
+        )}
+      </section>
+
       {/* AI generate section: Tongyi Wanxiang pages */}
       <section className="bg-white rounded-xl border border-purple-200 p-6 space-y-4 bg-gradient-to-br from-purple-50 to-transparent">
         <div className="flex items-center gap-2.5">
           <Sparkles className="w-5 h-5 text-purple-600" />
           <div>
             <h3 className="text-sm font-bold text-neutral-900">AI 生成手册页面（通义万相）</h3>
-            <p className="text-[11px] text-neutral-500 mt-0.5">调用通义万相 API，按页生成 VI 手册 11 页图片。系统会自动使用已上传的参考手册分析结果</p>
+            <p className="text-[11px] text-neutral-500 mt-0.5">调用通义万相 API，按页生成 VI 手册 页面图片。系统会自动使用已上传的参考手册分析结果</p>
           </div>
         </div>
         <Link href={`/admin/manual-pages/${project.id}`} className="inline-flex w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-all items-center justify-center gap-2 shadow-lg shadow-purple-600/20">
