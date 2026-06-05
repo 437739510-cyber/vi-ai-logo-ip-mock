@@ -295,22 +295,22 @@ export async function POST(req: NextRequest) {
     console.log("[generate-pptx] ===== AI IMAGE GENERATION =====");
     console.log("[generate-pptx] Industry:", industryType, "| Images:", imgDefs.length);
 
-    const imageResults = await Promise.allSettled(
-      imgDefs.map(async (def) => {
-        console.log(`[generateImage] Starting ${def.key}...`);
-        const imgData = await generateSceneImage(def.rawPrompt);
-        return { key: def.key, page: def.page, data: imgData };
-      })
-    );
-
+    // V7c: Serial image generation - avoid 429 rate limiting
     const sceneImages: Record<string, string> = {};
     let imgSuccess = 0;
-    for (const result of imageResults) {
-      if (result.status === "fulfilled" && result.value.data) {
-        sceneImages[result.value.key] = result.value.data;
-        imgSuccess++;
-      } else if (result.status === "rejected") {
-        console.error("[generateImage] Failed:", result.reason);
+    for (let i = 0; i < imgDefs.length; i++) {
+      const def = imgDefs[i];
+      try {
+        const imgData = await generateSceneImage(def.rawPrompt);
+        if (imgData) {
+          sceneImages[def.key] = imgData;
+          imgSuccess++;
+        }
+      } catch (err) {
+        console.error(`[generateImage] Failed (${def.key}):`, err);
+      }
+      if (i < imgDefs.length - 1) {
+        await new Promise(r => setTimeout(r, 2000));
       }
     }
     console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success`);
