@@ -157,6 +157,38 @@ const PAGE_LABELS: Record<string, string> = {
   closing: "感谢观看",
 };
 
+// 行业类型映射
+function mapIndustryType(industry?: string): string {
+  if (!industry) return "general";
+  const s = industry.toLowerCase();
+  if (/椰|椰子|椰汁|茶|咖啡|饮|奶茶|果汁|酒|酒吧|饮品|奶茶店|气泡|矿泉|纯净水/.test(s)) return "beverage";
+  if (/餐|食|面|火锅|烧烤|烘焙|饺子|包子|炒菜|饭店|小吃|饭馆|海鲜|川菜|粤菜|湘菜|鲁菜|馆|外卖/.test(s)) return "restaurant";
+  if (/美容|美发|理发|美甲|spa|沙龙|造型|护肤|美体|美睫/.test(s)) return "beauty";
+  if (/零售|超市|便利|商店|杂货|服装|鞋|饰品|母婴|数码/.test(s)) return "retail";
+  if (/教育|培训|学|课|幼儿园|托管|辅导/.test(s)) return "education";
+  return "general";
+}
+
+// 行业定制场景页标题
+const INDUSTRY_SCENE_LABELS: Record<string, { stationery: string; packaging: string; marketing: string }> = {
+  restaurant:  { stationery: "餐饮应用系统", packaging: "餐饮包装系统", marketing: "餐饮营销系统" },
+  beverage:    { stationery: "饮品应用系统", packaging: "饮品包装系统", marketing: "饮品营销系统" },
+  beauty:      { stationery: "美业应用系统", packaging: "美业包装系统", marketing: "美业营销系统" },
+  retail:      { stationery: "零售应用系统", packaging: "零售包装系统", marketing: "零售营销系统" },
+  education:   { stationery: "教育应用系统", packaging: "教育包装系统", marketing: "教育营销系统" },
+  general:     { stationery: "办公应用系统", packaging: "产品包装系统", marketing: "营销展示系统" },
+};
+
+// 行业定制场景页描述
+const INDUSTRY_SCENE_DESCS: Record<string, { stationery: string; packaging: string; marketing: string }> = {
+  restaurant:  { stationery: "品牌在餐饮场景中的标准化应用", packaging: "餐饮食具与外带物料的品牌化呈现", marketing: "门店宣传与促销物料" },
+  beverage:    { stationery: "品牌在饮品场景中的标准化应用", packaging: "饮品杯具与外带物料的品牌化呈现", marketing: "门店宣传与促销物料" },
+  beauty:      { stationery: "品牌在美业场景中的标准化应用", packaging: "美业产品与礼盒的品牌化呈现", marketing: "门店宣传与会员招募物料" },
+  retail:      { stationery: "品牌在零售场景中的标准化应用", packaging: "商品包装与手提袋的品牌化呈现", marketing: "促销活动与宣传物料" },
+  education:   { stationery: "品牌在教育场景中的标准化应用", packaging: "教材与课程物料的品牌化呈现", marketing: "招生宣传与活动物料" },
+  general:     { stationery: "品牌在商务场景中的标准化应用", packaging: "产品包装与物料的品牌化呈现", marketing: "宣传与促销物料" },
+};
+
 // ========== 核心引擎 ==========
 
 /**
@@ -259,6 +291,7 @@ async function planSinglePage(
     rules: sortedRules,
     pageRef,
     aiElements,
+    industryType: mapIndustryType(input.clientInfo.industry),
   });
 
   return blueprint;
@@ -590,7 +623,7 @@ function buildPhilosophyElements(ctx: BuildContext): PageElement[] {
 // ---- 标识诠释 ----
 
 function buildLogoInterpElements(ctx: BuildContext): PageElement[] {
-  const { pri, acc, sec, logoElements, logoMeaning, logoStyleTags, hasLogo, hasMascot, mascotName, mascotStyle, mascotPersonality } = ctx;
+  const { pri, acc, sec, logoElements, logoMeaning, logoStyleTags, hasLogo, hasMascot, mascotName, mascotStyle, mascotPersonality, mascotPhilosophy } = ctx;
   const elements: PageElement[] = [];
 
   elements.push({ type: "text", id: "li-title", content: PAGE_LABELS["logo-interpretation"],
@@ -674,6 +707,21 @@ function buildLogoInterpElements(ctx: BuildContext): PageElement[] {
         position: "top-center", fontSize: 13,
         color: "#555", marginTop: mascotY + 75, marginLeft: 80,
         params: { align: "left" },
+      });
+    }
+
+    if (mascotPhilosophy) {
+      elements.push({ type: "text", id: "li-ip-philosophy-title",
+        content: "设计理念",
+        position: "top-center", fontSize: 14, fontWeight: 600, color: pri.hex,
+        marginTop: mascotY + 100, marginLeft: 80,
+        params: { align: "left" },
+      });
+      elements.push({ type: "text", id: "li-ip-philosophy",
+        content: mascotPhilosophy,
+        position: "top-center", fontSize: 12, fontWeight: 400, color: "#555",
+        marginTop: mascotY + 125, marginLeft: 80, marginRight: 80,
+        params: { align: "left", lineHeight: 1.5 },
       });
     }
   }
@@ -820,7 +868,7 @@ function buildStationeryElements(ctx: BuildContext): PageElement[] {
   const { pri, sec, hasLogo, hasMascot } = ctx;
   const elements: PageElement[] = [];
 
-  elements.push({ type: "text", id: "st-title", content: PAGE_LABELS["stationery"],
+  elements.push({ type: "text", id: "st-title", content: (INDUSTRY_SCENE_LABELS[ctx.industryType || "general"]?.stationery || PAGE_LABELS["stationery"]),
     position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30 });
 
   elements.push({ type: "divider", id: "st-divider",
@@ -828,7 +876,7 @@ function buildStationeryElements(ctx: BuildContext): PageElement[] {
 
   // 设计规范说明
   elements.push({ type: "text", id: "st-desc",
-    content: "以下展示品牌在商务场景中的标准化应用，确保品牌形象在所有办公物料中保持一致性。",
+    content: (INDUSTRY_SCENE_DESCS[ctx.industryType || "general"]?.stationery || "品牌在商务场景中的标准化应用"),
     position: "top-center", fontSize: 13, color: "#666",
     marginTop: 120, marginLeft: 60, marginRight: 60,
     params: { align: "left", lineHeight: 1.5 },
@@ -858,14 +906,14 @@ function buildPackagingElements(ctx: BuildContext): PageElement[] {
   const { pri, acc } = ctx;
   const elements: PageElement[] = [];
 
-  elements.push({ type: "text", id: "pk-title", content: PAGE_LABELS["packaging"],
+  elements.push({ type: "text", id: "pk-title", content: (INDUSTRY_SCENE_LABELS[ctx.industryType || "general"]?.packaging || PAGE_LABELS["packaging"]),
     position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30 });
 
   elements.push({ type: "divider", id: "pk-divider",
     position: "center", widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15 });
 
   elements.push({ type: "text", id: "pk-desc",
-    content: "产品包装设计以品牌主色调贯穿，将品牌视觉语言融入产品体验的每一个细节。",
+    content: (INDUSTRY_SCENE_DESCS[ctx.industryType || "general"]?.packaging || "产品包装与物料的品牌化呈现"),
     position: "top-center", fontSize: 13, color: "#666",
     marginTop: 120, marginLeft: 60, marginRight: 60,
     params: { align: "left" },
@@ -887,14 +935,14 @@ function buildMarketingElements(ctx: BuildContext): PageElement[] {
   const { pri, acc } = ctx;
   const elements: PageElement[] = [];
 
-  elements.push({ type: "text", id: "mk-title", content: PAGE_LABELS["marketing"],
+  elements.push({ type: "text", id: "mk-title", content: (INDUSTRY_SCENE_LABELS[ctx.industryType || "general"]?.marketing || PAGE_LABELS["marketing"]),
     position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30 });
 
   elements.push({ type: "divider", id: "mk-divider",
     position: "center", widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15 });
 
   elements.push({ type: "text", id: "mk-desc",
-    content: "通过场景化的品牌视觉应用，实现品牌形象在消费者接触点上的精准传达。",
+    content: (INDUSTRY_SCENE_DESCS[ctx.industryType || "general"]?.marketing || "宣传与促销物料"),
     position: "top-center", fontSize: 13, color: "#666",
     marginTop: 120, marginLeft: 60, marginRight: 60,
     params: { align: "left" },

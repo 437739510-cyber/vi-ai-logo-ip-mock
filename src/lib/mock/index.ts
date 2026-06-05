@@ -12,6 +12,8 @@ import type {
   ProjectFilters,
 } from "@/types";
 
+import { supabase } from "@/lib/supabase";
+
 
 // ========== 内存存储（提交的数据暂存在这里，管理端可读取）==========
 const inMemorySubmissions: Submission[] = [];
@@ -32,6 +34,20 @@ export async function getSubmissions(): Promise<Submission[]> {
 }
 
 export async function getSubmissionById(id: string): Promise<Submission | null> {
+  // 先从 Supabase 查询
+  try {
+    const { data, error } = await supabase
+      .from("submissions")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (data && !error) {
+      return mapSubmissionFromDb(data);
+    }
+  } catch (e) {
+    console.warn("[mock] Supabase query failed for submission:", id, e);
+  }
+  // Fallback to mock JSON
   const list = await getSubmissions();
   return list.find((s) => s.id === id) ?? null;
 }
@@ -60,6 +76,21 @@ export async function getProjects(filters?: ProjectFilters): Promise<Project[]> 
 }
 
 export async function getProjectById(id: string): Promise<Project | null> {
+  // 先从 Supabase 查询
+  try {
+    const { data, error } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (data && !error) {
+      // 转换 snake_case → camelCase
+      return mapProjectFromDb(data);
+    }
+  } catch (e) {
+    console.warn("[mock] Supabase query failed for project:", id, e);
+  }
+  // Fallback to mock JSON
   const list = await getProjects();
   return list.find((p) => p.id === id) ?? null;
 }
@@ -118,4 +149,43 @@ export async function submitConsultation(data: Record<string, unknown>): Promise
   const projectId = `VI-${dateStr}-${rand}`;
   console.log("[Mock] submitConsultation:", data);
   return { success: true, projectId };
+}
+
+
+// ========== Supabase → TypeScript 类型映射 ==========
+
+function mapProjectFromDb(row: Record<string, unknown>): Project {
+  return {
+    id: row.id as string,
+    clientName: (row.company_name as string) || "",
+    industry: (row.industry as string) || "",
+    status: (row.status as string) || "draft",
+    submissionId: (row.submission_id as string) || "",
+    createdAt: (row.created_at as string) || new Date().toISOString(),
+    updatedAt: (row.updated_at as string) || new Date().toISOString(),
+    brandColors: row.brand_colors || undefined,
+    logoUrl: (row.logo_url as string) || undefined,
+    mascotUrl: (row.mascot_url as string) || undefined,
+    templateId: (row.template_id as string) || undefined,
+  };
+}
+
+function mapSubmissionFromDb(row: Record<string, unknown>): Submission {
+  return {
+    id: row.id as string,
+    companyName: (row.company_name as string) || "",
+    industry: (row.industry as string) || "",
+    brandVision: (row.brand_vision as string) || "",
+    coreValues: (row.core_values as string) || "",
+    targetMarket: (row.target_market as string) || "",
+    logoPhilosophy: (row.logo_philosophy as string) || "",
+    mascotPhilosophy: (row.mascot_philosophy as string) || "",
+    description: (row.description as string) || "",
+    brandColors: row.brand_colors || undefined,
+    logoUrl: (row.logo_url as string) || undefined,
+    mascotUrl: (row.mascot_url as string) || undefined,
+    province: (row.province as string) || "",
+    city: (row.city as string) || "",
+    createdAt: (row.created_at as string) || new Date().toISOString(),
+  };
 }

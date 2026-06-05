@@ -33,6 +33,7 @@ export interface RenderPptxOptions {
   logoPhilosophy?: string;
   mascotPhilosophy?: string;
   sceneImages?: Record<string, string>;
+  sceneLabels?: Record<string, string>;  // V9: AI返回的动态标签
 }
 
 // ========== 行业类型 ==========
@@ -115,9 +116,9 @@ function getSceneConfigs(industry: IndustryType): Record<string, SceneConfig> {
       marketing: { title: "餐饮营销系统", desc: "店内宣传与客户触达物料" },
     },
     beverage: {
-      stationery: { title: "茶饮应用系统", desc: "品牌在茶饮场景中的标准化应用" },
-      packaging: { title: "茶饮包装系统", desc: "杯具与外带物料的品牌化呈现" },
-      marketing: { title: "茶饮营销系统", desc: "门店宣传与促销物料" },
+      stationery: { title: "饮品应用系统", desc: "品牌在饮品场景中的标准化应用" },
+      packaging: { title: "饮品包装系统", desc: "杯具与外带物料的品牌化呈现" },
+      marketing: { title: "饮品营销系统", desc: "门店宣传与促销物料" },
     },
     beauty: {
       stationery: { title: "美容应用系统", desc: "品牌在美容服务场景中的标准化应用" },
@@ -220,7 +221,7 @@ function renderCover(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
 
   // Logo — 大幅居中
   if (opts.logoData) {
-    slide.addImage({ data: normImg(opts.logoData), x: (SW - 5.0) / 2, y: 1.2, w: 5.0, h: 2.5, sizing: { type: "contain", w: 5.0, h: 2.5 } });
+    slide.addImage({ data: normImg(opts.logoData), x: (SW - 3.0) / 2, y: 1.0, w: 3.0, h: 3.0, sizing: { type: "contain", w: 3.0, h: 3.0 } });
   } else {
     slide.addShape("rect", { x: (SW - 3.5) / 2, y: 1.4, w: 3.5, h: 1.8, fill: { color: "FFFFFF" }, rectRadius: 0.15, shadow: { type: "outer", blur: 6, offset: 2, color: "000000", opacity: 0.15 } });
   }
@@ -288,12 +289,12 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
   addContentFrame(slide, "标识诠释", bc);
 
   // Logo展示区 — 居中放大
-  const logoW = 4.5, logoH = 3.5;
+  const logoW = 3.5, logoH = 3.5;
   if (opts.logoData) {
     slide.addShape("rect", { x: (SW - logoW - 0.6) / 2, y: 1.6, w: logoW + 0.6, h: logoH + 0.6, fill: { color: "F5F5F5" }, rectRadius: 0.1 });
     slide.addImage({ data: normImg(opts.logoData), x: (SW - logoW) / 2, y: 1.9, w: logoW, h: logoH, sizing: { type: "contain", w: logoW, h: logoH } });
   } else {
-    slide.addShape("rect", { x: (SW - 3.5) / 2, y: 1.9, w: 3.5, h: 2.5, fill: { color: "F5F5F5" }, rectRadius: 0.1 });
+    slide.addShape("rect", { x: (SW - 3.5) / 2, y: 1.6, w: 3.5, h: 3.5, fill: { color: "F5F5F5" }, rectRadius: 0.1 });
   }
 
   // V6: 设计理念 — 直接用opts
@@ -456,11 +457,12 @@ function renderSceneWithImages(
 ): void {
   // 获取行业场景标注
   const labels = getSceneLabels(industry, type);
+  const sceneLabels = (opts as any).sceneLabels || {};
 
   if (pageImages.length <= 2) {
     // 1-2张图：大图并排 — V7: 图片占版面60%+
     const imgW = (CONTENT_W - 0.3) / Math.min(pageImages.length, 2);
-    const imgH = Math.min(imgW * 1.0, 5.5);  // V7: 拉高到正方形比例，最高5.5英寸
+    const imgH = Math.min(imgW * 1.5, 6.5);  // V8: 竖版2:3比例(1024*1536)，最高6.5英寸
     const startY = 1.8;
 
     for (let i = 0; i < pageImages.length; i++) {
@@ -486,13 +488,13 @@ function renderSceneWithImages(
       slide.addShape("rect", { x: imgX, y: startY + imgH - 0.08, w: imgW, h: 0.08, fill: { color: bc.pri, transparency: 30 } });
 
       // 标注文字
-      const label = labels[i] || key;
+      const label = sceneLabels[key] || labels[i] || key;
       slide.addText(label, { x: imgX, y: startY + imgH + 0.1, w: imgW, h: 0.35, fontSize: 13, bold: true, color: "333333", align: "center" });
     }
   } else {
     // 3+张图：网格布局（2列）— V7: 图片放大
     const colW = (CONTENT_W - 0.3) / 2;
-    const imgH = Math.min(colW * 0.95, 4.2);  // V7: 拉高比例
+    const imgH = Math.min(colW * 1.4, 5.0);  // V8: 竖版2:3比例(1024*1536)
     const startY = 1.8;
     let row = 0, col = 0;
 
@@ -520,7 +522,7 @@ function renderSceneWithImages(
       slide.addShape("rect", { x: imgX, y: imgY + imgH - 0.06, w: colW, h: 0.06, fill: { color: bc.pri, transparency: 30 } });
 
       // 标注
-      const label = labels[i] || key;
+      const label = sceneLabels[key] || labels[i] || key;
       slide.addText(label, { x: imgX, y: imgY + imgH + 0.08, w: colW, h: 0.3, fontSize: 11, color: "555555", align: "center" });
 
       col++;
@@ -761,7 +763,7 @@ function getTocItems(industry: IndustryType): { title: string }[] {
   ];
   const sceneItems: Record<IndustryType, { title: string }[]> = {
     restaurant: [{ title: "餐饮应用系统" }, { title: "餐饮包装系统" }, { title: "餐饮营销系统" }],
-    beverage: [{ title: "茶饮应用系统" }, { title: "茶饮包装系统" }, { title: "茶饮营销系统" }],
+    beverage: [{ title: "饮品应用系统" }, { title: "饮品包装系统" }, { title: "饮品营销系统" }],
     beauty: [{ title: "美容应用系统" }, { title: "美容包装系统" }, { title: "美容营销系统" }],
     retail: [{ title: "零售应用系统" }, { title: "零售包装系统" }, { title: "零售营销系统" }],
     education: [{ title: "教育应用系统" }, { title: "教育包装系统" }, { title: "教育营销系统" }],

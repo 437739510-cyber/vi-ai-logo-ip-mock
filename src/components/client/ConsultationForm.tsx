@@ -94,6 +94,15 @@ export function ConsultationForm() {
           handleProvinceChange(data.province);
           if (data.city) setValue("city", data.city);
         }
+        // Prefill brand colors
+        if (data.brand_colors) {
+          try {
+            const bc = typeof data.brand_colors === "string" ? JSON.parse(data.brand_colors) : data.brand_colors;
+            if (bc.primary) setValue("brandColors.primary", bc.primary);
+            if (bc.secondary) setValue("brandColors.secondary", bc.secondary);
+            if (bc.accent) setValue("brandColors.accent", bc.accent);
+          } catch (e) { console.warn("Prefill brandColors failed:", e); }
+        }
       } catch (e) {
         console.warn("Prefill failed:", e);
       } finally {

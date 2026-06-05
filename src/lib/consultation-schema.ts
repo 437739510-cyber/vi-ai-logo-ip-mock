@@ -64,9 +64,12 @@ export const consultationSchema = z.object({
 
 export type ConsultationFormData = z.infer<typeof consultationSchema>;
 
+// V11: 行业选项拆分 - 餐饮/食品 拆分为 餐厅/正餐、饮品/茶饮、火锅/小吃
 export const INDUSTRY_OPTIONS = [
   "科技/互联网",
-  "餐饮/食品",
+  "餐厅/正餐",      // 原"餐饮/食品"拆分
+  "饮品/茶饮",      // 原"餐饮/食品"拆分
+  "火锅/小吃",      // 原"餐饮/食品"拆分
   "零售/电商",
   "教育/培训",
   "医疗/健康",

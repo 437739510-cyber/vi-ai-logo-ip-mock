@@ -141,7 +141,13 @@ const BRAND_TYPE_KEYWORDS: Record<string, BrandType> = {
 
 /** Industry → IndustryCategory mapping */
 const INDUSTRY_CATEGORY_MAP: Record<string, IndustryCategory> = {
+  // V11: 餐饮/食品 拆分为三个选项
+  "餐厅/正餐": "food_beverage",
+  "饮品/茶饮": "food_beverage",
+  "火锅/小吃": "food_beverage",
+  // 保留旧的"餐饮/食品"向后兼容
   "餐饮/食品": "food_beverage",
+  // 其他选项不变
   "科技/互联网": "technology_it",
   "零售/电商": "retail_ecommerce",
   "教育/培训": "education_training",

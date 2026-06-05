@@ -61,3 +61,14 @@ _dev*
 _inspect*
 _screenshot*
 
+
+# Agent temp files
+.processed/
+*.log
+auto-process.sh
+fix-pack-v*/
+Screenshot_*.jpg
+V11*.md
+npm-cache/
+*.v8bak
+test-industry-logic.ts

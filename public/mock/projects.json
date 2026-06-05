@@ -1,5 +1,85 @@
 [
   {
+    "id": "VI-20260605-QBJZ",
+    "submissionId": "SBM-20260605-2913",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#00695C",
+      "secondary": "#D84315",
+      "accent": "#FFB300"
+    },
+    "createdAt": "2026-06-05T13:43:22.912Z",
+    "updatedAt": "2026-06-05T13:43:22.912Z",
+    "created_at": "2026-06-05T13:43:22.912Z",
+    "updated_at": "2026-06-05T13:43:22.912Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-05T13:43:22.912Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260605-6GKY",
+    "submissionId": "SBM-20260605-6566",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#CC2200",
+      "secondary": "#FFD700",
+      "accent": "#1A1A1A"
+    },
+    "createdAt": "2026-06-05T11:59:36.565Z",
+    "updatedAt": "2026-06-05T11:59:36.565Z",
+    "created_at": "2026-06-05T11:59:36.565Z",
+    "updated_at": "2026-06-05T11:59:36.565Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-05T11:59:36.565Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260605-BEP3",
+    "submissionId": "SBM-20260605-0170",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#CC2200",
+      "secondary": "#FFD700",
+      "accent": "#1A1A1A"
+    },
+    "createdAt": "2026-06-05T11:38:20.170Z",
+    "updatedAt": "2026-06-05T11:38:20.170Z",
+    "created_at": "2026-06-05T11:38:20.170Z",
+    "updated_at": "2026-06-05T11:38:20.170Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-05T11:38:20.170Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260605-YN69",
+    "submissionId": "SBM-20260605-8297",
+    "status": "submitted",
+    "brandColors": null,
+    "createdAt": "2026-06-05T05:10:38.297Z",
+    "updatedAt": "2026-06-05T05:10:38.297Z",
+    "created_at": "2026-06-05T05:10:38.297Z",
+    "updated_at": "2026-06-05T05:10:38.297Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-05T05:10:38.297Z"
+      }
+    ]
+  },
+  {
     "id": "VI-20260528-NDKW",
     "submissionId": "SBM-20260528-2325",
     "status": "submitted",

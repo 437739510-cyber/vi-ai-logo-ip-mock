@@ -56,6 +56,9 @@ export default function ProjectDetailPage({
   // V7: AI分析面板状态
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [generatingLogo, setGeneratingLogo] = useState(false);
+  const [logoResult, setLogoResult] = useState<any>(null);
+  const [selectingLogo, setSelectingLogo] = useState(false);
 
   /** Load generated manual files for this project */
   const loadGeneratedManuals = async (projectId: string) => {
@@ -310,6 +313,66 @@ export default function ProjectDetailPage({
       setPptxError(e.message || "分析出错");
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  // V10: AI生成Logo（没有Logo的客户）
+  const handleGenerateLogo = async () => {
+    if (!project) return;
+    setGeneratingLogo(true);
+    setPptxError("");
+    try {
+      const res = await fetch('/api/ai/generate-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLogoResult(data);
+      } else {
+        setPptxError(data.error || 'Logo生成失败');
+      }
+    } catch (e: any) {
+      setPptxError(e.message || 'Logo生成出错');
+    } finally {
+      setGeneratingLogo(false);
+    }
+  };
+
+  // V10: 选择Logo
+  const handleSelectLogo = async (logoIndex: number) => {
+    if (!project || !logoResult) return;
+    setSelectingLogo(true);
+    try {
+      const logo = logoResult.logos[logoIndex];
+      const res = await fetch('/api/ai/select-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: project.id,
+          logoImageUrl: logo.imageUrl,
+          logoIndex,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLogoResult(null);
+        // 重新加载项目数据（刷新submission以获取logo_assets）
+        const projId = project.id;
+        const freshProj = await getProjectById(projId);
+        if (freshProj) {
+          setProject(freshProj);
+          const freshSub = await getSubmissionById(freshProj.submissionId);
+          if (freshSub) setSubmission(freshSub);
+        }
+      } else {
+        setPptxError(data.error || 'Logo选择失败');
+      }
+    } catch (e: any) {
+      setPptxError(e.message || 'Logo选择出错');
+    } finally {
+      setSelectingLogo(false);
     }
   };
 
@@ -747,6 +810,67 @@ export default function ProjectDetailPage({
                 <span>预估费用：{analysisResult.costEstimate?.images}张AI场景图 × ¥{analysisResult.costEstimate?.costPerImage} = ¥{analysisResult.costEstimate?.total?.toFixed(2)}/份</span>
               </div>
             </div>
+            {/* V10: Logo生成区域 — 没有Logo时显示 */}
+            {!submission?.logoAssets?.length && !logoResult && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2 text-amber-700 font-bold text-sm">
+                  <span>🎨</span> 客户未上传Logo — AI帮您生成
+                </div>
+                <p className="text-[11px] text-neutral-600">
+                  品牌分析已提取Logo设计建议，点击下方按钮AI将生成4个Logo方案供选择。
+                </p>
+                <button
+                  onClick={handleGenerateLogo}
+                  disabled={generatingLogo}
+                  className="w-full py-2.5 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                >
+                  {generatingLogo ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> AI 生成Logo中（约1分钟）</>
+                  ) : (
+                    <>🎨 AI生成Logo方案</>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* V10: Logo方案展示和选择 */}
+            {logoResult && logoResult.logos?.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2 text-amber-700 font-bold text-sm">
+                  <span>🎨</span> Logo方案 — 点击选择一个
+                </div>
+                <p className="text-[11px] text-neutral-500">
+                  风格：{logoResult.style} | 概念：{logoResult.concept}
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {logoResult.logos.map((logo: any, i: number) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSelectLogo(i)}
+                      disabled={selectingLogo}
+                      className="relative bg-white rounded-lg border-2 border-transparent hover:border-amber-400 transition-all p-2 text-left disabled:opacity-50"
+                    >
+                      <img src={logo.imageUrl} alt={\`Logo方案\${i + 1}\`} className="w-full aspect-square object-contain rounded" />
+                      <div className="mt-1 text-[10px] text-neutral-500">方案 {i + 1}</div>
+                    </button>
+                  ))}
+                </div>
+                {selectingLogo && (
+                  <div className="flex items-center gap-2 text-xs text-amber-600">
+                    <Loader2 className="w-3 h-3 animate-spin" /> 正在保存选中的Logo...
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* V10: 有Logo时的提示 */}
+            {submission?.logoAssets?.length > 0 && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs text-emerald-700">Logo已就绪（{submission.logoAssets.length}个文件），可直接生成VI手册</span>
+              </div>
+            )}
+
             {/* 确认按钮 */}
             <div className="flex gap-2">
               <button
