@@ -247,7 +247,7 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
     return null;
   }
 
-  const maxRetries = 2;
+  const maxRetries = 1;  // V19: no retry - fallback is acceptable, avoids timeout
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // V9: 支持Logo参考图 - wan2.6-image图像编辑模式
@@ -275,6 +275,7 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
           input: { messages: [{ role: "user", content: imgContent }] },
           parameters: requestParams,
         }),
+        signal: AbortSignal.timeout(30000),  // V19: 30s timeout prevents hung fetch
       });
 
       if (!submitResp.ok) {
@@ -292,12 +293,13 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
 
       console.log(`[generateImage] Task submitted: ${taskId}`);
 
-      // Step 2: 轮询任务结果（最多等90秒）
-      for (let poll = 0; poll < 12; poll++) {
+      // Step 2: 轮询任务结果（最多等48秒）V19: 6×8s=48s max
+      for (let poll = 0; poll < 6; poll++) {
         await new Promise(r => setTimeout(r, 8000)); // 等8秒
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
           headers: { "Authorization": `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(15000),  // V19: 15s timeout per poll
         });
 
         if (!pollResp.ok) continue;
@@ -313,7 +315,7 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
           }
 
           // Step 3: 下载图片转base64
-          const imgResp = await fetch(imageUrl);
+          const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });  // V19: 30s timeout
           if (imgResp.ok) {
             const imgBuf = Buffer.from(await imgResp.arrayBuffer());
             const base64 = imgBuf.toString("base64");
@@ -369,6 +371,7 @@ async function generateLogoImage(
           input: { messages: [{ role: "user", content: [{ text: enhancedPrompt }] }] },
           parameters: { size: "1024*1024", n: 1 },
         }),
+        signal: AbortSignal.timeout(30000),  // V19: 30s timeout prevents hung fetch
       });
 
       if (!submitResp.ok) {
@@ -386,12 +389,13 @@ async function generateLogoImage(
 
       console.log(`[generateLogo] Task submitted: ${taskId}`);
 
-      // 轮询结果（最多等90秒）
-      for (let poll = 0; poll < 12; poll++) {
+      // 轮询结果（最多等48秒）V19: 6×8s=48s max
+      for (let poll = 0; poll < 6; poll++) {
         await new Promise(r => setTimeout(r, 8000));
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
           headers: { "Authorization": `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(15000),  // V19: 15s timeout per poll
         });
 
         if (!pollResp.ok) continue;
@@ -405,7 +409,7 @@ async function generateLogoImage(
             break;
           }
 
-          const imgResp = await fetch(imageUrl);
+          const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });  // V19: 30s timeout
           if (imgResp.ok) {
             const imgBuf = Buffer.from(await imgResp.arrayBuffer());
             const base64 = imgBuf.toString("base64");
