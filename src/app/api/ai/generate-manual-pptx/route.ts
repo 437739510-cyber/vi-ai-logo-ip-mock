@@ -260,8 +260,8 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
         imgContent = [{ text: prompt }];
       }
       const requestParams = useRefImage
-        ? { size: "1104*1472", n: 1, enable_interleave: false, prompt_extend: true }
-        : { size: "1104*1472", n: 1 };
+        ? { size: "768*1024", n: 1, enable_interleave: false, prompt_extend: true }
+        : { size: "768*1024", n: 1 };
       // Step 1: 提交异步任务
       const submitResp = await fetch(DASHSCOPE_API, {
         method: "POST",
@@ -367,7 +367,7 @@ async function generateLogoImage(
         body: JSON.stringify({
           model: "wan2.6-t2i",
           input: { messages: [{ role: "user", content: [{ text: enhancedPrompt }] }] },
-          parameters: { size: "1280*1280", n: 1 },
+          parameters: { size: "1024*1024", n: 1 },
         }),
       });
 
@@ -767,32 +767,24 @@ export async function POST(req: NextRequest) {
     console.log("[generate-pptx] ===== AI IMAGE GENERATION =====");
     console.log("[generate-pptx] Industry:", industryType, "| Images:", imgDefs.length, "| Dynamic:", !!dynamicScenePrompts);
 
-    // V8: Parallel image generation - 3 concurrent batches to avoid 429
+    // V10: All 5 scene images in parallel (no batchSize serial, saves ~60s)
     const sceneImages: Record<string, string> = {};
     const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
     let imgSuccess = 0;
-    const batchSize = 2;
-    for (let i = 0; i < imgDefs.length; i += batchSize) {
-      const batch = imgDefs.slice(i, i + batchSize);
-      const results = await Promise.allSettled(
-        batch.map(async (def) => {
-          const imgData = await generateSceneImage(def.rawPrompt, mascotData || logoData || undefined);
-          return { def, imgData };
-        })
-      );
-      for (const result of results) {
-        if (result.status === "fulfilled" && result.value.imgData) {
-          const { def, imgData } = result.value;
-          sceneImages[def.key] = imgData;
-          if ((def as any).label) sceneLabels[def.key] = (def as any).label;  // V9
-          imgSuccess++;
-        } else if (result.status === "rejected") {
-          console.error(`[generateImage] Failed:`, result.reason);
-        }
-      }
-      // Batch delay to avoid rate limiting
-      if (i + batchSize < imgDefs.length) {
-        await new Promise(r => setTimeout(r, 1000));
+    const results = await Promise.allSettled(
+      imgDefs.map(async (def) => {
+        const imgData = await generateSceneImage(def.rawPrompt, mascotData || logoData || undefined);
+        return { def, imgData };
+      })
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value.imgData) {
+        const { def, imgData } = result.value;
+        sceneImages[def.key] = imgData;
+        if ((def as any).label) sceneLabels[def.key] = (def as any).label;  // V9
+        imgSuccess++;
+      } else if (result.status === "rejected") {
+        console.error(`[generateImage] Failed:`, result.reason);
       }
     }
     console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success`);
