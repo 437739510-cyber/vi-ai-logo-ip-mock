@@ -3,13 +3,20 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync, statSync, readdirSync } from "fs";
 import path from "path";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazy init: avoid top-level crash when env vars are missing during build
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  );
+}
 
 export async function POST(req: NextRequest) {
   try {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: "Supabase env vars not configured" }, { status: 500 });
+    }
+
     const { projectId, adminPassword } = await req.json();
     
     if (adminPassword !== process.env.ADMIN_PASSWORD) {
@@ -34,6 +41,8 @@ export async function POST(req: NextRequest) {
     const fileSize = statSync(filePath).size;
     
     console.log(`[reupload] Found ${fileName} (${(fileSize/1024/1024).toFixed(1)}MB)`);
+
+    const supabaseAdmin = getSupabaseAdmin();
 
     // Upload to Supabase Storage
     const storagePath = `${projectId}/${fileName}`;
