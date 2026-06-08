@@ -793,25 +793,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // V18.1: 失败的场景图用纯文生图重试一次（无参考图模式，更稳定）
-    const failedDefs = imgDefs.filter((def: any) => !sceneImages[def.key]);
-    if (failedDefs.length > 0) {
-      console.log(`[generate-pptx] Retrying ${failedDefs.length} failed scene images without reference...`);
-      for (const def of failedDefs) {
-        try {
-          const imgData = await generateSceneImage(def.rawPrompt, undefined);
-          if (imgData) {
-            sceneImages[def.key] = imgData;
-            if ((def as any).label) sceneLabels[def.key] = (def as any).label;
-            imgSuccess++;
-            console.log(`[generate-pptx] Retry OK: ${def.key}`);
-          }
-        } catch (retryErr) {
-          console.warn(`[generate-pptx] Retry failed: ${def.key}`, retryErr);
-        }
-      }
-    }
-
+    // V18.2: 不重试失败的场景图，避免超时（fallback色块占位即可）
     console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success (sceneImages keys: [${Object.keys(sceneImages).join(",")}])`);
 
     // ===== Step 5: 生成蓝图 =====
