@@ -710,8 +710,8 @@ export async function POST(req: NextRequest) {
     console.log("[generate-pptx] Logo:", logoData ? "OK" : "null", "| Mascot:", mascotData ? "OK" : "null");
 
 
-    // V18: 两阶段执行 — 阶段1先出Logo，阶段2用Logo做参考图出5张场景图
-    // 修复V11并行bug：6个DashScope请求(5scene+1logo)超出5并发限制，导致3/5场景图丢失
+    // V18.1: 先5张场景图并行(DashScope并发=5刚好上限)，再串行出Logo
+    // 修复V11的6并发超限导致3/5场景图丢失；V18两阶段超时300s改回并行+串行Logo
     let aiLogoData: string | null = null;
     const sceneImages: Record<string, string> = {};
     const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
@@ -753,27 +753,10 @@ export async function POST(req: NextRequest) {
       }));
     }
 
-    // ===== V18 Phase 1: 生成Logo（单独执行，避免DashScope并发冲突） =====
-    if (logoPrompt) {
-      sendProgress("images", "正在生成Logo方案...", 45);
-      console.log("[generate-pptx] ===== Phase 1: Logo generation =====");
-      try {
-        aiLogoData = await generateLogoImage(logoPrompt, realColors);
-        if (aiLogoData) {
-          console.log("[generate-pptx] AI logo OK! base64 length:", aiLogoData.length);
-        } else {
-          console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
-        }
-      } catch (logoErr: any) {
-        console.warn("[generate-pptx] AI logo error:", logoErr?.message);
-      }
-    }
-
-    // ===== V18 Phase 2: 5张场景图并行（用Logo做参考图，恰好5并发=DashScope上限） =====
-    const sceneRefImage = mascotData || logoData || aiLogoData || undefined;
-    sendProgress("images", `正在生成场景图(5张)...`, 50);
-    console.log("[generate-pptx] ===== Phase 2: Scene images (5 parallel, refImage:", !!sceneRefImage, ") =====");
-    console.log("[generate-pptx] Industry:", industryType, "| Scene defs:", imgDefs.length);
+    // ===== V18.1 Phase 1: 5张场景图并行（5并发=DashScope上限） =====
+    const sceneRefImage = mascotData || logoData || undefined;
+    sendProgress("images", "正在生成场景图(5张)...", 50);
+    console.log("[generate-pptx] ===== Phase 1: Scene images (5 parallel, refImage:", !!sceneRefImage, ") =====");
 
     const sceneTasks = imgDefs.map(async (def) => {
       const imgData = await generateSceneImage(def.rawPrompt, sceneRefImage);
@@ -794,7 +777,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // V18: 失败的场景图用纯文生图重试一次（无参考图模式，更稳定）
+    // ===== V18.1 Phase 2: 场景图完成后串行出Logo（避免并发冲突） =====
+    if (logoPrompt) {
+      sendProgress("images", "正在生成Logo方案...", 55);
+      console.log("[generate-pptx] ===== Phase 2: Logo generation =====");
+      try {
+        aiLogoData = await generateLogoImage(logoPrompt, realColors);
+        if (aiLogoData) {
+          console.log("[generate-pptx] AI logo OK! base64 length:", aiLogoData.length);
+        } else {
+          console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
+        }
+      } catch (logoErr: any) {
+        console.warn("[generate-pptx] AI logo error:", logoErr?.message);
+      }
+    }
+
+    // V18.1: 失败的场景图用纯文生图重试一次（无参考图模式，更稳定）
     const failedDefs = imgDefs.filter((def: any) => !sceneImages[def.key]);
     if (failedDefs.length > 0) {
       console.log(`[generate-pptx] Retrying ${failedDefs.length} failed scene images without reference...`);
