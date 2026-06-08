@@ -50,7 +50,7 @@ export default function ProjectDetailPage({
   const [exportingPdf, setExportingPdf] = useState<string | null>(null);
   const [deletingManual, setDeletingManual] = useState<string | null>(null);
   const [generatingPptx, setGeneratingPptx] = useState(false);
-  const [pptxResult, setPptxResult] = useState<{url: string; storageUrl?: string; pageCount: number; fileName: string} | null>(null);
+  const [pptxResult, setPptxResult] = useState<{url: string; downloadUrl?: string; storageUrl?: string; pageCount: number; fileName: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // V7: AI分析面板状态
@@ -91,7 +91,7 @@ export default function ProjectDetailPage({
           const projData = await dataRes.json();
           const ci = projData?.project?.client_info;
           if (ci?.pptxResult) {
-            setPptxResult({ url: ci.pptxResult.url, storageUrl: ci.pptxResult.storageUrl || undefined, pageCount: ci.pptxResult.pageCount, fileName: ci.pptxResult.fileName });
+            setPptxResult({ url: ci.pptxResult.url, downloadUrl: ci.pptxResult.downloadUrl || undefined, storageUrl: ci.pptxResult.storageUrl || undefined, pageCount: ci.pptxResult.pageCount, fileName: ci.pptxResult.fileName });
           }
           if (ci?.brandProfile?.analysisStatus === 'completed' && ci.brandProfile.brandPositioning) {
             const bp = ci.brandProfile;
@@ -563,7 +563,7 @@ export default function ProjectDetailPage({
               const projData = await projRes.json();
               const pptxRes = projData?.project?.client_info?.pptxResult;
               if (pptxRes) {
-                setPptxResult({ url: pptxRes.url, storageUrl: pptxRes.storageUrl || undefined, pageCount: pptxRes.pageCount, fileName: pptxRes.fileName });
+                setPptxResult({ url: pptxRes.url, downloadUrl: pptxRes.downloadUrl || undefined, storageUrl: pptxRes.storageUrl || undefined, pageCount: pptxRes.pageCount, fileName: pptxRes.fileName });
               }
             }
             await loadGeneratedManuals(project.id);
@@ -1022,7 +1022,7 @@ export default function ProjectDetailPage({
               </div>
             </div>
             <a
-              href={pptxResult.storageUrl || pptxResult.url}
+              href={pptxResult.downloadUrl || pptxResult.storageUrl || pptxResult.url}
               download
               className="px-3 py-1.5 text-[11px] font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-1"
             >
