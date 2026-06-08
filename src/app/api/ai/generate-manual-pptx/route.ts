@@ -611,7 +611,7 @@ export async function POST(req: NextRequest) {
             temperature: 0.7,
             max_tokens: 4096,
           }),
-          signal: AbortSignal.timeout(45000),
+          signal: AbortSignal.timeout(15000),
         });
 
         if (analysisResp.ok) {
