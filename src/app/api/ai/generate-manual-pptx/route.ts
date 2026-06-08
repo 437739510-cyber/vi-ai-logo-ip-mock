@@ -493,7 +493,7 @@ function createDbProgressHelpers(projectId: string) {
     },
     sendComplete: async (data: any) => {
       await updateDb("completed", "生成完成！", 100, {
-        pptxResult: { url: data.url, storageUrl: data.storageUrl, pageCount: data.pageCount, fileName: data.fileName },
+        pptxResult: { url: data.url, storageUrl: data.storageUrl, pageCount: data.pageCount, imageCount: data.imageCount, fileName: data.fileName },
       });
       await supabaseAdmin.from("projects").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", projectId);
     },
@@ -710,15 +710,14 @@ export async function POST(req: NextRequest) {
     console.log("[generate-pptx] Logo:", logoData ? "OK" : "null", "| Mascot:", mascotData ? "OK" : "null");
 
 
-    // V17: 无Logo时用通义万相AI生图Logo（替代DeepSeek SVG）
-    // V11: Logo gen + Scene images IN PARALLEL (saves ~60-90s vs sequential)
+    // V18: 两阶段执行 — 阶段1先出Logo，阶段2用Logo做参考图出5张场景图
+    // 修复V11并行bug：6个DashScope请求(5scene+1logo)超出5并发限制，导致3/5场景图丢失
     let aiLogoData: string | null = null;
     const sceneImages: Record<string, string> = {};
     const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
     let imgSuccess = 0;
 
     // Prepare Logo prompt (instant, just string construction)
-    let logoTask: Promise<string | null> | null = null;
     let logoPrompt = "";
     if (!logoData && companyName !== "品牌") {
       const industryLabel: Record<string, string> = {
@@ -754,44 +753,67 @@ export async function POST(req: NextRequest) {
       }));
     }
 
-    // V11: Run Logo + Scene images IN PARALLEL
-    sendProgress("images", "正在生成Logo+场景图...", 50);
-    console.log("[generate-pptx] ===== AI IMAGE GENERATION (parallel logo+scenes) =====");
-    console.log("[generate-pptx] Industry:", industryType, "| Images:", imgDefs.length, "| Logo:", !!logoPrompt);
-
-    const parallelTasks: Promise<any>[] = [
-      // Scene images (5 parallel)
-      ...imgDefs.map(async (def) => {
-        const imgData = await generateSceneImage(def.rawPrompt, mascotData || logoData || undefined);
-        return { type: "scene" as const, def, imgData };
-      }),
-    ];
+    // ===== V18 Phase 1: 生成Logo（单独执行，避免DashScope并发冲突） =====
     if (logoPrompt) {
-      parallelTasks.push(
-        generateLogoImage(logoPrompt, realColors).then(data => ({ type: "logo" as const, data }))
-      );
+      sendProgress("images", "正在生成Logo方案...", 45);
+      console.log("[generate-pptx] ===== Phase 1: Logo generation =====");
+      try {
+        aiLogoData = await generateLogoImage(logoPrompt, realColors);
+        if (aiLogoData) {
+          console.log("[generate-pptx] AI logo OK! base64 length:", aiLogoData.length);
+        } else {
+          console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
+        }
+      } catch (logoErr: any) {
+        console.warn("[generate-pptx] AI logo error:", logoErr?.message);
+      }
     }
 
-    const parallelResults = await Promise.allSettled(parallelTasks);
-    for (const result of parallelResults) {
+    // ===== V18 Phase 2: 5张场景图并行（用Logo做参考图，恰好5并发=DashScope上限） =====
+    const sceneRefImage = mascotData || logoData || aiLogoData || undefined;
+    sendProgress("images", `正在生成场景图(5张)...`, 50);
+    console.log("[generate-pptx] ===== Phase 2: Scene images (5 parallel, refImage:", !!sceneRefImage, ") =====");
+    console.log("[generate-pptx] Industry:", industryType, "| Scene defs:", imgDefs.length);
+
+    const sceneTasks = imgDefs.map(async (def) => {
+      const imgData = await generateSceneImage(def.rawPrompt, sceneRefImage);
+      return { type: "scene" as const, def, imgData };
+    });
+
+    const sceneResults = await Promise.allSettled(sceneTasks);
+    for (const result of sceneResults) {
       if (result.status === "fulfilled" && result.value) {
         const val = result.value;
         if (val.type === "scene" && val.imgData) {
           sceneImages[val.def.key] = val.imgData;
           if ((val.def as any).label) sceneLabels[val.def.key] = (val.def as any).label;
           imgSuccess++;
-        } else if (val.type === "logo" && val.data) {
-          aiLogoData = val.data;
-          console.log("[generate-pptx] AI logo via 通义万相 OK! base64 length:", aiLogoData!.length);
         }
       } else if (result.status === "rejected") {
-        console.error("[generateImage] Failed:", result.reason);
+        console.error("[generateScene] Failed:", result.reason);
       }
     }
-    if (!aiLogoData && logoPrompt) {
-      console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
+
+    // V18: 失败的场景图用纯文生图重试一次（无参考图模式，更稳定）
+    const failedDefs = imgDefs.filter((def: any) => !sceneImages[def.key]);
+    if (failedDefs.length > 0) {
+      console.log(`[generate-pptx] Retrying ${failedDefs.length} failed scene images without reference...`);
+      for (const def of failedDefs) {
+        try {
+          const imgData = await generateSceneImage(def.rawPrompt, undefined);
+          if (imgData) {
+            sceneImages[def.key] = imgData;
+            if ((def as any).label) sceneLabels[def.key] = (def as any).label;
+            imgSuccess++;
+            console.log(`[generate-pptx] Retry OK: ${def.key}`);
+          }
+        } catch (retryErr) {
+          console.warn(`[generate-pptx] Retry failed: ${def.key}`, retryErr);
+        }
+      }
     }
-    console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success`);
+
+    console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success (sceneImages keys: [${Object.keys(sceneImages).join(",")}])`);
 
     // ===== Step 5: 生成蓝图 =====
     const blueprints = await planPages({
