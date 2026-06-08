@@ -488,8 +488,8 @@ function createDbProgressHelpers(projectId: string) {
   }
 
   return {
-    sendProgress: (step: string, message: string, percent?: number) => {
-      updateDb("pptx_assembling", message, percent);
+    sendProgress: async (step: string, message: string, percent?: number) => {
+      await updateDb(step === "done" ? "completed" : "pptx_assembling", message, percent);
     },
     sendComplete: async (data: any) => {
       await updateDb("completed", "生成完成！", 100, {
