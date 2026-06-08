@@ -711,49 +711,40 @@ export async function POST(req: NextRequest) {
 
 
     // V17: 无Logo时用通义万相AI生图Logo（替代DeepSeek SVG）
+    // V11: Logo gen + Scene images IN PARALLEL (saves ~60-90s vs sequential)
     let aiLogoData: string | null = null;
+    const sceneImages: Record<string, string> = {};
+    const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
+    let imgSuccess = 0;
+
+    // Prepare Logo prompt (instant, just string construction)
+    let logoTask: Promise<string | null> | null = null;
+    let logoPrompt = "";
     if (!logoData && companyName !== "品牌") {
-      try {
-        console.log("[generate-pptx] Generating AI logo via 通义万相 for", companyName);
-        sendProgress("ai_logo", "正在用AI生成Logo方案...", 45);
-        const industryLabel: Record<string, string> = {
-          beauty: "beauty salon / nail art", restaurant: "Chinese restaurant / noodle shop", fastfood: "fast food burger shop / snack stall", beverage: "bubble tea / coffee shop",
-          fashion: "fashion boutique / clothing brand", mother_baby: "maternity & baby brand", wedding: "wedding planning / photography studio",
-          fitness: "gym / fitness center", pharmacy: "pharmacy / wellness", pet: "pet care / pet shop",
-          retail: "retail shop", education: "education center", general: "lifestyle brand"
-        };
-        const industryEn = industryLabel[industryType] || "lifestyle brand";
-        // 优先使用brand-analysis的logoDesignSuggestions
-        let logoPrompt = "";
-        if (brandProfile?.logoDesignSuggestions?.prompts?.length > 0) {
-          logoPrompt = brandProfile.logoDesignSuggestions.prompts[0];
-          console.log("[generate-pptx] Using brand-analysis logo prompt:", logoPrompt.substring(0, 80));
-        } else {
-          // Fallback: 根据行业和品牌信息构建高质量prompt
-          logoPrompt = `Professional minimalist logo icon design for "${companyName}", a ${industryEn}. ` +
-            `Target audience: ${targetMarket || "urban professionals"}. ` +
-            `Color palette: primary ${realColors.primary}, secondary ${realColors.secondary}. ` +
-            `Design style: elegant, refined, modern luxury, clean lines, symmetrical composition. ` +
-            `The icon should be a single cohesive abstract symbol that suggests the brand identity, ` +
-            `using flowing curves or geometric shapes, NOT literal objects. ` +
-            `Reference the design philosophy of brands like Chanel, Dior, Tiffany - iconic, timeless, instantly recognizable.`;
-        }
-        aiLogoData = await generateLogoImage(logoPrompt, realColors);
-        if (aiLogoData) {
-          console.log("[generate-pptx] AI logo via 通义万相 OK! base64 length:", aiLogoData.length);
-        } else {
-          console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
-        }
-      } catch (logoErr) {
-        console.warn("[generate-pptx] AI logo generation error:", logoErr);
+      const industryLabel: Record<string, string> = {
+        beauty: "beauty salon / nail art", restaurant: "Chinese restaurant / noodle shop", fastfood: "fast food burger shop / snack stall", beverage: "bubble tea / coffee shop",
+        fashion: "fashion boutique / clothing brand", mother_baby: "maternity & baby brand", wedding: "wedding planning / photography studio",
+        fitness: "gym / fitness center", pharmacy: "pharmacy / wellness", pet: "pet care / pet shop",
+        retail: "retail shop", education: "education center", general: "lifestyle brand"
+      };
+      const industryEn = industryLabel[industryType] || "lifestyle brand";
+      if (brandProfile?.logoDesignSuggestions?.prompts?.length > 0) {
+        logoPrompt = brandProfile.logoDesignSuggestions.prompts[0];
+        console.log("[generate-pptx] Using brand-analysis logo prompt:", logoPrompt.substring(0, 80));
+      } else {
+        logoPrompt = `Professional minimalist logo icon design for "${companyName}", a ${industryEn}. ` +
+          `Target audience: ${targetMarket || "urban professionals"}. ` +
+          `Color palette: primary ${realColors.primary}, secondary ${realColors.secondary}. ` +
+          `Design style: elegant, refined, modern luxury, clean lines, symmetrical composition. ` +
+          `The icon should be a single cohesive abstract symbol that suggests the brand identity, ` +
+          `using flowing curves or geometric shapes, NOT literal objects. ` +
+          `Reference the design philosophy of brands like Chanel, Dior, Tiffany - iconic, timeless, instantly recognizable.`;
       }
     }
 
-    // ===== Step 4: 生成 AI 写实场景图（5张，异步并行） =====
-    // 动态场景图prompt（AI分析结果 > 硬编码fallback）
+    // Prepare Scene image defs (instant)
     let imgDefs = SCENE_IMG_DEFS[industryType] || SCENE_IMG_DEFS.general;
     if (dynamicScenePrompts && dynamicScenePrompts.length >= 5) {
-      // V9: 用AI分析生成的行业定制prompt，动态标签替代硬编码
       const promptPages = ["stationery", "packaging", "packaging", "marketing", "marketing"];
       imgDefs = dynamicScenePrompts.map((suggestion: any, i: number) => ({
         key: `${promptPages[i]}-${i === 0 ? 1 : i <= 2 ? i : i - 2}`,
@@ -763,32 +754,44 @@ export async function POST(req: NextRequest) {
       }));
     }
 
-    sendProgress("images", "正在生成场景图...", 50);
-    console.log("[generate-pptx] ===== AI IMAGE GENERATION =====");
-    console.log("[generate-pptx] Industry:", industryType, "| Images:", imgDefs.length, "| Dynamic:", !!dynamicScenePrompts);
+    // V11: Run Logo + Scene images IN PARALLEL
+    sendProgress("images", "正在生成Logo+场景图...", 50);
+    console.log("[generate-pptx] ===== AI IMAGE GENERATION (parallel logo+scenes) =====");
+    console.log("[generate-pptx] Industry:", industryType, "| Images:", imgDefs.length, "| Logo:", !!logoPrompt);
 
-    // V10: All 5 scene images in parallel (no batchSize serial, saves ~60s)
-    const sceneImages: Record<string, string> = {};
-    const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
-    let imgSuccess = 0;
-    const results = await Promise.allSettled(
-      imgDefs.map(async (def) => {
+    const parallelTasks: Promise<any>[] = [
+      // Scene images (5 parallel)
+      ...imgDefs.map(async (def) => {
         const imgData = await generateSceneImage(def.rawPrompt, mascotData || logoData || undefined);
-        return { def, imgData };
-      })
-    );
-    for (const result of results) {
-      if (result.status === "fulfilled" && result.value.imgData) {
-        const { def, imgData } = result.value;
-        sceneImages[def.key] = imgData;
-        if ((def as any).label) sceneLabels[def.key] = (def as any).label;  // V9
-        imgSuccess++;
+        return { type: "scene" as const, def, imgData };
+      }),
+    ];
+    if (logoPrompt) {
+      parallelTasks.push(
+        generateLogoImage(logoPrompt, realColors).then(data => ({ type: "logo" as const, data }))
+      );
+    }
+
+    const parallelResults = await Promise.allSettled(parallelTasks);
+    for (const result of parallelResults) {
+      if (result.status === "fulfilled" && result.value) {
+        const val = result.value;
+        if (val.type === "scene" && val.imgData) {
+          sceneImages[val.def.key] = val.imgData;
+          if ((val.def as any).label) sceneLabels[val.def.key] = (val.def as any).label;
+          imgSuccess++;
+        } else if (val.type === "logo" && val.data) {
+          aiLogoData = val.data;
+          console.log("[generate-pptx] AI logo via 通义万相 OK! base64 length:", aiLogoData!.length);
+        }
       } else if (result.status === "rejected") {
-        console.error(`[generateImage] Failed:`, result.reason);
+        console.error("[generateImage] Failed:", result.reason);
       }
     }
+    if (!aiLogoData && logoPrompt) {
+      console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
+    }
     console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success`);
-    sendProgress("rendering", `场景图生成完成(${imgSuccess}/${imgDefs.length})，正在渲染PPTX...`, 75);
 
     // ===== Step 5: 生成蓝图 =====
     const blueprints = await planPages({
