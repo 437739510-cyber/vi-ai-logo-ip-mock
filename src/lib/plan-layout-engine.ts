@@ -117,7 +117,7 @@ export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLa
         temperature: 0.7,
         max_tokens: 4096,
       }),
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!resp.ok) {
