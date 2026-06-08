@@ -247,7 +247,7 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
     return null;
   }
 
-  const maxRetries = 3;
+  const maxRetries = 2;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // V9: 支持Logo参考图 - wan2.6-image图像编辑模式
@@ -293,8 +293,8 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
       console.log(`[generateImage] Task submitted: ${taskId}`);
 
       // Step 2: 轮询任务结果（最多等90秒）
-      for (let poll = 0; poll < 18; poll++) {
-        await new Promise(r => setTimeout(r, 5000)); // 等5秒
+      for (let poll = 0; poll < 12; poll++) {
+        await new Promise(r => setTimeout(r, 8000)); // 等8秒
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
           headers: { "Authorization": `Bearer ${apiKey}` },
@@ -353,7 +353,7 @@ async function generateLogoImage(
   // 增强prompt：确保Logo设计品质
   const enhancedPrompt = `${prompt}, logo design on clean white background, high resolution, professional graphic design, centered composition, suitable for branding applications, clean and scalable`;
 
-  const maxRetries = 2;
+  const maxRetries = 1;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // Logo用正方形1024x1024
@@ -387,8 +387,8 @@ async function generateLogoImage(
       console.log(`[generateLogo] Task submitted: ${taskId}`);
 
       // 轮询结果（最多等90秒）
-      for (let poll = 0; poll < 18; poll++) {
-        await new Promise(r => setTimeout(r, 5000));
+      for (let poll = 0; poll < 12; poll++) {
+        await new Promise(r => setTimeout(r, 8000));
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
           headers: { "Authorization": `Bearer ${apiKey}` },
