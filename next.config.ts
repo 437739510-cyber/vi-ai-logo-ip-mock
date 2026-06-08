@@ -1,3 +1,4 @@
+// Brand Brain VI Generator
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
