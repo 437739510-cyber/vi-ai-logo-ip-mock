@@ -265,26 +265,33 @@ async function planSinglePage(
   const rules = getRulesForPage(pageId);
   const sortedRules = sortRulesByPriority(rules);
 
-  // Phase 10: 尝试 AI 布局优先
+  // Phase 10: 尝试 AI 布局优先（仅关键页面，其余走硬编码fallback以节省时间）
+  const AI_LAYOUT_PAGES = new Set(["cover", "brand-philosophy", "logo-interpretation", "summary"]);
   let aiElements = null;
-  try {
-  aiElements = await planLayoutWithAI(pageId, {
-      companyName,
-      brandVision: input.clientInfo.brandVision,
-      coreValues: input.clientInfo.coreValues,
-      targetMarket: input.clientInfo.targetMarket,
-      hasLogo,
-      logoElements,
-      logoMeaning,
-      logoStyleTags,
-      hasMascot,
-      mascotName,
-      mascotStyle,
-      mascotPersonality,
-      brandColors: input.brandColors,
-    });
-  } catch {
-    // AI 失败，走 fallback
+  if (AI_LAYOUT_PAGES.has(pageId)) {
+    try {
+      // 8秒超时，避免单页卡太久
+      aiElements = await Promise.race([
+        planLayoutWithAI(pageId, {
+          companyName,
+          brandVision: input.clientInfo.brandVision,
+          coreValues: input.clientInfo.coreValues,
+          targetMarket: input.clientInfo.targetMarket,
+          hasLogo,
+          logoElements,
+          logoMeaning,
+          logoStyleTags,
+          hasMascot,
+          mascotName,
+          mascotStyle,
+          mascotPersonality,
+          brandColors: input.brandColors,
+        }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+      ]);
+    } catch {
+      // AI 失败，走 fallback
+    }
   }
 
   // 构建蓝图
