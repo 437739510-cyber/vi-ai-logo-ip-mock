@@ -1,0 +1,484 @@
+[
+  {
+    "id": "SBM-20260607-8527",
+    "clientName": "测试客户",
+    "companyName": "测试汉堡店",
+    "brandVision": "",
+    "coreValues": "好吃不贵",
+    "targetMarket": "年轻人",
+    "logoPhilosophy": "",
+    "mascotPhilosophy": "",
+    "phone": "13800138000",
+    "wechat": "",
+    "email": "",
+    "industry": "火锅/小吃",
+    "industryCustom": "",
+    "businessYears": null,
+    "brandHighlight": "",
+    "customerProfile": "",
+    "existingBrandColor": "",
+    "budgetRange": "",
+    "province": "广东省",
+    "city": "深圳市",
+    "description": "测试主营产品字段",
+    "mainProducts": "汉堡、薯条、可乐",
+    "viewPassword": "4YPLM9",
+    "logoAssets": [],
+    "mascotAssets": [],
+    "referenceManual": null,
+    "submittedAt": "2026-06-07T16:46:58.527Z",
+    "status": "submitted"
+  },
+  {
+    "id": "SBM-20260606-0074",
+    "clientName": "",
+    "companyName": "指尖花语美甲工作室",
+    "brandVision": "变美自信",
+    "coreValues": "精致、潮流、贴心",
+    "targetMarket": "20-35岁爱美女性",
+    "logoPhilosophy": "",
+    "mascotPhilosophy": "",
+    "phone": "13900139002",
+    "wechat": "",
+    "email": "",
+    "industry": "美容/美发",
+    "industryCustom": "",
+    "businessYears": 5,
+    "brandHighlight": "手绘设计、进口甲油",
+    "customerProfile": "年轻女性、上班族",
+    "existingBrandColor": "粉色系",
+    "budgetRange": "1000-3000",
+    "province": "广东省",
+    "city": "广州市",
+    "description": "",
+    "logoAssets": [],
+    "mascotAssets": [],
+    "referenceManual": null,
+    "submittedAt": "2026-06-06T00:02:50.074Z",
+    "status": "submitted"
+  },
+  {
+    "id": "SBM-20260606-4678",
+    "clientName": "",
+    "companyName": "康寿养生馆",
+    "brandVision": "看病放心",
+    "coreValues": "传承、专业、温暖",
+    "targetMarket": "40-70岁注重养生的社区居民",
+    "logoPhilosophy": "",
+    "mascotPhilosophy": "",
+    "phone": "13800138001",
+    "wechat": "",
+    "email": "",
+    "industry": "药店/诊所",
+    "industryCustom": "",
+    "businessYears": 12,
+    "brandHighlight": "老中医、平价",
+    "customerProfile": "附近居民、中老年",
+    "existingBrandColor": "绿色系",
+    "budgetRange": "3000-5000",
+    "province": "四川省",
+    "city": "成都市",
+    "description": "",
+    "logoAssets": [],
+    "mascotAssets": [],
+    "referenceManual": null,
+    "submittedAt": "2026-06-06T00:02:04.678Z",
+    "status": "submitted"
+  },
+  {
+    "id": "SBM-20260605-8620",
+    "clientName": "张大姐",
+    "companyName": "康寿养生馆",
+    "brandVision": "街坊心中的养生专家",
+    "coreValues": "传承专业温暖",
+    "targetMarket": "40-70岁注重养生的社区居民",
+    "logoPhilosophy": "",
+    "mascotPhilosophy": "",
+    "phone": "13800138001",
+    "wechat": "",
+    "email": "",
+    "industry": "药店/诊所",
+    "industryCustom": "",
+    "businessYears": 12,
+    "brandHighlight": "中医推拿艾灸12年手艺",
+    "customerProfile": "附近居民",
+    "existingBrandColor": "",
+    "budgetRange": "3000-5000",
+    "province": "四川",
+    "city": "成都",
+    "description": "",
+    "logoAssets": [],
+    "mascotAssets": [],
+    "referenceManual": null,
+    "submittedAt": "2026-06-05T23:33:08.617Z",
+    "status": "submitted"
+  },
+  {
+    "id": "SBM-20260605-2913",
+    "clientName": "",
+    "companyName": "茶语时光",
+    "brandVision": "传承20年匠心，打造广州人最爱的茶饮品牌",
+    "coreValues": "匠心品质、温暖服务、创新体验",
+    "targetMarket": "18-35岁年轻消费群体",
+    "logoPhilosophy": "",
+    "mascotPhilosophy": "",
+    "phone": "13800138000",
+    "wechat": "",
+    "email": "",
+    "industry": "饮品/茶饮",
+    "budgetRange": "",
+    "province": "广东省",
+    "city": "广州市",
+    "description": "茶语时光是广州天河经营20年的老牌茶饮店，招牌产品有珍珠奶茶、杨枝甘露、芒果冰沙，深受周边居民和上班族喜爱。店铺面积约80平方米，风格温馨雅致。",
+    "logoAssets": [],
+    "mascotAssets": [],
+    "referenceManual": null,
+    "submittedAt": "2026-06-05T13:43:22.912Z",
+    "status": "submitted"
+  },
+  {
+    "id": "SBM-20260605-6566",
+    "clientName": "老张",
+    "companyName": "重庆面馆",
+    "brandVision": "",
+    "coreValues": "",
+    "targetMarket": "",
+    "logoPhilosophy": "",
+    "mascotPhilosophy": "",
+    "phone": "13800138001",
+    "wechat": "",
+    "email": "",
+    "industry": "餐饮/食品",
+    "budgetRange": "3000-5000",
+    "province": "广东",
+    "city": "惠州市",
+    "description": "在惠州石湾镇开了20年的老店，招牌菜包括红油抄手、重庆小面、麻辣肥肠面，深受当地食客好评。传统重庆风味，需要AI帮助设计Logo。",
+    "logoAssets": [],
+    "mascotAssets": [],
+    "referenceManual": null,
+    "submittedAt": "2026-06-05T11:59:36.565Z",
+    "status": "submitted"
+  },
+  {
+    "id": "SBM-20260605-0170",
+    "clientName": "老张",
+    "companyName": "重庆面馆",
+    "brandVision": "",
+    "coreValues": "",
+    "targetMarket": "",
+    "logoPhilosophy": "",
+    "mascotPhilosophy": "",
+    "phone": "13800138000",
+    "wechat": "",
+    "email": "",
+    "industry": "餐饮/食品",
+    "budgetRange": "3000-5000",
+    "province": "广东",
+    "city": "惠州市",
+    "description": "在惠州石湾镇开了20年的老店，招牌菜包括红油抄手、重庆小面、麻辣肥肠面，深受当地食客好评。传统重庆风味，需要AI帮助设计Logo。",
+    "logoAssets": [],
+    "mascotAssets": [],
+    "referenceManual": null,
+    "submittedAt": "2026-06-05T11:38:20.170Z",
+    "status": "submitted"
+  },
+  {
+    "id": "SBM-20260605-8297",
+    "clientName": "",
+    "companyName": "测试公司",
+    "brandVision": "",
+    "coreValues": "",
+    "targetMarket": "",
+    "logoPhilosophy": "",
+    "mascotPhilosophy": "",
+    "phone": "13800138000",
+    "wechat": "",
+    "email": "",
+    "industry": "科技/互联网",
+    "budgetRange": "",
+    "province": "广东省",
+    "city": "深圳市",
+    "description": "",
+    "logoAssets": [],
+    "mascotAssets": [],
+    "referenceManual": null,
+    "submittedAt": "2026-06-05T05:10:38.297Z",
+    "status": "submitted"
+  },
+  {
+    "id": "SBM-20260528-2325",
+    "clientName": "官家生",
+    "companyName": "椰岛⼯坊",
+    "phone": "13413049752",
+    "wechat": "",
+    "email": "",
+    "industry": "餐饮/食品",
+    "budgetRange": "10000-20000",
+    "description": "",
+    "logoAssets": [
+      {
+        "fileName": "微信图片_20260521142348_482_5030.jpg",
+        "url": "/uploads/1779958421222-ewrw.jpg",
+        "size": 172832
+      }
+    ],
+    "mascotAssets": [
+      {
+        "name": "微信图片_20260525123226_486_777.png",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "微信图片_20260525123226_486_777.png",
+            "url": "/uploads/1779958421336-61rh.png",
+            "size": 1440185
+          }
+        ]
+      }
+    ],
+    "referenceManual": null,
+    "submittedAt": "2026-05-28T08:53:42.325Z",
+    "status": "submitted",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
+  },
+  {
+    "id": "SBM-20260528-3523",
+    "client_name": "官家生",
+    "company_name": "海南华亿食品工业有限公司",
+    "phone": "13413049752",
+    "wechat": "",
+    "email": "",
+    "industry": "零售/电商",
+    "budget_range": "5000-10000",
+    "description": "我们是一家台湾企业 1991年就在海南从事生产 NFC 100% 椰子水生产厂家。目前想在 网上直播带货销售我们的 NFC 100% 椰子水。",
+    "logo_assets": [
+      {
+        "fileName": "微信图片_20251219125236_1611_55.jpg",
+        "url": "/uploads/1779940762256-usyi.jpg",
+        "size": 38099
+      }
+    ],
+    "mascot_assets": [
+      {
+        "name": "微信图片_20260525123226_486_777.png",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "微信图片_20260525123226_486_777.png",
+            "url": "/uploads/1779940762257-p68z.png",
+            "size": 1440185
+          }
+        ]
+      }
+    ],
+    "reference_manual": null,
+    "submitted_at": "2026-05-28T03:59:23.523Z",
+    "clientName": "官家生",
+    "companyName": "海南华亿食品工业有限公司",
+    "logoAssets": [
+      {
+        "fileName": "微信图片_20251219125236_1611_55.jpg",
+        "url": "/uploads/1779940762256-usyi.jpg",
+        "size": 38099
+      }
+    ],
+    "mascotAssets": [
+      {
+        "name": "微信图片_20260525123226_486_777.png",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "微信图片_20260525123226_486_777.png",
+            "url": "/uploads/1779940762257-p68z.png",
+            "size": 1440185
+          }
+        ]
+      }
+    ],
+    "submittedAt": "2026-05-28T03:59:23.523Z",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
+  },
+  {
+    "id": "SBM-20260528-3523",
+    "client_name": "官家生",
+    "company_name": "海南华亿食品工业有限公司",
+    "phone": "13413049752",
+    "wechat": "",
+    "email": "",
+    "industry": "零售/电商",
+    "budget_range": "5000-10000",
+    "description": "我们是一家台湾企业 1991年就在海南从事生产 NFC 100% 椰子水生产厂家。目前想在 网上直播带货销售我们的 NFC 100% 椰子水。",
+    "logo_assets": [
+      {
+        "fileName": "微信图片_20251219125236_1611_55.jpg",
+        "url": "/uploads/1779940762256-usyi.jpg",
+        "size": 38099
+      }
+    ],
+    "mascot_assets": [
+      {
+        "name": "微信图片_20260525123226_486_777.png",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "微信图片_20260525123226_486_777.png",
+            "url": "/uploads/1779940762257-p68z.png",
+            "size": 1440185
+          }
+        ]
+      }
+    ],
+    "reference_manual": null,
+    "submitted_at": "2026-05-28T03:59:23.523Z",
+    "clientName": "官家生",
+    "companyName": "海南华亿食品工业有限公司",
+    "submittedAt": "2026-05-28T03:59:23.523Z",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
+  },
+  {
+    "id": "SBM-20260527-1638",
+    "client_name": "莎莎",
+    "company_name": "东莞市阿杜莫国际贸易有限公司",
+    "phone": "18782419465",
+    "wechat": "",
+    "email": "",
+    "industry": "医疗/健康",
+    "budget_range": "",
+    "description": "",
+    "logo_assets": [
+      {
+        "fileName": "IMG_9215.jpeg",
+        "url": "/uploads/1779892162673-9swy.jpeg",
+        "size": 167279
+      }
+    ],
+    "mascot_assets": [
+      {
+        "name": "IMG_9083.jpeg",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "IMG_9083.jpeg",
+            "url": "/uploads/1779892169204-73qc.jpeg",
+            "size": 7583267
+          }
+        ]
+      }
+    ],
+    "reference_manual": null,
+    "submitted_at": "2026-05-27T14:29:31.638Z",
+    "clientName": "莎莎",
+    "companyName": "东莞市阿杜莫国际贸易有限公司",
+    "logoAssets": [
+      {
+        "fileName": "IMG_9215.jpeg",
+        "url": "/uploads/1779892162673-9swy.jpeg",
+        "size": 167279
+      }
+    ],
+    "mascotAssets": [
+      {
+        "name": "IMG_9083.jpeg",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "IMG_9083.jpeg",
+            "url": "/uploads/1779892169204-73qc.jpeg",
+            "size": 7583267
+          }
+        ]
+      }
+    ],
+    "submittedAt": "2026-05-27T14:29:31.638Z",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
+  },
+  {
+    "id": "SBM-20260527-1159",
+    "client_name": "莎莎",
+    "company_name": "东莞市阿杜莫国际贸易有限公司",
+    "phone": "18782419465",
+    "wechat": "",
+    "email": "",
+    "industry": "医疗/健康",
+    "budget_range": "",
+    "description": "",
+    "logo_assets": [
+      {
+        "fileName": "IMG_8985.jpeg",
+        "url": "/uploads/1779891980313-7zld.jpeg",
+        "size": 7340147
+      }
+    ],
+    "mascot_assets": [],
+    "reference_manual": null,
+    "submitted_at": "2026-05-27T14:26:21.159Z",
+    "clientName": "莎莎",
+    "companyName": "东莞市阿杜莫国际贸易有限公司",
+    "logoAssets": [
+      {
+        "fileName": "IMG_8985.jpeg",
+        "url": "/uploads/1779891980313-7zld.jpeg",
+        "size": 7340147
+      }
+    ],
+    "mascotAssets": [],
+    "submittedAt": "2026-05-27T14:26:21.159Z",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
+  },
+  {
+    "id": "SBM-20260526-9277",
+    "clientName": "anna",
+    "companyName": "anna",
+    "phone": "13413049752",
+    "wechat": "",
+    "email": "",
+    "industry": "科技/互联网",
+    "budgetRange": "20000以上",
+    "description": "",
+    "logoAssets": [
+      {
+        "fileName": "AFC.jpg",
+        "url": "/uploads/1779792508569-zgj2.jpg",
+        "size": 65123
+      }
+    ],
+    "mascotAssets": [
+      {
+        "name": "S__21364789.jpg",
+        "personality": "",
+        "files": [
+          {
+            "fileName": "S__21364789.jpg",
+            "url": "/uploads/1779792508568-dax6.jpg",
+            "size": 248240
+          }
+        ]
+      }
+    ],
+    "submittedAt": "2026-05-26T10:48:29.277Z",
+    "brandVision": "打造北纬18度黄金产区的椰子水定制专家，将最纯净的热带能量带给每一位追求健康的用户",
+    "coreValues": "新鲜直达、匠心定制、健康专业",
+    "targetMarket": "精准覆盖高端酒店采购与健身博主群体",
+    "logoPhilosophy": "以椰子树、海浪、飞鸟构建热带度假风情，18度N标注黄金产区，哑铃图标锁定健康市场",
+    "mascotPhilosophy": "IP公仔椰小匠，活泼可爱的Q版形象，传递自然能量与纯粹生活的品牌理念"
+  }
+]

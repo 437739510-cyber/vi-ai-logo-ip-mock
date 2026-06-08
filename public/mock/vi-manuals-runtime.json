@@ -1,0 +1,581 @@
+[
+  {
+    "id": "MANUAL-1779755369640",
+    "projectId": "VI-20260525-22WV",
+    "cover": {
+      "title": "品牌视觉识别手册",
+      "subtitle": "Visual Identity Guidelines",
+      "version": "v1.0",
+      "date": "2026-05",
+      "companyName": "海南华粤食品工业有限公司"
+    },
+    "brandColors": {
+      "primary": {
+        "name": "椰林绿",
+        "hex": "#2E8B57",
+        "cmyk": "60 0 100 0",
+        "rgb": "46,139,87"
+      },
+      "secondary": {
+        "name": "海洋蓝",
+        "hex": "#0077BE",
+        "cmyk": "85 30 0 0",
+        "rgb": "0,119,190"
+      },
+      "accent": {
+        "name": "阳光橙",
+        "hex": "#FF8C00",
+        "cmyk": "0 55 100 0",
+        "rgb": "255,140,0"
+      },
+      "neutrals": [
+        {
+          "name": "椰壳灰",
+          "hex": "#5A5A5A"
+        },
+        {
+          "name": "椰奶白",
+          "hex": "#F5F5DC"
+        }
+      ]
+    },
+    "typography": {
+      "chinese": {
+        "heading": {
+          "font": "思源黑体",
+          "weights": [
+            700,
+            500
+          ]
+        },
+        "body": {
+          "font": "思源宋体",
+          "weights": [
+            400
+          ]
+        }
+      },
+      "english": {
+        "heading": {
+          "font": "Montserrat",
+          "weights": [
+            700,
+            600
+          ]
+        },
+        "body": {
+          "font": "Open Sans",
+          "weights": [
+            400
+          ]
+        }
+      }
+    },
+    "referenceAnalysis": {
+      "used": false,
+      "extractedColors": [],
+      "extractedFonts": [],
+      "styleSummary": "数据损坏，无法分析",
+      "analysisConfidence": 0
+    },
+    "logoVariants": [
+      {
+        "name": "横版组合",
+        "src": "/mock/manual/logo-horizontal.png"
+      },
+      {
+        "name": "竖版组合",
+        "src": "/mock/manual/logo-vertical.png"
+      }
+    ],
+    "auxiliaryGraphics": [
+      {
+        "name": "辅助图形-基础",
+        "src": "/mock/manual/pattern-base.svg"
+      }
+    ],
+    "applications": [
+      {
+        "type": "business_card",
+        "label": "名片",
+        "mockupUrl": "/mock/mockups/business-card.jpg",
+        "specs": "90×54mm, 300DPI"
+      },
+      {
+        "type": "letterhead",
+        "label": "信纸",
+        "mockupUrl": "/mock/mockups/letterhead.jpg",
+        "specs": "A4, 210×297mm"
+      }
+    ]
+  },
+  {
+    "id": "MANUAL-1779792720697",
+    "projectId": "VI-20260526-8ORD",
+    "cover": {
+      "title": "品牌视觉识别手册",
+      "subtitle": "Visual Identity Guidelines",
+      "version": "v1.0",
+      "date": "2026-05",
+      "companyName": "anna"
+    },
+    "brandColors": {
+      "primary": {
+        "name": "科技蓝",
+        "hex": "#0066FF",
+        "cmyk": "100 70 0 0",
+        "rgb": "0,102,255"
+      },
+      "secondary": {
+        "name": "活力紫",
+        "hex": "#7B2FF7",
+        "cmyk": "58 81 0 0",
+        "rgb": "123,47,247"
+      },
+      "accent": {
+        "name": "电光绿",
+        "hex": "#00FF88",
+        "cmyk": "70 0 70 0",
+        "rgb": "0,255,136"
+      },
+      "neutrals": [
+        {
+          "name": "深灰",
+          "hex": "#2D2D2D"
+        },
+        {
+          "name": "浅灰",
+          "hex": "#F5F5F5"
+        }
+      ]
+    },
+    "typography": {
+      "chinese": {
+        "heading": {
+          "font": "Noto Sans SC",
+          "weights": [
+            700,
+            500
+          ]
+        },
+        "body": {
+          "font": "Noto Sans SC",
+          "weights": [
+            400
+          ]
+        }
+      },
+      "english": {
+        "heading": {
+          "font": "Inter",
+          "weights": [
+            700,
+            600
+          ]
+        },
+        "body": {
+          "font": "Inter",
+          "weights": [
+            400
+          ]
+        }
+      }
+    },
+    "referenceAnalysis": {
+      "used": false,
+      "extractedColors": [],
+      "extractedFonts": [],
+      "styleSummary": "",
+      "analysisConfidence": 0
+    },
+    "logoVariants": [
+      {
+        "name": "横版组合",
+        "src": "/mock/manual/logo-horizontal.png"
+      },
+      {
+        "name": "竖版组合",
+        "src": "/mock/manual/logo-vertical.png"
+      }
+    ],
+    "auxiliaryGraphics": [
+      {
+        "name": "辅助图形-基础",
+        "src": "/mock/manual/pattern-base.svg"
+      }
+    ],
+    "applications": [
+      {
+        "type": "business_card",
+        "label": "名片",
+        "mockupUrl": "/mock/mockups/business-card.jpg",
+        "specs": "90×54mm, 300DPI"
+      },
+      {
+        "type": "letterhead",
+        "label": "信纸",
+        "mockupUrl": "/mock/mockups/letterhead.jpg",
+        "specs": "A4, 210×297mm"
+      }
+    ]
+  },
+  {
+    "id": "MANUAL-1779932204203",
+    "projectId": "VI-20260527-077K",
+    "cover": {
+      "title": "东莞市阿杜莫国际贸易有限公司视觉识别手册",
+      "subtitle": "Visual Identity Guidelines",
+      "version": "v1.0",
+      "date": "2026-05",
+      "companyName": "东莞市阿杜莫国际贸易有限公司"
+    },
+    "brandColors": {
+      "primary": {
+        "name": "健康蓝",
+        "hex": "#0077B6",
+        "cmyk": "100 50 0 0",
+        "rgb": "0,119,182",
+        "pantone": "PMS 300 C"
+      },
+      "secondary": {
+        "name": "生命绿",
+        "hex": "#2A9D8F",
+        "cmyk": "70 0 50 0",
+        "rgb": "42,157,143",
+        "pantone": "PMS 7472 C"
+      },
+      "accent": {
+        "name": "活力橙",
+        "hex": "#F4A261",
+        "cmyk": "0 40 70 0",
+        "rgb": "244,162,97",
+        "pantone": "PMS 136 C"
+      },
+      "neutrals": [
+        {
+          "name": "浅灰",
+          "hex": "#F5F5F5"
+        },
+        {
+          "name": "深灰",
+          "hex": "#333333"
+        }
+      ],
+      "usageGuidelines": "主色用于品牌核心元素，辅助色用于差异化场景，中性色用于背景和文本。保持色彩对比度和可读性。"
+    },
+    "typography": {
+      "chinese": {
+        "heading": {
+          "font": "思源黑体",
+          "weights": [
+            700,
+            500
+          ],
+          "sizes": [
+            {
+              "context": "大标题",
+              "size": "28px"
+            },
+            {
+              "context": "中标题",
+              "size": "20px"
+            },
+            {
+              "context": "小标题",
+              "size": "16px"
+            }
+          ]
+        },
+        "body": {
+          "font": "思源黑体",
+          "weights": [
+            400
+          ],
+          "sizes": [
+            {
+              "context": "正文",
+              "size": "14px"
+            },
+            {
+              "context": "辅助",
+              "size": "12px"
+            }
+          ]
+        }
+      },
+      "english": {
+        "heading": {
+          "font": "Inter",
+          "weights": [
+            700,
+            600
+          ],
+          "sizes": [
+            {
+              "context": "大标题",
+              "size": "28px"
+            },
+            {
+              "context": "中标题",
+              "size": "20px"
+            },
+            {
+              "context": "小标题",
+              "size": "16px"
+            }
+          ]
+        },
+        "body": {
+          "font": "Inter",
+          "weights": [
+            400
+          ],
+          "sizes": [
+            {
+              "context": "正文",
+              "size": "14px"
+            },
+            {
+              "context": "辅助",
+              "size": "12px"
+            }
+          ]
+        }
+      },
+      "usageGuidelines": "标题使用粗体，正文使用常规体，确保层级清晰。"
+    },
+    "logoUsage": {
+      "clearSpace": "logo周围保留至少logo高度1/4的空白区域",
+      "minimumSize": "数字版最小宽度30px，印刷版最小宽度15mm",
+      "prohibitedUses": [
+        "禁止改变logo颜色",
+        "禁止拉伸或变形",
+        "禁止添加阴影或特效"
+      ]
+    },
+    "logoVariants": [
+      {
+        "name": "横版",
+        "src": "/mock/manual/logo-horizontal.png",
+        "usage": "用于名片、信纸、PPT等标准应用"
+      },
+      {
+        "name": "竖版",
+        "src": "/mock/manual/logo-vertical.png",
+        "usage": "用于窄空间如手机App图标"
+      },
+      {
+        "name": "图标",
+        "src": "/mock/manual/logo-icon.png",
+        "usage": "用于头像、favicon等"
+      },
+      {
+        "name": "反白",
+        "src": "/mock/manual/logo-monochrome.png",
+        "usage": "用于深色背景"
+      }
+    ],
+    "mascotGuidelines": {
+      "usageGuide": "公仔作为品牌辅助元素，适合用于宣传物料、社交媒体的友好形象展示，不可替代logo使用。",
+      "proportions": "公仔高度建议为logo高度的1.5倍，保持头部与身体比例1:1。",
+      "colorSpec": "主色使用健康蓝，身体使用生命绿，点缀活力橙；线条统一使用深灰。",
+      "prohibitedUses": [
+        "禁止改变公仔颜色",
+        "禁止将公仔与不相关元素结合"
+      ]
+    },
+    "auxiliaryGraphics": [
+      {
+        "name": "基础网格",
+        "src": "/mock/manual/pattern-base.svg",
+        "usage": "作为背景装饰，透明度20%"
+      },
+      {
+        "name": "动态波点",
+        "src": "/mock/manual/pattern-applied.svg",
+        "usage": "用于海报、宣传页的辅助底纹"
+      }
+    ],
+    "applications": [
+      {
+        "type": "business_card",
+        "label": "名片",
+        "mockupUrl": "/mock/mockups/business-card.jpg",
+        "specs": "90×54mm",
+        "layout": "名称居中，职务靠左对齐，联系方式靠下均匀分布"
+      },
+      {
+        "type": "letterhead",
+        "label": "信纸",
+        "mockupUrl": "/mock/mockups/letterhead.jpg",
+        "specs": "A4",
+        "layout": "页眉放logo及联系方式，页脚放地址，正文从第二行开始"
+      },
+      {
+        "type": "ppt",
+        "label": "PPT",
+        "mockupUrl": "/mock/mockups/ppt-template.jpg",
+        "specs": "16:9",
+        "layout": "标题页居中放置logo，内容页右下角放置小logo"
+      },
+      {
+        "type": "envelope",
+        "label": "信封",
+        "mockupUrl": "/mock/mockups/envelope.jpg",
+        "specs": "DL 110×220mm",
+        "layout": "左上角放置logo，右下角放置地址栏"
+      },
+      {
+        "type": "signage",
+        "label": "招牌",
+        "mockupUrl": "/mock/mockups/signage.jpg",
+        "specs": "宽度1200mm，高度600mm",
+        "layout": "logo居中，下方可放标语，预留边框边缘间距20mm"
+      }
+    ],
+    "referenceAnalysis": {
+      "used": false,
+      "extractedColors": [],
+      "extractedFonts": [],
+      "styleSummary": ""
+    }
+  },
+  {
+    "id": "MANUAL-VI-20260528-F7TP",
+    "projectId": "VI-20260528-F7TP",
+    "cover": {
+      "title": "",
+      "subtitle": "",
+      "version": "v1.0",
+      "date": "2026-05",
+      "companyName": ""
+    },
+    "tableOfContents": [],
+    "logoSpecs": {
+      "explanation": "以稳重墨绿作为主色，传递海南特有的自然生态与食品工业的可靠性；暖沙色辅助色带来热带地域的温暖感受，亮绿蓝色点缀提升现代感与活力。无衬线字体简约清晰，适合制造型企业传递专业、信赖的品牌形象。",
+      "conceptKeywords": [],
+      "standardCombinations": [],
+      "gridSpec": {
+        "imageUrl": "",
+        "proportions": "",
+        "baseUnit": "",
+        "description": ""
+      },
+      "clearSpace": {
+        "rule": "",
+        "minimumSizes": []
+      },
+      "logoColors": [
+        {
+          "name": "主色",
+          "hex": "#006847",
+          "cmyk": "",
+          "rgb": ""
+        },
+        {
+          "name": "辅助色",
+          "hex": "#D4A574",
+          "cmyk": "",
+          "rgb": ""
+        },
+        {
+          "name": "强调色",
+          "hex": "#4CB5A0",
+          "cmyk": "",
+          "rgb": ""
+        }
+      ],
+      "monochromeBlack": null,
+      "reversedOut": null,
+      "backgroundControl": {
+        "allowedBackgrounds": [],
+        "prohibitedBackgrounds": []
+      },
+      "incorrectUsages": []
+    },
+    "brandColors": {
+      "primary": {
+        "name": "主色",
+        "hex": "#006847",
+        "cmyk": "",
+        "rgb": ""
+      },
+      "secondary": {
+        "name": "辅助色",
+        "hex": "#D4A574",
+        "cmyk": "",
+        "rgb": ""
+      },
+      "accent": {
+        "name": "强调色",
+        "hex": "#4CB5A0",
+        "cmyk": "",
+        "rgb": ""
+      },
+      "neutrals": [
+        {
+          "name": "背景",
+          "hex": "#F8F9FA"
+        },
+        {
+          "name": "文字",
+          "hex": "#202124"
+        }
+      ],
+      "hierarchy": [
+        {
+          "level": "主色",
+          "colors": [
+            "主色"
+          ],
+          "usage": ""
+        }
+      ],
+      "matchingRules": "以稳重墨绿作为主色，传递海南特有的自然生态与食品工业的可靠性；暖沙色辅助色带来热带地域的温暖感受，亮绿蓝色点缀提升现代感与活力。无衬线字体简约清晰，适合制造型企业传递专业、信赖的品牌形象。"
+    },
+    "typography": {
+      "chinese": {
+        "brandFont": {
+          "font": "Source Sans Pro Bold",
+          "weights": [
+            700,
+            500
+          ]
+        },
+        "bodyFont": {
+          "font": "Source Sans Pro Regular",
+          "weights": [
+            400
+          ]
+        },
+        "sizeHierarchy": []
+      },
+      "english": {
+        "brandFont": {
+          "font": "Source Sans Pro Bold",
+          "weights": [
+            700,
+            600
+          ]
+        },
+        "bodyFont": {
+          "font": "Source Sans Pro Regular",
+          "weights": [
+            400
+          ]
+        },
+        "sizeHierarchy": []
+      },
+      "principles": []
+    },
+    "auxiliaryGraphics": {
+      "concept": "",
+      "graphics": []
+    },
+    "applications": {
+      "office": [],
+      "signage": [],
+      "digital": []
+    }
+  }
+]

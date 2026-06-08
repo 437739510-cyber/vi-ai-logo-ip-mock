@@ -1,0 +1,5 @@
+authtoken: YWFkMTE4YjktMTk5NS00ZTZlLWIyMGItYmQ0ZGY4ZjU3Mzc4
+tunnels:
+  website:
+    proto: http
+    addr: "3000"

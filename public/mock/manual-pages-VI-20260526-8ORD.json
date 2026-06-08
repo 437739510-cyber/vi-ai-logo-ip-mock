@@ -1,0 +1,14 @@
+{
+  "projectId": "VI-20260526-8ORD",
+  "pages": [
+    {
+      "pageId": "cover",
+      "label": "封面",
+      "url": "/generated/VI-20260526-8ORD-cover.png"
+    }
+  ],
+  "errors": [],
+  "generatedAt": "2026-05-26T10:53:12.378Z",
+  "totalPages": 1,
+  "failedPages": 0
+}

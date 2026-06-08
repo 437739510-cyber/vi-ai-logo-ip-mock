@@ -1,0 +1,927 @@
+[
+  {
+    "industryKey": "food_beverage",
+    "category": "food_beverage",
+    "designStyle": [
+      "温暖自然",
+      "食欲感强",
+      "新鲜活力",
+      "材质质感突出"
+    ],
+    "colorTendency": [
+      "暖色系为主",
+      "自然色系",
+      "高饱和度点缀"
+    ],
+    "typographyStyle": [
+      "圆润亲切",
+      "手写风格可用",
+      "中文书法/粗体"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "IP规范",
+      "产品包装系统",
+      "线下门店系统",
+      "社媒内容系统",
+      "宣传物料"
+    ],
+    "typicalPageRange": [
+      12,
+      18
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "椰岛工坊",
+      "喜茶",
+      "三顿半",
+      "元气森林"
+    ],
+    "visualKeywords": [
+      "natural",
+      "fresh",
+      "organic",
+      "appetizing",
+      "warm"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:03:59.941Z",
+    "updatedAt": "2026-06-04T15:03:59.941Z",
+    "projectCount": 0
+  },
+  {
+    "industryKey": "food_beverage/beverage",
+    "category": "food_beverage",
+    "designStyle": [
+      "温暖自然",
+      "食欲感强",
+      "新鲜活力",
+      "材质质感突出"
+    ],
+    "colorTendency": [
+      "暖色系为主",
+      "自然色系",
+      "高饱和度点缀"
+    ],
+    "typographyStyle": [
+      "圆润亲切",
+      "手写风格可用",
+      "中文书法/粗体"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "IP规范",
+      "产品包装系统",
+      "线下门店系统",
+      "社媒内容系统",
+      "宣传物料"
+    ],
+    "typicalPageRange": [
+      12,
+      18
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "椰岛工坊",
+      "喜茶",
+      "三顿半",
+      "元气森林"
+    ],
+    "visualKeywords": [
+      "natural",
+      "fresh",
+      "organic",
+      "appetizing",
+      "warm"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:03:59.947Z",
+    "updatedAt": "2026-06-04T15:03:59.947Z",
+    "projectCount": 0,
+    "subCategory": "beverage"
+  },
+  {
+    "industryKey": "food_beverage/coconut_water",
+    "category": "food_beverage",
+    "designStyle": [
+      "温暖自然",
+      "食欲感强",
+      "新鲜活力",
+      "材质质感突出"
+    ],
+    "colorTendency": [
+      "暖色系为主",
+      "自然色系",
+      "高饱和度点缀"
+    ],
+    "typographyStyle": [
+      "圆润亲切",
+      "手写风格可用",
+      "中文书法/粗体"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "IP规范",
+      "产品包装系统",
+      "线下门店系统",
+      "社媒内容系统",
+      "宣传物料"
+    ],
+    "typicalPageRange": [
+      12,
+      18
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "椰岛工坊",
+      "喜茶",
+      "三顿半",
+      "元气森林"
+    ],
+    "visualKeywords": [
+      "natural",
+      "fresh",
+      "organic",
+      "appetizing",
+      "warm"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:03:59.962Z",
+    "updatedAt": "2026-06-04T15:03:59.962Z",
+    "projectCount": 0,
+    "subCategory": "coconut_water"
+  },
+  {
+    "industryKey": "food_beverage/restaurant",
+    "category": "food_beverage",
+    "designStyle": [
+      "温暖自然",
+      "食欲感强",
+      "新鲜活力",
+      "材质质感突出"
+    ],
+    "colorTendency": [
+      "暖色系为主",
+      "自然色系",
+      "高饱和度点缀"
+    ],
+    "typographyStyle": [
+      "圆润亲切",
+      "手写风格可用",
+      "中文书法/粗体"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "IP规范",
+      "产品包装系统",
+      "线下门店系统",
+      "社媒内容系统",
+      "宣传物料"
+    ],
+    "typicalPageRange": [
+      12,
+      18
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "椰岛工坊",
+      "喜茶",
+      "三顿半",
+      "元气森林"
+    ],
+    "visualKeywords": [
+      "natural",
+      "fresh",
+      "organic",
+      "appetizing",
+      "warm"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:03:59.999Z",
+    "updatedAt": "2026-06-04T15:03:59.999Z",
+    "projectCount": 0,
+    "subCategory": "restaurant"
+  },
+  {
+    "industryKey": "food_beverage/hotpot",
+    "category": "food_beverage",
+    "designStyle": [
+      "温暖自然",
+      "食欲感强",
+      "新鲜活力",
+      "材质质感突出"
+    ],
+    "colorTendency": [
+      "暖色系为主",
+      "自然色系",
+      "高饱和度点缀"
+    ],
+    "typographyStyle": [
+      "圆润亲切",
+      "手写风格可用",
+      "中文书法/粗体"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "IP规范",
+      "产品包装系统",
+      "线下门店系统",
+      "社媒内容系统",
+      "宣传物料"
+    ],
+    "typicalPageRange": [
+      12,
+      18
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "椰岛工坊",
+      "喜茶",
+      "三顿半",
+      "元气森林"
+    ],
+    "visualKeywords": [
+      "natural",
+      "fresh",
+      "organic",
+      "appetizing",
+      "warm"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.047Z",
+    "updatedAt": "2026-06-04T15:04:00.047Z",
+    "projectCount": 0,
+    "subCategory": "hotpot"
+  },
+  {
+    "industryKey": "technology_it",
+    "category": "technology_it",
+    "designStyle": [
+      "极简现代",
+      "科技感强",
+      "几何构成",
+      "留白充分"
+    ],
+    "colorTendency": [
+      "冷色系为主",
+      "蓝色/紫色调",
+      "渐变色流行"
+    ],
+    "typographyStyle": [
+      "无衬线字体",
+      "字重变化丰富",
+      "字间距较大"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "数字产品界面规范",
+      "宣传物料",
+      "PPT模板"
+    ],
+    "typicalPageRange": [
+      10,
+      14
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "苹果",
+      "字节跳动",
+      "Notion",
+      "Figma"
+    ],
+    "visualKeywords": [
+      "minimal",
+      "tech",
+      "digital",
+      "clean",
+      "geometric"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.056Z",
+    "updatedAt": "2026-06-04T15:04:00.056Z",
+    "projectCount": 0
+  },
+  {
+    "industryKey": "technology_it/saas",
+    "category": "technology_it",
+    "designStyle": [
+      "极简现代",
+      "科技感强",
+      "几何构成",
+      "留白充分"
+    ],
+    "colorTendency": [
+      "冷色系为主",
+      "蓝色/紫色调",
+      "渐变色流行"
+    ],
+    "typographyStyle": [
+      "无衬线字体",
+      "字重变化丰富",
+      "字间距较大"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "数字产品界面规范",
+      "宣传物料",
+      "PPT模板"
+    ],
+    "typicalPageRange": [
+      10,
+      14
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "苹果",
+      "字节跳动",
+      "Notion",
+      "Figma"
+    ],
+    "visualKeywords": [
+      "minimal",
+      "tech",
+      "digital",
+      "clean",
+      "geometric"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.063Z",
+    "updatedAt": "2026-06-04T15:04:00.063Z",
+    "projectCount": 0,
+    "subCategory": "saas"
+  },
+  {
+    "industryKey": "technology_it/ai",
+    "category": "technology_it",
+    "designStyle": [
+      "极简现代",
+      "科技感强",
+      "几何构成",
+      "留白充分"
+    ],
+    "colorTendency": [
+      "冷色系为主",
+      "蓝色/紫色调",
+      "渐变色流行"
+    ],
+    "typographyStyle": [
+      "无衬线字体",
+      "字重变化丰富",
+      "字间距较大"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "数字产品界面规范",
+      "宣传物料",
+      "PPT模板"
+    ],
+    "typicalPageRange": [
+      10,
+      14
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "苹果",
+      "字节跳动",
+      "Notion",
+      "Figma"
+    ],
+    "visualKeywords": [
+      "minimal",
+      "tech",
+      "digital",
+      "clean",
+      "geometric"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.074Z",
+    "updatedAt": "2026-06-04T15:04:00.074Z",
+    "projectCount": 0,
+    "subCategory": "ai"
+  },
+  {
+    "industryKey": "retail_ecommerce",
+    "category": "retail_ecommerce",
+    "designStyle": [
+      "视觉冲击力强",
+      "促销感与品质感平衡",
+      "产品图为核心"
+    ],
+    "colorTendency": [
+      "品牌识别色鲜明",
+      "高对比度",
+      "限定色活跃"
+    ],
+    "typographyStyle": [
+      "阅读性强",
+      "标题用粗体",
+      "数字展示突出"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "产品包装系统",
+      "电商详情页模板",
+      "社媒内容系统",
+      "活动/促销视觉规范"
+    ],
+    "typicalPageRange": [
+      10,
+      16
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "完美日记",
+      "三只松鼠",
+      "蕉下"
+    ],
+    "visualKeywords": [
+      "bold",
+      "colorful",
+      "product-focused",
+      "clean"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.133Z",
+    "updatedAt": "2026-06-04T15:04:00.133Z",
+    "projectCount": 0
+  },
+  {
+    "industryKey": "education_training",
+    "category": "education_training",
+    "designStyle": [
+      "亲和力强",
+      "清晰易读",
+      "活力感",
+      "信任感"
+    ],
+    "colorTendency": [
+      "蓝色/绿色系",
+      "温暖辅助色",
+      "不过度鲜艳"
+    ],
+    "typographyStyle": [
+      "清晰圆润",
+      "字号层级丰富",
+      "中文阅读友好"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "宣传物料",
+      "数字课件模板",
+      "线下物料规范"
+    ],
+    "typicalPageRange": [
+      8,
+      14
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "得到",
+      "VIPKID",
+      "新东方"
+    ],
+    "visualKeywords": [
+      "friendly",
+      "clear",
+      "trustworthy",
+      "warm"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.148Z",
+    "updatedAt": "2026-06-04T15:04:00.148Z",
+    "projectCount": 0
+  },
+  {
+    "industryKey": "education_training/online_learning",
+    "category": "education_training",
+    "designStyle": [
+      "亲和力强",
+      "清晰易读",
+      "活力感",
+      "信任感"
+    ],
+    "colorTendency": [
+      "蓝色/绿色系",
+      "温暖辅助色",
+      "不过度鲜艳"
+    ],
+    "typographyStyle": [
+      "清晰圆润",
+      "字号层级丰富",
+      "中文阅读友好"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "宣传物料",
+      "数字课件模板",
+      "线下物料规范"
+    ],
+    "typicalPageRange": [
+      8,
+      14
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "得到",
+      "VIPKID",
+      "新东方"
+    ],
+    "visualKeywords": [
+      "friendly",
+      "clear",
+      "trustworthy",
+      "warm"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.165Z",
+    "updatedAt": "2026-06-04T15:04:00.165Z",
+    "projectCount": 0,
+    "subCategory": "online_learning"
+  },
+  {
+    "industryKey": "healthcare_medical",
+    "category": "healthcare_medical",
+    "designStyle": [
+      "专业信赖",
+      "温和安抚",
+      "洁净感",
+      "人性化"
+    ],
+    "colorTendency": [
+      "蓝色/绿色系",
+      "低饱和度",
+      "白色为主"
+    ],
+    "typographyStyle": [
+      "清晰大方",
+      "字距适中",
+      "阅读舒适"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "宣传物料",
+      "空间导视系统",
+      "数字媒体规范"
+    ],
+    "typicalPageRange": [
+      8,
+      12
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "丁香园",
+      "微医",
+      "Keep"
+    ],
+    "visualKeywords": [
+      "clean",
+      "professional",
+      "calm",
+      "trustworthy"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.179Z",
+    "updatedAt": "2026-06-04T15:04:00.179Z",
+    "projectCount": 0
+  },
+  {
+    "industryKey": "finance_legal",
+    "category": "finance_legal",
+    "designStyle": [
+      "稳重专业",
+      "精致高端",
+      "保守可靠",
+      "细节精致"
+    ],
+    "colorTendency": [
+      "深蓝/深红/金色",
+      "低饱和度",
+      "金属色点缀"
+    ],
+    "typographyStyle": [
+      "经典衬线体",
+      "严谨排版",
+      "正式感强"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "办公应用系统",
+      "宣传物料",
+      "报告/PPT模板"
+    ],
+    "typicalPageRange": [
+      8,
+      12
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "招商银行",
+      "中金公司",
+      "君合律所"
+    ],
+    "visualKeywords": [
+      "professional",
+      "premium",
+      "trustworthy",
+      "classic"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.193Z",
+    "updatedAt": "2026-06-04T15:04:00.193Z",
+    "projectCount": 0
+  },
+  {
+    "industryKey": "culture_media",
+    "category": "culture_media",
+    "designStyle": [
+      "艺术感强",
+      "创意自由",
+      "视觉冲击",
+      "个性鲜明"
+    ],
+    "colorTendency": [
+      "用色大胆",
+      "撞色常见",
+      "渐变色丰富"
+    ],
+    "typographyStyle": [
+      "实验性字体",
+      "排版创意",
+      "图文混排灵活"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "数字媒体规范",
+      "社媒内容系统",
+      "线下活动物料"
+    ],
+    "typicalPageRange": [
+      10,
+      16
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "B站",
+      "知乎",
+      "单向空间"
+    ],
+    "visualKeywords": [
+      "creative",
+      "bold",
+      "artistic",
+      "dynamic"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.207Z",
+    "updatedAt": "2026-06-04T15:04:00.207Z",
+    "projectCount": 0
+  },
+  {
+    "industryKey": "manufacturing",
+    "category": "manufacturing",
+    "designStyle": [
+      "简洁实用",
+      "工业感",
+      "可靠稳重",
+      "功能性优先"
+    ],
+    "colorTendency": [
+      "蓝色/灰色系",
+      "低饱和度",
+      "企业色稳重"
+    ],
+    "typographyStyle": [
+      "简洁清晰",
+      "功能优先",
+      "图表标注规范"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "办公应用系统",
+      "产品包装系统",
+      "宣传物料",
+      "展会/活动规范"
+    ],
+    "typicalPageRange": [
+      8,
+      14
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "华为",
+      "三一重工",
+      "海尔"
+    ],
+    "visualKeywords": [
+      "industrial",
+      "reliable",
+      "clean",
+      "functional"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.223Z",
+    "updatedAt": "2026-06-04T15:04:00.223Z",
+    "projectCount": 0
+  },
+  {
+    "industryKey": "hospitality_tourism",
+    "category": "hospitality_tourism",
+    "designStyle": [
+      "度假感",
+      "高端舒适",
+      "在地文化融合",
+      "体验导向"
+    ],
+    "colorTendency": [
+      "暖色/大地色系",
+      "自然色彩",
+      "金色/米色搭配"
+    ],
+    "typographyStyle": [
+      "优雅衬线体",
+      "手写风格可用",
+      "多语言排版"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "IP规范",
+      "空间导视系统",
+      "宣传物料",
+      "数字媒体规范"
+    ],
+    "typicalPageRange": [
+      12,
+      20
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "安缦",
+      "松赞",
+      "亚朵"
+    ],
+    "visualKeywords": [
+      "luxury",
+      "warm",
+      "cultural",
+      "serene"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.264Z",
+    "updatedAt": "2026-06-04T15:04:00.264Z",
+    "projectCount": 0
+  },
+  {
+    "industryKey": "real_estate",
+    "category": "real_estate",
+    "designStyle": [
+      "高端大气",
+      "空间感强",
+      "品质感突出",
+      "生活场景化"
+    ],
+    "colorTendency": [
+      "米色/金色/深灰",
+      "暖色系",
+      "低饱和度奢华感"
+    ],
+    "typographyStyle": [
+      "精致衬线体",
+      "中文粗体大气",
+      "数字展示考究"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "宣传物料",
+      "空间导视系统",
+      "数字媒体规范"
+    ],
+    "typicalPageRange": [
+      8,
+      14
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [
+      "万科",
+      "融创",
+      "绿城"
+    ],
+    "visualKeywords": [
+      "premium",
+      "spacious",
+      "elegant",
+      "lifestyle"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.277Z",
+    "updatedAt": "2026-06-04T15:04:00.277Z",
+    "projectCount": 0
+  },
+  {
+    "industryKey": "other",
+    "category": "other",
+    "designStyle": [
+      "简洁专业",
+      "可根据需求定制"
+    ],
+    "colorTendency": [
+      "中性色为主",
+      "品牌识别色"
+    ],
+    "typographyStyle": [
+      "通用无衬线体",
+      "清晰易读"
+    ],
+    "commonModules": [
+      "品牌故事",
+      "Logo规范",
+      "品牌色",
+      "字体系统",
+      "办公应用系统",
+      "宣传物料"
+    ],
+    "typicalPageRange": [
+      8,
+      12
+    ],
+    "typicalScenes": [],
+    "sampleBrands": [],
+    "visualKeywords": [
+      "clean",
+      "professional",
+      "versatile"
+    ],
+    "source": "initial_knowledge",
+    "confidence": 0.8,
+    "createdAt": "2026-06-04T15:04:00.291Z",
+    "updatedAt": "2026-06-04T15:04:00.291Z",
+    "projectCount": 0
+  }
+]

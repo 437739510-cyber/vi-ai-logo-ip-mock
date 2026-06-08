@@ -1,0 +1,47 @@
+优先级调整：
+
+P1： 09_MANUS_INTEGRATION_FEASIBILITY.md
+
+要求： 必须基于真实资料与官方来源验证。 目标： 确认 Manus 是否能成为 Brand Brain 执行层。
+
+P2： 07_DECISION_LAYER_V2.md
+
+要求： 重点设计品牌决策逻辑。
+
+不要把重点放在 JSON Schema。
+
+不要把重点放在数据库。
+
+重点回答：
+
+系统如何从 Discovery 结果中判断：
+
+• 
+
+品牌阶段
+
+• 
+
+品牌问题
+
+• 
+
+品牌机会
+
+• 
+
+建议动作
+
+最终输出：
+
+Diagnosis ↓ Brand Brief
+
+的完整决策链路。
+
+两个任务可以并行。
+
+但 Manus 可行性验证优先级更高。
+
+1
+
+

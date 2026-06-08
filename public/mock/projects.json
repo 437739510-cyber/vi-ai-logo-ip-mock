@@ -1,0 +1,229 @@
+[
+  {
+    "id": "VI-20260607-UYD4",
+    "submissionId": "SBM-20260607-8527",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "4YPLM9",
+    "mainProducts": "汉堡、薯条、可乐",
+    "createdAt": "2026-06-07T16:46:58.527Z",
+    "updatedAt": "2026-06-07T16:46:58.527Z",
+    "created_at": "2026-06-07T16:46:58.527Z",
+    "updated_at": "2026-06-07T16:46:58.527Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-07T16:46:58.527Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260606-PARL",
+    "submissionId": "SBM-20260606-0074",
+    "status": "submitted",
+    "brandColors": null,
+    "createdAt": "2026-06-06T00:02:50.074Z",
+    "updatedAt": "2026-06-06T00:02:50.074Z",
+    "created_at": "2026-06-06T00:02:50.074Z",
+    "updated_at": "2026-06-06T00:02:50.074Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-06T00:02:50.074Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260606-G5QX",
+    "submissionId": "SBM-20260606-4678",
+    "status": "submitted",
+    "brandColors": null,
+    "createdAt": "2026-06-06T00:02:04.678Z",
+    "updatedAt": "2026-06-06T00:02:04.678Z",
+    "created_at": "2026-06-06T00:02:04.678Z",
+    "updated_at": "2026-06-06T00:02:04.678Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-06T00:02:04.678Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260605-JOLH",
+    "submissionId": "SBM-20260605-8620",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#2E7D32",
+      "secondary": "#1565C0",
+      "accent": "#BBDEFB"
+    },
+    "createdAt": "2026-06-05T23:33:08.617Z",
+    "updatedAt": "2026-06-05T23:33:08.617Z",
+    "created_at": "2026-06-05T23:33:08.617Z",
+    "updated_at": "2026-06-05T23:33:08.617Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-05T23:33:08.617Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260605-QBJZ",
+    "submissionId": "SBM-20260605-2913",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#00695C",
+      "secondary": "#D84315",
+      "accent": "#FFB300"
+    },
+    "createdAt": "2026-06-05T13:43:22.912Z",
+    "updatedAt": "2026-06-05T13:43:22.912Z",
+    "created_at": "2026-06-05T13:43:22.912Z",
+    "updated_at": "2026-06-05T13:43:22.912Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-05T13:43:22.912Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260605-6GKY",
+    "submissionId": "SBM-20260605-6566",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#CC2200",
+      "secondary": "#FFD700",
+      "accent": "#1A1A1A"
+    },
+    "createdAt": "2026-06-05T11:59:36.565Z",
+    "updatedAt": "2026-06-05T11:59:36.565Z",
+    "created_at": "2026-06-05T11:59:36.565Z",
+    "updated_at": "2026-06-05T11:59:36.565Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-05T11:59:36.565Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260605-BEP3",
+    "submissionId": "SBM-20260605-0170",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#CC2200",
+      "secondary": "#FFD700",
+      "accent": "#1A1A1A"
+    },
+    "createdAt": "2026-06-05T11:38:20.170Z",
+    "updatedAt": "2026-06-05T11:38:20.170Z",
+    "created_at": "2026-06-05T11:38:20.170Z",
+    "updated_at": "2026-06-05T11:38:20.170Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-05T11:38:20.170Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260605-YN69",
+    "submissionId": "SBM-20260605-8297",
+    "status": "submitted",
+    "brandColors": null,
+    "createdAt": "2026-06-05T05:10:38.297Z",
+    "updatedAt": "2026-06-05T05:10:38.297Z",
+    "created_at": "2026-06-05T05:10:38.297Z",
+    "updated_at": "2026-06-05T05:10:38.297Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-05T05:10:38.297Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260528-NDKW",
+    "submissionId": "SBM-20260528-2325",
+    "status": "submitted",
+    "createdAt": "2026-05-28T08:53:42.325Z",
+    "updatedAt": "2026-05-28T08:53:42.325Z",
+    "created_at": "2026-05-28T08:53:42.325Z",
+    "updated_at": "2026-05-28T08:53:42.325Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-05-28T08:53:42.325Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260528-NBAQ",
+    "submissionId": "SBM-20260528-3523",
+    "status": "submitted",
+    "created_at": "2026-05-28T03:59:23.523Z",
+    "updated_at": "2026-05-28T03:59:23.523Z",
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-05-28T03:59:23.523Z"
+      }
+    ],
+    "createdAt": "2026-05-28T03:59:23.523Z",
+    "updatedAt": "2026-05-28T03:59:23.523Z"
+  },
+  {
+    "id": "VI-20260527-077K",
+    "submissionId": "SBM-20260527-1638",
+    "status": "submitted",
+    "assignedTo": null,
+    "createdAt": "2026-05-27T14:29:31.638Z",
+    "updatedAt": "2026-05-27T14:29:31.638Z",
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-05-27T14:29:31.638Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260527-VMH3",
+    "submissionId": "SBM-20260527-1159",
+    "status": "submitted",
+    "assignedTo": null,
+    "createdAt": "2026-05-27T14:26:21.159Z",
+    "updatedAt": "2026-05-27T14:26:21.159Z",
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-05-27T14:26:21.159Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260526-8ORD",
+    "submissionId": "SBM-20260526-9277",
+    "status": "submitted",
+    "assignedTo": null,
+    "createdAt": "2026-05-26T10:48:29.277Z",
+    "updatedAt": "2026-05-26T10:48:29.277Z",
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-05-26T10:48:29.277Z"
+      }
+    ]
+  }
+]

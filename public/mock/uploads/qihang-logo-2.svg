@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="qg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#BF360C;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#E65100;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="40" fill="none" stroke="url(#qg2)" stroke-width="5"/>
+  <path d="M35,60 Q60,30 85,60 Q60,90 35,60" fill="url(#qg2)" opacity="0.85"/>
+  <text x="115" y="52" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="700" fill="#BF360C">Qihang</text>
+  <text x="115" y="78" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400" fill="#666">Creative Studio</text>
+</svg>

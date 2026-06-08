@@ -1,0 +1,446 @@
+[
+  {
+    "id": "PLAN-1779695143127-0",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 1",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T07:45:43.127Z"
+  },
+  {
+    "id": "PLAN-1779695143127-1",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 2",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T07:45:43.127Z"
+  },
+  {
+    "id": "PLAN-1779695143127-2",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 3",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T07:45:43.127Z"
+  },
+  {
+    "id": "PLAN-1779698719470-0",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 1",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T08:45:19.470Z"
+  },
+  {
+    "id": "PLAN-1779698719471-1",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 2",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T08:45:19.471Z"
+  },
+  {
+    "id": "PLAN-1779698719471-2",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 3",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-25T08:45:19.471Z"
+  },
+  {
+    "id": "PLAN-1779755343000-0",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 1",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-26T00:29:03.000Z"
+  },
+  {
+    "id": "PLAN-1779755343000-1",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 2",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-26T00:29:03.000Z"
+  },
+  {
+    "id": "PLAN-1779755343000-2",
+    "projectId": "VI-20260525-22WV",
+    "styleLabel": "Style 3",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-26T00:29:03.000Z"
+  },
+  {
+    "id": "PLAN-1779892132705-0",
+    "projectId": "VI-20260527-VMH3",
+    "styleLabel": "Style 1",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-27T14:28:52.705Z"
+  },
+  {
+    "id": "PLAN-1779892132705-1",
+    "projectId": "VI-20260527-VMH3",
+    "styleLabel": "Style 2",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-27T14:28:52.705Z"
+  },
+  {
+    "id": "PLAN-1779892132705-2",
+    "projectId": "VI-20260527-VMH3",
+    "styleLabel": "Style 3",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-27T14:28:52.705Z"
+  },
+  {
+    "id": "PLAN-1779892248831-0",
+    "projectId": "VI-20260527-077K",
+    "styleLabel": "Style 1",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-27T14:30:48.831Z"
+  },
+  {
+    "id": "PLAN-1779892248831-1",
+    "projectId": "VI-20260527-077K",
+    "styleLabel": "Style 2",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-27T14:30:48.831Z"
+  },
+  {
+    "id": "PLAN-1779892248831-2",
+    "projectId": "VI-20260527-077K",
+    "styleLabel": "Style 3",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-27T14:30:48.831Z"
+  },
+  {
+    "id": "PLAN-1779892426413-0",
+    "projectId": "VI-20260527-077K",
+    "styleLabel": "Style 1",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "strong",
+    "isFavorited": false,
+    "generatedAt": "2026-05-27T14:33:46.413Z"
+  },
+  {
+    "id": "PLAN-1779892426413-1",
+    "projectId": "VI-20260527-077K",
+    "styleLabel": "Style 2",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "strong",
+    "isFavorited": false,
+    "generatedAt": "2026-05-27T14:33:46.413Z"
+  },
+  {
+    "id": "PLAN-1779892426413-2",
+    "projectId": "VI-20260527-077K",
+    "styleLabel": "Style 3",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "strong",
+    "isFavorited": false,
+    "generatedAt": "2026-05-27T14:33:46.413Z"
+  },
+  {
+    "id": "PLAN-1779942631470-0",
+    "projectId": "VI-20260528-NBAQ",
+    "styleLabel": "椰风海韵",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-28T04:30:31.470Z",
+    "colorPalette": {
+      "primary": "#6DB33F",
+      "secondary": "#2C7A9C",
+      "accent": "#F5E6CA"
+    },
+    "fontPairing": {
+      "heading": "Noto Sans SC (Bold)",
+      "body": "Noto Sans SC (Regular)"
+    },
+    "description": "以椰青绿和海洋蓝为主色调，搭配暖白色辅助，融合原产地自然与海洋元素，通过柔和的渐变与圆润字体传递鲜活与亲和力，适用于直播与包装视觉冲击。"
+  },
+  {
+    "id": "PLAN-1779942631470-2",
+    "projectId": "VI-20260528-NBAQ",
+    "styleLabel": "热带晨曦",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-28T04:30:31.470Z",
+    "colorPalette": {
+      "primary": "#F4A460",
+      "secondary": "#2E8B57",
+      "accent": "#FFD700"
+    },
+    "fontPairing": {
+      "heading": "PingFang SC (Semibold)",
+      "body": "PingFang SC (Regular)"
+    },
+    "description": "以暖橙色和椰青绿为主色调，搭配金色点缀，传递热带活力与温暖归属感。圆润无衬线字体配合流动线条，强调原产地的本真与农产品真诚。"
+  },
+  {
+    "id": "PLAN-1779943489821-0",
+    "projectId": "VI-20260528-NBAQ",
+    "styleLabel": "热带阳光",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-28T04:44:49.821Z",
+    "colorPalette": {
+      "primary": "#8BC34A",
+      "secondary": "#FFEB3B",
+      "accent": "#FF9800"
+    },
+    "fontPairing": {
+      "heading": "Poppins Bold",
+      "body": "Open Sans Regular"
+    },
+    "description": "以鲜榨椰子水的自然绿为主色，搭配阳光黄和活力橙，营造热带阳光与新鲜榨取的感受。字体采用现代圆润的 Poppins 和清晰易读的 Open Sans，传递亲和力与品质感，适合直播带货场景下的视觉冲击力。"
+  },
+  {
+    "id": "PLAN-1779946390535-0",
+    "projectId": "VI-20260528-F7TP",
+    "styleLabel": "热带工业风",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-28T05:33:10.535Z",
+    "colorPalette": {
+      "primary": "#006847",
+      "secondary": "#D4A574",
+      "accent": "#4CB5A0"
+    },
+    "fontPairing": {
+      "heading": "Source Sans Pro Bold",
+      "body": "Source Sans Pro Regular"
+    },
+    "description": "以稳重墨绿作为主色，传递海南特有的自然生态与食品工业的可靠性；暖沙色辅助色带来热带地域的温暖感受，亮绿蓝色点缀提升现代感与活力。无衬线字体简约清晰，适合制造型企业传递专业、信赖的品牌形象。"
+  },
+  {
+    "id": "PLAN-1779946390535-1",
+    "projectId": "VI-20260528-F7TP",
+    "styleLabel": "深海蓝韵风",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-28T05:33:10.535Z",
+    "colorPalette": {
+      "primary": "#1A3C5E",
+      "secondary": "#A8C5D6",
+      "accent": "#F4A261"
+    },
+    "fontPairing": {
+      "heading": "Montserrat Bold",
+      "body": "Montserrat Regular"
+    },
+    "description": "深蓝主色调象征海洋与科技，凸显食品加工的洁净与严谨；浅蓝灰辅助色营造清新专业感，暖橙色强调色注入活力与热情，体现品牌的地域特色与亲和力。几何无衬线字体强化工业感，整体调性沉稳而不失灵动。"
+  },
+  {
+    "id": "PLAN-1779946390535-2",
+    "projectId": "VI-20260528-F7TP",
+    "styleLabel": "生态棕绿风",
+    "thumbnailUrl": "",
+    "previewUrls": {
+      "cover": "",
+      "colorPage": "",
+      "fontPage": "",
+      "appPage": ""
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-28T05:33:10.535Z",
+    "colorPalette": {
+      "primary": "#4A6B3F",
+      "secondary": "#C9A66B",
+      "accent": "#E07A5F"
+    },
+    "fontPairing": {
+      "heading": "Roboto Condensed Bold",
+      "body": "Roboto Regular"
+    },
+    "description": "棕绿色系组合直接呼应海南的自然原料与生态农业，主色沉稳可靠，辅助色温暖质朴，陶土红色强调色增加视觉亮点与食欲感。字体选用紧凑无衬线字体，结构清晰、易读性强，在保持专业度的同时传递自然活力。"
+  }
+]

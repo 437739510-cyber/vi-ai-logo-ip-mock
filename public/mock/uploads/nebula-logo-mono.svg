@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <circle cx="60" cy="60" r="45" fill="#333" opacity="0.9"/>
+  <circle cx="60" cy="60" r="30" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+  <circle cx="60" cy="60" r="18" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
+  <circle cx="60" cy="60" r="3" fill="white"/>
+  <text x="120" y="52" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="700" fill="#333">Nebula</text>
+  <text x="120" y="78" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400" fill="#666">Technology</text>
+</svg>

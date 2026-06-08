@@ -1,0 +1,120 @@
+[
+  {
+    "id": "SBM-20260525-0004",
+    "clientName": "南昌客户",
+    "companyName": "南昌客户公司",
+    "phone": "13800138000",
+    "wechat": "",
+    "industry": "其他",
+    "budgetRange": "5000-10000",
+    "description": "来自南昌的客户提交",
+    "logoAssets": [],
+    "mascotAssets": [],
+    "submittedAt": "2026-05-25T14:30:00+08:00"
+  },
+  {
+    "id": "SBM-20260523-0001",
+    "clientName": "张三",
+    "companyName": "星云科技有限公司",
+    "phone": "13800138000",
+    "wechat": "zhangshan_vi",
+    "industry": "科技/互联网",
+    "budgetRange": "5000-10000",
+    "description": "公司新品牌升级，需要一套完整的 VI 手册，风格偏向极简科技感",
+    "logoAssets": [
+      {
+        "fileName": "nebula-logo-color.svg",
+        "url": "/mock/uploads/nebula-logo-color.svg",
+        "size": 245000
+      },
+      {
+        "fileName": "nebula-logo-mono.svg",
+        "url": "/mock/uploads/nebula-logo-mono.svg",
+        "size": 198000
+      }
+    ],
+    "mascotAssets": [
+      {
+        "name": "小星",
+        "personality": "活泼、科技感、亲和",
+        "files": [
+          {
+            "fileName": "xiaoxing-front.png",
+            "url": "/mock/uploads/xiaoxing-front.png",
+            "size": 1200000
+          },
+          {
+            "fileName": "xiaoxing-side.png",
+            "url": "/mock/uploads/xiaoxing-side.png",
+            "size": 1100000
+          }
+        ]
+      }
+    ],
+    "referenceManual": {
+      "fileName": "nebula-brand-guidelines.pdf",
+      "url": "/mock/uploads/nebula-brand-guidelines.pdf",
+      "size": 8500000,
+      "pageCount": 24,
+      "isReferenceEnabled": true,
+      "referenceMode": "weak"
+    },
+    "status": "submitted",
+    "submittedAt": "2026-05-23T10:30:00+08:00"
+  },
+  {
+    "id": "SBM-20260523-0002",
+    "clientName": "李四",
+    "companyName": "茶语品牌管理有限公司",
+    "phone": "13900139000",
+    "industry": "餐饮/食品",
+    "budgetRange": "3000-5000",
+    "description": "新创茶饮品牌，需要一套清新风格的 VI 手册",
+    "logoAssets": [
+      {
+        "fileName": "teatalks-logo.svg",
+        "url": "/mock/uploads/teatalks-logo.svg",
+        "size": 180000
+      }
+    ],
+    "mascotAssets": [],
+    "status": "contacted",
+    "submittedAt": "2026-05-22T14:20:00+08:00"
+  },
+  {
+    "id": "SBM-20260523-0003",
+    "clientName": "王五",
+    "companyName": "启航教育集团",
+    "phone": "13700137000",
+    "industry": "教育/培训",
+    "budgetRange": "10000-30000",
+    "description": "集团旗下三个子品牌的 VI 体系梳理和统一",
+    "logoAssets": [
+      {
+        "fileName": "qihang-logo-1.svg",
+        "url": "/mock/uploads/qihang-logo-1.svg",
+        "size": 320000
+      },
+      {
+        "fileName": "qihang-logo-2.svg",
+        "url": "/mock/uploads/qihang-logo-2.svg",
+        "size": 290000
+      }
+    ],
+    "mascotAssets": [
+      {
+        "name": "启小航",
+        "personality": "阳光、积极、聪明",
+        "files": [
+          {
+            "fileName": "qixiaohang.png",
+            "url": "/mock/uploads/qixiaohang.png",
+            "size": 2100000
+          }
+        ]
+      }
+    ],
+    "status": "confirmed",
+    "submittedAt": "2026-05-21T09:15:00+08:00"
+  }
+]

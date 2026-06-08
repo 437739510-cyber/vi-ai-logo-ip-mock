@@ -1,0 +1,66 @@
+[
+  {
+    "id": "PLAN-001",
+    "projectId": "PRJ-20260523-0001",
+    "styleLabel": "极简科技蓝",
+    "thumbnailUrl": "/mock/plans/nebula-plan-thumb-1.jpg",
+    "previewUrls": {
+      "cover": "/mock/plans/nebula-plan-cover-1.jpg",
+      "colorPage": "/mock/plans/nebula-plan-color-1.jpg",
+      "fontPage": "/mock/plans/nebula-plan-font-1.jpg",
+      "appPage": "/mock/plans/nebula-plan-app-1.jpg"
+    },
+    "referenceUsed": true,
+    "referenceMode": "weak",
+    "isFavorited": false,
+    "generatedAt": "2026-05-23T11:05:00+08:00"
+  },
+  {
+    "id": "PLAN-002",
+    "projectId": "PRJ-20260523-0001",
+    "styleLabel": "赛博霓虹",
+    "thumbnailUrl": "/mock/plans/nebula-plan-thumb-2.jpg",
+    "previewUrls": {
+      "cover": "/mock/plans/nebula-plan-cover-2.jpg",
+      "colorPage": "/mock/plans/nebula-plan-color-2.jpg",
+      "fontPage": "/mock/plans/nebula-plan-font-2.jpg",
+      "appPage": "/mock/plans/nebula-plan-app-2.jpg"
+    },
+    "referenceUsed": true,
+    "referenceMode": "strong",
+    "isFavorited": true,
+    "generatedAt": "2026-05-23T11:06:00+08:00"
+  },
+  {
+    "id": "PLAN-003",
+    "projectId": "PRJ-20260523-0001",
+    "styleLabel": "自然生态",
+    "thumbnailUrl": "/mock/plans/nebula-plan-thumb-3.jpg",
+    "previewUrls": {
+      "cover": "/mock/plans/nebula-plan-cover-3.jpg",
+      "colorPage": "/mock/plans/nebula-plan-color-3.jpg",
+      "fontPage": "/mock/plans/nebula-plan-font-3.jpg",
+      "appPage": "/mock/plans/nebula-plan-app-3.jpg"
+    },
+    "referenceUsed": false,
+    "referenceMode": "none",
+    "isFavorited": false,
+    "generatedAt": "2026-05-23T11:07:00+08:00"
+  },
+  {
+    "id": "PLAN-004",
+    "projectId": "PRJ-20260523-0003",
+    "styleLabel": "活力教育橙",
+    "thumbnailUrl": "/mock/plans/qihang-plan-thumb-1.jpg",
+    "previewUrls": {
+      "cover": "/mock/plans/qihang-plan-cover-1.jpg",
+      "colorPage": "/mock/plans/qihang-plan-color-1.jpg",
+      "fontPage": "/mock/plans/qihang-plan-font-1.jpg",
+      "appPage": "/mock/plans/qihang-plan-app-1.jpg"
+    },
+    "referenceUsed": false,
+    "referenceMode": "none",
+    "isFavorited": false,
+    "generatedAt": "2026-05-22T14:00:00+08:00"
+  }
+]

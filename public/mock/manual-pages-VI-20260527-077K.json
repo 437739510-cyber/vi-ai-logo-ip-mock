@@ -1,0 +1,14 @@
+{
+  "projectId": "VI-20260527-077K",
+  "pages": [
+    {
+      "pageId": "cover",
+      "label": "封面",
+      "url": "/generated/VI-20260527-077K-cover.png"
+    }
+  ],
+  "errors": [],
+  "generatedAt": "2026-05-27T14:32:53.084Z",
+  "totalPages": 1,
+  "failedPages": 0
+}

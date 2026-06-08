@@ -1,0 +1,14 @@
+{
+  "projectId": "VI-20260525-22WV",
+  "pages": [
+    {
+      "pageId": "cover",
+      "label": "封面",
+      "url": "/generated/VI-20260525-22WV-cover.png"
+    }
+  ],
+  "errors": [],
+  "generatedAt": "2026-05-26T05:56:22.384Z",
+  "totalPages": 1,
+  "failedPages": 0
+}

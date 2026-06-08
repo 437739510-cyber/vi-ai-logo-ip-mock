@@ -1,0 +1,183 @@
+import { z } from "zod";
+
+export const consultationSchema = z.object({
+  clientName: z
+    .string()
+    .min(2, "请输入联系人姓名（至少 2 个字符）")
+    .max(20, "姓名不超过 20 个字符"),
+  companyName: z
+    .string()
+    .min(2, "请输入公司名或店铺名")
+    .max(100, "公司名或店铺名不超过 100 个字符"),
+  phone: z
+    .string()
+    .regex(/^1[3-9]\d{9}$/, "请输入正确的手机号（11 位数字）"),
+  email: z
+    .string()
+    .email("请输入正确的邮箱地址")
+    .optional()
+    .or(z.literal("")),
+  wechat: z
+    .string()
+    .max(50, "微信号不超过 50 个字符")
+    .optional()
+    .or(z.literal("")),
+  province: z.string().min(1, "请选择省份"),
+  city: z.string().min(1, "请选择城市"),
+  industry: z.string().min(1, "请选择所属行业"),
+  industryCustom: z
+    .string()
+    .max(100, "行业描述不超过 100 个字符")
+    .optional()
+    .or(z.literal("")),
+  mainProducts: z
+    .string()
+    .max(200, "主营产品不超过 200 个字符")
+    .optional()
+    .or(z.literal("")),
+  businessYears: z
+    .union([z.number().int().min(0).max(200), z.nan()])
+    .optional()
+    .transform(v => (typeof v === "number" && !isNaN(v) ? v : undefined)),
+  brandHighlight: z
+    .string()
+    .max(200, "品牌独特点不超过 200 个字符")
+    .optional()
+    .or(z.literal("")),
+  customerProfile: z
+    .string()
+    .max(200, "客户群体描述不超过 200 个字符")
+    .optional()
+    .or(z.literal("")),
+  existingBrandColor: z
+    .string()
+    .max(20, "颜色值不超过 20 个字符")
+    .optional()
+    .or(z.literal("")),
+  budgetRange: z.string().optional(),
+  brandVision: z
+    .string()
+    .max(200, "品牌愿景不超过 200 个字符")
+    .optional()
+    .or(z.literal("")),
+  coreValues: z
+    .string()
+    .max(500, "核心价值不超过 500 个字符")
+    .optional()
+    .or(z.literal("")),
+  targetMarket: z
+    .string()
+    .max(500, "目标市场不超过 500 个字符")
+    .optional()
+    .or(z.literal("")),
+
+  brandColors: z.object({
+      primary: z.string().optional(),
+      secondary: z.string().optional(),
+      accent: z.string().optional(),
+    }).optional(),
+
+  logoPhilosophy: z
+    .string()
+    .max(500, "LOGO 设计理念不超过 500 个字符")
+    .optional()
+    .or(z.literal("")),
+  mascotPhilosophy: z
+    .string()
+    .max(500, "IP 公仔设计理念不超过 500 个字符")
+    .optional()
+    .or(z.literal("")),
+  description: z
+    .string()
+    .max(1000, "需求描述不超过 1000 个字符")
+    .optional()
+    .or(z.literal("")),
+});
+
+export type ConsultationFormData = z.infer<typeof consultationSchema>;
+
+// V13: 行业选项扩展 - 18个行业 + 其他自定义
+export const INDUSTRY_OPTIONS = [
+  "科技/互联网",
+  "餐厅/正餐",
+  "饮品/茶饮",
+  "火锅/小吃",
+  "服装/鞋帽",       // V13 NEW
+  "母婴/儿童",       // V13 NEW
+  "美容/美发",       // V13 NEW (模板已有，补前端)
+  "婚庆/摄影",       // V13 NEW
+  "健身/运动",       // V13 NEW
+  "药店/诊所",       // V13 NEW
+  "宠物",           // V13 NEW
+  "零售/电商",
+  "教育/培训",
+  "医疗/健康",
+  "金融/法律",
+  "文化/传媒",
+  "制造业",
+  "其他（请填写）",  // V13: 选中后展开 industryCustom 文本框
+];
+
+// V13: 行业→品牌独特点 提问话术映射
+export const INDUSTRY_HIGHLIGHT_MAP: Record<string, { question: string; tags: string[] }> = {
+  "科技/互联网": { question: "您的产品最让用户惊艳的功能是什么？", tags: ["技术创新", "用户体验", "行业领先"] },
+  "餐厅/正餐": { question: "您最拿手的一道菜或客人必点的是什么？", tags: ["招牌菜", "老顾客推荐", "家传手艺"] },
+  "饮品/茶饮": { question: "您的招牌饮品是什么？有什么特别做法？", tags: ["手工现做", "独家配方", "网红爆款"] },
+  "火锅/小吃": { question: "客人最馋您家哪一口？", tags: ["秘制底料", "现做现卖", "老味道"] },
+  "服装/鞋帽": { question: "您店里的风格定位是什么？", tags: ["国潮", "轻奢", "妈妈装", "街头"] },
+  "母婴/儿童": { question: "您最让妈妈放心的一点是什么？", tags: ["全进口正品", "零投诉", "老客户推荐"] },
+  "美容/美发": { question: "客人最常回头找您做什么项目？", tags: ["精剪", "纹绣", "护理", "染烫"] },
+  "婚庆/摄影": { question: "您最出圈的作品或服务是什么？", tags: ["一条龙", "中式", "复古", "旅拍"] },
+  "健身/运动": { question: "客人练出效果最明显的是什么？", tags: ["减脂", "增肌", "产后恢复", "体态矫正"] },
+  "药店/诊所": { question: "邻居最信任您什么？", tags: ["老中医", "平价", "医保定点", "半夜开门"] },
+  "宠物": { question: "客人为什么选您不选别家？", tags: ["24小时", "猫专科", "寄养", "上门"] },
+  "零售/电商": { question: "您店里最抢手的是什么？", tags: ["独家货源", "老店正品", "量大实惠"] },
+  "教育/培训": { question: "学员出成绩最亮眼的是什么？", tags: ["升学率", "考级过线", "口碑转介绍"] },
+  "医疗/健康": { question: "患者最认可您哪一点？", tags: ["医术精湛", "耐心细致", "设备先进"] },
+  "金融/法律": { question: "客户最信赖您的专业能力是什么？", tags: ["经验丰富", "成功案例", "快速响应"] },
+  "文化/传媒": { question: "您最拿手的内容或创作方向是什么？", tags: ["原创IP", "爆款经验", "垂直深耕"] },
+  "制造业": { question: "您最核心的技术或工艺优势是什么？", tags: ["专利技术", "品质稳定", "定制能力"] },
+  "其他（请填写）": { question: "客人最常夸您什么？", tags: ["10年老店", "随叫随到", "价格实在"] },
+};
+
+// V13: 行业→品牌愿景 提问话术映射
+export const INDUSTRY_VISION_MAP: Record<string, { question: string; tags: string[] }> = {
+  "科技/互联网": { question: "您希望用户想到您产品时的第一感觉？", tags: ["好用", "离不开", "未来感"] },
+  "餐厅/正餐": { question: "您希望客人想到您店时，脑子里冒出的第一感觉？", tags: ["家的味道", "实在靠谱", "有面子"] },
+  "饮品/茶饮": { question: "您希望客人喝到您家饮品是什么感觉？", tags: ["清爽解压", "颜值在线", "喝了还想喝"] },
+  "火锅/小吃": { question: "您希望食客怎么记住您？", tags: ["过瘾", "老味道", "越吃越想"] },
+  "服装/鞋帽": { question: "您希望客人穿上您家的衣服是什么感觉？", tags: ["有品味", "穿得体面", "跟上潮流"] },
+  "母婴/儿童": { question: "您希望妈妈们怎么推荐您？", tags: ["放心之选", "宝宝第一", "妈妈口碑"] },
+  "美容/美发": { question: "您希望客人做完头发是什么心情？", tags: ["变美了", "找到风格", "被宠爱"] },
+  "婚庆/摄影": { question: "您希望新人怎么看您？", tags: ["一生一次的完美", "省心靠谱", "比想象更美"] },
+  "健身/运动": { question: "您希望会员练完什么感觉？", tags: ["变强了", "找回自信", "这钱花得值"] },
+  "药店/诊所": { question: "您希望街坊怎么评价您？", tags: ["看病放心", "买药不贵", "大夫靠谱"] },
+  "宠物": { question: "您希望主人怎么看您？", tags: ["毛孩子的第二个家", "专业安心", "爱宠如己"] },
+  "零售/电商": { question: "您希望客人怎么记住您店？", tags: ["买得放心", "什么都有", "老店正品"] },
+  "教育/培训": { question: "您希望家长怎么推荐您？", tags: ["真出成绩", "老师负责", "孩子喜欢来"] },
+  "医疗/健康": { question: "您希望患者怎么评价您？", tags: ["专业权威", "温暖关怀", "值得托付"] },
+  "金融/法律": { question: "您希望客户怎么看您？", tags: ["专业可靠", "省心省力", "值得托付"] },
+  "文化/传媒": { question: "您希望受众怎么记住您？", tags: ["有创意", "有态度", "有深度"] },
+  "制造业": { question: "您希望客户怎么评价您？", tags: ["品质过硬", "交期准时", "值得合作"] },
+  "其他（请填写）": { question: "您希望客人怎么记住您？", tags: ["10年老店", "随叫随到", "办事靠谱"] },
+};
+
+// V13: 客户群体标签选项
+export const CUSTOMER_PROFILE_OPTIONS = [
+  "附近居民",
+  "上班族",
+  "学生党",
+  "家庭客",
+  "情侣",
+  "商务人士",
+  "中老年",
+  "年轻女性",
+];
+
+export const BUDGET_OPTIONS = [
+  "3000以下",
+  "3000-5000",
+  "5000-10000",
+  "10000-20000",
+  "20000以上",
+];

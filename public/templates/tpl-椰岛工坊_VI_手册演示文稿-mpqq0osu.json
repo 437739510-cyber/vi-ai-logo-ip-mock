@@ -1,0 +1,324 @@
+{
+  "templateId": "tpl-椰岛工坊_VI_手册演示文稿-mpqq0osu",
+  "sourceFile": "椰岛工坊_VI_手册演示文稿.pdf",
+  "industry": "其他",
+  "styleTags": [
+    "A",
+    "tropical",
+    "energizing",
+    "Natural",
+    "and"
+  ],
+  "qualityScore": 100,
+  "extractedSystem": {
+    "colors": {
+      "primary": {
+        "hex": "#227338",
+        "name": "Forest Green  dominant background or header"
+      },
+      "secondary": {
+        "hex": "#FFCC33",
+        "name": "Sunny Yellow  secondary"
+      },
+      "accent": {
+        "hex": "#FFCC33",
+        "name": "Sunny Yellow  accent for title"
+      }
+    },
+    "typography": {
+      "headingFont": "The brand name uses a custom hand",
+      "bodyFont": "All centered",
+      "sizeHierarchy": {
+        "标题1": "16pt",
+        "body": "10-12pt"
+      },
+      "fontMood": ""
+    },
+    "layoutPattern": {
+      "cover": "Centered layout with generous margins. The logo is placed at the top center, followed by the title in a medium-sized font, and the reporter info at the bottom. There is ample white space around all elements, creating a clean and professional appearance. The proportions are balanced, with the logo occupying about 30% of the page height.",
+      "innerPage": "Two-column or structured grid layout. The heading '品牌核心理念' is prominently placed at the top. Below, three sections (Vision, Core Value, Target Market) are arranged either in columns or stacked with clear headings and body text. Generous margins and consistent spacing between sections ensure readability.",
+      "gridSystem": "Centered layout with generous margins. The logo is placed at the top center, followed by the title in a medium-sized font, and the reporter info at the bottom. There is ample white space around all el"
+    },
+    "moodKeywords": [
+      "A",
+      "tropical",
+      "energizing",
+      "Natural",
+      "and",
+      "The",
+      "of",
+      "jungle",
+      "green",
+      "sunshine"
+    ],
+    "perPageMapping": {
+      "cover": {
+        "refPages": [
+          1
+        ],
+        "pageText": "椰岛⼯坊\n品牌视觉识别系统 (VI) 规范⼿册\n汇报⼈：Manus AI 品牌设计组",
+        "layout": "Centered layout with generous margins. The logo is placed at the top center, followed by the title in a medium-sized font, and the reporter info at the bottom. There is ample white space around all elements, creating a clean and professional appearance. The proportions are balanced, with the logo occupying about 30% of the page height.",
+        "colors": [
+          "Forest Green #227338 (dominant background or header)",
+          "Sunny Yellow #FFCC33 (accent for title)"
+        ],
+        "typography": "The brand name uses a custom hand-drawn brush stroke font in a bold weight. The subtitle '品牌视觉识别系统 (VI) 规范手册' uses a modern rounded sans-serif font, medium weight. The reporter line uses a smaller sans-serif font. The contrast between the brush font and sans-serif creates a dynamic hierarchy.",
+        "visualHierarchy": "The eye is first drawn to the brand name due to its large size and unique brush font. Then it moves down to the subtitle, which is smaller but still prominent. Finally, the reporter name at the bottom is the least emphasized. This vertical flow is supported by central alignment.",
+        "colorPalette": "The primary color is Forest Green, used for background or major shapes. Sunny Yellow is used for the title or key accents. A neutral white or light cream background provides contrast. No gradients are used, giving a flat, bold look.",
+        "visualMood": "Natural, energizing, and professional. The combination of jungle green and sunshine yellow evokes tropical freshness and vitality, while the clean layout maintains a corporate feel.",
+        "keyElements": [
+          "Brand logo",
+          "Subtitle",
+          "Reporter line"
+        ],
+        "contentStructure": "Top: Brand name; Middle: Manual description; Bottom: Reporter attribution.",
+        "designNotes": "Use a large hand-drawn logo centrally. Keep the background clean and solid. Limit text to three hierarchy levels. Use green as primary and yellow as accent. Margins should be generous (at least 20% of page)."
+      },
+      "brand-philosophy": {
+        "refPages": [
+          2
+        ],
+        "pageText": "品牌核⼼理念：⾃然能量，纯粹⽣活\n品牌愿景\n打造 北纬 1 8 °  ⻩⾦产区 的椰⼦⽔定制专家，将最纯净的热带能量带给每⼀位追求健康的⽤⼾。\n核⼼价值\n新鲜直达、匠⼼定制、健康专业。我们坚持原产地直采，通过⼯坊式的精细化定制，满⾜不同客⼾的个性化需求。\n⽬标市场\n精准覆盖 高端酒店采购 与 健⾝博主群体，建⽴专业、⾼端、充满活⼒的品牌联想。",
+        "layout": "Two-column or structured grid layout. The heading '品牌核心理念' is prominently placed at the top. Below, three sections (Vision, Core Value, Target Market) are arranged either in columns or stacked with clear headings and body text. Generous margins and consistent spacing between sections ensure readability.",
+        "colors": [
+          "Forest Green #227338 (headings)",
+          "Ocean Blue #007ACC (accents for icons or dividers)",
+          "Dark Gray (body text)"
+        ],
+        "typography": "The heading uses the brand's custom brush font in green. Section headings (愿景, 核心价值, 目标市场) use a bold rounded sans-serif. Body text uses a clean sans-serif like PingFang or Montserrat in regular weight. Font sizes: large heading (~24pt), medium section titles (~16pt), body (~10-12pt). Line spacing is 1.5 for body.",
+        "visualHierarchy": "The brand philosophy statement is the largest element at top, drawing immediate attention. Then the three sections are equally weighted, each with a bold title and supporting bullet points. The eye scans horizontally across sections or vertically down the page.",
+        "colorPalette": "Forest Green dominates for headings, paired with white or light gray background. Ocean Blue appears in small accents (e.g., bullet icons). Body text is dark gray (#333333). The palette is clean and professional.",
+        "visualMood": "Clear, informative, and trustworthy. The structured layout and consistent green color convey reliability and natural focus.",
+        "keyElements": [
+          "Brand philosophy tagline",
+          "Three section cards with titles and text"
+        ],
+        "contentStructure": "Top: Slogan; Middle: Three column layout with Vision, Core Value, Target Market; each with subtext.",
+        "designNotes": "Use a strong green headline for the philosophy. Divide content into three equal columns with subtle separators. Use bullet points for core values. Keep body text left-aligned. Add small icons for each section (e.g., target, gem, handshake) in Ocean Blue."
+      },
+      "logo-interpretation": {
+        "refPages": [
+          3
+        ],
+        "pageText": "标识诠释：视觉符号的深度融合\n热带符号\n椰⼦树、海浪与⻜⻦构建强烈的海岛度假⻛情，直观呼应品牌名。\n地理背书\n太阳标注“ 1 8 ° N  F r es hnes s ” ，强调北纬 1 8 °  ⻩⾦产区的核⼼卖点。\n健康暗⽰\n底部巧妙融⼊哑铃图标，精准锁定健⾝与健康补给市场。\n匠⼼笔触\n⼿绘⻛格体现“ ⼯坊” 的定制感与原⽣⼒量，展现匠⼼精神。",
+        "layout": "The page is split into a left panel with the logo itself (large) and a right panel with explanatory text. Alternatively, text may be placed below. The logo is centrally featured with annotations pointing to specific elements (coconut tree, sun, dumbbell). The layout uses a clear grid: logo occupies 40% left, text 60% right or bottom.",
+        "colors": [
+          "Forest Green #227338 (logo primary)",
+          "Sunny Yellow #FFCC33 (sun element)",
+          "Ocean Blue #007ACC (water elements)",
+          "White #FFFFFF (background)"
+        ],
+        "typography": "Section title '标识诠释' uses the brush font in green. Annotation labels (e.g., '热带符号', '地理背书') use bold rounded sans-serif in dark gray. Description text uses regular weight sans-serif. Pointers or callouts use a smaller font.",
+        "visualHierarchy": "The eye is first captured by the large logo illustration, then moves to the annotation labels and descriptions arranged around it. The labels are positioned near the corresponding logo elements, creating a clear cause-effect reading.",
+        "colorPalette": "The logo uses Forest Green, Sunny Yellow, and Ocean Blue in a vector illustration. Background is white. Annotations are dark gray on white. The palette is vibrant but balanced.",
+        "visualMood": "Explanatory and illustrative. The mood is informative and friendly, with the hand-drawn logo style reinforcing craftsmanship.",
+        "keyElements": [
+          "Logo illustration",
+          "Annotation text with arrows or lines",
+          "Section title"
+        ],
+        "contentStructure": "Top: Title; Center: Logo with labels around it; Each label has a heading and short description.",
+        "designNotes": "Place the logo prominently. Use line connectors from text to logo parts. Keep descriptions short. Use the three brand colors within the logo. Use a light background to let logo pop."
+      },
+      "brand-colors": {
+        "refPages": [
+          4
+        ],
+        "pageText": "标准⾊彩规范：传递品牌情感\n森林绿 (Forest Green)\nH EX :  # 227338 |  CM YK :  85, 30, 100, 15\n代表⾃然、健康与⽣命⼒，是品牌的核⼼识别⾊。\n阳光⻩ (Sunny Yellow)\nH EX :  # F F CC33 |  CM YK :  0, 20, 90, 0\n代表能量、热情与新鲜度，为品牌注⼊活⼒。\n海洋蓝 (Ocean Blue)\nH EX :  # 007ACC |  CM YK :  80, 40, 0, 0\n代表纯净、清爽与⽔源地，体现产品的⾼品质。",
+        "layout": "A clean, minimal grid layout with three color swatch cards arranged horizontally or in a column. Each card contains a large color block (approx 40% width), the color name, hex and CMYK values, and a brief description. Ample white space around each card. Swatches are uniform in size, aligned to a grid.",
+        "colors": [
+          "Forest Green #227338 (primary)",
+          "Sunny Yellow #FFCC33 (secondary)",
+          "Ocean Blue #007ACC (accent)",
+          "White #FFFFFF (background)",
+          "Dark Gray #333333 (text)"
+        ],
+        "typography": "Section title uses brush font in Forest Green. Color names use bold rounded sans-serif. Hex and CMYK values use a monospace or sans-serif, smaller size. Descriptions use regular sans-serif. Clear hierarchy: name larger, values medium, description small.",
+        "visualHierarchy": "The large color swatches immediately draw attention. Below each swatch, the color name is the next most prominent, then the technical values, then the description. The eye moves left to right across swatches.",
+        "colorPalette": "The palette is exactly the three brand colors: Forest Green, Sunny Yellow, Ocean Blue. They appear in large solid blocks. The background is white. Text is dark gray.",
+        "visualMood": "Clean, authoritative, and precise. The layout feels like a technical specification, conveying professionalism and accuracy.",
+        "keyElements": [
+          "Color swatch blocks",
+          "Color names",
+          "Hex/CMYK codes",
+          "Color descriptions"
+        ],
+        "contentStructure": "Title; Three color cards, each with: swatch, name, technical codes, description.",
+        "designNotes": "Use large rectangular blocks for swatches. Include both HEX and CMYK for practical use. Describe the emotional meaning of each color. Keep layout symmetrical. Use consistent spacing between cards."
+      },
+      "typography": {
+        "refPages": [
+          5
+        ],
+        "pageText": "字体系统：兼顾辨识度与专业感\n主品牌字体\n定制⼿绘笔触体 ( Br u s h  Str o k e )\n⽤于品牌名称“ 椰岛⼯坊” ，展现品牌独特个性与热带能量。\n辅助字体\n现代圆体 ( M o d e r n  R o u n d e d  Sa n s )\n⽤于⼝号“ ⾃然能量 ·  纯粹⽣活” ，提升阅读易读性与亲和⼒。\n通⽤字体\n中：苹⽅ /  思源⿊体 | 英：M o n ts e r r a t\n⽤于正⽂排版、办公⽂档及社交媒体内容，确保视觉统⼀。",
+        "layout": "Structured layout with three font categories displayed in rows or columns. Each category has a heading, a sample of the font in use, and a description. The font samples are set in the actual font, showing the text appearance. A consistent grid with left-aligned text and ample white space.",
+        "colors": [
+          "Forest Green #227338 (headings)",
+          "Dark Gray #333333 (body text)",
+          "White #FFFFFF (background)"
+        ],
+        "typography": "The page shows three fonts: a custom brush stroke for primary, a modern rounded sans for secondary, and PingFang/Source Han Sans/Montserrat for body. The font samples are set in large sizes to show details. Headings use the brush font. Descriptions use the body font.",
+        "visualHierarchy": "The section title is largest. Then each category is equally weighted: category heading (medium size), font sample (large size to demonstrate), description (small). The eye moves top-down, scanning each category.",
+        "colorPalette": "Monochromatic with green accents: headings green, text dark gray, background white. The fonts themselves are black/dark gray in the samples.",
+        "visualMood": "Clean, educational, and organized. The layout emphasizes the fonts themselves, letting them speak.",
+        "keyElements": [
+          "Category headings",
+          "Font name labels",
+          "Font sample text",
+          "Usage descriptions"
+        ],
+        "contentStructure": "Title; Three sections: Primary font, Secondary font, Body font; each with name, sample, usage notes.",
+        "designNotes": "Show font samples in large size. Clearly label usage scenarios. Indicate Chinese and English font pairs. Use the fonts themselves to display the sample. Keep alignment consistent."
+      },
+      "basic-spec": {
+        "refPages": [
+          6
+        ],
+        "pageText": "基础规范：保护空间与最⼩尺⼨\n保护空间\n标识四周需留出⾄少 0 . 5 X  的空⽩区域（X\n为标识⾼度） ，严禁任何⽂字或图形侵⼊，\n以确保标识的独⽴性与识别度。\n最⼩尺⼨\n为保证标识在各种媒介上的清晰呈现，设\n定以下最⼩尺⼨限制：\n严禁⾏为\n在任何情况下，严禁对标识进⾏以下违规\n操作：\n印刷应⽤：⾼度不⼩于 15mm•\n数码应⽤：⾼度不⼩于 60px•\n禁⽌拉伸、压缩或扭曲变形•\n禁⽌擅⾃改变标识标准⾊•\n禁⽌侵占设定的保护空间•\n禁⽌在复杂背景下强⾏使⽤•",
+        "layout": "Two-column or stacked layout. Left or top: Protection area specification with a diagram showing the logo and its clearance zone (indicated by a bounding box with measure '0.5X'). Right or bottom: Minimum size specifications and prohibited uses listed with bullet points. The diagram is simple, using light gray lines and arrows.",
+        "colors": [
+          "Forest Green #227338 (headings and logo example)",
+          "Light Gray #F0F0F0 (diagram background)",
+          "Dark Gray #333333 (text)",
+          "Red #FF0000 (prohibited symbols or warnings)"
+        ],
+        "typography": "Section title in brush font. Subheadings in bold rounded sans-serif. Specifications in regular sans-serif with numerical values in bold. Bullet points use a simple list style. Font sizes moderate for readability.",
+        "visualHierarchy": "The diagram or logo image is the focal point. Then the 'Protection Area' and 'Minimum Size' headings are prominent. Bullet points are smallest but clearly separated.",
+        "colorPalette": "Primarily grayscale with green accents. Red used sparingly for prohibitions. The diagram uses light gray, white, and green for the logo.",
+        "visualMood": "Technical, strict, and instructional. The layout feels like a specification sheet, emphasizing rules and compliance.",
+        "keyElements": [
+          "Logo with protection zone diagram",
+          "Minimum size table or list",
+          "Prohibited behaviors list with red 'no' symbols"
+        ],
+        "contentStructure": "Title; Protection area (diagram + description); Minimum size (two lines); Prohibited behaviors (list).",
+        "designNotes": "Include a clear diagram of the logo with a dashed line showing clearance. Use red 'X' or prohibited symbols. Use consistent measurement units (X, mm, px). Keep text concise and rule-oriented."
+      },
+      "stationery": {
+        "refPages": [
+          7
+        ],
+        "pageText": "办公应⽤系统：商务专业形象\n名⽚设计规范\n采⽤ 3 0 0 g  特种纸，正⾯居中放置 L o g o ，背⾯使\n⽤椰叶辅助图形底纹，体现⾃然质感。\n信封信纸规范\n⻚眉统⼀放置标准 L o g o ，⻚脚标注公司地址与联\n系⽅式，保持商务沟通的专业度与⼀致性。\n视觉感受\n整体⻛格简洁、专业，通过⾼品质材质与规范化\n排版建⽴客⼾信任感。",
+        "layout": "Showcase layout featuring mockups of business cards and letterhead. Business card mockup displays front and back views side by side. Letterhead mockup shows a full sheet with header and footer. The items are arranged in a grid with labels and descriptions below each. Realistic shadows and textures enhance the mockups.",
+        "colors": [
+          "Forest Green #227338 (logo on card)",
+          "Cream/Off-white #F5F5DC (paper color)",
+          "Dark Gray #333333 (text)",
+          "Palm leaf pattern in light green #A8D08D"
+        ],
+        "typography": "Mockups use actual brand fonts. Business card text uses Montserrat for English details. Letterhead uses PingFang for Chinese address. The mockup descriptions use a clean sans-serif.",
+        "visualHierarchy": "The mockup images are the main attraction, placed prominently. Below each, a brief specification description provides context. The eye is drawn to the realistic mockups.",
+        "colorPalette": "Natural tones: cream paper, green logo, dark text, light green pattern. The palette is organic and premium.",
+        "visualMood": "Professional, tactile, and natural. The mockups convey high-quality physical materials, building trust.",
+        "keyElements": [
+          "Business card mockup (front/back)",
+          "Letterhead mockup",
+          "Specification labels (paper weight, etc.)"
+        ],
+        "contentStructure": "Title; Business card section with mockup and specs; Letterhead section with mockup and specs; Visual feeling note.",
+        "designNotes": "Use high-quality mockups with realistic shadows. Show both front and back of card. Include paper type specification. Show address on letterhead. Keep descriptions brief."
+      },
+      "packaging": {
+        "refPages": [
+          8
+        ],
+        "pageText": "产品包装系统：健康与纯净的视觉表达\n瓶装⽅案\n采⽤⾼透玻璃瓶⾝，森林绿标签设计，突出“ 1 0 0 % 纯净”\n与“ 1 8 ° N ” 地理标识，传达⾼端、健康的视觉感知。\n外箱设计\n推荐使⽤环保⽜⽪纸原⾊，采⽤单⾊⿊丝印技术，体现\n品牌的可持续发展理念与简约⼯坊⻛格。\n核⼼卖点突出\n在标签显著位置标注核⼼卖点，确保消费者在第⼀时间\n获取产地与新鲜度信息。",
+        "layout": "Product showcase layout with two main mockups: a glass bottle and an outer carton. The bottle is shown at center or left, with a close-up of the label. The carton is shown at right or below. Labels and callouts highlight key information. A grid ensures alignment.",
+        "colors": [
+          "Forest Green #227338 (label background)",
+          "Glass bottle transparency (clear)",
+          "Kraft paper brown #C4A882 (carton)",
+          "Black #000000 (silkscreen on carton)",
+          "White #FFFFFF (label text)",
+          "Sunny Yellow #FFCC33 (accent on label)"
+        ],
+        "typography": "Label text uses the brush font for brand name and a clean sans-serif for descriptors like '100% Pure' and '18°N'. Carton uses a simple sans-serif for shipping info. Product details are in a clear hierarchy.",
+        "visualHierarchy": "The bottle mockup is the hero, with the label being the most detailed area. The '100% Pure' claim is prominently placed. The outer carton is secondary. The eye moves from bottle to carton to details.",
+        "colorPalette": "Green, clear glass, kraft brown, black, white, and yellow accent. This palette is natural and sustainable, with high contrast.",
+        "visualMood": "Healthy, premium, and eco-friendly. The transparent bottle conveys purity, while kraft paper signals sustainability.",
+        "keyElements": [
+          "Glass bottle mockup with green label",
+          "Outer carton mockup in kraft",
+          "Key selling points highlighted"
+        ],
+        "contentStructure": "Title; Bottle solution (mockup + description); Carton design (mockup + description); Key selling points emphasis.",
+        "designNotes": "Use high-quality product mockups. Highlight key claims with larger font or colored badges. Show label details close-up. For carton, show texture of kraft paper. Include sustainability cues."
+      },
+      "marketing": {
+        "refPages": [
+          9
+        ],
+        "pageText": "营销展⽰系统：场景化品牌触达\n健⾝房海报规范\n画⾯应以⾃然光、热带植物、运动场景为背景，突出“ ⾃\n然能量” 补给，L o g o  放置于保护区内，确保视觉焦点清\n晰。\n员⼯制服规范\n森林绿 P o l o  衫，左胸位置刺绣标准 L o g o ，展现团队活\n⼒与专业服务形象。\n社交媒体模板\n统⼀的视觉模板与排版逻辑，确保品牌在各社交平台传\n播的⼀致性与辨识度。",
+        "layout": "Three sections: Gym poster mockup (large visual), employee uniform mockup (model wearing green polo), and social media templates (grid of phone screenshots). Each section has a descriptive text. The layout is dynamic, using mockups to show real-life applications.",
+        "colors": [
+          "Forest Green #227338 (uniform, poster accents)",
+          "Sunny Yellow #FFCC33 (poster highlights)",
+          "Ocean Blue #007ACC (maybe in poster background)",
+          "White #FFFFFF (background)",
+          "Natural green and warm tones in poster photography"
+        ],
+        "typography": "Poster uses bold sans-serif for headline. Uniform text is descriptive only. Social media templates use the brand fonts consistently. The mockups display actual content.",
+        "visualHierarchy": "The gym poster mockup is largest, drawing attention. Then the uniform mockup, then social media templates. Each section is clearly separated by white space.",
+        "colorPalette": "Brand colors integrated into each application. The poster uses tropical greens and yellows; uniform uses forest green; social media uses consistent brand palette.",
+        "visualMood": "Energetic, natural, and professional. The gym poster evokes vitality; uniforms convey team spirit; social templates show consistency.",
+        "keyElements": [
+          "Gym poster mockup",
+          "Employee uniform mockup (model)",
+          "Social media template grid"
+        ],
+        "contentStructure": "Title; Gym poster (mockup + specs); Uniform (mockup + specs); Social media (mockup grid + specs).",
+        "designNotes": "Use realistic scene mockups for posters. Show uniform on a model to convey fit and branding. Provide multiple social media template examples (Instagram, WeChat) in a grid. Include size/layout specifications."
+      },
+      "summary": {
+        "refPages": [
+          10
+        ],
+        "pageText": "总结：构建统⼀的品牌视觉资产\n⼀致性\n所有媒介输出必须严格遵守本⼿册规\n范，确保品牌在任何触点下都能被精准\n识别。\n专业性\n通过标准化的视觉语⾔建⽴客⼾信任，\n展现“ 椰岛⼯坊” 作为⾏业专家的专业形\n象。\n持续性\nV I 系统是品牌⻓期发展的核⼼⽆形资\n产，是品牌价值持续积累的视觉载体。",
+        "layout": "A single-page summary with three key principles presented as cards or blocks. Each block has an icon (or bullet) followed by a title and description. The layout is symmetrical, with the three blocks arranged horizontally or in a triangle. Centered title at top.",
+        "colors": [
+          "Forest Green #227338 (title and icons)",
+          "White #FFFFFF (background)",
+          "Dark Gray #333333 (text)",
+          "Sunny Yellow #FFCC33 (accent for icons perhaps)"
+        ],
+        "typography": "Title uses brush font in green. Each principle heading uses bold rounded sans-serif. Description uses regular sans-serif. Font sizes: title largest, headings medium, description smallest but readable.",
+        "visualHierarchy": "The title '总结' is at top. Then the three blocks are equally weighted. Within each block, the icon/heading draws attention first, then the descriptive text. The eye scans left to right across blocks.",
+        "colorPalette": "Green and white dominate, with accents of yellow. Clean and professional. No heavy textures.",
+        "visualMood": "Inspiring and authoritative. The layout reinforces the importance of consistency, professionalism, and continuity.",
+        "keyElements": [
+          "Title",
+          "Three principle blocks (Consistency, Professionalism, Continuity)",
+          "Supporting text"
+        ],
+        "contentStructure": "Title; Three columns/cards each with icon, heading, and explanation.",
+        "designNotes": "Use simple icons (like a checkmark, shield, clock) for each principle. Keep text concise and impactful. Use a grid to align blocks. Leave ample white space for a clean look."
+      },
+      "closing": {
+        "refPages": [
+          11
+        ],
+        "pageText": "感谢观看\n椰岛⼯坊：⾃然能量，纯粹⽣活\n如有疑问，请咨询品牌管理部",
+        "layout": "Minimalist closing page with centered text. '感谢观看' is the main headline. Below, the brand tagline and a contact line. Generous white space above and below. No graphics or heavy elements, just text on a solid background.",
+        "colors": [
+          "Forest Green #227338 (text color, maybe background)",
+          "White #FFFFFF (text on dark background)",
+          "Or Dark background with white text"
+        ],
+        "typography": "The main text '感谢观看' uses the brush font in large size. The tagline '椰岛工坊：自然能量，纯粹生活' uses a sans-serif in medium size. Contact line uses a smaller sans-serif. All centered.",
+        "visualHierarchy": "The eye goes directly to '感谢观看' as the largest element. Then to the tagline below, then to the contact line at the bottom. The simplicity ensures no distractions.",
+        "colorPalette": "Likely a solid Forest Green background with white text, or white background with green text. Monochromatic or two-colors only.",
+        "visualMood": "Warm, appreciative, and professional. The simplicity conveys sincerity and leaves a lasting positive impression.",
+        "keyElements": [
+          "Thank you phrase",
+          "Brand tagline",
+          "Contact information"
+        ],
+        "contentStructure": "Top: Thank you; Middle: Brand name and tagline; Bottom: Contact instruction.",
+        "designNotes": "Use a full solid background color (Forest Green) with white text for impact. Center all elements vertically and horizontally. Use generous margins. Add the brand logo above the thank you text optionally. Keep it simple: less is more."
+      }
+    }
+  },
+  "createdAt": "2026-05-29T09:29:51.246Z",
+  "updatedAt": "2026-05-29T09:29:51.246Z",
+  "sourceProjectId": "VI-20260528-NDKW"
+}
