@@ -800,11 +800,10 @@ function drawPrimaryPattern(slide: PptxGenJS.Slide, px: number, py: number, pw: 
       // Concentric arcs — bun curves, warmth
       const colors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec];
       for (let i = 0; i < 5; i++) {
-        slide.addShape("arc", {
-          x: px + pw * 0.15 + i * pw * 0.12, y: py + ph * 0.1,
-          w: pw * 0.6 - i * pw * 0.08, h: ph * 0.8 - i * ph * 0.08,
+        slide.addShape("ellipse", {
+          x: px + pw * 0.15 + i * pw * 0.12, y: py + ph * 0.15,
+          w: pw * 0.5 - i * pw * 0.06, h: ph * 0.35 - i * ph * 0.04,
           fill: { color: colors[i], transparency: 55 },
-          rectRadius: 0.05,
         });
       }
       return "弧线组合";
@@ -859,11 +858,11 @@ function drawPrimaryPattern(slide: PptxGenJS.Slide, px: number, py: number, pw: 
       // Geometric triangles
       const colors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec];
       for (let i = 0; i < 5; i++) {
-        slide.addShape("triangle", {
+        slide.addShape("rect", {
           x: px + 0.1 + i * pw * 0.17, y: py + ph * 0.15,
-          w: pw * 0.18, h: ph * 0.7,
+          w: pw * 0.1, h: ph * 0.7,
           fill: { color: colors[i], transparency: 55 },
-          flipV: i % 2 === 1,
+          rotate: i % 2 === 0 ? -8 : 8,
         });
       }
       return "三角组合";
@@ -982,11 +981,10 @@ function drawSecondaryPattern(slide: PptxGenJS.Slide, px: number, py: number, pw
       // Elegant curved lines
       const colors = [bc.sec, bc.pri, bc.acc, bc.sec];
       for (let i = 0; i < 4; i++) {
-        slide.addShape("arc", {
+        slide.addShape("ellipse", {
           x: px + 0.1 + i * pw * 0.2, y: py + 0.1 + i * ph * 0.15,
-          w: pw * 0.35, h: ph * 0.4,
+          w: pw * 0.3, h: ph * 0.2,
           fill: { color: colors[i], transparency: 55 },
-          rectRadius: 0.05,
         });
       }
       return "弧线组合";
@@ -996,10 +994,11 @@ function drawSecondaryPattern(slide: PptxGenJS.Slide, px: number, py: number, pw
       const colors = [bc.sec, bc.pri, bc.acc];
       for (let r = 0; r < 3; r++) {
         for (let c = 0; c < 3; c++) {
-          slide.addShape("diamond", {
+          slide.addShape("rect", {
             x: px + 0.15 + c * pw * 0.3, y: py + 0.2 + r * ph * 0.25,
-            w: pw * 0.22, h: ph * 0.2,
+            w: pw * 0.16, h: ph * 0.16,
             fill: { color: colors[(r + c) % 3], transparency: 50 },
+            rotate: 45,
           });
         }
       }
