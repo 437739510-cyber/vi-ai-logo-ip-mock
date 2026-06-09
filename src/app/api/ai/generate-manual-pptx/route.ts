@@ -876,45 +876,78 @@ export async function POST(req: NextRequest) {
     const fileName = `vi-manual-${projectId}-${Date.now()}.pptx`;
     await writeFile(path.join(outputDir, fileName), buffer);
 
-    // ===== Step 7.5: 上传到Supabase Storage (V21.4: JS client + verbose) =====
+    // ===== Step 7.5: 上传到Supabase Storage (V23: JS SDK + REST API fallback) =====
     let storageUrl: string | null = null;
+    const storagePath = `${projectId}/${fileName}`;
     try {
-      const storagePath = `${projectId}/${fileName}`;
       console.log(`[generate-pptx] Storage upload START: ${buffer.length} bytes to manuals/${storagePath}`);
-      console.log(`[generate-pptx] supabaseAdmin type: ${typeof supabaseAdmin}, has storage: ${!!supabaseAdmin?.storage}`);
       
-      // V21.6: Try with Buffer first, fallback to ArrayBuffer
-      let uploadResult = await supabaseAdmin.storage
-        .from("manuals")
-        .upload(storagePath, buffer, {
-          contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-          upsert: true,
-        });
-      
-      console.log(`[generate-pptx] Storage upload result: data=${JSON.stringify(uploadResult.data)?.substring(0,200)}, error=${JSON.stringify(uploadResult.error)}`);
-      
-      if (uploadResult.error) {
-        console.warn("[generate-pptx] Buffer upload failed:", uploadResult.error.message, uploadResult.error.statusCode);
-        // Try ArrayBuffer approach
-        console.log("[generate-pptx] Retrying with ArrayBuffer...");
-        uploadResult = await supabaseAdmin.storage
+      // Method 1: Supabase JS SDK
+      let sdkOk = false;
+      try {
+        let uploadResult = await supabaseAdmin.storage
           .from("manuals")
-          .upload(storagePath, new Uint8Array(buffer) as any, {
+          .upload(storagePath, buffer, {
             contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             upsert: true,
           });
-        console.log(`[generate-pptx] ArrayBuffer upload result: error=${JSON.stringify(uploadResult.error)}`);
+        
+        if (uploadResult.error) {
+          console.warn("[generate-pptx] JS SDK Buffer upload failed:", uploadResult.error.message);
+          uploadResult = await supabaseAdmin.storage
+            .from("manuals")
+            .upload(storagePath, new Uint8Array(buffer) as any, {
+              contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+              upsert: true,
+            });
+        }
+        
+        if (!uploadResult.error) {
+          const { data: urlData } = supabaseAdmin.storage.from("manuals").getPublicUrl(storagePath);
+          storageUrl = urlData?.publicUrl || null;
+          sdkOk = true;
+          console.log("[generate-pptx] JS SDK upload OK:", storageUrl);
+        } else {
+          console.warn("[generate-pptx] JS SDK upload failed:", uploadResult.error.message);
+        }
+      } catch (sdkErr: any) {
+        console.warn("[generate-pptx] JS SDK exception:", sdkErr?.message);
       }
       
-      const uploadData = uploadResult.data;
-      const uploadErr = uploadResult.error;
+      // Method 2: REST API fallback (direct fetch to Supabase Storage)
+      if (!sdkOk) {
+        console.log("[generate-pptx] Trying REST API fallback for Storage upload...");
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+          const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+          const restUrl = `${supabaseUrl}/storage/v1/object/manuals/${storagePath}`;
+          
+          const restResp = await fetch(restUrl, {
+            method: "POST",
+            headers: {
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${supabaseKey}`,
+              "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+              "x-upsert": "true",
+            },
+            body: new Uint8Array(buffer),
+          });
+          
+          if (restResp.ok) {
+            const restData = await restResp.json();
+            console.log("[generate-pptx] REST API upload OK:", JSON.stringify(restData));
+            storageUrl = `${supabaseUrl}/storage/v1/object/public/manuals/${storagePath}`;
+          } else {
+            const errText = await restResp.text();
+            console.warn("[generate-pptx] REST API upload failed:", restResp.status, errText.substring(0, 300));
+          }
+        } catch (restErr: any) {
+          console.warn("[generate-pptx] REST API exception:", restErr?.message);
+        }
+      }
       
-      if (uploadErr) {
-        console.warn("[generate-pptx] Storage upload failed:", uploadErr.message, uploadErr.statusCode, uploadErr.name);
-      } else {
-        const { data: urlData } = supabaseAdmin.storage.from("manuals").getPublicUrl(storagePath);
-        storageUrl = urlData?.publicUrl || null;
-        console.log("[generate-pptx] Storage upload OK:", storageUrl);
+      if (!storageUrl) {
+        console.warn("[generate-pptx] All Storage upload methods failed, PPTX only available locally");
       }
     } catch (storageErr: any) {
       console.warn("[generate-pptx] Storage upload exception:", storageErr?.message, storageErr?.stack?.substring(0, 300));
