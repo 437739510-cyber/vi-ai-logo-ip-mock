@@ -240,92 +240,14 @@ function normalizeColors(colors: any, industry?: string): { primary: string; sec
 const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation";
 const DASHSCOPE_TASK = "https://dashscope.aliyuncs.com/api/v1/tasks";
 
-// V19.1: Batch scene image generation with shared polling
+// V19.3: Controlled-concurrency scene image generation (2 at a time)
+// Solves DashScope actual concurrency being lower than documented 5
+
 interface SceneTask {
   def: { key: string; page: string; rawPrompt: string; label?: string };
   taskId: string | null;
-  result: string | null;  // base64 data URL
-  status: 'pending' | 'running' | 'succeeded' | 'failed' | 'timeout';
-}
-
-async function submitDashScopeTask(apiKey: string, prompt: string, logoBase64?: string): Promise<string | null> {
-  const useRefImage = !!logoBase64;
-  const model = useRefImage ? "wan2.6-image" : "wan2.6-t2i";
-  let imgContent: Array<{ text?: string; image?: string }>;
-  if (useRefImage) {
-    imgContent = [{ text: prompt }, { image: logoBase64! }];
-  } else {
-    imgContent = [{ text: prompt }];
-  }
-  const requestParams = useRefImage
-    ? { size: "512*768", n: 1, enable_interleave: false, prompt_extend: true }  // V19.2: smaller=faster
-    : { size: "512*768", n: 1 };  // V19.2: smaller=faster
-
-  try {
-    const submitResp = await fetch(DASHSCOPE_API, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "X-DashScope-Async": "enable",
-      },
-      body: JSON.stringify({
-        model,
-        input: { messages: [{ role: "user", content: imgContent }] },
-        parameters: requestParams,
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!submitResp.ok) {
-      const errText = await submitResp.text();
-      console.error(`[submitTask] ${submitResp.status}: ${errText.substring(0, 200)}`);
-      return null;
-    }
-    const data = await submitResp.json();
-    const taskId = data.output?.task_id;
-    if (!taskId) {
-      console.error(`[submitTask] No task_id:`, JSON.stringify(data).substring(0, 200));
-      return null;
-    }
-    return taskId;
-  } catch (err: any) {
-    console.error(`[submitTask] Error: ${err.message}`);
-    return null;
-  }
-}
-
-async function pollDashScopeTask(apiKey: string, taskId: string): Promise<{ status: string; imageUrl?: string; message?: string }> {
-  try {
-    const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
-      headers: { "Authorization": `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!pollResp.ok) return { status: "unknown" };
-    const data = await pollResp.json();
-    const taskStatus = data.output?.task_status;
-    if (taskStatus === "SUCCEEDED") {
-      const imageUrl = data.output?.choices?.[0]?.message?.content?.[0]?.image;
-      return { status: "SUCCEEDED", imageUrl };
-    }
-    if (taskStatus === "FAILED") {
-      return { status: "FAILED", message: data.output?.message || "unknown" };
-    }
-    return { status: taskStatus || "unknown" };
-  } catch (err: any) {
-    console.error(`[pollTask] ${taskId} error: ${err.message}`);
-    return { status: "error" };
-  }
-}
-
-async function downloadImageAsBase64(imageUrl: string): Promise<string | null> {
-  try {
-    const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
-    if (!resp.ok) return null;
-    const buf = Buffer.from(await resp.arrayBuffer());
-    return `data:image/png;base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
-  }
+  result: string | null;
+  status: 'pending' | 'submitted' | 'succeeded' | 'failed' | 'timeout';
 }
 
 async function generateSceneImagesBatch(
@@ -338,65 +260,61 @@ async function generateSceneImagesBatch(
     return { sceneImages: {}, sceneLabels: {}, imgSuccess: 0 };
   }
 
+  const CONCURRENCY = 2;  // V19.3: Only 2 at a time to avoid DashScope throttling
+  const POLL_INTERVAL = 6000;  // 6s between polls (faster checks)
+  const MAX_POLLS_PER_TASK = 15;  // 15×6s=90s max per task
+  
   const tasks: SceneTask[] = imgDefs.map(def => ({
     def, taskId: null, result: null, status: 'pending'
   }));
 
-  // Phase 1: Submit all tasks in parallel (fast, ~2-5s total)
-  console.log(`[sceneBatch] Submitting ${tasks.length} tasks in parallel...`);
-  const submitResults = await Promise.allSettled(
-    tasks.map(async (task, i) => {
-      // Small stagger to avoid burst rate limit
-      if (i > 0) await new Promise(r => setTimeout(r, 500));  // V19.2: 500ms stagger for rate limit
-      task.taskId = await submitDashScopeTask(apiKey, task.def.rawPrompt, refImage);
-      task.status = task.taskId ? 'running' : 'failed';
-      return task;
-    })
-  );
-  console.log(`[sceneBatch] Submitted: ${tasks.filter(t => t.taskId).length}/${tasks.length} tasks got IDs`);
+  // Process tasks in batches of CONCURRENCY
+  for (let batchStart = 0; batchStart < tasks.length; batchStart += CONCURRENCY) {
+    const batch = tasks.slice(batchStart, batchStart + CONCURRENCY);
+    console.log(`[sceneBatch] Starting batch ${Math.floor(batchStart/CONCURRENCY)+1}: keys=[${batch.map(t=>t.def.key).join(',')}]`);
 
-  // Phase 2: Shared polling loop (check all tasks each iteration)
-  const MAX_POLLS = 15;  // 15 × 8s = 120s max (V19.2: enough for queued tasks)
-  const POLL_INTERVAL = 8000;
-  for (let poll = 0; poll < MAX_POLLS; poll++) {
-    await new Promise(r => setTimeout(r, POLL_INTERVAL));
+    // Submit all tasks in this batch
+    const submitPromises = batch.map(async (task, i) => {
+      if (i > 0) await new Promise(r => setTimeout(r, 1000));  // 1s stagger
+      task.taskId = await submitDashScopeTask(apiKey, task.def.rawPrompt, refImage);
+      task.status = task.taskId ? 'submitted' : 'failed';
+    });
+    await Promise.all(submitPromises);
     
-    const running = tasks.filter(t => t.status === 'running');
-    if (running.length === 0) break;  // All done
-    
-    // Poll all running tasks in parallel
-    const pollResults = await Promise.allSettled(
-      running.map(async (task) => {
+    const submitted = batch.filter(t => t.taskId).length;
+    console.log(`[sceneBatch] Submitted ${submitted}/${batch.length} tasks`);
+
+    // Poll until all tasks in this batch are done
+    for (let poll = 0; poll < MAX_POLLS_PER_TASK; poll++) {
+      await new Promise(r => setTimeout(r, POLL_INTERVAL));
+      
+      const active = batch.filter(t => t.status === 'submitted');
+      if (active.length === 0) break;
+
+      for (const task of active) {
         const result = await pollDashScopeTask(apiKey, task.taskId!);
         if (result.status === "SUCCEEDED" && result.imageUrl) {
           const base64 = await downloadImageAsBase64(result.imageUrl);
           if (base64) {
             task.result = base64;
             task.status = 'succeeded';
-            console.log(`[sceneBatch] ${task.def.key} OK! (poll ${poll + 1})`);
+            console.log(`[sceneBatch] ${task.def.key} OK! (poll ${poll+1}, batch pos)`);
           } else {
             task.status = 'failed';
-            console.error(`[sceneBatch] ${task.def.key} download failed`);
           }
         } else if (result.status === "FAILED") {
           task.status = 'failed';
           console.error(`[sceneBatch] ${task.def.key} failed: ${result.message}`);
         }
-        // else: still running, continue
-        return task;
-      })
-    );
-    
-    const succeeded = tasks.filter(t => t.status === 'succeeded').length;
-    const failed = tasks.filter(t => t.status === 'failed').length;
-    console.log(`[sceneBatch] Poll ${poll + 1}/${MAX_POLLS}: ${succeeded} ok, ${failed} failed, ${running.length - succeeded - failed} running`);
-  }
+      }
+    }
 
-  // Mark remaining running tasks as timeout
-  for (const task of tasks) {
-    if (task.status === 'running') {
-      task.status = 'timeout';
-      console.warn(`[sceneBatch] ${task.def.key} timed out after ${MAX_POLLS * POLL_INTERVAL / 1000}s`);
+    // Mark remaining as timeout
+    for (const task of batch) {
+      if (task.status === 'submitted') {
+        task.status = 'timeout';
+        console.warn(`[sceneBatch] ${task.def.key} timed out`);
+      }
     }
   }
 
@@ -415,7 +333,6 @@ async function generateSceneImagesBatch(
   return { sceneImages, sceneLabels, imgSuccess };
 }
 
-// V17: 通义万相AI生图Logo（替代DeepSeek SVG方案）
 async function generateLogoImage(
   prompt: string,
   brandColors: { primary: string; secondary: string }
