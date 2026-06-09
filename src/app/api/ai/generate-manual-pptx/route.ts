@@ -293,9 +293,9 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
 
       console.log(`[generateImage] Task submitted: ${taskId}`);
 
-      // Step 2: 轮询任务结果（最多等48秒）V21.1: 8×6s=48s max
+      // Step 2: 轮询任务结果 V21.5: 8×5s=40s max (faster iteration)
       for (let poll = 0; poll < 8; poll++) {
-        await new Promise(r => setTimeout(r, 6000)); // 等6秒
+        await new Promise(r => setTimeout(r, 5000)); // 等5秒
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
           headers: { "Authorization": `Bearer ${apiKey}` },
@@ -795,9 +795,9 @@ export async function POST(req: NextRequest) {
       } catch (err: any) {
         console.warn(`[generate-pptx] ${def.key} error: ${err.message}`);
       }
-      // 5s delay between images to avoid DashScope rate limiting
+      // 8s delay between images to avoid DashScope rate limiting (V21.5)
       if (i < imgDefs.length - 1) {
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, 8000));
       }
     }
 
