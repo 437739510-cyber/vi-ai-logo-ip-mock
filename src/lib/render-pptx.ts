@@ -708,13 +708,13 @@ function renderLogoMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     // X mark overlay
     slide.addText("\u2715", {
       x, y: y + 0.05, w: 0.4, h: 0.4,
-      fontSize: 20, bold: true, color: "EF4444", align: "center",
+      fontSize: 20, bold: true, color: bc.pri, align: "center",
     });
 
     // Title
     slide.addText(misuses[i].title, {
       x, y: y + h - 0.65, w, h: 0.35,
-      fontSize: 14, bold: true, color: "DC2626", align: "center",
+      fontSize: 14, bold: true, color: bc.pri, align: "center",
     });
 
     // Description
