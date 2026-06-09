@@ -240,182 +240,108 @@ function normalizeColors(colors: any, industry?: string): { primary: string; sec
 const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation";
 const DASHSCOPE_TASK = "https://dashscope.aliyuncs.com/api/v1/tasks";
 
-interface SceneTask {
-  def: { key: string; page: string; rawPrompt: string; label?: string };
-  taskId: string | null;
-  result: string | null;  // base64 data URL
-  status: 'pending' | 'running' | 'succeeded' | 'failed' | 'timeout';
-}
-
-async function submitDashScopeTask(apiKey: string, prompt: string, logoBase64?: string): Promise<string | null> {
-  const useRefImage = !!logoBase64;
-  const model = useRefImage ? "wan2.6-image" : "wan2.6-t2i";
-  let imgContent: Array<{ text?: string; image?: string }>;
-  if (useRefImage) {
-    imgContent = [{ text: prompt }, { image: logoBase64! }];
-  } else {
-    imgContent = [{ text: prompt }];
-  }
-  const requestParams = useRefImage
-    ? { size: "512*768", n: 1, enable_interleave: false, prompt_extend: true }  // V19.2: smaller=faster
-    : { size: "512*768", n: 1 };  // V19.2: smaller=faster
-
-  try {
-    const submitResp = await fetch(DASHSCOPE_API, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "X-DashScope-Async": "enable",
-      },
-      body: JSON.stringify({
-        model,
-        input: { messages: [{ role: "user", content: imgContent }] },
-        parameters: requestParams,
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!submitResp.ok) {
-      const errText = await submitResp.text();
-      console.error(`[submitTask] ${submitResp.status}: ${errText.substring(0, 200)}`);
-      return null;
-    }
-    const data = await submitResp.json();
-    const taskId = data.output?.task_id;
-    if (!taskId) {
-      console.error(`[submitTask] No task_id:`, JSON.stringify(data).substring(0, 200));
-      return null;
-    }
-    return taskId;
-  } catch (err: any) {
-    console.error(`[submitTask] Error: ${err.message}`);
-    return null;
-  }
-}
-
-async function pollDashScopeTask(apiKey: string, taskId: string): Promise<{ status: string; imageUrl?: string; message?: string }> {
-  try {
-    const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
-      headers: { "Authorization": `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!pollResp.ok) return { status: "unknown" };
-    const data = await pollResp.json();
-    const taskStatus = data.output?.task_status;
-    if (taskStatus === "SUCCEEDED") {
-      const imageUrl = data.output?.choices?.[0]?.message?.content?.[0]?.image;
-      return { status: "SUCCEEDED", imageUrl };
-    }
-    if (taskStatus === "FAILED") {
-      return { status: "FAILED", message: data.output?.message || "unknown" };
-    }
-    return { status: taskStatus || "unknown" };
-  } catch (err: any) {
-    console.error(`[pollTask] ${taskId} error: ${err.message}`);
-    return { status: "error" };
-  }
-}
-
-async function downloadImageAsBase64(imageUrl: string): Promise<string | null> {
-  try {
-    const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
-    if (!resp.ok) return null;
-    const buf = Buffer.from(await resp.arrayBuffer());
-    return `data:image/png;base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
-  }
-}
-
-
-// V19.3: Controlled-concurrency scene image generation (2 at a time)
-// Solves DashScope actual concurrency being lower than documented 5
-
-
-
-async function generateSceneImagesBatch(
-  imgDefs: Array<{ key: string; page: string; rawPrompt: string; label?: string }>,
-  refImage?: string
-): Promise<{ sceneImages: Record<string, string>; sceneLabels: Record<string, string>; imgSuccess: number }> {
+async function generateSceneImage(prompt: string, logoBase64?: string): Promise<string | null> {
   const apiKey = process.env.ALIYUN_API_KEY;
   if (!apiKey) {
-    console.error("[sceneBatch] No ALIYUN_API_KEY");
-    return { sceneImages: {}, sceneLabels: {}, imgSuccess: 0 };
+    console.error("[generateImage] No ALIYUN_API_KEY");
+    return null;
   }
 
-  const CONCURRENCY = 2;  // V19.3: Only 2 at a time to avoid DashScope throttling
-  const POLL_INTERVAL = 6000;  // 6s between polls (faster checks)
-  const MAX_POLLS_PER_TASK = 15;  // 15×6s=90s max per task
-  
-  const tasks: SceneTask[] = imgDefs.map(def => ({
-    def, taskId: null, result: null, status: 'pending'
-  }));
+  const maxRetries = 1;  // V19: no retry - fallback is acceptable, avoids timeout
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // V9: 支持Logo参考图 - wan2.6-image图像编辑模式
+      const useRefImage = !!logoBase64;
+      const model = useRefImage ? "wan2.6-image" : "wan2.6-t2i";
+      let imgContent: Array<{ text?: string; image?: string }>;
+      if (useRefImage) {
+        imgContent = [{ text: prompt }, { image: logoBase64! }];
+      } else {
+        imgContent = [{ text: prompt }];
+      }
+      const requestParams = useRefImage
+        ? { size: "768*1024", n: 1, enable_interleave: false, prompt_extend: true }
+        : { size: "768*1024", n: 1 };
+      // Step 1: 提交异步任务
+      const submitResp = await fetch(DASHSCOPE_API, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "X-DashScope-Async": "enable",
+        },
+        body: JSON.stringify({
+          model,
+          input: { messages: [{ role: "user", content: imgContent }] },
+          parameters: requestParams,
+        }),
+        signal: AbortSignal.timeout(30000),  // V19: 30s timeout prevents hung fetch
+      });
 
-  // Process tasks in batches of CONCURRENCY
-  for (let batchStart = 0; batchStart < tasks.length; batchStart += CONCURRENCY) {
-    const batch = tasks.slice(batchStart, batchStart + CONCURRENCY);
-    console.log(`[sceneBatch] Starting batch ${Math.floor(batchStart/CONCURRENCY)+1}: keys=[${batch.map(t=>t.def.key).join(',')}]`);
+      if (!submitResp.ok) {
+        const errText = await submitResp.text();
+        console.error(`[generateImage] Submit attempt ${attempt}: ${submitResp.status} ${errText.substring(0, 200)}`);
+        continue;
+      }
 
-    // Submit all tasks in this batch
-    const submitPromises = batch.map(async (task, i) => {
-      if (i > 0) await new Promise(r => setTimeout(r, 1000));  // 1s stagger
-      task.taskId = await submitDashScopeTask(apiKey, task.def.rawPrompt, refImage);
-      task.status = task.taskId ? 'submitted' : 'failed';
-    });
-    await Promise.all(submitPromises);
-    
-    const submitted = batch.filter(t => t.taskId).length;
-    console.log(`[sceneBatch] Submitted ${submitted}/${batch.length} tasks`);
+      const submitData = await submitResp.json();
+      const taskId = submitData.output?.task_id;
+      if (!taskId) {
+        console.error(`[generateImage] No task_id in response:`, JSON.stringify(submitData).substring(0, 200));
+        continue;
+      }
 
-    // Poll until all tasks in this batch are done
-    for (let poll = 0; poll < MAX_POLLS_PER_TASK; poll++) {
-      await new Promise(r => setTimeout(r, POLL_INTERVAL));
-      
-      const active = batch.filter(t => t.status === 'submitted');
-      if (active.length === 0) break;
+      console.log(`[generateImage] Task submitted: ${taskId}`);
 
-      for (const task of active) {
-        const result = await pollDashScopeTask(apiKey, task.taskId!);
-        if (result.status === "SUCCEEDED" && result.imageUrl) {
-          const base64 = await downloadImageAsBase64(result.imageUrl);
-          if (base64) {
-            task.result = base64;
-            task.status = 'succeeded';
-            console.log(`[sceneBatch] ${task.def.key} OK! (poll ${poll+1}, batch pos)`);
-          } else {
-            task.status = 'failed';
+      // Step 2: 轮询任务结果（最多等48秒）V19: 6×8s=48s max
+      for (let poll = 0; poll < 6; poll++) {
+        await new Promise(r => setTimeout(r, 8000)); // 等8秒
+
+        const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
+          headers: { "Authorization": `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(15000),  // V19: 15s timeout per poll
+        });
+
+        if (!pollResp.ok) continue;
+        const pollData = await pollResp.json();
+        const status = pollData.output?.task_status;
+
+        if (status === "SUCCEEDED") {
+          // 提取图片URL
+          const imageUrl = pollData.output?.choices?.[0]?.message?.content?.[0]?.image;
+          if (!imageUrl) {
+            console.error(`[generateImage] No image URL in result`);
+            break;
           }
-        } else if (result.status === "FAILED") {
-          task.status = 'failed';
-          console.error(`[sceneBatch] ${task.def.key} failed: ${result.message}`);
+
+          // Step 3: 下载图片转base64
+          const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });  // V19: 30s timeout
+          if (imgResp.ok) {
+            const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+            const base64 = imgBuf.toString("base64");
+            console.log(`[generateImage] OK! base64 length=${base64.length}`);
+            return `data:image/png;base64,${base64}`;
+          }
+          console.error(`[generateImage] Failed to download image`);
+          break;
         }
-      }
-    }
 
-    // Mark remaining as timeout
-    for (const task of batch) {
-      if (task.status === 'submitted') {
-        task.status = 'timeout';
-        console.warn(`[sceneBatch] ${task.def.key} timed out`);
+        if (status === "FAILED") {
+          console.error(`[generateImage] Task failed:`, pollData.output?.message || "unknown");
+          break;
+        }
+
+        // 仍在PENDING/RUNNING，继续轮询
       }
+    } catch (err: any) {
+      console.error(`[generateImage] Attempt ${attempt} error: ${err.message}`);
     }
   }
-
-  // Collect results
-  const sceneImages: Record<string, string> = {};
-  const sceneLabels: Record<string, string> = {};
-  let imgSuccess = 0;
-  for (const task of tasks) {
-    if (task.result) {
-      sceneImages[task.def.key] = task.result;
-      if (task.def.label) sceneLabels[task.def.key] = task.def.label;
-      imgSuccess++;
-    }
-  }
-  console.log(`[sceneBatch] Final: ${imgSuccess}/${tasks.length} images generated`);
-  return { sceneImages, sceneLabels, imgSuccess };
+  return null;
 }
 
+
+// V17: 通义万相AI生图Logo（替代DeepSeek SVG方案）
 async function generateLogoImage(
   prompt: string,
   brandColors: { primary: string; secondary: string }
@@ -463,13 +389,13 @@ async function generateLogoImage(
 
       console.log(`[generateLogo] Task submitted: ${taskId}`);
 
-      // 轮询结果（最多等24秒）V19.2: 3×8s=24s max
+      // 轮询结果（最多等24秒）V20: 3×8s=24s max (within 40s deadline)
       for (let poll = 0; poll < 3; poll++) {
         await new Promise(r => setTimeout(r, 8000));
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
           headers: { "Authorization": `Bearer ${apiKey}` },
-          signal: AbortSignal.timeout(15000),  // V19: 15s timeout per poll
+          signal: AbortSignal.timeout(15000),
         });
 
         if (!pollResp.ok) continue;
@@ -483,7 +409,7 @@ async function generateLogoImage(
             break;
           }
 
-          const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });  // V19: 30s timeout
+          const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
           if (imgResp.ok) {
             const imgBuf = Buffer.from(await imgResp.arrayBuffer());
             const base64 = imgBuf.toString("base64");
@@ -552,10 +478,9 @@ function createStreamResponse() {
 
 // ========== DB-based progress helpers (for background async tasks) ==========
 function createDbProgressHelpers(projectId: string) {
-  let isCompleted = false;  // V19.1: lock to prevent race condition
+  let isCompleted = false;  // V20: prevent race condition
   
   async function updateDb(status: string, message: string, percent?: number, extra?: Record<string, any>) {
-    // V19.1: Once completed, no more progress updates allowed
     if (isCompleted && status !== "completed") return;
     try {
       const { data: existingInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
@@ -571,12 +496,11 @@ function createDbProgressHelpers(projectId: string) {
 
   return {
     sendProgress: async (step: string, message: string, percent?: number) => {
-      if (isCompleted) return;  // V19.1: skip if already completed
+      if (isCompleted) return;
       await updateDb("pptx_assembling", message, percent);
     },
     sendComplete: async (data: any) => {
-      isCompleted = true;  // V19.1: set lock BEFORE updating
-      // Use a single atomic-ish update: read latest, write with pptxResult
+      isCompleted = true;
       const { data: existingInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
       const prev = (existingInfo?.client_info as Record<string, any>) || {};
       await supabaseAdmin.from("projects").update({
@@ -592,7 +516,7 @@ function createDbProgressHelpers(projectId: string) {
       }).eq("id", projectId);
     },
     sendError: async (message: string) => {
-      isCompleted = true;  // V19.1: set lock
+      isCompleted = true;
       await updateDb("failed", message);
       await supabaseAdmin.from("projects").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", projectId);
     },
@@ -848,32 +772,57 @@ export async function POST(req: NextRequest) {
       }));
     }
 
-    // ===== V19.1: Batch scene image generation (shared polling) =====
+    // ===== V20: Scene images in pairs (2 concurrent, avoid DashScope throttling) =====
     const sceneRefImage = mascotData || logoData || undefined;
     sendProgress("images", "正在生成场景图(5张)...", 50);
-    console.log("[generate-pptx] ===== Scene images batch (refImage:", !!sceneRefImage, ") =====");
+    console.log("[generate-pptx] ===== Scene images in pairs (refImage:", !!sceneRefImage, ") =====");
 
-    const batchResult = await generateSceneImagesBatch(imgDefs, sceneRefImage);
-    Object.assign(sceneImages, batchResult.sceneImages);
-    Object.assign(sceneLabels, batchResult.sceneLabels);
-    imgSuccess = batchResult.imgSuccess;
+    for (let batchIdx = 0; batchIdx < imgDefs.length; batchIdx += 2) {
+      const batch = imgDefs.slice(batchIdx, batchIdx + 2);
+      const batchLabel = `Batch ${Math.floor(batchIdx/2)+1}/${Math.ceil(imgDefs.length/2)}`;
+      console.log(`[generate-pptx] ${batchLabel}: keys=[${batch.map(d=>d.key).join(',')}]`);
+      
+      const batchTasks = batch.map(async (def) => {
+        const imgData = await generateSceneImage(def.rawPrompt, sceneRefImage);
+        return { def, imgData };
+      });
+      
+      const batchResults = await Promise.allSettled(batchTasks);
+      for (const result of batchResults) {
+        if (result.status === "fulfilled" && result.value?.imgData) {
+          const val = result.value;
+          sceneImages[val.def.key] = val.imgData;
+          if ((val.def as any).label) sceneLabels[val.def.key] = (val.def as any).label;
+          imgSuccess++;
+          console.log(`[generate-pptx] ${val.def.key} OK!`);
+        } else {
+          const failedKey = batch[batchResults.indexOf(result)]?.key || "unknown";
+          console.warn(`[generate-pptx] ${failedKey} failed`);
+        }
+      }
+      
+      // Small delay between batches to avoid rate limiting
+      if (batchIdx + 2 < imgDefs.length) {
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
 
-    // ===== V19.2: Logo with 40s hard deadline (skip if timeout) =====
+    // ===== V20: Logo with 40s hard deadline =====
     if (logoPrompt) {
       sendProgress("images", "正在生成Logo方案...", 55);
-      console.log("[generate-pptx] ===== Logo generation (40s deadline) =====");
+      console.log("[generate-pptx] ===== Logo (40s deadline) =====");
       try {
         aiLogoData = await Promise.race([
           generateLogoImage(logoPrompt, realColors),
           new Promise<null>(resolve => setTimeout(() => {
-            console.warn("[generate-pptx] Logo 40s deadline reached, skipping");
+            console.warn("[generate-pptx] Logo 40s timeout, skipping");
             resolve(null);
           }, 40000)),
         ]);
         if (aiLogoData) {
           console.log("[generate-pptx] AI logo OK! base64 length:", aiLogoData.length);
         } else {
-          console.warn("[generate-pptx] AI logo skipped/failed, will use fallback icon");
+          console.warn("[generate-pptx] AI logo skipped/failed, using fallback");
         }
       } catch (logoErr: any) {
         console.warn("[generate-pptx] AI logo error:", logoErr?.message);
@@ -949,8 +898,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("[generate-pptx] ===== DONE =====", fileName, `(${imgSuccess} images, ${blueprints.length} pages)`);
-    // V19.1: sendComplete is the SINGLE source of truth for completion
-    // It sets status=completed + pptxResult in one atomic update
+    // V20: sendComplete is the single completion path (no race condition)
     sendComplete({
       url: `/api/ai/download-pptx/${fileName}`,
       storageUrl,
