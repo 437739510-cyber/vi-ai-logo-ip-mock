@@ -17,6 +17,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "VI 视觉识别手册 - AI 加速海报设计",
   description: "上传您的品牌素材，AI 为您生成专业 VI 手册",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
