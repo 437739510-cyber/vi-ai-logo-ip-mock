@@ -779,7 +779,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ===== V21.1: Scene images one-by-one (serial, no refImage, avoid DashScope throttling) =====
-    await new Promise(r => setTimeout(r, 2000));  // Wait 2s before starting scenes
+    await new Promise(r => setTimeout(r, 1000));  // V24.1: shorter wait before scenes
     // V21.1: No ref image for scenes - wan2.6-t2i is more reliable than wan2.6-image
     sendProgress("images", "正在生成场景图(5张)...", 50);
     console.log("[generate-pptx] ===== Scene images serial (wan2.6-t2i, no refImage) =====");
@@ -801,9 +801,9 @@ export async function POST(req: NextRequest) {
       } catch (err: any) {
         console.warn(`[generate-pptx] ${def.key} error: ${err.message}`);
       }
-      // 8s delay between images to avoid DashScope rate limiting (V21.5)
+      // V24.1: 5s delay between images (was 8s, reduced to fit 300s Zeabur limit)
       if (i < imgDefs.length - 1) {
-        await new Promise(r => setTimeout(r, 8000));
+        await new Promise(r => setTimeout(r, 5000));
       }
     }
 
@@ -815,9 +815,9 @@ export async function POST(req: NextRequest) {
         aiLogoData = await Promise.race([
           generateLogoImage(logoPrompt, realColors),
           new Promise<null>(resolve => setTimeout(() => {
-            console.warn("[generate-pptx] Logo 40s timeout, skipping");
+            console.warn("[generate-pptx] Logo 30s timeout, skipping");
             resolve(null);
-          }, 40000)),
+          }, 30000)),
         ]);
         if (aiLogoData) {
           console.log("[generate-pptx] AI logo OK! base64 length:", aiLogoData.length);
@@ -833,7 +833,7 @@ export async function POST(req: NextRequest) {
     const failedDefs = imgDefs.filter(d => !sceneImages[d.key]);
     if (failedDefs.length > 0 && imgSuccess < 3) {
       console.log(`[generate-pptx] ${failedDefs.length} scene images failed, retrying after 12s cooldown...`);
-      await new Promise(r => setTimeout(r, 12000));  // Cooldown to avoid DashScope throttling
+      await new Promise(r => setTimeout(r, 6000));  // V24.1: shorter cooldown to fit 300s limit
       for (let ri = 0; ri < failedDefs.length; ri++) {
         const def = failedDefs[ri];
         if (imgSuccess >= 3) break;  // Stop retry once we have 3
@@ -850,7 +850,7 @@ export async function POST(req: NextRequest) {
         } catch (err: any) {
           console.warn(`[generate-pptx] Retry ${def.key} error: ${err.message}`);
         }
-        if (ri < failedDefs.length - 1) await new Promise(r => setTimeout(r, 6000));
+        if (ri < failedDefs.length - 1) await new Promise(r => setTimeout(r, 3000));
       }
     }
     console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success (sceneImages keys: [${Object.keys(sceneImages).join(",")}])`);
