@@ -772,38 +772,31 @@ export async function POST(req: NextRequest) {
       }));
     }
 
-    // ===== V20: Scene images in pairs (2 concurrent, avoid DashScope throttling) =====
+    // ===== V21: Scene images one-by-one (serial, avoid DashScope throttling) =====
     const sceneRefImage = mascotData || logoData || undefined;
     sendProgress("images", "正在生成场景图(5张)...", 50);
-    console.log("[generate-pptx] ===== Scene images in pairs (refImage:", !!sceneRefImage, ") =====");
+    console.log("[generate-pptx] ===== Scene images serial (refImage:", !!sceneRefImage, ") =====");
 
-    for (let batchIdx = 0; batchIdx < imgDefs.length; batchIdx += 2) {
-      const batch = imgDefs.slice(batchIdx, batchIdx + 2);
-      const batchLabel = `Batch ${Math.floor(batchIdx/2)+1}/${Math.ceil(imgDefs.length/2)}`;
-      console.log(`[generate-pptx] ${batchLabel}: keys=[${batch.map(d=>d.key).join(',')}]`);
-      
-      const batchTasks = batch.map(async (def) => {
+    for (let i = 0; i < imgDefs.length; i++) {
+      const def = imgDefs[i];
+      sendProgress("images", `正在生成场景图(${i+1}/${imgDefs.length})...`, 50 + i * 2);
+      console.log(`[generate-pptx] Scene ${i+1}/${imgDefs.length}: key=${def.key}`);
+      try {
         const imgData = await generateSceneImage(def.rawPrompt, sceneRefImage);
-        return { def, imgData };
-      });
-      
-      const batchResults = await Promise.allSettled(batchTasks);
-      for (const result of batchResults) {
-        if (result.status === "fulfilled" && result.value?.imgData) {
-          const val = result.value;
-          sceneImages[val.def.key] = val.imgData;
-          if ((val.def as any).label) sceneLabels[val.def.key] = (val.def as any).label;
+        if (imgData) {
+          sceneImages[def.key] = imgData;
+          if ((def as any).label) sceneLabels[def.key] = (def as any).label;
           imgSuccess++;
-          console.log(`[generate-pptx] ${val.def.key} OK!`);
+          console.log(`[generate-pptx] ${def.key} OK!`);
         } else {
-          const failedKey = batch[batchResults.indexOf(result)]?.key || "unknown";
-          console.warn(`[generate-pptx] ${failedKey} failed`);
+          console.warn(`[generate-pptx] ${def.key} returned null, skipping`);
         }
+      } catch (err: any) {
+        console.warn(`[generate-pptx] ${def.key} error: ${err.message}`);
       }
-      
-      // Small delay between batches to avoid rate limiting
-      if (batchIdx + 2 < imgDefs.length) {
-        await new Promise(r => setTimeout(r, 2000));
+      // 3s delay between images to avoid DashScope rate limiting
+      if (i < imgDefs.length - 1) {
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
 
