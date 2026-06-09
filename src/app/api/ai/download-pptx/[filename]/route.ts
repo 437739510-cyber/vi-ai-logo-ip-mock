@@ -1,6 +1,6 @@
 /**
  * API: Download generated PPTX file
- * V23: Local file first, then fallback to Supabase Storage proxy
+ * V24: Local file first, then proxy from Storage with Content-Disposition (fixes cross-origin download)
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createReadStream, statSync, existsSync } from "fs";
@@ -22,18 +22,18 @@ export async function GET(
   const match = filename.match(/^vi-manual-([\w\-]+?)-\d+\.(pptx|pdf)$/);
   const projectId = match ? match[1] : null;
 
+  const ext = path.extname(filename).toLowerCase();
+  const contentType =
+    ext === ".pdf"
+      ? "application/pdf"
+      : "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
   const filePath = path.join(process.cwd(), "public", "generated", filename);
 
   // Try local file first
   if (existsSync(filePath)) {
     try {
       const fileStat = statSync(filePath);
-      const ext = path.extname(filename).toLowerCase();
-      const contentType =
-        ext === ".pdf"
-          ? "application/pdf"
-          : "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-
       const nodeStream = createReadStream(filePath, {
         highWaterMark: 64 * 1024,
       });
@@ -52,7 +52,7 @@ export async function GET(
     }
   }
 
-  // Fallback: Proxy from Supabase Storage
+  // V24: Proxy from Supabase Storage (not redirect) to force download with Content-Disposition
   if (projectId) {
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -61,13 +61,29 @@ export async function GET(
 
       console.log(`[download-pptx] Local file not found, proxying from Storage: ${storageUrl}`);
       
-      const resp = await fetch(storageUrl, { method: "HEAD" });
+      const resp = await fetch(storageUrl, { 
+        method: "GET",
+        signal: AbortSignal.timeout(60000),  // 60s timeout for large files
+      });
+      
       if (resp.ok) {
-        // File exists in Storage, redirect to it
-        return NextResponse.redirect(storageUrl);
+        const contentLength = resp.headers.get("content-length");
+        const body = resp.body;
+        
+        if (body) {
+          return new Response(body, {
+            status: 200,
+            headers: {
+              "Content-Type": contentType,
+              "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+              ...(contentLength ? { "Content-Length": contentLength } : {}),
+              "Cache-Control": "public, max-age=3600",
+            },
+          });
+        }
       }
-    } catch {
-      // Storage fallback failed
+    } catch (err: any) {
+      console.error(`[download-pptx] Storage proxy error: ${err.message}`);
     }
   }
 
