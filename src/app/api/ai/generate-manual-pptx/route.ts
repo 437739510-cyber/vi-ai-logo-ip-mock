@@ -463,8 +463,8 @@ async function generateLogoImage(
 
       console.log(`[generateLogo] Task submitted: ${taskId}`);
 
-      // 轮询结果（最多等48秒）V19: 6×8s=48s max
-      for (let poll = 0; poll < 6; poll++) {
+      // 轮询结果（最多等24秒）V19.2: 3×8s=24s max
+      for (let poll = 0; poll < 3; poll++) {
         await new Promise(r => setTimeout(r, 8000));
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
@@ -858,16 +858,22 @@ export async function POST(req: NextRequest) {
     Object.assign(sceneLabels, batchResult.sceneLabels);
     imgSuccess = batchResult.imgSuccess;
 
-    // ===== V18.1 Phase 2: 场景图完成后串行出Logo（避免并发冲突） =====
+    // ===== V19.2: Logo with 40s hard deadline (skip if timeout) =====
     if (logoPrompt) {
       sendProgress("images", "正在生成Logo方案...", 55);
-      console.log("[generate-pptx] ===== Phase 2: Logo generation =====");
+      console.log("[generate-pptx] ===== Logo generation (40s deadline) =====");
       try {
-        aiLogoData = await generateLogoImage(logoPrompt, realColors);
+        aiLogoData = await Promise.race([
+          generateLogoImage(logoPrompt, realColors),
+          new Promise<null>(resolve => setTimeout(() => {
+            console.warn("[generate-pptx] Logo 40s deadline reached, skipping");
+            resolve(null);
+          }, 40000)),
+        ]);
         if (aiLogoData) {
           console.log("[generate-pptx] AI logo OK! base64 length:", aiLogoData.length);
         } else {
-          console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
+          console.warn("[generate-pptx] AI logo skipped/failed, will use fallback icon");
         }
       } catch (logoErr: any) {
         console.warn("[generate-pptx] AI logo error:", logoErr?.message);
