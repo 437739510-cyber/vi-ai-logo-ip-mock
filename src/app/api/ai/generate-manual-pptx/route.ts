@@ -293,9 +293,9 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
 
       console.log(`[generateImage] Task submitted: ${taskId}`);
 
-      // Step 2: 轮询任务结果（最多等48秒）V19: 6×8s=48s max
-      for (let poll = 0; poll < 6; poll++) {
-        await new Promise(r => setTimeout(r, 8000)); // 等8秒
+      // Step 2: 轮询任务结果（最多等48秒）V21.1: 8×6s=48s max
+      for (let poll = 0; poll < 8; poll++) {
+        await new Promise(r => setTimeout(r, 6000)); // 等6秒
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
           headers: { "Authorization": `Bearer ${apiKey}` },
@@ -772,17 +772,18 @@ export async function POST(req: NextRequest) {
       }));
     }
 
-    // ===== V21: Scene images one-by-one (serial, avoid DashScope throttling) =====
-    const sceneRefImage = mascotData || logoData || undefined;
+    // ===== V21.1: Scene images one-by-one (serial, no refImage, avoid DashScope throttling) =====
+    await new Promise(r => setTimeout(r, 2000));  // Wait 2s before starting scenes
+    // V21.1: No ref image for scenes - wan2.6-t2i is more reliable than wan2.6-image
     sendProgress("images", "正在生成场景图(5张)...", 50);
-    console.log("[generate-pptx] ===== Scene images serial (refImage:", !!sceneRefImage, ") =====");
+    console.log("[generate-pptx] ===== Scene images serial (wan2.6-t2i, no refImage) =====");
 
     for (let i = 0; i < imgDefs.length; i++) {
       const def = imgDefs[i];
       sendProgress("images", `正在生成场景图(${i+1}/${imgDefs.length})...`, 50 + i * 2);
       console.log(`[generate-pptx] Scene ${i+1}/${imgDefs.length}: key=${def.key}`);
       try {
-        const imgData = await generateSceneImage(def.rawPrompt, sceneRefImage);
+        const imgData = await generateSceneImage(def.rawPrompt, undefined);  // V21.1: no ref image
         if (imgData) {
           sceneImages[def.key] = imgData;
           if ((def as any).label) sceneLabels[def.key] = (def as any).label;
@@ -794,9 +795,9 @@ export async function POST(req: NextRequest) {
       } catch (err: any) {
         console.warn(`[generate-pptx] ${def.key} error: ${err.message}`);
       }
-      // 3s delay between images to avoid DashScope rate limiting
+      // 5s delay between images to avoid DashScope rate limiting
       if (i < imgDefs.length - 1) {
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 5000));
       }
     }
 
