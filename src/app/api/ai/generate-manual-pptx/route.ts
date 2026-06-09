@@ -247,7 +247,7 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
     return null;
   }
 
-  const maxRetries = 1;  // V19: no retry - fallback is acceptable, avoids timeout
+  const maxRetries = 2;  // V24: retry once for scene images to improve success rate
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // V9: 支持Logo参考图 - wan2.6-image图像编辑模式
@@ -829,7 +829,30 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // V18.2: 不重试失败的场景图，避免超时（fallback色块占位即可）
+    // V24: Retry failed scene images once (target: at least 3/5)
+    const failedDefs = imgDefs.filter(d => !sceneImages[d.key]);
+    if (failedDefs.length > 0 && imgSuccess < 3) {
+      console.log(`[generate-pptx] ${failedDefs.length} scene images failed, retrying after 12s cooldown...`);
+      await new Promise(r => setTimeout(r, 12000));  // Cooldown to avoid DashScope throttling
+      for (let ri = 0; ri < failedDefs.length; ri++) {
+        const def = failedDefs[ri];
+        if (imgSuccess >= 3) break;  // Stop retry once we have 3
+        sendProgress("images", `重试场景图(${ri+1}/${failedDefs.length})...`, 58 + ri);
+        console.log(`[generate-pptx] Retry scene: key=${def.key}`);
+        try {
+          const imgData = await generateSceneImage(def.rawPrompt, undefined);
+          if (imgData) {
+            sceneImages[def.key] = imgData;
+            if ((def as any).label) sceneLabels[def.key] = (def as any).label;
+            imgSuccess++;
+            console.log(`[generate-pptx] Retry ${def.key} OK!`);
+          }
+        } catch (err: any) {
+          console.warn(`[generate-pptx] Retry ${def.key} error: ${err.message}`);
+        }
+        if (ri < failedDefs.length - 1) await new Promise(r => setTimeout(r, 6000));
+      }
+    }
     console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success (sceneImages keys: [${Object.keys(sceneImages).join(",")}])`);
 
     // ===== Step 5: 生成蓝图 =====
