@@ -870,25 +870,34 @@ export async function POST(req: NextRequest) {
     const fileName = `vi-manual-${projectId}-${Date.now()}.pptx`;
     await writeFile(path.join(outputDir, fileName), buffer);
 
-    // ===== Step 7.5: 上传到Supabase Storage存档 =====
+    // ===== Step 7.5: 上传到Supabase Storage存档 (V21.2: retry + verbose) =====
     let storageUrl: string | null = null;
-    try {
-      const storagePath = `${projectId}/${fileName}`;
-      const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
-        .from("manuals")
-        .upload(storagePath, buffer, {
-          contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-          upsert: true,
-        });
-      if (uploadErr) {
-        console.warn("[generate-pptx] Storage upload failed:", uploadErr.message);
-      } else {
+    for (let uploadAttempt = 1; uploadAttempt <= 3; uploadAttempt++) {
+      try {
+        const storagePath = `${projectId}/${fileName}`;
+        console.log(`[generate-pptx] Storage upload attempt ${uploadAttempt}, buffer size: ${buffer.length} bytes`);
+        const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
+          .from("manuals")
+          .upload(storagePath, buffer, {
+            contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            upsert: true,
+          });
+        if (uploadErr) {
+          console.warn(`[generate-pptx] Storage upload attempt ${uploadAttempt} error:`, JSON.stringify(uploadErr));
+          if (uploadAttempt < 3) await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
         const { data: urlData } = supabaseAdmin.storage.from("manuals").getPublicUrl(storagePath);
         storageUrl = urlData?.publicUrl || null;
         console.log("[generate-pptx] Storage upload OK:", storageUrl);
+        break;
+      } catch (storageErr: any) {
+        console.warn(`[generate-pptx] Storage upload attempt ${uploadAttempt} exception:`, storageErr?.message, storageErr?.stack?.substring(0, 200));
+        if (uploadAttempt < 3) await new Promise(r => setTimeout(r, 2000));
       }
-    } catch (storageErr: any) {
-      console.warn("[generate-pptx] Storage upload error:", storageErr?.message);
+    }
+    if (!storageUrl) {
+      console.warn("[generate-pptx] All 3 storage upload attempts failed!");
     }
 
     console.log("[generate-pptx] ===== DONE =====", fileName, `(${imgSuccess} images, ${blueprints.length} pages)`);
