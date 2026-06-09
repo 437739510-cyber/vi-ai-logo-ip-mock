@@ -581,7 +581,7 @@ export async function POST(req: NextRequest) {
     const brandVision = body.clientInfo?.brandVision || submission?.brand_vision || submission?.brandVision || "";
     const coreValues = body.clientInfo?.coreValues || submission?.core_values || submission?.coreValues || "";
     const targetMarket = body.clientInfo?.targetMarket || submission?.target_market || submission?.targetMarket || "";
-    const logoPhilosophy = body.clientInfo?.logoPhilosophy || submission?.logo_philosophy || submission?.logoPhilosophy || "";
+    let effectiveLogoPhilosophy = body.clientInfo?.logoPhilosophy || submission?.logo_philosophy || submission?.logoPhilosophy || "";
     const mascotPhilosophy = body.clientInfo?.mascotPhilosophy || submission?.mascot_philosophy || submission?.mascotPhilosophy || "";
 
     const rawColors = body.brandColors || submission?.existing_brand_color || submission?.brand_colors || submission?.brandColors;
@@ -611,7 +611,7 @@ export async function POST(req: NextRequest) {
       if (apiKey && (companyName !== "品牌")) {
         const analysisPrompt = buildBrandAnalysisPrompt({
           companyName, industry, brandVision, coreValues, targetMarket,
-          logoPhilosophy, mascotPhilosophy,
+          logoPhilosophy: effectiveLogoPhilosophy, mascotPhilosophy,
           province: body.clientInfo?.province || submission?.province,
           city: body.clientInfo?.city || submission?.city,
           description: body.clientInfo?.description || submission?.description,
@@ -646,6 +646,12 @@ export async function POST(req: NextRequest) {
             if (brandProfile.refinedBrandVision) effectiveBrandVision = brandProfile.refinedBrandVision;
             if (brandProfile.refinedCoreValues) effectiveCoreValues = brandProfile.refinedCoreValues;
             if (brandProfile.refinedTargetMarket) effectiveTargetMarket = brandProfile.refinedTargetMarket;
+
+            // V22: 如果客户没写logoPhilosophy，从AI分析结果中提取
+            if (!effectiveLogoPhilosophy && brandProfile.logoDesignSuggestions?.concept) {
+              effectiveLogoPhilosophy = brandProfile.logoDesignSuggestions.concept;
+              console.log("[generate-pptx] Using logoDesignSuggestions.concept as logoPhilosophy fallback");
+            }
 
             // V10: 保存logoDesignSuggestions到brandProfile
             if (brandProfile.logoDesignSuggestions) {
@@ -828,14 +834,14 @@ export async function POST(req: NextRequest) {
 
     // ===== Step 5: 生成蓝图 =====
     const blueprints = await planPages({
-      clientInfo: { companyName, brandVision: effectiveBrandVision, coreValues: effectiveCoreValues, targetMarket: effectiveTargetMarket, logoPhilosophy, mascotPhilosophy, industry },
+      clientInfo: { companyName, brandVision: effectiveBrandVision, coreValues: effectiveCoreValues, targetMarket: effectiveTargetMarket, logoPhilosophy: effectiveLogoPhilosophy, mascotPhilosophy, industry },
       brandColors: {
         primary: { hex: realColors.primary },
         secondary: { hex: realColors.secondary },
         accent: { hex: realColors.accent },
       },
       assetAnalysis: {
-        logo: { hasLogo: !!logoData, logoUrl: body.logoUrl || "", elements: [], styleTags: [], meaning: logoPhilosophy },
+        logo: { hasLogo: !!logoData, logoUrl: body.logoUrl || "", elements: [], styleTags: [], meaning: effectiveLogoPhilosophy },
         mascot: { hasMascot: !!mascotData, mascotUrl: body.mascotUrl || "", isThreeView: !!(mascotSplitViews?.length === 3), splitViews: mascotSplitViews || [], name: "", style: "", personality: "" },
       },
     });
@@ -856,7 +862,7 @@ export async function POST(req: NextRequest) {
       brandVision: effectiveBrandVision,
       coreValues: effectiveCoreValues,
       targetMarket: effectiveTargetMarket,
-      logoPhilosophy,
+      logoPhilosophy: effectiveLogoPhilosophy,
       mascotPhilosophy,
       sceneImages,
       sceneLabels,
