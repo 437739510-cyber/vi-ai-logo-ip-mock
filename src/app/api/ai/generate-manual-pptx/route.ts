@@ -552,7 +552,11 @@ function createStreamResponse() {
 
 // ========== DB-based progress helpers (for background async tasks) ==========
 function createDbProgressHelpers(projectId: string) {
+  let isCompleted = false;  // V19.1: lock to prevent race condition
+  
   async function updateDb(status: string, message: string, percent?: number, extra?: Record<string, any>) {
+    // V19.1: Once completed, no more progress updates allowed
+    if (isCompleted && status !== "completed") return;
     try {
       const { data: existingInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
       const prev = (existingInfo?.client_info as Record<string, any>) || {};
@@ -567,15 +571,28 @@ function createDbProgressHelpers(projectId: string) {
 
   return {
     sendProgress: async (step: string, message: string, percent?: number) => {
-      await updateDb(step === "done" ? "completed" : "pptx_assembling", message, percent);
+      if (isCompleted) return;  // V19.1: skip if already completed
+      await updateDb("pptx_assembling", message, percent);
     },
     sendComplete: async (data: any) => {
-      await updateDb("completed", "生成完成！", 100, {
-        pptxResult: { url: data.url, storageUrl: data.storageUrl, pageCount: data.pageCount, imageCount: data.imageCount, fileName: data.fileName },
-      });
-      await supabaseAdmin.from("projects").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", projectId);
+      isCompleted = true;  // V19.1: set lock BEFORE updating
+      // Use a single atomic-ish update: read latest, write with pptxResult
+      const { data: existingInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
+      const prev = (existingInfo?.client_info as Record<string, any>) || {};
+      await supabaseAdmin.from("projects").update({
+        status: "completed",
+        client_info: {
+          ...prev,
+          generationStatus: "completed",
+          generationMessage: "生成完成！",
+          generationPercent: 100,
+          pptxResult: { url: data.url, storageUrl: data.storageUrl, pageCount: data.pageCount, imageCount: data.imageCount, fileName: data.fileName },
+        },
+        updated_at: new Date().toISOString(),
+      }).eq("id", projectId);
     },
     sendError: async (message: string) => {
+      isCompleted = true;  // V19.1: set lock
       await updateDb("failed", message);
       await supabaseAdmin.from("projects").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", projectId);
     },
@@ -926,13 +943,8 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("[generate-pptx] ===== DONE =====", fileName, `(${imgSuccess} images, ${blueprints.length} pages)`);
-    // V12: 更新项目状态为"完成"
-    await supabaseAdmin.from("projects").update({
-      status: "completed",
-      updated_at: new Date().toISOString(),
-    }).eq("id", projectId);
-
-    sendProgress("done", "生成完成！", 100);
+    // V19.1: sendComplete is the SINGLE source of truth for completion
+    // It sets status=completed + pptxResult in one atomic update
     sendComplete({
       url: `/api/ai/download-pptx/${fileName}`,
       storageUrl,
