@@ -240,15 +240,98 @@ function normalizeColors(colors: any, industry?: string): { primary: string; sec
 const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation";
 const DASHSCOPE_TASK = "https://dashscope.aliyuncs.com/api/v1/tasks";
 
-// V19.3: Controlled-concurrency scene image generation (2 at a time)
-// Solves DashScope actual concurrency being lower than documented 5
-
 interface SceneTask {
   def: { key: string; page: string; rawPrompt: string; label?: string };
   taskId: string | null;
-  result: string | null;
-  status: 'pending' | 'submitted' | 'succeeded' | 'failed' | 'timeout';
+  result: string | null;  // base64 data URL
+  status: 'pending' | 'running' | 'succeeded' | 'failed' | 'timeout';
 }
+
+async function submitDashScopeTask(apiKey: string, prompt: string, logoBase64?: string): Promise<string | null> {
+  const useRefImage = !!logoBase64;
+  const model = useRefImage ? "wan2.6-image" : "wan2.6-t2i";
+  let imgContent: Array<{ text?: string; image?: string }>;
+  if (useRefImage) {
+    imgContent = [{ text: prompt }, { image: logoBase64! }];
+  } else {
+    imgContent = [{ text: prompt }];
+  }
+  const requestParams = useRefImage
+    ? { size: "512*768", n: 1, enable_interleave: false, prompt_extend: true }  // V19.2: smaller=faster
+    : { size: "512*768", n: 1 };  // V19.2: smaller=faster
+
+  try {
+    const submitResp = await fetch(DASHSCOPE_API, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "X-DashScope-Async": "enable",
+      },
+      body: JSON.stringify({
+        model,
+        input: { messages: [{ role: "user", content: imgContent }] },
+        parameters: requestParams,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!submitResp.ok) {
+      const errText = await submitResp.text();
+      console.error(`[submitTask] ${submitResp.status}: ${errText.substring(0, 200)}`);
+      return null;
+    }
+    const data = await submitResp.json();
+    const taskId = data.output?.task_id;
+    if (!taskId) {
+      console.error(`[submitTask] No task_id:`, JSON.stringify(data).substring(0, 200));
+      return null;
+    }
+    return taskId;
+  } catch (err: any) {
+    console.error(`[submitTask] Error: ${err.message}`);
+    return null;
+  }
+}
+
+async function pollDashScopeTask(apiKey: string, taskId: string): Promise<{ status: string; imageUrl?: string; message?: string }> {
+  try {
+    const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
+      headers: { "Authorization": `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!pollResp.ok) return { status: "unknown" };
+    const data = await pollResp.json();
+    const taskStatus = data.output?.task_status;
+    if (taskStatus === "SUCCEEDED") {
+      const imageUrl = data.output?.choices?.[0]?.message?.content?.[0]?.image;
+      return { status: "SUCCEEDED", imageUrl };
+    }
+    if (taskStatus === "FAILED") {
+      return { status: "FAILED", message: data.output?.message || "unknown" };
+    }
+    return { status: taskStatus || "unknown" };
+  } catch (err: any) {
+    console.error(`[pollTask] ${taskId} error: ${err.message}`);
+    return { status: "error" };
+  }
+}
+
+async function downloadImageAsBase64(imageUrl: string): Promise<string | null> {
+  try {
+    const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
+    if (!resp.ok) return null;
+    const buf = Buffer.from(await resp.arrayBuffer());
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+
+// V19.3: Controlled-concurrency scene image generation (2 at a time)
+// Solves DashScope actual concurrency being lower than documented 5
+
+
 
 async function generateSceneImagesBatch(
   imgDefs: Array<{ key: string; page: string; rawPrompt: string; label?: string }>,
