@@ -877,14 +877,31 @@ export async function POST(req: NextRequest) {
       console.log(`[generate-pptx] Storage upload START: ${buffer.length} bytes to manuals/${storagePath}`);
       console.log(`[generate-pptx] supabaseAdmin type: ${typeof supabaseAdmin}, has storage: ${!!supabaseAdmin?.storage}`);
       
-      const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
+      // V21.6: Try with Buffer first, fallback to ArrayBuffer
+      let uploadResult = await supabaseAdmin.storage
         .from("manuals")
         .upload(storagePath, buffer, {
           contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
           upsert: true,
         });
       
-      console.log(`[generate-pptx] Storage upload result: data=${JSON.stringify(uploadData)?.substring(0,200)}, error=${JSON.stringify(uploadErr)}`);
+      console.log(`[generate-pptx] Storage upload result: data=${JSON.stringify(uploadResult.data)?.substring(0,200)}, error=${JSON.stringify(uploadResult.error)}`);
+      
+      if (uploadResult.error) {
+        console.warn("[generate-pptx] Buffer upload failed:", uploadResult.error.message, uploadResult.error.statusCode);
+        // Try ArrayBuffer approach
+        console.log("[generate-pptx] Retrying with ArrayBuffer...");
+        uploadResult = await supabaseAdmin.storage
+          .from("manuals")
+          .upload(storagePath, new Uint8Array(buffer) as any, {
+            contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            upsert: true,
+          });
+        console.log(`[generate-pptx] ArrayBuffer upload result: error=${JSON.stringify(uploadResult.error)}`);
+      }
+      
+      const uploadData = uploadResult.data;
+      const uploadErr = uploadResult.error;
       
       if (uploadErr) {
         console.warn("[generate-pptx] Storage upload failed:", uploadErr.message, uploadErr.statusCode, uploadErr.name);
