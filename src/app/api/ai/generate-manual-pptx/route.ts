@@ -258,8 +258,8 @@ async function submitDashScopeTask(apiKey: string, prompt: string, logoBase64?: 
     imgContent = [{ text: prompt }];
   }
   const requestParams = useRefImage
-    ? { size: "768*1024", n: 1, enable_interleave: false, prompt_extend: true }
-    : { size: "768*1024", n: 1 };
+    ? { size: "512*768", n: 1, enable_interleave: false, prompt_extend: true }  // V19.2: smaller=faster
+    : { size: "512*768", n: 1 };  // V19.2: smaller=faster
 
   try {
     const submitResp = await fetch(DASHSCOPE_API, {
@@ -347,7 +347,7 @@ async function generateSceneImagesBatch(
   const submitResults = await Promise.allSettled(
     tasks.map(async (task, i) => {
       // Small stagger to avoid burst rate limit
-      if (i > 0) await new Promise(r => setTimeout(r, 200));
+      if (i > 0) await new Promise(r => setTimeout(r, 500));  // V19.2: 500ms stagger for rate limit
       task.taskId = await submitDashScopeTask(apiKey, task.def.rawPrompt, refImage);
       task.status = task.taskId ? 'running' : 'failed';
       return task;
@@ -356,7 +356,7 @@ async function generateSceneImagesBatch(
   console.log(`[sceneBatch] Submitted: ${tasks.filter(t => t.taskId).length}/${tasks.length} tasks got IDs`);
 
   // Phase 2: Shared polling loop (check all tasks each iteration)
-  const MAX_POLLS = 10;  // 10 × 8s = 80s max
+  const MAX_POLLS = 15;  // 15 × 8s = 120s max (V19.2: enough for queued tasks)
   const POLL_INTERVAL = 8000;
   for (let poll = 0; poll < MAX_POLLS; poll++) {
     await new Promise(r => setTimeout(r, POLL_INTERVAL));
