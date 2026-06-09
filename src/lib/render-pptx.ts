@@ -253,7 +253,7 @@ function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
     case "logo-interpretation": renderLogoPage(slide, bp, opts, bc, industry); break;
     case "logo-variations": renderLogoVariations(slide, bp, opts, bc, industry); break;
     case "logo-misuse": renderLogoMisuse(slide, bp, opts, bc, industry); break;
-    case "auxiliary-graphics": renderAuxiliaryGraphics(slide, bp, opts, bc); break;
+    case "auxiliary-graphics": renderAuxiliaryGraphics(slide, bp, opts, bc, industry); break;
     case "brand-colors": renderColors(slide, bp, opts, bc); break;
     case "typography": renderTypography(slide, bp, opts, bc); break;
     case "basic-spec": renderBasicSpec(slide, bp, opts, bc, industry); break;
@@ -731,8 +731,8 @@ function renderLogoMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
   });
 }
 
-// ---- 辅助图形 ----
-function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+// ---- 辅助图形 V24: 按行业定制 ----
+function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType): void {
   addContentFrame(slide, bp.label || "辅助图形", bc);
   const cx = MARGIN + LEFT_BAR_W;
 
@@ -745,58 +745,44 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   const halfW = (CONTENT_W - 0.3) / 2;
   const patternH = 2.5;
 
-  // Pattern 1: Stripes
+  // ---- Pattern 1: Primary auxiliary graphic (industry-specific) ----
   const p1x = cx;
   const p1y = 2.0;
   slide.addShape("rect", {
     x: p1x, y: p1y, w: halfW, h: patternH,
     fill: { color: "F5F5F5" }, rectRadius: 0.1,
   });
-  // Draw 5 diagonal stripes with brand colors
-  const stripeColors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec];
-  for (let s = 0; s < 5; s++) {
-    slide.addShape("rect", {
-      x: p1x + s * (halfW / 5), y: p1y,
-      w: halfW / 8, h: patternH,
-      fill: { color: stripeColors[s], transparency: 60 },
-      rectRadius: 0.02,
-    });
-  }
-  slide.addText("主辅助图形 \u2014 条纹组合", {
+
+  const p1Label: string = drawPrimaryPattern(slide, p1x, p1y, halfW, patternH, bc, industry);
+
+  slide.addText(`主辅助图形 — ${p1Label}`, {
     x: p1x, y: p1y + patternH + 0.1, w: halfW, h: 0.3,
     fontSize: 12, bold: true, color: "444444", align: "center",
   });
 
-  // Pattern 2: Dots
+  // ---- Pattern 2: Secondary auxiliary graphic (industry-specific) ----
   const p2x = cx + halfW + 0.3;
   const p2y = 2.0;
   slide.addShape("rect", {
     x: p2x, y: p2y, w: halfW, h: patternH,
     fill: { color: "F5F5F5" }, rectRadius: 0.1,
   });
-  // Draw dot grid
-  const dotColors = [bc.sec, bc.pri, bc.acc];
-  for (let r = 0; r < 4; r++) {
-    for (let c = 0; c < 6; c++) {
-      slide.addShape("ellipse", {
-        x: p2x + 0.2 + c * 0.55, y: p2y + 0.2 + r * 0.55,
-        w: 0.25, h: 0.25,
-        fill: { color: dotColors[(r + c) % 3], transparency: 50 },
-      });
-    }
-  }
-  slide.addText("次辅助图形 \u2014 点阵组合", {
+
+  const p2Label: string = drawSecondaryPattern(slide, p2x, p2y, halfW, patternH, bc, industry);
+
+  slide.addText(`次辅助图形 — ${p2Label}`, {
     x: p2x, y: p2y + patternH + 0.1, w: halfW, h: 0.3,
     fontSize: 12, bold: true, color: "444444", align: "center",
   });
 
   // Usage section
+  const usageExamples = getAuxUsageExamples(industry);
   slide.addText("应用场景", {
     x: cx, y: 5.3, w: CONTENT_W, h: 0.35,
     fontSize: 16, bold: true, color: bc.pri,
   });
 
-  slide.addText("1. 文档/手册页眉装饰线\n2. 包装袋底部纹样\n3. 名片背面背景\n4. 社交媒体封面装饰\n5. 店铺墙面装饰纹样", {
+  slide.addText(usageExamples, {
     x: cx + 0.2, y: 5.7, w: CONTENT_W - 0.4, h: 1.2,
     fontSize: 12, color: "555555", lineSpacingMultiple: 1.6,
   });
@@ -807,6 +793,293 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   });
 }
 
+// V24: Industry-specific primary auxiliary graphic
+function drawPrimaryPattern(slide: PptxGenJS.Slide, px: number, py: number, pw: number, ph: number, bc: BC, industry: IndustryType): string {
+  switch (industry) {
+    case "fastfood": {
+      // Concentric arcs — bun curves, warmth
+      const colors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec];
+      for (let i = 0; i < 5; i++) {
+        slide.addShape("arc", {
+          x: px + pw * 0.15 + i * pw * 0.12, y: py + ph * 0.1,
+          w: pw * 0.6 - i * pw * 0.08, h: ph * 0.8 - i * ph * 0.08,
+          fill: { color: colors[i], transparency: 55 },
+          rectRadius: 0.05,
+        });
+      }
+      return "弧线组合";
+    }
+    case "restaurant": {
+      // Flowing cloud/traditional motif
+      const colors = [bc.pri, bc.sec, bc.acc, bc.pri];
+      for (let i = 0; i < 4; i++) {
+        slide.addShape("ellipse", {
+          x: px + 0.15 + i * pw * 0.2, y: py + ph * 0.2 + (i % 2) * ph * 0.15,
+          w: pw * 0.25, h: pw * 0.25,
+          fill: { color: colors[i], transparency: 50 },
+        });
+        slide.addShape("ellipse", {
+          x: px + 0.15 + i * pw * 0.2 + pw * 0.08, y: py + ph * 0.1 + (i % 2) * ph * 0.1,
+          w: pw * 0.2, h: pw * 0.2,
+          fill: { color: colors[i], transparency: 65 },
+        });
+      }
+      return "祥云组合";
+    }
+    case "beverage": {
+      // Bubble circles
+      const colors = [bc.pri, bc.sec, bc.acc];
+      const sizes = [0.5, 0.35, 0.4, 0.3, 0.45, 0.25, 0.35];
+      const positions = [[0.1,0.15],[0.45,0.1],[0.25,0.45],[0.6,0.35],[0.15,0.65],[0.55,0.6],[0.35,0.3]];
+      for (let i = 0; i < 7; i++) {
+        slide.addShape("ellipse", {
+          x: px + positions[i][0] * pw, y: py + positions[i][1] * ph,
+          w: sizes[i], h: sizes[i],
+          fill: { color: colors[i % 3], transparency: 45 },
+        });
+      }
+      return "气泡组合";
+    }
+    case "beauty": {
+      // Flower petals
+      const colors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec, bc.acc];
+      const cx0 = px + pw * 0.5, cy0 = py + ph * 0.5;
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        slide.addShape("ellipse", {
+          x: cx0 + Math.cos(angle) * pw * 0.18 - 0.15, y: cy0 + Math.sin(angle) * ph * 0.18 - 0.15,
+          w: 0.4, h: 0.25,
+          fill: { color: colors[i], transparency: 50 },
+          rotate: Math.round(angle * 180 / Math.PI),
+        });
+      }
+      return "花瓣组合";
+    }
+    case "fashion": {
+      // Geometric triangles
+      const colors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec];
+      for (let i = 0; i < 5; i++) {
+        slide.addShape("triangle", {
+          x: px + 0.1 + i * pw * 0.17, y: py + ph * 0.15,
+          w: pw * 0.18, h: ph * 0.7,
+          fill: { color: colors[i], transparency: 55 },
+          flipV: i % 2 === 1,
+        });
+      }
+      return "三角组合";
+    }
+    case "pharmacy": {
+      // Cross/plus pattern
+      const colors = [bc.pri, bc.sec, bc.acc];
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 4; c++) {
+          const bx = px + 0.15 + c * pw * 0.22;
+          const by = py + 0.2 + r * ph * 0.28;
+          const s = 0.12;
+          slide.addShape("rect", { x: bx + s*0.3, y: by, w: s*0.5, h: s*1.2, fill: { color: colors[(r+c)%3], transparency: 45 } });
+          slide.addShape("rect", { x: bx, y: by + s*0.3, w: s*1.2, h: s*0.5, fill: { color: colors[(r+c)%3], transparency: 45 } });
+        }
+      }
+      return "十字组合";
+    }
+    case "fitness": {
+      // Dynamic diagonal stripes
+      const colors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec, bc.acc, bc.pri];
+      for (let i = 0; i < 7; i++) {
+        slide.addShape("rect", {
+          x: px + i * pw * 0.12, y: py,
+          w: pw * 0.06, h: ph,
+          fill: { color: colors[i], transparency: 50 },
+          rotate: 30,
+        });
+      }
+      return "斜线组合";
+    }
+    case "wedding": {
+      // Overlapping circles
+      const colors = [bc.pri, bc.sec, bc.acc];
+      const rings = [[0.2,0.2],[0.4,0.25],[0.55,0.15],[0.3,0.5],[0.5,0.45]];
+      for (let i = 0; i < rings.length; i++) {
+        slide.addShape("ellipse", {
+          x: px + rings[i][0] * pw, y: py + rings[i][1] * ph,
+          w: 0.5, h: 0.5,
+          fill: { color: colors[i % 3], transparency: 55 },
+          line: { color: colors[i % 3], width: 1.5, transparency: 30 },
+        });
+      }
+      return "圆环组合";
+    }
+    default: {
+      // Default: diagonal stripes
+      const stripeColors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec];
+      for (let s = 0; s < 5; s++) {
+        slide.addShape("rect", {
+          x: px + s * (pw / 5), y: py,
+          w: pw / 8, h: ph,
+          fill: { color: stripeColors[s], transparency: 60 },
+          rectRadius: 0.02,
+        });
+      }
+      return "条纹组合";
+    }
+  }
+}
+
+// V24: Industry-specific secondary auxiliary graphic
+function drawSecondaryPattern(slide: PptxGenJS.Slide, px: number, py: number, pw: number, ph: number, bc: BC, industry: IndustryType): string {
+  switch (industry) {
+    case "fastfood": {
+      // Wave / steam lines
+      const colors = [bc.sec, bc.pri, bc.acc, bc.sec, bc.pri];
+      for (let i = 0; i < 5; i++) {
+        const yOff = py + 0.2 + i * (ph - 0.4) / 4;
+        for (let j = 0; j < 3; j++) {
+          slide.addShape("ellipse", {
+            x: px + 0.15 + j * pw * 0.28, y: yOff,
+            w: pw * 0.22, h: ph * 0.08,
+            fill: { color: colors[i], transparency: 55 },
+            rectRadius: 0.03,
+          });
+        }
+      }
+      return "波浪组合";
+    }
+    case "restaurant": {
+      // Coin / copper motif
+      const colors = [bc.sec, bc.pri, bc.acc, bc.sec];
+      for (let i = 0; i < 4; i++) {
+        const cx0 = px + pw * (0.2 + (i % 2) * 0.45);
+        const cy0 = py + ph * (0.2 + Math.floor(i / 2) * 0.4);
+        slide.addShape("ellipse", {
+          x: cx0 - 0.25, y: cy0 - 0.25, w: 0.5, h: 0.5,
+          fill: { color: colors[i], transparency: 50 },
+          line: { color: colors[i], width: 1, transparency: 30 },
+        });
+        slide.addShape("ellipse", {
+          x: cx0 - 0.12, y: cy0 - 0.12, w: 0.24, h: 0.24,
+          fill: { color: colors[i], transparency: 70 },
+          line: { color: colors[i], width: 0.5, transparency: 50 },
+        });
+      }
+      return "铜钱组合";
+    }
+    case "beverage": {
+      // Ripple rings
+      const colors = [bc.sec, bc.pri, bc.acc];
+      const center = [px + pw * 0.5, py + ph * 0.5];
+      for (let i = 3; i >= 0; i--) {
+        const sz = 0.3 + i * 0.35;
+        slide.addShape("ellipse", {
+          x: center[0] - sz/2, y: center[1] - sz/2,
+          w: sz, h: sz,
+          fill: { color: colors[i % 3], transparency: 60 + i * 5 },
+          line: { color: colors[i % 3], width: 0.75, transparency: 40 },
+        });
+      }
+      return "涟漪组合";
+    }
+    case "beauty": {
+      // Elegant curved lines
+      const colors = [bc.sec, bc.pri, bc.acc, bc.sec];
+      for (let i = 0; i < 4; i++) {
+        slide.addShape("arc", {
+          x: px + 0.1 + i * pw * 0.2, y: py + 0.1 + i * ph * 0.15,
+          w: pw * 0.35, h: ph * 0.4,
+          fill: { color: colors[i], transparency: 55 },
+          rectRadius: 0.05,
+        });
+      }
+      return "弧线组合";
+    }
+    case "fashion": {
+      // Diamond / rhombus grid
+      const colors = [bc.sec, bc.pri, bc.acc];
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          slide.addShape("diamond", {
+            x: px + 0.15 + c * pw * 0.3, y: py + 0.2 + r * ph * 0.25,
+            w: pw * 0.22, h: ph * 0.2,
+            fill: { color: colors[(r + c) % 3], transparency: 50 },
+          });
+        }
+      }
+      return "菱形组合";
+    }
+    case "pharmacy": {
+      // DNA helix dots
+      const colors = [bc.sec, bc.pri, bc.acc];
+      for (let i = 0; i < 8; i++) {
+        const x1 = px + 0.15 + i * pw * 0.1;
+        const y1 = py + ph * 0.3 + Math.sin(i * 0.8) * ph * 0.25;
+        const y2 = py + ph * 0.7 - Math.sin(i * 0.8) * ph * 0.25;
+        slide.addShape("ellipse", {
+          x: x1, y: y1, w: 0.18, h: 0.18,
+          fill: { color: colors[i % 3], transparency: 45 },
+        });
+        slide.addShape("ellipse", {
+          x: x1, y: y2, w: 0.18, h: 0.18,
+          fill: { color: colors[(i + 1) % 3], transparency: 45 },
+        });
+      }
+      return "螺旋组合";
+    }
+    case "fitness": {
+      // Lightning bolt shapes
+      const colors = [bc.sec, bc.pri, bc.acc, bc.sec];
+      for (let i = 0; i < 4; i++) {
+        slide.addShape("rect", {
+          x: px + 0.1 + i * pw * 0.22, y: py + ph * 0.2,
+          w: pw * 0.15, h: ph * 0.6,
+          fill: { color: colors[i], transparency: 50 },
+          rotate: i % 2 === 0 ? -15 : 15,
+        });
+      }
+      return "闪电组合";
+    }
+    case "wedding": {
+      // Heart-like overlapping circles
+      const colors = [bc.sec, bc.pri, bc.acc, bc.sec, bc.pri];
+      const positions = [[0.15,0.2],[0.35,0.15],[0.55,0.2],[0.25,0.5],[0.45,0.55]];
+      for (let i = 0; i < positions.length; i++) {
+        slide.addShape("ellipse", {
+          x: px + positions[i][0] * pw, y: py + positions[i][1] * ph,
+          w: 0.35, h: 0.35,
+          fill: { color: colors[i], transparency: 55 },
+        });
+      }
+      return "圆点组合";
+    }
+    default: {
+      // Default: dot grid
+      const dotColors = [bc.sec, bc.pri, bc.acc];
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 6; c++) {
+          slide.addShape("ellipse", {
+            x: px + 0.2 + c * 0.55, y: py + 0.2 + r * 0.55,
+            w: 0.25, h: 0.25,
+            fill: { color: dotColors[(r + c) % 3], transparency: 50 },
+          });
+        }
+      }
+      return "点阵组合";
+    }
+  }
+}
+
+// V24: Industry-specific usage examples
+function getAuxUsageExamples(industry: IndustryType): string {
+  const examples: Record<string, string> = {
+    fastfood: "1. 外卖包装袋底纹\n2. 菜单页眉装饰线\n3. 店铺招牌边框纹样\n4. 员工围裙装饰带\n5. 促销海报背景纹理",
+    restaurant: "1. 菜单封面装饰纹样\n2. 餐垫纸背景图案\n3. 外卖袋底部纹样\n4. 名片背面背景\n5. 店铺墙面装饰",
+    beverage: "1. 杯套装饰纹样\n2. 菜单页眉装饰线\n3. 外卖袋底部纹样\n4. 社交媒体封面装饰\n5. 店铺墙面装饰",
+    beauty: "1. 产品包装装饰线\n2. 名片背面背景\n3. 预约卡装饰纹样\n4. 社交媒体封面装饰\n5. 店铺橱窗装饰",
+    fashion: "1. 吊牌装饰纹样\n2. 购物袋底纹\n3. 名片背面背景\n4. 社交媒体封面装饰\n5. 包装盒侧面纹样",
+    pharmacy: "1. 药袋装饰线\n2. 处方笺页眉纹样\n3. 保健品类包装装饰\n4. 名片背面背景\n5. 店铺招牌边框",
+    fitness: "1. 会员卡装饰纹样\n2. 课程表页眉装饰\n3. 运动毛巾边框\n4. 社交媒体封面装饰\n5. 场馆墙面装饰",
+    wedding: "1. 请柬装饰纹样\n2. 喜糖盒底部纹样\n3. 名片背面背景\n4. 社交媒体封面装饰\n5. 婚礼现场装饰",
+  };
+  return examples[industry] || "1. 文档/手册页眉装饰线\n2. 包装袋底部纹样\n3. 名片背面背景\n4. 社交媒体封面装饰\n5. 店铺墙面装饰纹样";
+}
 
 function renderColors(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, "标准色彩规范", bc);
