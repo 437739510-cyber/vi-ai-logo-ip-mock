@@ -3,6 +3,7 @@
  *
  * V7 核心改动（在V6基础上）：
  * - 修复行业判定：椰子水→饮品(不是餐饮)，删掉"椰岛"从餐饮正则
+ * - V26: 场景图双引擎并行 - 通义3张+小云雀2张，Promise.all真正并行
  * - 修复API端点：compatible-mode不支持万相 → 改用DashScope原生异步API
  * - 修复模型名：wanx2.6-image(错) → wan2.6-t2i(纯文生图)
  * - 场景图从7张减为5张（¥0.20×5=¥1.00/份）
@@ -95,95 +96,95 @@ interface SceneImgDef {
 
 const SCENE_IMG_DEFS: Record<IndustryType, SceneImgDef[]> = {
   restaurant: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a restaurant napkin sleeve and chopstick cover set, placed on a wooden table, clean minimalist design, studio lighting, top-down angle" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a food delivery paper bag standing on a surface, minimalist design, clean studio background, side angle view" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a takeout food container box with lid, placed on clean surface, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a promotional standee poster display in a restaurant, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a restaurant menu card on a dining table, clean minimal design, studio lighting" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a restaurant napkin sleeve and chopstick cover set, placed on a wooden table, clean minimalist design, studio lighting, top-down angle" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a food delivery paper bag standing on a surface, minimalist design, clean studio background, side angle view" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a takeout food container box with lid, placed on clean surface, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a promotional standee poster display in a restaurant, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a restaurant menu card on a dining table, clean minimal design, studio lighting" },
   ],
   fastfood: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a fast food restaurant apron and staff uniform with branded logo, clean studio background, bright lighting" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a branded fast food paper bag with logo, hamburger box and drink cup on counter, studio lighting, eye-level angle" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a branded hamburger wrapper and fries container on clean surface, fast food packaging design, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a fast food storefront sign light box with brand logo, illuminated at night, eye-catching design" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a promotional standee poster for a fast food brand, vibrant colors, studio setting" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a fast food restaurant apron and staff uniform with branded logo, clean studio background, bright lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a branded fast food paper bag with logo, hamburger box and drink cup on counter, studio lighting, eye-level angle" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a branded hamburger wrapper and fries container on clean surface, fast food packaging design, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a fast food storefront sign light box with brand logo, illuminated at night, eye-catching design" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a promotional standee poster for a fast food brand, vibrant colors, studio setting" },
   ],
   beverage: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of branded office stationery set: business cards, envelopes, letterheads with company logo printed, arranged on wooden desk, studio lighting, angled view, product fully visible" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a branded paper tote bag with company logo printed on it, standing upright, studio lighting, product fully visible" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a beverage bottle with branded label and company logo, on clean surface, studio lighting, product fully visible" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a promotional poster display for a beverage brand in store, with company branding visible, studio setting, product fully visible" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a branded membership card with company logo design, clean studio background, product fully visible" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of branded office stationery set: business cards, envelopes, letterheads with company logo printed, arranged on wooden desk, studio lighting, angled view, product fully visible" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a branded paper tote bag with company logo printed on it, standing upright, studio lighting, product fully visible" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a beverage bottle with branded label and company logo, on clean surface, studio lighting, product fully visible" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a promotional poster display for a beverage brand in store, with company branding visible, studio setting, product fully visible" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a branded membership card with company logo design, clean studio background, product fully visible" },
   ],
   beauty: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of beauty product bottles and packaging set, elegant minimalist design, studio lighting" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a branded gift bag with ribbon handles, elegant design, studio background" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a beauty product jar with label, clean design, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a beauty salon promotional poster, elegant and luxurious style, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a VIP membership card with elegant design, clean background" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of beauty product bottles and packaging set, elegant minimalist design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a branded gift bag with ribbon handles, elegant design, studio background" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a beauty product jar with label, clean design, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a beauty salon promotional poster, elegant and luxurious style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a VIP membership card with elegant design, clean background" },
   ],
   retail: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a business card mockup, clean minimalist design, studio lighting, angled view" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a branded shopping bag with handles, standing on surface, minimalist design, studio lighting" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a product packaging box, clean elegant design, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a retail promotional poster display, modern clean style, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a retail price tag with hanging string, clean studio background" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a business card mockup, clean minimalist design, studio lighting, angled view" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a branded shopping bag with handles, standing on surface, minimalist design, studio lighting" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a product packaging box, clean elegant design, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a retail promotional poster display, modern clean style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a retail price tag with hanging string, clean studio background" },
   ],
   education: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a school ID badge and lanyard, clean design, studio lighting" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a branded tote bag for education, brand color design, clean studio background" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a course material folder, brand color accent, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of an education enrollment promotional poster, inspiring style, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a campus event banner stand, brand color design, studio lighting" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a school ID badge and lanyard, clean design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a branded tote bag for education, brand color design, clean studio background" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a course material folder, brand color accent, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of an education enrollment promotional poster, inspiring style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a campus event banner stand, brand color design, studio lighting" },
   ],
   general: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a business card mockup, clean minimalist design, studio lighting, angled view" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a branded tote bag, standing upright, minimalist design, clean studio background" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a product packaging box, clean elegant design, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a corporate promotional poster, modern professional style, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a company ID badge, brand color accent, studio lighting" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a business card mockup, clean minimalist design, studio lighting, angled view" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a branded tote bag, standing upright, minimalist design, clean studio background" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a product packaging box, clean elegant design, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a corporate promotional poster, modern professional style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a company ID badge, brand color accent, studio lighting" },
   ],
   fashion: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a fashion brand clothing tag and label, luxury minimalist design, studio lighting" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a luxury fashion shopping bag, elegant design, clean studio background" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a fashion gift box with ribbon, premium look, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a fashion new collection poster, modern chic style, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a fashion window display card, elegant typography, studio lighting" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a fashion brand clothing tag and label, luxury minimalist design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a luxury fashion shopping bag, elegant design, clean studio background" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a fashion gift box with ribbon, premium look, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a fashion new collection poster, modern chic style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a fashion window display card, elegant typography, studio lighting" },
   ],
   mother_baby: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a baby product label and membership card, warm pastel colors, studio lighting" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a baby gift box set, soft pastel packaging, clean studio background" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a mother-baby brand tote bag, cute design, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a baby store promotional poster, warm inviting style, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a baby event display stand, pastel theme, studio lighting" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a baby product label and membership card, warm pastel colors, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a baby gift box set, soft pastel packaging, clean studio background" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a mother-baby brand tote bag, cute design, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a baby store promotional poster, warm inviting style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a baby event display stand, pastel theme, studio lighting" },
   ],
   wedding: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a wedding invitation card, elegant gold foil design, studio lighting" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a wedding favor candy box, romantic design, clean studio background" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a wedding gift bag, elegant floral design, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a wedding planning poster, romantic elegant style, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a wedding venue display stand, luxurious design, studio lighting" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a wedding invitation card, elegant gold foil design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a wedding favor candy box, romantic design, clean studio background" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a wedding gift bag, elegant floral design, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a wedding planning poster, romantic elegant style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a wedding venue display stand, luxurious design, studio lighting" },
   ],
   fitness: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a gym membership card and branded towel, modern sporty design, studio lighting" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a sports water bottle with brand logo, energetic design, studio background" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a gym duffel bag with brand identity, modern athletic style, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a fitness promotion poster, dynamic energetic style, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a fitness class schedule card, modern design, studio lighting" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a gym membership card and branded towel, modern sporty design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a sports water bottle with brand logo, energetic design, studio background" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a gym duffel bag with brand identity, modern athletic style, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a fitness promotion poster, dynamic energetic style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a fitness class schedule card, modern design, studio lighting" },
   ],
   pharmacy: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a pharmacy prescription bag and medicine box label, clean professional design, studio lighting" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a health supplement gift box, professional medical branding, studio background" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a pharmacy branded tote bag, clean trustworthy design, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a health awareness poster, professional medical style, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a pharmacy loyalty card, clean modern design, studio lighting" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a pharmacy prescription bag and medicine box label, clean professional design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a health supplement gift box, professional medical branding, studio background" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a pharmacy branded tote bag, clean trustworthy design, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a health awareness poster, professional medical style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a pharmacy loyalty card, clean modern design, studio lighting" },
   ],
   pet: [
-    { key: "stationery-1", page: "stationery", rawPrompt: "NO text NO words NO letters. Professional product photography of a pet tag and membership card, fun colorful design, studio lighting" },
-    { key: "packaging-1", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a pet food bag with brand identity, premium design, studio background" },
-    { key: "packaging-2", page: "packaging", rawPrompt: "NO text NO words NO letters. Professional product photography of a pet gift box, cute playful design, studio lighting" },
-    { key: "marketing-1", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a pet store promotional poster, fun vibrant style, studio setting" },
-    { key: "marketing-2", page: "marketing", rawPrompt: "NO text NO words NO letters. Professional product photography of a pet event display stand, playful design, studio lighting" },
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a pet tag and membership card, fun colorful design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a pet food bag with brand identity, premium design, studio background" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a pet gift box, cute playful design, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a pet store promotional poster, fun vibrant style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a pet event display stand, playful design, studio lighting" },
   ],
 };
 
@@ -239,14 +240,121 @@ function normalizeColors(colors: any, industry?: string): { primary: string; sec
 // ========== 通义万相 异步图片生成 ==========
 const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation";
 const DASHSCOPE_TASK = "https://dashscope.aliyuncs.com/api/v1/tasks";
-// V25: 去除场景图prompt中的中文/引号文字，防止AI生成乱码文字
-function sanitizeScenePrompt(prompt: string): string {
-  // Remove text in single/double quotes that contains Chinese characters
-  let clean = prompt.replace(/['"][^'"]*[一-鿿][^'"]*['"]/g, '');
-  // Clean up double spaces and stray commas
-  clean = clean.replace(/\s+/g, ' ').replace(/\s+,/g, ',').replace(/,\s*,/g, ',').trim();
-  clean = clean.replace(/^,\s*/, '').replace(/,\s*$/, '');
-  return clean;
+
+// ========== 小云雀(Seedream)生图 ==========
+const XYQ_BASE = "https://xyq.jianying.com";
+
+async function generateXYQSceneImage(prompt: string): Promise<string | null> {
+  const accessKey = process.env.XYQ_ACCESS_KEY;
+  if (!accessKey) {
+    console.error("[generateXYQ] No XYQ_ACCESS_KEY");
+    return null;
+  }
+
+  try {
+    // Step 1: 创建会话并提交生图任务
+    const submitResp = await fetch(`${XYQ_BASE}/api/biz/v1/skill/submit_run`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${accessKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message: prompt }),
+    });
+
+    if (!submitResp.ok) {
+      const errText = await submitResp.text();
+      console.error(`[generateXYQ] Submit failed: ${submitResp.status} ${errText.substring(0, 200)}`);
+      return null;
+    }
+
+    const submitData = await submitResp.json();
+    if (submitData.ret !== "0") {
+      console.error(`[generateXYQ] API error: ${submitData.ret} ${submitData.errmsg}`);
+      return null;
+    }
+
+    const threadId = submitData.data?.thread_id;
+    const runId = submitData.data?.run_id;
+    if (!threadId || !runId) {
+      console.error(`[generateXYQ] No thread_id/run_id:`, JSON.stringify(submitData).substring(0, 200));
+      return null;
+    }
+
+    console.log(`[generateXYQ] Task submitted: thread=${threadId} run=${runId}`);
+
+    // Step 2: 轮询结果（最多等120秒，每10秒查一次）
+    for (let poll = 0; poll < 12; poll++) {
+      await new Promise(r => setTimeout(r, 10000));
+
+      const pollResp = await fetch(`${XYQ_BASE}/api/biz/v1/skill/get_thread`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ thread_id: threadId, run_id: runId, after_seq: 0 }),
+      });
+
+      if (!pollResp.ok) continue;
+      const pollData = await pollResp.json();
+      if (pollData.ret !== "0") continue;
+
+      const runList = pollData.data?.thread?.run_list;
+      if (!runList || runList.length === 0) continue;
+
+      const run = runList[0];
+      const runState = run.state;
+
+      // state: 1=pending, 2=running, 3=success, 4=failed, 5=cancelled
+      if (runState === 4 || runState === 5) {
+        console.error(`[generateXYQ] Task failed/cancelled: state=${runState} reason=${run.fail_reason || ""}`);
+        return null;
+      }
+
+      if (runState === 3) {
+        // 成功：从entry_list中提取图片URL
+        const entries = run.entry_list || [];
+        for (const entry of entries) {
+          const message = entry.message;
+          if (message?.content) {
+            for (const c of message.content) {
+              if (c.sub_type === "biz/x_data_image") {
+                try {
+                  const imgData = JSON.parse(c.data);
+                  const imageUrl = imgData?.image?.url;
+                  if (imageUrl) {
+                    console.log(`[generateXYQ] Got image URL, downloading...`);
+                    const imgResp = await fetch(imageUrl);
+                    if (imgResp.ok) {
+                      const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+                      const base64 = imgBuf.toString("base64");
+                      console.log(`[generateXYQ] OK! base64 length=${base64.length}`);
+                      return `data:image/png;base64,${base64}`;
+                    }
+                    console.error(`[generateXYQ] Failed to download image`);
+                  }
+                } catch (e) {
+                  // 继续查找
+                }
+              }
+            }
+          }
+        }
+        console.error(`[generateXYQ] Task succeeded but no image URL found`);
+        return null;
+      }
+
+      // 仍在进行中
+      console.log(`[generateXYQ] Polling... state=${runState}`);
+    }
+
+    console.error(`[generateXYQ] Timeout after 120s`);
+    return null;
+  } catch (err: any) {
+    console.error(`[generateXYQ] Error: ${err.message}`);
+    return null;
+  }
 }
 
 
@@ -258,7 +366,7 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
     return null;
   }
 
-  const maxRetries = 1;  // V24.2: single attempt per image, no retry (avoid 300s timeout)
+  const maxRetries = 3;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // V9: 支持Logo参考图 - wan2.6-image图像编辑模式
@@ -271,8 +379,8 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
         imgContent = [{ text: prompt }];
       }
       const requestParams = useRefImage
-        ? { size: "768*1024", n: 1, enable_interleave: false, prompt_extend: true }
-        : { size: "768*1024", n: 1 };
+        ? { size: "1104*1472", n: 1, enable_interleave: false, prompt_extend: true }
+        : { size: "1104*1472", n: 1 };
       // Step 1: 提交异步任务
       const submitResp = await fetch(DASHSCOPE_API, {
         method: "POST",
@@ -286,7 +394,6 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
           input: { messages: [{ role: "user", content: imgContent }] },
           parameters: requestParams,
         }),
-        signal: AbortSignal.timeout(30000),  // V19: 30s timeout prevents hung fetch
       });
 
       if (!submitResp.ok) {
@@ -304,13 +411,12 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
 
       console.log(`[generateImage] Task submitted: ${taskId}`);
 
-      // V24.2: 5×5s=25s max per image (faster, fits Zeabur 300s limit)
-      for (let poll = 0; poll < 5; poll++) {
+      // Step 2: 轮询任务结果（最多等90秒）
+      for (let poll = 0; poll < 18; poll++) {
         await new Promise(r => setTimeout(r, 5000)); // 等5秒
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
           headers: { "Authorization": `Bearer ${apiKey}` },
-          signal: AbortSignal.timeout(15000),  // V19: 15s timeout per poll
         });
 
         if (!pollResp.ok) continue;
@@ -326,7 +432,7 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
           }
 
           // Step 3: 下载图片转base64
-          const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });  // V19: 30s timeout
+          const imgResp = await fetch(imageUrl);
           if (imgResp.ok) {
             const imgBuf = Buffer.from(await imgResp.arrayBuffer());
             const base64 = imgBuf.toString("base64");
@@ -366,7 +472,7 @@ async function generateLogoImage(
   // 增强prompt：确保Logo设计品质
   const enhancedPrompt = `${prompt}, logo design on clean white background, high resolution, professional graphic design, centered composition, suitable for branding applications, clean and scalable`;
 
-  const maxRetries = 1;
+  const maxRetries = 2;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // Logo用正方形1024x1024
@@ -380,9 +486,8 @@ async function generateLogoImage(
         body: JSON.stringify({
           model: "wan2.6-t2i",
           input: { messages: [{ role: "user", content: [{ text: enhancedPrompt }] }] },
-          parameters: { size: "1024*1024", n: 1 },
+          parameters: { size: "1280*1280", n: 1 },
         }),
-        signal: AbortSignal.timeout(30000),  // V19: 30s timeout prevents hung fetch
       });
 
       if (!submitResp.ok) {
@@ -400,13 +505,12 @@ async function generateLogoImage(
 
       console.log(`[generateLogo] Task submitted: ${taskId}`);
 
-      // 轮询结果（最多等24秒）V20: 3×8s=24s max (within 40s deadline)
-      for (let poll = 0; poll < 3; poll++) {
-        await new Promise(r => setTimeout(r, 8000));
+      // 轮询结果（最多等90秒）
+      for (let poll = 0; poll < 18; poll++) {
+        await new Promise(r => setTimeout(r, 5000));
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
           headers: { "Authorization": `Bearer ${apiKey}` },
-          signal: AbortSignal.timeout(15000),
         });
 
         if (!pollResp.ok) continue;
@@ -420,7 +524,7 @@ async function generateLogoImage(
             break;
           }
 
-          const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
+          const imgResp = await fetch(imageUrl);
           if (imgResp.ok) {
             const imgBuf = Buffer.from(await imgResp.arrayBuffer());
             const base64 = imgBuf.toString("base64");
@@ -489,10 +593,7 @@ function createStreamResponse() {
 
 // ========== DB-based progress helpers (for background async tasks) ==========
 function createDbProgressHelpers(projectId: string) {
-  let isCompleted = false;  // V20: prevent race condition
-  
   async function updateDb(status: string, message: string, percent?: number, extra?: Record<string, any>) {
-    if (isCompleted && status !== "completed") return;
     try {
       const { data: existingInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
       const prev = (existingInfo?.client_info as Record<string, any>) || {};
@@ -506,28 +607,16 @@ function createDbProgressHelpers(projectId: string) {
   }
 
   return {
-    sendProgress: async (step: string, message: string, percent?: number) => {
-      if (isCompleted) return;
-      await updateDb("pptx_assembling", message, percent);
+    sendProgress: (step: string, message: string, percent?: number) => {
+      updateDb("pptx_assembling", message, percent);
     },
     sendComplete: async (data: any) => {
-      isCompleted = true;
-      const { data: existingInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
-      const prev = (existingInfo?.client_info as Record<string, any>) || {};
-      await supabaseAdmin.from("projects").update({
-        status: "completed",
-        client_info: {
-          ...prev,
-          generationStatus: "completed",
-          generationMessage: "生成完成！",
-          generationPercent: 100,
-          pptxResult: { url: data.url, storageUrl: data.storageUrl, pageCount: data.pageCount, imageCount: data.imageCount, fileName: data.fileName },
-        },
-        updated_at: new Date().toISOString(),
-      }).eq("id", projectId);
+      await updateDb("completed", "生成完成！", 100, {
+        pptxResult: { url: data.url, storageUrl: data.storageUrl, pageCount: data.pageCount, fileName: data.fileName },
+      });
+      await supabaseAdmin.from("projects").update({ status: "completed", updated_at: new Date().toISOString() }).eq("id", projectId);
     },
     sendError: async (message: string) => {
-      isCompleted = true;
       await updateDb("failed", message);
       await supabaseAdmin.from("projects").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", projectId);
     },
@@ -592,7 +681,7 @@ export async function POST(req: NextRequest) {
     const brandVision = body.clientInfo?.brandVision || submission?.brand_vision || submission?.brandVision || "";
     const coreValues = body.clientInfo?.coreValues || submission?.core_values || submission?.coreValues || "";
     const targetMarket = body.clientInfo?.targetMarket || submission?.target_market || submission?.targetMarket || "";
-    let effectiveLogoPhilosophy = body.clientInfo?.logoPhilosophy || submission?.logo_philosophy || submission?.logoPhilosophy || "";
+    const logoPhilosophy = body.clientInfo?.logoPhilosophy || submission?.logo_philosophy || submission?.logoPhilosophy || "";
     const mascotPhilosophy = body.clientInfo?.mascotPhilosophy || submission?.mascot_philosophy || submission?.mascotPhilosophy || "";
 
     const rawColors = body.brandColors || submission?.existing_brand_color || submission?.brand_colors || submission?.brandColors;
@@ -622,7 +711,7 @@ export async function POST(req: NextRequest) {
       if (apiKey && (companyName !== "品牌")) {
         const analysisPrompt = buildBrandAnalysisPrompt({
           companyName, industry, brandVision, coreValues, targetMarket,
-          logoPhilosophy: effectiveLogoPhilosophy, mascotPhilosophy,
+          logoPhilosophy, mascotPhilosophy,
           province: body.clientInfo?.province || submission?.province,
           city: body.clientInfo?.city || submission?.city,
           description: body.clientInfo?.description || submission?.description,
@@ -641,7 +730,7 @@ export async function POST(req: NextRequest) {
             temperature: 0.7,
             max_tokens: 4096,
           }),
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(45000),
         });
 
         if (analysisResp.ok) {
@@ -657,12 +746,6 @@ export async function POST(req: NextRequest) {
             if (brandProfile.refinedBrandVision) effectiveBrandVision = brandProfile.refinedBrandVision;
             if (brandProfile.refinedCoreValues) effectiveCoreValues = brandProfile.refinedCoreValues;
             if (brandProfile.refinedTargetMarket) effectiveTargetMarket = brandProfile.refinedTargetMarket;
-
-            // V22: 如果客户没写logoPhilosophy，从AI分析结果中提取
-            if (!effectiveLogoPhilosophy && brandProfile.logoDesignSuggestions?.concept) {
-              effectiveLogoPhilosophy = brandProfile.logoDesignSuggestions.concept;
-              console.log("[generate-pptx] Using logoDesignSuggestions.concept as logoPhilosophy fallback");
-            }
 
             // V10: 保存logoDesignSuggestions到brandProfile
             if (brandProfile.logoDesignSuggestions) {
@@ -746,133 +829,134 @@ export async function POST(req: NextRequest) {
     console.log("[generate-pptx] Logo:", logoData ? "OK" : "null", "| Mascot:", mascotData ? "OK" : "null");
 
 
-    // V18.1: 先5张场景图并行(DashScope并发=5刚好上限)，再串行出Logo
-    // 修复V11的6并发超限导致3/5场景图丢失；V18两阶段超时300s改回并行+串行Logo
+    // V17: 无Logo时用通义万相AI生图Logo（替代DeepSeek SVG）
     let aiLogoData: string | null = null;
-    const sceneImages: Record<string, string> = {};
-    const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
-    let imgSuccess = 0;
-
-    // Prepare Logo prompt (instant, just string construction)
-    let logoPrompt = "";
     if (!logoData && companyName !== "品牌") {
-      const industryLabel: Record<string, string> = {
-        beauty: "beauty salon / nail art", restaurant: "Chinese restaurant / noodle shop", fastfood: "fast food burger shop / snack stall", beverage: "bubble tea / coffee shop",
-        fashion: "fashion boutique / clothing brand", mother_baby: "maternity & baby brand", wedding: "wedding planning / photography studio",
-        fitness: "gym / fitness center", pharmacy: "pharmacy / wellness", pet: "pet care / pet shop",
-        retail: "retail shop", education: "education center", general: "lifestyle brand"
-      };
-      const industryEn = industryLabel[industryType] || "lifestyle brand";
-      if (brandProfile?.logoDesignSuggestions?.prompts?.length > 0) {
-        logoPrompt = brandProfile.logoDesignSuggestions.prompts[0];
-        console.log("[generate-pptx] Using brand-analysis logo prompt:", logoPrompt.substring(0, 80));
-      } else {
-        logoPrompt = `Professional minimalist logo icon design for "${companyName}", a ${industryEn}. ` +
-          `Target audience: ${targetMarket || "urban professionals"}. ` +
-          `Color palette: primary ${realColors.primary}, secondary ${realColors.secondary}. ` +
-          `Design style: elegant, refined, modern luxury, clean lines, symmetrical composition. ` +
-          `The icon should be a single cohesive abstract symbol that suggests the brand identity, ` +
-          `using flowing curves or geometric shapes, NOT literal objects. ` +
-          `Reference the design philosophy of brands like Chanel, Dior, Tiffany - iconic, timeless, instantly recognizable.`;
+      try {
+        console.log("[generate-pptx] Generating AI logo via 通义万相 for", companyName);
+        sendProgress("ai_logo", "正在用AI生成Logo方案...", 45);
+        const industryLabel: Record<string, string> = {
+          beauty: "beauty salon / nail art", restaurant: "Chinese restaurant / noodle shop", fastfood: "fast food burger shop / snack stall", beverage: "bubble tea / coffee shop",
+          fashion: "fashion boutique / clothing brand", mother_baby: "maternity & baby brand", wedding: "wedding planning / photography studio",
+          fitness: "gym / fitness center", pharmacy: "pharmacy / wellness", pet: "pet care / pet shop",
+          retail: "retail shop", education: "education center", general: "lifestyle brand"
+        };
+        const industryEn = industryLabel[industryType] || "lifestyle brand";
+        // 优先使用brand-analysis的logoDesignSuggestions
+        let logoPrompt = "";
+        if (brandProfile?.logoDesignSuggestions?.prompts?.length > 0) {
+          logoPrompt = brandProfile.logoDesignSuggestions.prompts[0];
+          console.log("[generate-pptx] Using brand-analysis logo prompt:", logoPrompt.substring(0, 80));
+        } else {
+          // Fallback: 根据行业和品牌信息构建高质量prompt
+          logoPrompt = `Professional minimalist logo icon design for "${companyName}", a ${industryEn}. ` +
+            `Target audience: ${targetMarket || "urban professionals"}. ` +
+            `Color palette: primary ${realColors.primary}, secondary ${realColors.secondary}. ` +
+            `Design style: elegant, refined, modern luxury, clean lines, symmetrical composition. ` +
+            `The icon should be a single cohesive abstract symbol that suggests the brand identity, ` +
+            `using flowing curves or geometric shapes, NOT literal objects. ` +
+            `Reference the design philosophy of brands like Chanel, Dior, Tiffany - iconic, timeless, instantly recognizable.`;
+        }
+        aiLogoData = await generateLogoImage(logoPrompt, realColors);
+        if (aiLogoData) {
+          console.log("[generate-pptx] AI logo via 通义万相 OK! base64 length:", aiLogoData.length);
+        } else {
+          console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
+        }
+      } catch (logoErr) {
+        console.warn("[generate-pptx] AI logo generation error:", logoErr);
       }
     }
 
-    // Prepare Scene image defs (instant)
+    // ===== Step 4: 生成 AI 写实场景图（5张，异步并行） =====
+    // 动态场景图prompt（AI分析结果 > 硬编码fallback）
     let imgDefs = SCENE_IMG_DEFS[industryType] || SCENE_IMG_DEFS.general;
     if (dynamicScenePrompts && dynamicScenePrompts.length >= 5) {
+      // V9: 用AI分析生成的行业定制prompt，动态标签替代硬编码
       const promptPages = ["stationery", "packaging", "packaging", "marketing", "marketing"];
       imgDefs = dynamicScenePrompts.map((suggestion: any, i: number) => ({
         key: `${promptPages[i]}-${i === 0 ? 1 : i <= 2 ? i : i - 2}`,
         page: promptPages[i],
-        rawPrompt: sanitizeScenePrompt(suggestion.en) + ", with brand logo icon visible on product, NO text, NO words, NO letters, NO characters, NO typography on products, clean design without any written text, professional product photography, studio lighting, product fully visible",
+        rawPrompt: suggestion.en + ", with brand logo visible on product, professional product photography, studio lighting, product fully visible",
         label: suggestion.zh || "",  // V9: 保存中文标签用于渲染
       }));
     }
 
-    // ===== V25: Logo FIRST (before scene images, so it can be used as scene reference) =====
-    if (logoPrompt) {
-      sendProgress("images", "正在生成Logo方案...", 45);
-      console.log("[generate-pptx] ===== Logo FIRST (30s deadline) =====");
-      try {
-        aiLogoData = await Promise.race([
-          generateLogoImage(logoPrompt, realColors),
-          new Promise<null>(resolve => setTimeout(() => {
-            console.warn("[generate-pptx] Logo 30s timeout, skipping");
-            resolve(null);
-          }, 30000)),
-        ]);
-        if (aiLogoData) {
-          console.log("[generate-pptx] AI logo OK! base64 length:", aiLogoData.length);
-          // V25: Save logo metadata to DB so it persists
-          try {
-            const { data: projForSave } = await supabaseAdmin
-              .from("projects").select("client_info").eq("id", projectId).single();
-            const existingSaveInfo = (projForSave?.client_info as Record<string, any>) || {};
-            const existingSaveBP = (existingSaveInfo.brandProfile as Record<string, any>) || {};
-            await supabaseAdmin.from("projects").update({
-              client_info: {
-                ...existingSaveInfo,
-                brandProfile: {
-                  ...existingSaveBP,
-                  logoGenerationResults: { status: "completed", timestamp: new Date().toISOString() },
-                  logoGeneratedAt: new Date().toISOString(),
-                }
-              },
-              updated_at: new Date().toISOString(),
-            }).eq("id", projectId);
-            console.log("[generate-pptx] Logo metadata saved to DB");
-          } catch (saveErr) {
-            console.warn("[generate-pptx] Could not save logo metadata:", saveErr);
-          }
-        } else {
-          console.warn("[generate-pptx] AI logo skipped/failed, using fallback");
+    sendProgress("images", "正在生成场景图...", 50);
+    console.log("[generate-pptx] ===== AI IMAGE GENERATION =====");
+    console.log("[generate-pptx] Industry:", industryType, "| Images:", imgDefs.length, "| Dynamic:", !!dynamicScenePrompts);
+
+    // V26: 混合引擎 - 通义3张 + 小云雀2张，双引擎真正并行
+    const sceneImages: Record<string, string> = {};
+    const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
+    let imgSuccess = 0;
+
+    // 分配：前3个用DashScope，后2个用小云雀
+    const dashscopeDefs = imgDefs.slice(0, 3);
+    const xyqDefs = imgDefs.slice(3, 5);
+
+    console.log(`[generate-pptx] Mixed engine: DashScope=${dashscopeDefs.length}, XYQ=${xyqDefs.length}`);
+
+    // DashScope引擎：2个一批并行，避免429限流
+    const dashscopePromise = (async () => {
+      const results: { def: any; imgData: string | null }[] = [];
+      for (let i = 0; i < dashscopeDefs.length; i += 2) {
+        const batch = dashscopeDefs.slice(i, i + 2);
+        const settled = await Promise.allSettled(
+          batch.map(async (def) => {
+            const imgData = await generateSceneImage(def.rawPrompt, mascotData || logoData || undefined);
+            return { def, imgData };
+          })
+        );
+        for (const r of settled) {
+          if (r.status === "fulfilled") results.push(r.value);
+          else console.error(`[DashScope] Failed:`, r.reason);
         }
-      } catch (logoErr: any) {
-        console.warn("[generate-pptx] AI logo error:", logoErr?.message);
+        if (i + 2 < dashscopeDefs.length) await new Promise(r => setTimeout(r, 1000));
+      }
+      return results;
+    })();
+
+    // 小云雀引擎：2个同时提交
+    const xyqPromise = (async () => {
+      if (xyqDefs.length === 0) return [];
+      const settled = await Promise.allSettled(
+        xyqDefs.map(async (def) => {
+          const imgData = await generateXYQSceneImage(def.rawPrompt);
+          return { def, imgData };
+        })
+      );
+      const results: { def: any; imgData: string | null }[] = [];
+      for (const r of settled) {
+        if (r.status === "fulfilled") results.push(r.value);
+        else console.error(`[XYQ] Failed:`, r.reason);
+      }
+      return results;
+    })();
+
+    // 双引擎并行等待
+    const [dashscopeResults, xyqResults] = await Promise.all([dashscopePromise, xyqPromise]);
+    const allResults = [...dashscopeResults, ...xyqResults];
+    for (const { def, imgData } of allResults) {
+      if (imgData) {
+        sceneImages[def.key] = imgData;
+        if ((def as any).label) sceneLabels[def.key] = (def as any).label;
+        imgSuccess++;
       }
     }
-
-    // ===== V25: Scene images with Logo reference =====
-    const logoForScene = aiLogoData || logoData;  // V25: use AI-generated or uploaded logo
-    await new Promise(r => setTimeout(r, 1000));
-    sendProgress("images", "正在生成场景图(5张)...", 50);
-    console.log(`[generate-pptx] ===== Scene images serial (logoRef=${!!logoForScene}) =====`);
-
-    for (let i = 0; i < imgDefs.length; i++) {
-      const def = imgDefs[i];
-      sendProgress("images", `正在生成场景图(${i+1}/${imgDefs.length})...`, 50 + i * 2);
-      console.log(`[generate-pptx] Scene ${i+1}/${imgDefs.length}: key=${def.key}, hasLogoRef=${!!logoForScene}`);
-      try {
-        const imgData = await generateSceneImage(def.rawPrompt, undefined);  // V25: no ref (logo overlaid in PPTX instead)
-        if (imgData) {
-          sceneImages[def.key] = imgData;
-          if ((def as any).label) sceneLabels[def.key] = (def as any).label;
-          imgSuccess++;
-          console.log(`[generate-pptx] ${def.key} OK!`);
-        } else {
-          console.warn(`[generate-pptx] ${def.key} returned null, skipping`);
-        }
-      } catch (err: any) {
-        console.warn(`[generate-pptx] ${def.key} error: ${err.message}`);
-      }
-      if (i < imgDefs.length - 1) {
-        await new Promise(r => setTimeout(r, 5000));
-      }
-    }
-
-    // V25.2: No retry - saves ~87s, avoids 300s Zeabur timeout
-    console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success (sceneImages keys: [${Object.keys(sceneImages).join(",")}])`);
+    console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success`);
+    sendProgress("rendering", `场景图生成完成(${imgSuccess}/${imgDefs.length})，正在渲染PPTX...`, 75);
 
     // ===== Step 5: 生成蓝图 =====
     const blueprints = await planPages({
-      clientInfo: { companyName, brandVision: effectiveBrandVision, coreValues: effectiveCoreValues, targetMarket: effectiveTargetMarket, logoPhilosophy: effectiveLogoPhilosophy, mascotPhilosophy, industry },
+      clientInfo: { companyName, brandVision: effectiveBrandVision, coreValues: effectiveCoreValues, targetMarket: effectiveTargetMarket, logoPhilosophy, mascotPhilosophy, industry },
       brandColors: {
         primary: { hex: realColors.primary },
         secondary: { hex: realColors.secondary },
         accent: { hex: realColors.accent },
       },
       assetAnalysis: {
-        logo: { hasLogo: !!logoData, logoUrl: body.logoUrl || "", elements: [], styleTags: [], meaning: effectiveLogoPhilosophy },
+        logo: { hasLogo: !!logoData, logoUrl: body.logoUrl || "", elements: [], styleTags: [], meaning: logoPhilosophy },
         mascot: { hasMascot: !!mascotData, mascotUrl: body.mascotUrl || "", isThreeView: !!(mascotSplitViews?.length === 3), splitViews: mascotSplitViews || [], name: "", style: "", personality: "" },
       },
     });
@@ -893,7 +977,7 @@ export async function POST(req: NextRequest) {
       brandVision: effectiveBrandVision,
       coreValues: effectiveCoreValues,
       targetMarket: effectiveTargetMarket,
-      logoPhilosophy: effectiveLogoPhilosophy,
+      logoPhilosophy,
       mascotPhilosophy,
       sceneImages,
       sceneLabels,
@@ -907,60 +991,35 @@ export async function POST(req: NextRequest) {
     const fileName = `vi-manual-${projectId}-${Date.now()}.pptx`;
     await writeFile(path.join(outputDir, fileName), buffer);
 
-    // ===== V25.2: Upload to Storage with 60s timeout =====
+    // ===== Step 7.5: 上传到Supabase Storage存档 =====
     let storageUrl: string | null = null;
-    const storagePath = `${projectId}/${fileName}`;
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-      console.log(`[generate-pptx] Storage upload: ${buffer.length} bytes, key type: ${supabaseKey === process.env.SUPABASE_SERVICE_KEY ? "service_role" : "anon"}`);
-      
-      // Direct REST API upload (most reliable in serverless)
-      const uploadUrl = `${supabaseUrl}/storage/v1/object/manuals/${storagePath}`;
-      const uploadResp = await fetch(uploadUrl, {
-        method: "POST",
-        headers: {
-          "apikey": supabaseKey,
-          "Authorization": `Bearer ${supabaseKey}`,
-          "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-          "x-upsert": "true",
-        },
-        body: new Uint8Array(buffer),
-        signal: AbortSignal.timeout(60000),  // 60s hard timeout
-      });
-      
-      if (uploadResp.ok) {
-        storageUrl = `${supabaseUrl}/storage/v1/object/public/manuals/${storagePath}`;
-        console.log("[generate-pptx] Storage upload OK:", storageUrl);
+      const storagePath = `${projectId}/${fileName}`;
+      const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
+        .from("manuals")
+        .upload(storagePath, buffer, {
+          contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          upsert: true,
+        });
+      if (uploadErr) {
+        console.warn("[generate-pptx] Storage upload failed:", uploadErr.message);
       } else {
-        const errText = await uploadResp.text();
-        console.warn("[generate-pptx] Storage upload failed:", uploadResp.status, errText.substring(0, 300));
-        
-        // Fallback: try JS SDK
-        try {
-          const { error: sdkErr } = await supabaseAdmin.storage
-            .from("manuals")
-            .upload(storagePath, new Uint8Array(buffer) as any, {
-              contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-              upsert: true,
-            });
-          if (!sdkErr) {
-            const { data: urlData } = supabaseAdmin.storage.from("manuals").getPublicUrl(storagePath);
-            storageUrl = urlData?.publicUrl || null;
-            console.log("[generate-pptx] JS SDK fallback OK:", storageUrl);
-          } else {
-            console.warn("[generate-pptx] JS SDK fallback also failed:", sdkErr.message);
-          }
-        } catch (sdkEx: any) {
-          console.warn("[generate-pptx] JS SDK exception:", sdkEx?.message);
-        }
+        const { data: urlData } = supabaseAdmin.storage.from("manuals").getPublicUrl(storagePath);
+        storageUrl = urlData?.publicUrl || null;
+        console.log("[generate-pptx] Storage upload OK:", storageUrl);
       }
     } catch (storageErr: any) {
-      console.warn("[generate-pptx] Storage upload exception:", storageErr?.message);
+      console.warn("[generate-pptx] Storage upload error:", storageErr?.message);
     }
 
     console.log("[generate-pptx] ===== DONE =====", fileName, `(${imgSuccess} images, ${blueprints.length} pages)`);
-    // V20: sendComplete is the single completion path (no race condition)
+    // V12: 更新项目状态为"完成"
+    await supabaseAdmin.from("projects").update({
+      status: "completed",
+      updated_at: new Date().toISOString(),
+    }).eq("id", projectId);
+
+    sendProgress("done", "生成完成！", 100);
     sendComplete({
       url: `/api/ai/download-pptx/${fileName}`,
       storageUrl,
