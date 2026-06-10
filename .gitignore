@@ -84,3 +84,6 @@ test-industry-logic.ts
 # backup files
 *.v11bak
 backup-v*/
+*.bak.*
+route.ts.bak.*
+C:\\Users\\**
