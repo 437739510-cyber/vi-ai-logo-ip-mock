@@ -843,7 +843,7 @@ export async function POST(req: NextRequest) {
       sendProgress("images", `正在生成场景图(${i+1}/${imgDefs.length})...`, 50 + i * 2);
       console.log(`[generate-pptx] Scene ${i+1}/${imgDefs.length}: key=${def.key}, hasLogoRef=${!!logoForScene}`);
       try {
-        const imgData = await generateSceneImage(def.rawPrompt, logoForScene || undefined);  // V25: use logo ref
+        const imgData = await generateSceneImage(def.rawPrompt, undefined);  // V25: no ref (logo overlaid in PPTX instead)
         if (imgData) {
           sceneImages[def.key] = imgData;
           if ((def as any).label) sceneLabels[def.key] = (def as any).label;
