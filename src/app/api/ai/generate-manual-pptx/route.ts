@@ -239,6 +239,17 @@ function normalizeColors(colors: any, industry?: string): { primary: string; sec
 // ========== 通义万相 异步图片生成 ==========
 const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation";
 const DASHSCOPE_TASK = "https://dashscope.aliyuncs.com/api/v1/tasks";
+// V25: 去除场景图prompt中的中文/引号文字，防止AI生成乱码文字
+function sanitizeScenePrompt(prompt: string): string {
+  // Remove text in single/double quotes that contains Chinese characters
+  let clean = prompt.replace(/['"][^'"]*[一-鿿][^'"]*['"]/g, '');
+  // Clean up double spaces and stray commas
+  clean = clean.replace(/\s+/g, ' ').replace(/\s+,/g, ',').replace(/,\s*,/g, ',').trim();
+  clean = clean.replace(/^,\s*/, '').replace(/,\s*$/, '');
+  return clean;
+}
+
+
 
 async function generateSceneImage(prompt: string, logoBase64?: string): Promise<string | null> {
   const apiKey = process.env.ALIYUN_API_KEY;
@@ -773,23 +784,66 @@ export async function POST(req: NextRequest) {
       imgDefs = dynamicScenePrompts.map((suggestion: any, i: number) => ({
         key: `${promptPages[i]}-${i === 0 ? 1 : i <= 2 ? i : i - 2}`,
         page: promptPages[i],
-        rawPrompt: suggestion.en + ", with brand logo visible on product, professional product photography, studio lighting, product fully visible",
+        rawPrompt: sanitizeScenePrompt(suggestion.en) + ", with brand logo icon visible on product, no text, no Chinese characters, professional product photography, studio lighting, product fully visible",
         label: suggestion.zh || "",  // V9: 保存中文标签用于渲染
       }));
     }
 
-    // ===== V21.1: Scene images one-by-one (serial, no refImage, avoid DashScope throttling) =====
-    await new Promise(r => setTimeout(r, 1000));  // V24.1: shorter wait before scenes
-    // V21.1: No ref image for scenes - wan2.6-t2i is more reliable than wan2.6-image
+    // ===== V25: Logo FIRST (before scene images, so it can be used as scene reference) =====
+    if (logoPrompt) {
+      sendProgress("images", "正在生成Logo方案...", 45);
+      console.log("[generate-pptx] ===== Logo FIRST (30s deadline) =====");
+      try {
+        aiLogoData = await Promise.race([
+          generateLogoImage(logoPrompt, realColors),
+          new Promise<null>(resolve => setTimeout(() => {
+            console.warn("[generate-pptx] Logo 30s timeout, skipping");
+            resolve(null);
+          }, 30000)),
+        ]);
+        if (aiLogoData) {
+          console.log("[generate-pptx] AI logo OK! base64 length:", aiLogoData.length);
+          // V25: Save logo metadata to DB so it persists
+          try {
+            const { data: projForSave } = await supabaseAdmin
+              .from("projects").select("client_info").eq("id", projectId).single();
+            const existingSaveInfo = (projForSave?.client_info as Record<string, any>) || {};
+            const existingSaveBP = (existingSaveInfo.brandProfile as Record<string, any>) || {};
+            await supabaseAdmin.from("projects").update({
+              client_info: {
+                ...existingSaveInfo,
+                brandProfile: {
+                  ...existingSaveBP,
+                  logoGenerationResults: { status: "completed", timestamp: new Date().toISOString() },
+                  logoGeneratedAt: new Date().toISOString(),
+                }
+              },
+              updated_at: new Date().toISOString(),
+            }).eq("id", projectId);
+            console.log("[generate-pptx] Logo metadata saved to DB");
+          } catch (saveErr) {
+            console.warn("[generate-pptx] Could not save logo metadata:", saveErr);
+          }
+        } else {
+          console.warn("[generate-pptx] AI logo skipped/failed, using fallback");
+        }
+      } catch (logoErr: any) {
+        console.warn("[generate-pptx] AI logo error:", logoErr?.message);
+      }
+    }
+
+    // ===== V25: Scene images with Logo reference =====
+    const logoForScene = aiLogoData || logoData;  // V25: use AI-generated or uploaded logo
+    await new Promise(r => setTimeout(r, 1000));
     sendProgress("images", "正在生成场景图(5张)...", 50);
-    console.log("[generate-pptx] ===== Scene images serial (wan2.6-t2i, no refImage) =====");
+    console.log(`[generate-pptx] ===== Scene images serial (logoRef=${!!logoForScene}) =====`);
 
     for (let i = 0; i < imgDefs.length; i++) {
       const def = imgDefs[i];
       sendProgress("images", `正在生成场景图(${i+1}/${imgDefs.length})...`, 50 + i * 2);
-      console.log(`[generate-pptx] Scene ${i+1}/${imgDefs.length}: key=${def.key}`);
+      console.log(`[generate-pptx] Scene ${i+1}/${imgDefs.length}: key=${def.key}, hasLogoRef=${!!logoForScene}`);
       try {
-        const imgData = await generateSceneImage(def.rawPrompt, undefined);  // V21.1: no ref image
+        const imgData = await generateSceneImage(def.rawPrompt, logoForScene || undefined);  // V25: use logo ref
         if (imgData) {
           sceneImages[def.key] = imgData;
           if ((def as any).label) sceneLabels[def.key] = (def as any).label;
@@ -801,31 +855,8 @@ export async function POST(req: NextRequest) {
       } catch (err: any) {
         console.warn(`[generate-pptx] ${def.key} error: ${err.message}`);
       }
-      // V24.1: 5s delay between images (was 8s, reduced to fit 300s Zeabur limit)
       if (i < imgDefs.length - 1) {
         await new Promise(r => setTimeout(r, 5000));
-      }
-    }
-
-    // ===== V20: Logo with 40s hard deadline =====
-    if (logoPrompt) {
-      sendProgress("images", "正在生成Logo方案...", 55);
-      console.log("[generate-pptx] ===== Logo (40s deadline) =====");
-      try {
-        aiLogoData = await Promise.race([
-          generateLogoImage(logoPrompt, realColors),
-          new Promise<null>(resolve => setTimeout(() => {
-            console.warn("[generate-pptx] Logo 30s timeout, skipping");
-            resolve(null);
-          }, 30000)),
-        ]);
-        if (aiLogoData) {
-          console.log("[generate-pptx] AI logo OK! base64 length:", aiLogoData.length);
-        } else {
-          console.warn("[generate-pptx] AI logo skipped/failed, using fallback");
-        }
-      } catch (logoErr: any) {
-        console.warn("[generate-pptx] AI logo error:", logoErr?.message);
       }
     }
 
