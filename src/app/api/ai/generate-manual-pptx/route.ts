@@ -247,7 +247,7 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
     return null;
   }
 
-  const maxRetries = 2;  // V24: retry once for scene images to improve success rate
+  const maxRetries = 1;  // V24.2: single attempt per image, no retry (avoid 300s timeout)
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // V9: 支持Logo参考图 - wan2.6-image图像编辑模式
@@ -293,8 +293,8 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
 
       console.log(`[generateImage] Task submitted: ${taskId}`);
 
-      // Step 2: 轮询任务结果 V21.5: 8×5s=40s max (faster iteration)
-      for (let poll = 0; poll < 8; poll++) {
+      // V24.2: 5×5s=25s max per image (faster, fits Zeabur 300s limit)
+      for (let poll = 0; poll < 5; poll++) {
         await new Promise(r => setTimeout(r, 5000)); // 等5秒
 
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
