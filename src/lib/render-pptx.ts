@@ -257,9 +257,9 @@ function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
     case "brand-colors": renderColors(slide, bp, opts, bc); break;
     case "typography": renderTypography(slide, bp, opts, bc); break;
     case "basic-spec": renderBasicSpec(slide, bp, opts, bc, industry); break;
-    case "stationery": renderScene(slide, bp, opts, "stationery", bc, industry, sceneImages); break;
-    case "packaging": renderScene(slide, bp, opts, "packaging", bc, industry, sceneImages); break;
-    case "marketing": renderScene(slide, bp, opts, "marketing", bc, industry, sceneImages); break;
+    case "stationery": renderScene(slide, bp, opts, "stationery", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
+    case "packaging": renderScene(slide, bp, opts, "packaging", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
+    case "marketing": renderScene(slide, bp, opts, "marketing", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
     case "summary": renderSummary(slide, bp, opts, bc); break;
     default: renderGeneric(slide, bp, opts, bc);
   }
@@ -935,7 +935,7 @@ function renderBasicSpec(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Render
 }
 
 // ========== 场景页 — V6: AI写实图 + 降级色块 ==========
-function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, type: string, bc: BC, industry: IndustryType, sceneImages: Record<string, string>): void {
+function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, type: string, bc: BC, industry: IndustryType, sceneImages: Record<string, string>, logoForScene?: string | null): void {
   const configs = getSceneConfigs(industry);
   const config = configs[type] || { title: type, desc: "" };
   addContentFrame(slide, config.title, bc);
@@ -947,7 +947,7 @@ function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
 
   if (pageImages.length > 0) {
     // ===== V6: 有AI写实图，展示图片 =====
-    renderSceneWithImages(slide, opts, bc, type, industry, pageImages, cx);
+    renderSceneWithImages(slide, opts, bc, type, industry, pageImages, cx, logoForScene);
   } else {
     // ===== 降级: 无AI图，回退到色块方案 =====
     renderSceneFallback(slide, opts, bc, type, industry, cx);
@@ -958,7 +958,7 @@ function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
 function renderSceneWithImages(
   slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC,
   type: string, industry: IndustryType,
-  pageImages: [string, string][], cx: number
+  pageImages: [string, string][], cx: number, logoForScene?: string | null
 ): void {
   // 获取行业场景标注
   const labels = getSceneLabels(industry, type);
@@ -991,6 +991,15 @@ function renderSceneWithImages(
 
       // 品牌色底部条
       slide.addShape("rect", { x: imgX, y: startY + imgH - 0.08, w: imgW, h: 0.08, fill: { color: bc.pri, transparency: 30 } });
+
+      // V25: Logo overlay on scene image
+      if (logoForScene) {
+        const logoSize = Math.min(imgW * 0.22, 0.9);
+        const logoX = imgX + imgW - logoSize - 0.12;
+        const logoY = startY + 0.12;
+        slide.addShape("rect", { x: logoX - 0.04, y: logoY - 0.04, w: logoSize + 0.08, h: logoSize + 0.08, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 4, offset: 1, color: "000000", opacity: 0.15 } });
+        slide.addImage({ data: normImg(logoForScene), x: logoX, y: logoY, w: logoSize, h: logoSize, sizing: { type: "contain", w: logoSize, h: logoSize } });
+      }
 
       // 标注文字
       const label = sceneLabels[key] || labels[i] || key;
@@ -1025,6 +1034,15 @@ function renderSceneWithImages(
 
       // 品牌色底部条
       slide.addShape("rect", { x: imgX, y: imgY + imgH - 0.06, w: colW, h: 0.06, fill: { color: bc.pri, transparency: 30 } });
+
+      // V25: Logo overlay on scene image
+      if (logoForScene) {
+        const logoSize = Math.min(colW * 0.22, 0.7);
+        const logoX = imgX + colW - logoSize - 0.08;
+        const logoY = imgY + 0.08;
+        slide.addShape("rect", { x: logoX - 0.03, y: logoY - 0.03, w: logoSize + 0.06, h: logoSize + 0.06, fill: { color: "FFFFFF" }, rectRadius: 0.04, shadow: { type: "outer", blur: 3, offset: 1, color: "000000", opacity: 0.12 } });
+        slide.addImage({ data: normImg(logoForScene), x: logoX, y: logoY, w: logoSize, h: logoSize, sizing: { type: "contain", w: logoSize, h: logoSize } });
+      }
 
       // 标注
       const label = sceneLabels[key] || labels[i] || key;
