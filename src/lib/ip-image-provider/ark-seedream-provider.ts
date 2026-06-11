@@ -143,7 +143,7 @@ export class ArkSeedreamProvider implements ImageProvider {
   }
 
   private mapSize(w: number, h: number): string {
-    if (w <= 800 && h > 1000) return "720x1280";
+    if (w <= 800 && h > 1000) return "2048x2048";
     if (w === h && w <= 1024) return "1024x1024";
     if (w >= 2048 || h >= 2048) return "2K";
     return "1024x1024";
@@ -269,7 +269,7 @@ export async function arkGenerateScene(options: {
         image: [options.refImageUrl],
         sequential_image_generation: "disabled",
         response_format: "url",
-        size: options.size || "720x1280",
+        size: options.size || "2048x2048",
         watermark: false,
       };
       if (options.negativePrompt) payload.negative_prompt = options.negativePrompt;

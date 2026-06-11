@@ -687,7 +687,7 @@ export async function POST(req: NextRequest) {
     // ===== Step 1: 从 Supabase 查 project + submission =====
     const { data: project, error: projErr } = await supabaseAdmin
       .from("projects")
-      .select("id, submission_id, client_name, industry")
+      .select("id, submission_id, client_name, industry, client_info")
       .eq("id", projectId)
       .single();
 
@@ -825,23 +825,31 @@ export async function POST(req: NextRequest) {
     let mascotData: string | null = null;
     let mascotSplitViews: string[] | null = null;
 
+    // V28: Logo加载优先级: body.logoUrl > selectedLogo(客人已选) > submission.logo_assets > 本地/Storage
     if (body.logoUrl) logoData = await loadImg(body.logoUrl);
-    if (!logoData) logoData = await findAsset(projectId, "logo");
-    if (!logoData) logoData = await findFromStorage(projectId, "logo");
-    // V10: Try loading AI-generated logo from project.client_info (set by select-logo API)
-    if (!logoData) {
+    // V28: 优先从brandProfile.selectedLogo加载（客人已选择的Logo）
+    if (!logoData && project?.client_info) {
       try {
-        const { data: projForLogo } = await supabaseAdmin
-          .from("projects").select("client_info").eq("id", projectId).single();
-        const savedProfile = (projForLogo?.client_info as Record<string, any>)?.brandProfile;
+        const savedProfile = ((project.client_info as Record<string, any>)?.brandProfile) as Record<string, any> | undefined;
         if (savedProfile?.selectedLogo?.imageUrl) {
-          console.log("[generate-pptx] Trying AI-generated logo from select-logo");
+          console.log("[generate-pptx] Using customer-selected logo from brandProfile.selectedLogo");
           logoData = await loadImg(savedProfile.selectedLogo.imageUrl);
         }
       } catch (e) {
-        console.warn("[generate-pptx] Could not load AI-generated logo:", e);
+        console.warn("[generate-pptx] Could not load selectedLogo:", e);
       }
     }
+    // V28: 从submission.logo_assets加载（客人上传或AI选择后保存的Logo）
+    if (!logoData && submission) {
+      const logoAssets = (submission as any).logo_assets || [];
+      if (logoAssets.length > 0) {
+        const lastLogo = logoAssets[logoAssets.length - 1];
+        console.log("[generate-pptx] Using logo from submission.logo_assets:", lastLogo.fileName);
+        logoData = await loadImg(lastLogo.url);
+      }
+    }
+    if (!logoData) logoData = await findAsset(projectId, "logo");
+    if (!logoData) logoData = await findFromStorage(projectId, "logo");
 
     if (body.mascotUrl) mascotData = await loadImg(body.mascotUrl);
     if (body.mascotFiles?.length > 0) {
@@ -906,7 +914,7 @@ export async function POST(req: NextRequest) {
       imgDefs = dynamicScenePrompts.map((suggestion: any, i: number) => ({
         key: `${promptPages[i]}-${i === 0 ? 1 : i <= 2 ? i : i - 2}`,
         page: promptPages[i],
-        rawPrompt: suggestion.en + ", with brand logo visible on product, professional product photography, studio lighting, product fully visible",
+        rawPrompt: suggestion.en + ", the exact same brand logo from the reference image must be clearly printed/embossed on the product surface, professional product photography, studio lighting, product fully visible, no text, no Chinese characters",
         label: suggestion.zh || "",  // V9: 保存中文标签用于渲染
       }));
     }
@@ -922,9 +930,20 @@ export async function POST(req: NextRequest) {
 
     // V27: 方舟Ark Seedream优先(图生图+Logo参考) → DashScope降级
     const arkKey = process.env.ARK_API_KEY;
-    // 优先用Logo做图生图参考（Logo是品牌核心标识），其次用mascot
+    // V28: Logo优先（品牌核心标识），有Logo必须用Logo做图生图参考
     const primaryRef = logoData || mascotData || null;
     const refLabel = logoData ? "logo" : mascotData ? "mascot" : null;
+    // V28: 有Logo参考时，加强场景图prompt强调Logo必须出现在产品上
+    if (primaryRef) {
+      for (const def of imgDefs) {
+        if (!def.rawPrompt.includes("reference image")) {
+          def.rawPrompt = def.rawPrompt.replace(
+            /professional product photography/,
+            "the brand logo from the reference image must appear clearly printed on the product, professional product photography"
+          );
+        }
+      }
+    }
     // 预上传参考图到公网URL（Ark图生图需要公网URL）
     let refPublicUrl: string | null = null;
     if (arkKey && primaryRef && refLabel) {
@@ -944,7 +963,7 @@ export async function POST(req: NextRequest) {
               const arkResult = await arkGenerateScene({
                 prompt: def.rawPrompt,
                 refImageUrl: refPublicUrl,
-                size: "720x1280",
+                size: "2048x2048",
               });
               const imgResp = await fetch(arkResult.imageUrl);
               if (imgResp.ok) {
