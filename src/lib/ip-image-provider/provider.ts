@@ -11,6 +11,7 @@
 import type { ImageProvider, ProviderMetrics, ProviderCallLog } from "./types";
 import { MockProvider } from "./mock-provider";
 import { WanxiangProvider } from "./wanxiang-provider";
+import { ArkSeedreamProvider } from "./ark-seedream-provider";
 import {
   MetricsProvider,
   getProviderMetrics,
@@ -125,6 +126,8 @@ export function getDefaultRegistry(): ProviderRegistry {
     // Register WanxiangProvider with higher priority
     // If WANXIANG_API_KEY is configured, it will be selected over Mock
     _defaultRegistry.register(new WanxiangProvider(), 10);
+    // Ark Seedream: higher priority, free quota first
+    _defaultRegistry.register(new ArkSeedreamProvider(), 20);
   }
   return _defaultRegistry;
 }

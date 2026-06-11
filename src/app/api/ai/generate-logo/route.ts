@@ -12,6 +12,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { arkGenerateLogo } from "@/lib/ip-image-provider/ark-seedream-provider";
 
 export const maxDuration = 180;
 export const dynamic = "force-dynamic";
@@ -246,12 +247,27 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ========== 通义万相异步生图 ==========
+// ========== 方舟Seedream文生图(免费额度优先) + 通义万相fallback ==========
 async function generateImage(prompt: string, apiKey: string): Promise<string | null> {
+  // 优先使用方舟Seedream(免费额度), 失败降级通义万相
+  const arkKey = process.env.ARK_API_KEY;
+  if (arkKey) {
+    try {
+      const result = await arkGenerateLogo({
+        prompt,
+        size: "1024x1024",
+      });
+      console.log(`[generate-logo] Ark Seedream OK (${result.durationMs}ms, model: ${result.model})`);
+      return result.imageUrl;
+    } catch (err: any) {
+      console.warn(`[generate-logo] Ark Seedream failed, falling back to Wanxiang: ${err.message}`);
+    }
+  }
+
+  // Fallback: 通义万相wan2.6异步生图
   const maxRetries = 2;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Step 1: 提交异步任务
       const submitResp = await fetch(DASHSCOPE_API, {
         method: "POST",
         headers: {
@@ -261,13 +277,8 @@ async function generateImage(prompt: string, apiKey: string): Promise<string | n
         },
         body: JSON.stringify({
           model: "wan2.6-t2i",
-          input: {
-            messages: [{ role: "user", content: [{ text: prompt }] }],
-          },
-          parameters: {
-            size: "1280*1280",
-            n: 1,
-          },
+          input: { messages: [{ role: "user", content: [{ text: prompt }] }] },
+          parameters: { size: "1280*1280", n: 1 },
         }),
       });
 
@@ -284,30 +295,22 @@ async function generateImage(prompt: string, apiKey: string): Promise<string | n
         continue;
       }
 
-      console.log(`[generate-logo] Task submitted: ${taskId}`);
+      console.log(`[generate-logo] Wanxiang task submitted: ${taskId}`);
 
-      // Step 2: 轮询结果（最多等90秒）
       for (let poll = 0; poll < 18; poll++) {
         await new Promise(r => setTimeout(r, 5000));
-
         const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
           headers: { "Authorization": `Bearer ${apiKey}` },
         });
-
         if (!pollResp.ok) continue;
         const pollData = await pollResp.json();
         const status = pollData.output?.task_status;
-
         if (status === "SUCCEEDED") {
           const imageUrl = pollData.output?.choices?.[0]?.message?.content?.[0]?.image;
-          if (!imageUrl) {
-            console.error(`[generate-logo] No image URL in result`);
-            break;
-          }
-          console.log(`[generate-logo] Image generated: ${imageUrl.substring(0, 80)}...`);
+          if (!imageUrl) { console.error(`[generate-logo] No image URL in result`); break; }
+          console.log(`[generate-logo] Wanxiang image generated: ${imageUrl.substring(0, 80)}...`);
           return imageUrl;
         }
-
         if (status === "FAILED") {
           console.error(`[generate-logo] Task failed:`, pollData.output?.message || "unknown");
           break;

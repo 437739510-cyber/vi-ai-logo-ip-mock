@@ -18,6 +18,7 @@ export {
 
 export { MockProvider } from "./mock-provider";
 export { WanxiangProvider } from "./wanxiang-provider";
+export { ArkSeedreamProvider, ArkSeedreamError, arkGenerateLogo, arkGenerateScene, estimateArkCost, getArkUnitCost } from "./ark-seedream-provider";
 
 export {
   MetricsProvider,

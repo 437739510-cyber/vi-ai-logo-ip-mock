@@ -886,62 +886,35 @@ export async function POST(req: NextRequest) {
     console.log("[generate-pptx] ===== AI IMAGE GENERATION =====");
     console.log("[generate-pptx] Industry:", industryType, "| Images:", imgDefs.length, "| Dynamic:", !!dynamicScenePrompts);
 
-    // V26: 混合引擎 - 通义3张 + 小云雀2张，双引擎真正并行
+    // V26.1: 全部DashScope并行生成（小云雀会话式API太慢，待接入方舟直连API后切换）
     const sceneImages: Record<string, string> = {};
     const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
     let imgSuccess = 0;
 
-    // 分配：前3个用DashScope，后2个用小云雀
-    const dashscopeDefs = imgDefs.slice(0, 3);
-    const xyqDefs = imgDefs.slice(3, 5);
+    console.log(`[generate-pptx] DashScope engine: ${imgDefs.length} images`);
 
-    console.log(`[generate-pptx] Mixed engine: DashScope=${dashscopeDefs.length}, XYQ=${xyqDefs.length}`);
-
-    // DashScope引擎：2个一批并行，避免429限流
-    const dashscopePromise = (async () => {
-      const results: { def: any; imgData: string | null }[] = [];
-      for (let i = 0; i < dashscopeDefs.length; i += 2) {
-        const batch = dashscopeDefs.slice(i, i + 2);
-        const settled = await Promise.allSettled(
-          batch.map(async (def) => {
-            const imgData = await generateSceneImage(def.rawPrompt, mascotData || logoData || undefined);
-            return { def, imgData };
-          })
-        );
-        for (const r of settled) {
-          if (r.status === "fulfilled") results.push(r.value);
-          else console.error(`[DashScope] Failed:`, r.reason);
-        }
-        if (i + 2 < dashscopeDefs.length) await new Promise(r => setTimeout(r, 1000));
-      }
-      return results;
-    })();
-
-    // 小云雀引擎：2个同时提交
-    const xyqPromise = (async () => {
-      if (xyqDefs.length === 0) return [];
-      const settled = await Promise.allSettled(
-        xyqDefs.map(async (def) => {
-          const imgData = await generateXYQSceneImage(def.rawPrompt);
+    // 全部5张并行提交，2个一批避免429限流
+    for (let i = 0; i < imgDefs.length; i += 2) {
+      const batch = imgDefs.slice(i, i + 2);
+      const results = await Promise.allSettled(
+        batch.map(async (def) => {
+          const imgData = await generateSceneImage(def.rawPrompt, mascotData || logoData || undefined);
           return { def, imgData };
         })
       );
-      const results: { def: any; imgData: string | null }[] = [];
-      for (const r of settled) {
-        if (r.status === "fulfilled") results.push(r.value);
-        else console.error(`[XYQ] Failed:`, r.reason);
+      for (const result of results) {
+        if (result.status === "fulfilled" && result.value.imgData) {
+          const { def, imgData } = result.value;
+          sceneImages[def.key] = imgData;
+          if ((def as any).label) sceneLabels[def.key] = (def as any).label;
+          imgSuccess++;
+        } else if (result.status === "rejected") {
+          console.error(`[generateImage] Failed:`, result.reason);
+        }
       }
-      return results;
-    })();
-
-    // 双引擎并行等待
-    const [dashscopeResults, xyqResults] = await Promise.all([dashscopePromise, xyqPromise]);
-    const allResults = [...dashscopeResults, ...xyqResults];
-    for (const { def, imgData } of allResults) {
-      if (imgData) {
-        sceneImages[def.key] = imgData;
-        if ((def as any).label) sceneLabels[def.key] = (def as any).label;
-        imgSuccess++;
+      // Batch delay to avoid rate limiting
+      if (i + 2 < imgDefs.length) {
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
     console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success`);

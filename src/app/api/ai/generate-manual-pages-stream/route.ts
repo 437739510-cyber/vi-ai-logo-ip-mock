@@ -4,6 +4,7 @@ import { writeFile, mkdir, readFile } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
 import { saveGenerationLog, type GenerationLogEntry } from "@/lib/generation-logger";
+import { arkGenerateScene } from "@/lib/ip-image-provider/ark-seedream-provider";
 import { renderProfessionalPage } from "@/lib/vi-page-renderer";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -267,63 +268,102 @@ async function generateSinglePhoto(
   refStrength: number,
   aliyunKey: string,
 ): Promise<string | null> {
-  try {
-    // 构建content数组：先放参考图，再放文字prompt
-    const content: any[] = [];
+  // 优先使用方舟Seedream(图生图,免费额度), 失败降级万相2.7
+  const arkKey = process.env.ARK_API_KEY;
+  if (arkKey) {
+    // 需要公网可访问的参考图URL, base64不支持, 先上传到Supabase获取URL
+    for (const refType of refImages) {
+      const refBase64 = refType === 'logo' ? logoBase64 : mascotBase64;
+      if (!refBase64) continue;
+      
+      try {
+        // 将base64上传到Supabase获取公网URL
+        const refUrl = await uploadBase64ToUrl(refBase64, refType);
+        if (!refUrl) continue;
+        
+        const result = await arkGenerateScene({
+          prompt,
+          refImageUrl: refUrl,
+          size: "720x1280",
+        });
+        
+        // 下载图片转base64
+        const imgResp = await fetch(result.imageUrl);
+        if (imgResp.ok) {
+          const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+          console.log(`[V4-Photo] Ark Seedream OK (${result.durationMs}ms, model: ${result.model})`);
+          return "data:image/png;base64," + imgBuf.toString("base64");
+        }
+      } catch (e) {
+        console.warn(`[V4-Photo] Ark Seedream failed, falling back to Wanxiang:`, String(e));
+      }
+      break; // 只用一个参考图
+    }
+  }
 
+  // Fallback: 万相2.7 图生图
+  try {
+    const content_arr: any[] = [];
     if (refImages.includes('logo') && logoBase64) {
-      content.push({ image: logoBase64 });
+      content_arr.push({ image: logoBase64 });
     }
     if (refImages.includes('mascot') && mascotBase64) {
-      content.push({ image: mascotBase64 });
+      content_arr.push({ image: mascotBase64 });
     }
-    content.push({ text: prompt });
+    content_arr.push({ text: prompt });
 
     const body: any = {
       model: "wan2.7-image-pro",
-      input: {
-        messages: [{
-          role: "user",
-          content,
-        }],
-      },
-      parameters: {
-        size: "800*1130",       // A4竖版比例
-        n: 1,
-        watermark: false,
-        ref_strength: refStrength,
-      },
+      input: { messages: [{ role: "user", content: content_arr }] },
+      parameters: { size: "800*1130", n: 1, watermark: false, ref_strength: refStrength },
     };
 
     const resp = await fetch(DASHSCOPE_API, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${aliyunKey}`,
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${aliyunKey}` },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(30000),
     });
 
-    if (!resp.ok) {
-      console.warn(`[V4-Photo] Wanxiang failed: ${resp.status}`);
-      return null;
-    }
+    if (!resp.ok) { console.warn(`[V4-Photo] Wanxiang failed: ${resp.status}`); return null; }
 
     const data = await resp.json();
     const imageUrl = data?.output?.choices?.[0]?.message?.content?.[0]?.image;
-    if (!imageUrl) {
-      console.warn("[V4-Photo] No image in response");
-      return null;
-    }
+    if (!imageUrl) { console.warn("[V4-Photo] No image in response"); return null; }
 
-    // 下载图片并转base64
     const imgResp = await fetch(imageUrl);
     if (!imgResp.ok) return null;
     const imgBuf = Buffer.from(await imgResp.arrayBuffer());
     return "data:image/png;base64," + imgBuf.toString("base64");
   } catch (e) {
     console.warn(`[V4-Photo] Error:`, String(e));
+    return null;
+  }
+}
+
+// 上传base64图片到Supabase获取公网URL(方舟图生图需要公网可访问的参考图)
+async function uploadBase64ToUrl(base64Data: string, label: string): Promise<string | null> {
+  try {
+    const matches = base64Data.match(/^data:(.+?);base64,(.+)$/);
+    if (!matches) return null;
+    const mime = matches[1];
+    const b64 = matches[2];
+    const buf = Buffer.from(b64, 'base64');
+    const ext = mime.includes('png') ? 'png' : mime.includes('svg') ? 'svg' : 'jpg';
+    const fileName = `ref-${label}-${Date.now()}.${ext}`;
+    const filePath = `ref-images/${fileName}`;
+    
+    const { data, error } = await supabaseAdmin.storage
+      .from('brand-brain-generated')
+      .upload(filePath, buf, { contentType: mime, upsert: true });
+    if (error) { console.warn('[uploadBase64ToUrl] Failed:', error.message); return null; }
+    
+    const { data: urlData } = supabaseAdmin.storage
+      .from('brand-brain-generated')
+      .getPublicUrl(filePath);
+    return urlData.publicUrl;
+  } catch (e) {
+    console.warn('[uploadBase64ToUrl] Error:', String(e));
     return null;
   }
 }
