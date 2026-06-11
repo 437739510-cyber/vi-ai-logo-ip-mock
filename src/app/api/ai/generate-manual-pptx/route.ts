@@ -865,6 +865,12 @@ export async function POST(req: NextRequest) {
 
     console.log("[generate-pptx] Logo:", logoData ? "OK" : "null", "| Mascot:", mascotData ? "OK" : "null");
 
+    // V29: 用视觉AI读取Logo图片，生成英文描述用于场景图prompt
+    let logoVisualDesc = "";
+    if (logoData) {
+      logoVisualDesc = await describeLogoForScene(logoData);
+      console.log("[generate-pptx] Logo visual desc:", logoVisualDesc ? "OK" : "EMPTY");
+    }
 
     // V17: 无Logo时用通义万相AI生图Logo（替代DeepSeek SVG）
     let aiLogoData: string | null = null;
@@ -928,56 +934,64 @@ export async function POST(req: NextRequest) {
     const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
     let imgSuccess = 0;
 
-    // V27: 方舟Ark Seedream优先(图生图+Logo参考) → DashScope降级
+    // V29: 场景图用文生图（不是图生图），把Logo外观描述写进prompt
+    // 旧版成功的原因：品牌分析AI把Logo外观详细写进sceneImageSuggestions prompt
+    // 图生图(img2img)只是风格参考，不能精确还原Logo图案
     const arkKey = process.env.ARK_API_KEY;
-    // V28: Logo优先（品牌核心标识），有Logo必须用Logo做图生图参考
-    const primaryRef = logoData || mascotData || null;
-    const refLabel = logoData ? "logo" : mascotData ? "mascot" : null;
-    // V28: 有Logo参考时，加强场景图prompt强调Logo必须出现在产品上
-    if (primaryRef) {
+
+    // V29: 把Logo视觉描述追加到场景图prompt，让AI文生图时精确画出Logo
+    // 优先用视觉AI直接读Logo图生成的描述，比品牌分析AI的推测更准确
+    const logoDesc = logoVisualDesc || (brandProfile as any)?.logoDesignSuggestions?.prompts?.[0] || "";
+    const logoConcept = logoVisualDesc ? "" : ((brandProfile as any)?.logoDesignSuggestions?.concept || "");
+    if (logoDesc) {
+      console.log(`[generate-pptx] Logo description available (source: ${logoVisualDesc ? "visual AI" : "brand analysis"}), injecting into scene prompts`);
+      // V29c: 把"company logo"等模糊词替换为精确的Logo视觉描述
+      const descSnippet = logoDesc.substring(0, 300);
       for (const def of imgDefs) {
-        if (!def.rawPrompt.includes("reference image")) {
-          def.rawPrompt = def.rawPrompt.replace(
-            /professional product photography/,
-            "the brand logo from the reference image must appear clearly printed on the product, professional product photography"
-          );
+        // 替换模糊的"company logo"/"brand logo"为精确描述
+        def.rawPrompt = def.rawPrompt.replace(/company logo/gi, descSnippet);
+        def.rawPrompt = def.rawPrompt.replace(/brand logo/gi, descSnippet);
+        def.rawPrompt = def.rawPrompt.replace(/brand emblem/gi, descSnippet);
+        def.rawPrompt = def.rawPrompt.replace(/branded/gi, descSnippet);
+        // 如果prompt里没有logo相关词，在开头插入描述
+        if (!def.rawPrompt.includes(descSnippet.substring(0, 50))) {
+          def.rawPrompt = `Product featuring the brand mascot/logo: ${descSnippet}. ${def.rawPrompt}`;
         }
       }
     }
-    // 预上传参考图到公网URL（Ark图生图需要公网URL）
-    let refPublicUrl: string | null = null;
-    if (arkKey && primaryRef && refLabel) {
-      refPublicUrl = await uploadBase64ToUrl(primaryRef, refLabel);
-      console.log(`[generate-pptx] Ref image uploaded for Ark img2img:`, refPublicUrl ? "OK" : "FAILED");
-    }
 
-    console.log(`[generate-pptx] Engine: ${arkKey ? "Ark Seedream(优先) + DashScope(降级)" : "DashScope only"}, ${imgDefs.length} images, refImage: ${refLabel || "none"}`);
+    console.log(`[generate-pptx] Engine: DashScope(优先) + Ark Seedream(降级), ${imgDefs.length} images, Logo desc: ${!!logoDesc}`);
 
     for (let i = 0; i < imgDefs.length; i += 2) {
       const batch = imgDefs.slice(i, i + 2);
       const results = await Promise.allSettled(
         batch.map(async (def) => {
-          // V27: Ark Seedream图生图优先
-          if (arkKey && refPublicUrl) {
+          // V29b: DashScope文生图优先（旧版已验证能正确画出Logo）
+          try {
+            // V29b: 不传参考图，走纯文生图（prompt里已有Logo视觉描述，文生图比图生图更能精确还原Logo）
+            const imgData = await generateSceneImage(def.rawPrompt);
+            if (imgData) {
+              console.log(`[generate-pptx] DashScope OK for ${def.key}`);
+              return { def, imgData };
+            }
+          } catch (e: any) {
+            console.warn(`[generate-pptx] DashScope failed for ${def.key}:`, e.message);
+          }
+          // 降级: Ark Seedream文生图
+          if (arkKey) {
             try {
-              const arkResult = await arkGenerateScene({
-                prompt: def.rawPrompt,
-                refImageUrl: refPublicUrl,
-                size: "2048x2048",
-              });
+              const arkResult = await arkGenerateScene({ prompt: def.rawPrompt, size: "1024x1024" });
               const imgResp = await fetch(arkResult.imageUrl);
               if (imgResp.ok) {
                 const imgBuf = Buffer.from(await imgResp.arrayBuffer());
-                console.log(`[generate-pptx] Ark Seedream OK (${arkResult.durationMs}ms, model: ${arkResult.model}) for ${def.key}`);
+                console.log(`[generate-pptx] Ark Seedream fallback OK (${arkResult.model}) for ${def.key}`);
                 return { def, imgData: "data:image/png;base64," + imgBuf.toString("base64") };
               }
             } catch (e: any) {
-              console.warn(`[generate-pptx] Ark Seedream failed for ${def.key}:`, e.message);
+              console.warn(`[generate-pptx] Ark Seedream fallback failed for ${def.key}:`, e.message);
             }
           }
-          // 降级: DashScope
-          const imgData = await generateSceneImage(def.rawPrompt, mascotData || logoData || undefined);
-          return { def, imgData };
+          return { def, imgData: null };
         })
       );
       for (const result of results) {
@@ -1094,6 +1108,37 @@ export async function POST(req: NextRequest) {
 }
 
 // ========== Helper Functions ==========
+// V29: 用通义万相VL读Logo图，生成英文视觉描述，注入场景图prompt
+async function describeLogoForScene(logoBase64: string): Promise<string> {
+  try {
+    const apiKey = process.env.ALIYUN_API_KEY;
+    if (!apiKey) return "";
+    const messages = [
+      {
+        role: "user" as const,
+        content: [
+          { type: "image_url" as const, image_url: { url: logoBase64 } },
+          { type: "text" as const, text: "Describe this brand logo/mascot in detail for an AI image generation prompt. Focus on: 1) Main character/shape 2) Colors 3) Key visual elements 4) Style 5) Any text on it. Output a single paragraph in English, concise but detailed enough that an AI could recreate it on products." }
+        ]
+      }
+    ];
+    const body = { model: "qwen-vl-max", messages, max_tokens: 300 };
+    const resp = await fetch("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) return "";
+    const data = await resp.json();
+    const desc = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) ? data.choices[0].message.content.trim() : "";
+    console.log("[generate-pptx] Logo visual description:", desc.substring(0, 100));
+    return desc;
+  } catch (e) {
+    console.warn("[generate-pptx] Logo description failed:", e);
+    return "";
+  }
+}
+
 async function loadImg(imagePath: string): Promise<string | null> {
   if (!imagePath) return null;
   const candidates = [
@@ -1252,7 +1297,7 @@ function buildBrandAnalysisPrompt(info: {
   parts.push("");
   parts.push("请基于以上信息进行深度品牌分析。");
   parts.push("");
-  parts.push("重要：sceneImageSuggestions必须根据具体行业和品牌定制。每个场景的zh字段是该图的中文标签（如\u2018名片\u2019、\u2018手提袋\u2019、\u2018产品瓶装\u2019），en字段是英文生图prompt。prompt必须明确描述产品上印有品牌标识(company logo printed/branded label)。zh标签必须和en prompt描述的产品完全一致——如果prompt画的是手提袋，zh就必须是\u2018手提袋\u2019，不能写其他内容。");
+  parts.push("重要：sceneImageSuggestions必须根据具体行业和品牌定制。每个场景的zh字段是该图的中文标签（如\u2018名片\u2019、\u2018手提袋\u2019、\u2018产品瓶装\u2019），en字段是英文生图prompt。prompt必须明确描述产品上印有品牌标识(company logo printed/branded label)。**如果客户已有Logo或IP公仔，场景图prompt必须详细描述该Logo/IP的外观特征**（如形状、颜色、图案、动物形象等），确保AI文生图时能准确画出Logo/IP在产品上的样子。zh标签必须和en prompt描述的产品完全一致——如果prompt画的是手提袋，zh就必须是\u2018手提袋\u2019，不能写其他内容。");
   parts.push("");
   parts.push("重要：logoDesignSuggestions是为没有Logo的客户设计的。请根据品牌名称、行业特征、地域文化特色，设计4个不同方向的Logo方案。每个prompt需要是完整的英文AI生图指令，详细描述设计风格、核心图形元素、配色方案、排版布局。Logo需要简洁、辨识度高、适合各种尺寸应用（名片、招牌、包装等）。");
   return parts.join("\n");

@@ -992,13 +992,16 @@ function renderSceneWithImages(
       // 品牌色底部条
       slide.addShape("rect", { x: imgX, y: startY + imgH - 0.08, w: imgW, h: 0.08, fill: { color: bc.pri, transparency: 30 } });
 
-      // V25: Logo overlay on scene image
+      // V30: Logo overlay on scene image - 品牌标识浮贴
       if (logoForScene) {
-        const logoSize = Math.min(imgW * 0.22, 0.9);
-        const logoX = imgX + imgW - logoSize - 0.12;
-        const logoY = startY + 0.12;
-        slide.addShape("rect", { x: logoX - 0.04, y: logoY - 0.04, w: logoSize + 0.08, h: logoSize + 0.08, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 4, offset: 1, color: "000000", opacity: 0.15 } });
+        const logoSize = Math.min(imgW * 0.30, 1.2);
+        const logoX = imgX + imgW - logoSize - 0.15;
+        const logoY = startY + 0.15;
+        // 白底圆角框+阴影
+        slide.addShape("rect", { x: logoX - 0.06, y: logoY - 0.06, w: logoSize + 0.12, h: logoSize + 0.12, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 6, offset: 2, color: "000000", opacity: 0.18 } });
         slide.addImage({ data: normImg(logoForScene), x: logoX, y: logoY, w: logoSize, h: logoSize, sizing: { type: "contain", w: logoSize, h: logoSize } });
+        // "品牌标识"标签
+        slide.addText("品牌标识", { x: logoX, y: logoY + logoSize + 0.02, w: logoSize, h: 0.25, fontSize: 8, color: "999999", align: "center" });
       }
 
       // 标注文字
@@ -1035,13 +1038,14 @@ function renderSceneWithImages(
       // 品牌色底部条
       slide.addShape("rect", { x: imgX, y: imgY + imgH - 0.06, w: colW, h: 0.06, fill: { color: bc.pri, transparency: 30 } });
 
-      // V25: Logo overlay on scene image
+      // V30: Logo overlay on scene image - 品牌标识浮贴
       if (logoForScene) {
-        const logoSize = Math.min(colW * 0.22, 0.7);
-        const logoX = imgX + colW - logoSize - 0.08;
-        const logoY = imgY + 0.08;
-        slide.addShape("rect", { x: logoX - 0.03, y: logoY - 0.03, w: logoSize + 0.06, h: logoSize + 0.06, fill: { color: "FFFFFF" }, rectRadius: 0.04, shadow: { type: "outer", blur: 3, offset: 1, color: "000000", opacity: 0.12 } });
+        const logoSize = Math.min(colW * 0.30, 0.9);
+        const logoX = imgX + colW - logoSize - 0.1;
+        const logoY = imgY + 0.1;
+        slide.addShape("rect", { x: logoX - 0.05, y: logoY - 0.05, w: logoSize + 0.10, h: logoSize + 0.10, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 5, offset: 1, color: "000000", opacity: 0.15 } });
         slide.addImage({ data: normImg(logoForScene), x: logoX, y: logoY, w: logoSize, h: logoSize, sizing: { type: "contain", w: logoSize, h: logoSize } });
+        slide.addText("品牌标识", { x: logoX, y: logoY + logoSize + 0.02, w: logoSize, h: 0.2, fontSize: 7, color: "999999", align: "center" });
       }
 
       // 标注

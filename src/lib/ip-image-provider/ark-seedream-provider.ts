@@ -250,26 +250,30 @@ export async function arkGenerateLogo(options: {
 }
 
 /**
- * 图生图 — 场景图生成, 按fallback链消耗免费额度
+ * 场景图生成 — 支持文生图和图生图，按fallback链消耗免费额度
+ * V29: refImageUrl可选，不传则走文生图(TXT2IMG_MODELS)，传则走图生图(IMG2IMG_MODELS)
  */
 export async function arkGenerateScene(options: {
   prompt: string;
-  refImageUrl: string;
+  refImageUrl?: string;
   negativePrompt?: string;
   size?: string;
 }): Promise<{ imageUrl: string; durationMs: number; model: string }> {
   const apiKey = process.env.ARK_API_KEY;
   if (!apiKey) throw new Error("ARK_API_KEY not configured");
 
-  for (const model of IMG2IMG_MODELS) {
+  const models = options.refImageUrl ? IMG2IMG_MODELS : TXT2IMG_MODELS;
+  const isImg2Img = !!options.refImageUrl;
+
+  for (const model of models) {
     try {
       const payload: any = {
         model,
         prompt: options.prompt,
-        image: [options.refImageUrl],
+        ...(isImg2Img && options.refImageUrl ? { image: [options.refImageUrl] } : {}),
         sequential_image_generation: "disabled",
         response_format: "url",
-        size: options.size || "2048x2048",
+        size: options.size || "1024x1024",
         watermark: false,
       };
       if (options.negativePrompt) payload.negative_prompt = options.negativePrompt;
