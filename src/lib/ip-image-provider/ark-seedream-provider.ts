@@ -273,7 +273,7 @@ export async function arkGenerateScene(options: {
         ...(isImg2Img && options.refImageUrl ? { image: [options.refImageUrl] } : {}),
         sequential_image_generation: "disabled",
         response_format: "url",
-        size: options.size || "1024x1024",
+        size: options.size || "2048x2048",
         watermark: false,
       };
       if (options.negativePrompt) payload.negative_prompt = options.negativePrompt;

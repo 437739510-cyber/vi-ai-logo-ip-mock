@@ -683,6 +683,7 @@ export async function POST(req: NextRequest) {
   void (async () => {
     const { sendProgress, sendComplete, sendError } = createDbProgressHelpers(projectId!);
     const generationId = `gen-${Date.now()}`;
+    const arkUsageLog: { model: string; type: string; timestamp: string }[] = [];  // V32: 方舟用量追踪
     const generationFormat = body.format || 'pptx';
   try {
     // V30: 记录生成历史到viGenerationHistory
@@ -990,11 +991,13 @@ export async function POST(req: NextRequest) {
           // 降级: Ark Seedream文生图
           if (arkKey) {
             try {
-              const arkResult = await arkGenerateScene({ prompt: def.rawPrompt, size: "1024x1024" });
+              const arkResult = await arkGenerateScene({ prompt: def.rawPrompt });  // V32: 使用默认2048x2048，兼容4.5/5.0Lite
               const imgResp = await fetch(arkResult.imageUrl);
               if (imgResp.ok) {
                 const imgBuf = Buffer.from(await imgResp.arrayBuffer());
                 console.log(`[generate-pptx] Ark Seedream fallback OK (${arkResult.model}) for ${def.key}`);
+                // V32: 记录方舟用量
+                arkUsageLog.push({ model: arkResult.model, type: 'scene', timestamp: new Date().toISOString() });
                 return { def, imgData: "data:image/png;base64," + imgBuf.toString("base64") };
               }
             } catch (e: any) {
@@ -1169,7 +1172,7 @@ export async function POST(req: NextRequest) {
           ? { ...h, status: 'completed', completedAt: new Date().toISOString(), fileName, fileSize: buffer.length, pageCount: blueprints.length, sceneImageCount: imgSuccess, downloadUrl: `/api/ai/download-pptx/${fileName}`, storageUrl }
           : h
       );
-      await supabaseAdmin.from("projects").update({ client_info: { ...donePrev, viGenerationHistory: doneHistory } }).eq("id", projectId!);
+      await supabaseAdmin.from("projects").update({ client_info: { ...donePrev, viGenerationHistory: doneHistory, arkUsageLog: [...(donePrev.arkUsageLog || []), ...arkUsageLog] } }).eq("id", projectId!);
     } catch (e: any) { console.warn("[generate-pptx] History update error:", e.message); }
     // V12: 更新项目状态为"完成"
     await supabaseAdmin.from("projects").update({
