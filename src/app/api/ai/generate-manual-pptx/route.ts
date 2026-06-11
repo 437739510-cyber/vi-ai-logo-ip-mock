@@ -682,8 +682,18 @@ export async function POST(req: NextRequest) {
   // Run generation in background (fire-and-forget)
   void (async () => {
     const { sendProgress, sendComplete, sendError } = createDbProgressHelpers(projectId!);
+    const generationId = `gen-${Date.now()}`;
+    const generationFormat = body.format || 'pptx';
   try {
+    // V30: 记录生成历史到viGenerationHistory
     sendProgress("loading", "正在加载项目数据...", 5);
+    try {
+      const { data: histInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
+      const histPrev = (histInfo?.client_info as Record<string, any>) || {};
+      const history = histPrev.viGenerationHistory || [];
+      history.push({ id: generationId, format: generationFormat, status: 'generating', createdAt: new Date().toISOString(), fileName: '', fileSize: 0, pageCount: 0, selectedLogoUrl: '', sceneImageCount: 0, downloadUrl: '' });
+      await supabaseAdmin.from("projects").update({ client_info: { ...histPrev, viGenerationHistory: history } }).eq("id", projectId!);
+    } catch (e: any) { console.warn("[generate-pptx] History record error:", e.message); }
     // ===== Step 1: 从 Supabase 查 project + submission =====
     const { data: project, error: projErr } = await supabaseAdmin
       .from("projects")
@@ -1047,14 +1057,86 @@ export async function POST(req: NextRequest) {
       sceneImages,
       sceneLabels,
       aiLogoData: aiLogoData || undefined,
+      compressImages: true,  // V30: 压缩图片减小体积
     });
 
     sendProgress("saving", "正在保存文件...", 90);
     // ===== Step 7: 保存文件 =====
     const outputDir = path.join(process.cwd(), "public", "generated");
     await mkdir(outputDir, { recursive: true });
-    const fileName = `vi-manual-${projectId}-${Date.now()}.pptx`;
-    await writeFile(path.join(outputDir, fileName), buffer);
+    const fileName = `vi-manual-${projectId}-${Date.now()}.${generationFormat}`;
+    
+    // V30: 如果format=pdf，用LibreOffice转PDF
+    if (generationFormat === 'pdf') {
+      // 先保存PPTX临时文件
+      const tempPptxName = `temp-${Date.now()}.pptx`;
+      const tempPptxPath = path.join(outputDir, tempPptxName);
+      await writeFile(tempPptxPath, buffer);
+      
+      try {
+        const { execFile } = await import("child_process");
+        const { promisify } = await import("util");
+        const execFileAsync = promisify(execFile);
+        
+        // LibreOffice headless转换
+        await execFileAsync("libreoffice", [
+          "--headless", "--convert-to", "pdf",
+          "--outdir", outputDir,
+          tempPptxPath
+        ], { timeout: 60000 });
+        
+        // 读取生成的PDF
+        const pdfName = tempPptxName.replace(".pptx", ".pdf");
+        const pdfPath = path.join(outputDir, pdfName);
+        const pdfBuffer = await readFile(pdfPath);
+        
+        // 用正确的文件名重命名
+        const finalPdfPath = path.join(outputDir, fileName);
+        const { rename } = await import("fs/promises");
+        await rename(pdfPath, finalPdfPath);
+        
+        // 删除临时PPTX
+        const { unlink } = await import("fs/promises");
+        await unlink(tempPptxPath).catch(() => {});
+        
+        console.log(`[generate-pptx] PDF converted: ${pdfBuffer.length} bytes`);
+        
+        // Upload PDF to Storage (much smaller, should work)
+        let pdfStorageUrl: string | null = null;
+        try {
+          const storagePath = `${projectId}/${fileName}`;
+          const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
+            .from("manuals")
+            .upload(storagePath, pdfBuffer, {
+              contentType: "application/pdf",
+              upsert: true,
+            });
+          if (uploadErr) {
+            console.warn("[generate-pptx] PDF Storage upload failed:", uploadErr.message);
+          } else {
+            const { data: urlData } = supabaseAdmin.storage.from("manuals").getPublicUrl(storagePath);
+            pdfStorageUrl = urlData?.publicUrl || null;
+            console.log("[generate-pptx] PDF Storage upload OK:", pdfStorageUrl);
+          }
+        } catch (e: any) { console.warn("[generate-pptx] PDF Storage error:", e.message); }
+
+        sendComplete({
+          url: `/api/ai/download-pptx/${fileName}`,
+          storageUrl: pdfStorageUrl,
+          pageCount: blueprints.length,
+          imageCount: imgSuccess,
+          industryType,
+          fileName,
+        });
+        return; // PDF path done, skip PPTX storage
+      } catch (convertErr: any) {
+        console.warn("[generate-pptx] PDF conversion failed, falling back to PPTX:", convertErr.message);
+        // Fall through to save as PPTX
+        await writeFile(path.join(outputDir, fileName.replace(".pdf", ".pptx")), buffer);
+      }
+    } else {
+      await writeFile(path.join(outputDir, fileName), buffer);
+    }
 
     // ===== Step 7.5: 上传到Supabase Storage存档 =====
     let storageUrl: string | null = null;
@@ -1078,6 +1160,17 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("[generate-pptx] ===== DONE =====", fileName, `(${imgSuccess} images, ${blueprints.length} pages)`);
+    // V30: 更新生成历史记录
+    try {
+      const { data: doneInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
+      const donePrev = (doneInfo?.client_info as Record<string, any>) || {};
+      const doneHistory = (donePrev.viGenerationHistory || []).map((h: any) =>
+        h.id === generationId
+          ? { ...h, status: 'completed', completedAt: new Date().toISOString(), fileName, fileSize: buffer.length, pageCount: blueprints.length, sceneImageCount: imgSuccess, downloadUrl: `/api/ai/download-pptx/${fileName}`, storageUrl }
+          : h
+      );
+      await supabaseAdmin.from("projects").update({ client_info: { ...donePrev, viGenerationHistory: doneHistory } }).eq("id", projectId!);
+    } catch (e: any) { console.warn("[generate-pptx] History update error:", e.message); }
     // V12: 更新项目状态为"完成"
     await supabaseAdmin.from("projects").update({
       status: "completed",
@@ -1095,6 +1188,15 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("[generate-pptx] Error:", error);
+    // V30: 更新历史记录为失败
+    try {
+      const { data: errInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
+      const errPrev = (errInfo?.client_info as Record<string, any>) || {};
+      const errHistory = (errPrev.viGenerationHistory || []).map((h: any) =>
+        h.id === generationId ? { ...h, status: 'failed', error: error.message, completedAt: new Date().toISOString() } : h
+      );
+      await supabaseAdmin.from("projects").update({ client_info: { ...errPrev, viGenerationHistory: errHistory } }).eq("id", projectId!);
+    } catch (e: any) {}
     sendError(error.message || "PPTX generation failed");
   }
   })();  // end background task

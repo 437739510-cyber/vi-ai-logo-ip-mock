@@ -13,6 +13,7 @@
  */
 import PptxGenJS from "pptxgenjs";
 import type { PageBlueprint } from "./page-planner";
+import { compressImage } from "./compress-image";
 
 const SW = 8.27;
 const SH = 11.69;
@@ -36,6 +37,7 @@ export interface RenderPptxOptions {
   sceneImages?: Record<string, string>;
   sceneLabels?: Record<string, string>;  // V9: AI返回的动态标签
   aiLogoData?: string;  // V14: AI生成的组合Logo图(base64)
+  compressImages?: boolean;  // V30: 压缩图片减小体积
 }
 
 // ========== 行业类型 ==========
@@ -225,7 +227,23 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
   pptx.title = `${cn} 品牌视觉识别系统（VI）规范手册`;
   const bc = resolveBC(options, blueprints);
   const industry = getIndustryType(options.industry);
-  const sceneImages = options.sceneImages || {};
+  let sceneImages = options.sceneImages || {};
+
+  // V30: 压缩图片减小PPTX/PDF体积
+  if (options.compressImages) {
+    console.log("[render-pptx] Compressing images...");
+    // Compress scene images (JPEG 800px, quality 80)
+    const compressedScenes: Record<string, string> = {};
+    for (const [key, imgData] of Object.entries(sceneImages)) {
+      compressedScenes[key] = await compressImage(imgData, { maxWidth: 800, quality: 80, isLogo: false });
+    }
+    sceneImages = compressedScenes;
+    // Compress logo (PNG 512px for transparency)
+    if (options.logoData) options.logoData = await compressImage(options.logoData, { maxWidth: 512, isLogo: true });
+    if (options.mascotData) options.mascotData = await compressImage(options.mascotData, { maxWidth: 512, isLogo: true });
+    if (options.aiLogoData) options.aiLogoData = await compressImage(options.aiLogoData, { maxWidth: 512, isLogo: true });
+    console.log("[render-pptx] Image compression done");
+  }
 
   console.log(`[render-pptx] V6 | ${blueprints.length} pages | industry=${industry} | sceneImages=${Object.keys(sceneImages).length}`);
 
