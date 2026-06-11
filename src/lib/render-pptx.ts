@@ -229,19 +229,19 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
   const industry = getIndustryType(options.industry);
   let sceneImages = options.sceneImages || {};
 
-  // V30: 压缩图片减小PPTX/PDF体积
+  // V32: 压缩图片减小PPTX/PDF体积
+  // PptxGenJS内部会将所有图片重新编码为PNG，所以需要缩小像素而非靠JPEG压缩
   if (options.compressImages) {
     console.log("[render-pptx] Compressing images...");
-    // Compress scene images (JPEG 800px, quality 80)
     const compressedScenes: Record<string, string> = {};
     for (const [key, imgData] of Object.entries(sceneImages)) {
-      compressedScenes[key] = await compressImage(imgData, { maxWidth: 800, quality: 80, isLogo: false });
+      compressedScenes[key] = await compressImage(imgData, { maxWidth: 640, quality: 85, isLogo: false });
     }
     sceneImages = compressedScenes;
-    // Compress logo (PNG 512px for transparency)
-    if (options.logoData) options.logoData = await compressImage(options.logoData, { maxWidth: 512, isLogo: true });
-    if (options.mascotData) options.mascotData = await compressImage(options.mascotData, { maxWidth: 512, isLogo: true });
-    if (options.aiLogoData) options.aiLogoData = await compressImage(options.aiLogoData, { maxWidth: 512, isLogo: true });
+    // Logo在PPTX中会被多次引用，缩小到256px足够显示
+    if (options.logoData) options.logoData = await compressImage(options.logoData, { maxWidth: 256, isLogo: true });
+    if (options.mascotData) options.mascotData = await compressImage(options.mascotData, { maxWidth: 256, isLogo: true });
+    if (options.aiLogoData) options.aiLogoData = await compressImage(options.aiLogoData, { maxWidth: 256, isLogo: true });
     console.log("[render-pptx] Image compression done");
   }
 
