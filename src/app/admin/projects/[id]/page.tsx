@@ -50,6 +50,9 @@ export default function ProjectDetailPage({
   const [exportingPdf, setExportingPdf] = useState<string | null>(null);
   const [deletingManual, setDeletingManual] = useState<string | null>(null);
   const [generatingPptx, setGeneratingPptx] = useState(false);
+  const [generationFormat, setGenerationFormat] = useState<'pdf'|'pptx'>('pdf');  // V32: 格式选择
+  const [generationHistory, setGenerationHistory] = useState<any[]>([]);  // V32: 生成历史
+  const [arkBalance, setArkBalance] = useState<any>(null);  // V32: 方舟余额
   const [pptxResult, setPptxResult] = useState<{url: string; downloadUrl?: string; storageUrl?: string; pageCount: number; fileName: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -132,6 +135,29 @@ export default function ProjectDetailPage({
         }
       }
     } catch { /* silently ignore */ }
+  };
+
+  // V32: 加载生成历史
+  const loadGenerationHistory = async () => {
+    if (!project) return;
+    try {
+      const res = await fetch(`/api/ai/generation-history?projectId=${project.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setGenerationHistory(data.history || []);
+      }
+    } catch {}
+  };
+
+  // V32: 加载方舟余额
+  const loadArkBalance = async () => {
+    try {
+      const res = await fetch('/api/ai/ark-balance');
+      if (res.ok) {
+        const data = await res.json();
+        setArkBalance(data);
+      }
+    } catch {}
   };
 
   /** Upload and analyze reference PDF */
@@ -533,6 +559,7 @@ export default function ProjectDetailPage({
             secondary: { hex: '#34A853' },
             accent: { hex: '#FBBC04' },
           },
+          format: generationFormat,  // V32: 格式选择
           logoUrl: submission?.logoAssets?.[0]?.url || '',
           mascotUrl: submission?.mascotAssets?.[0]?.files?.[0]?.url || '',
           mascotFiles: submission?.mascotAssets?.flatMap((m: any) => m.files || []) || [],
@@ -982,8 +1009,18 @@ export default function ProjectDetailPage({
               </div>
             )}
 
-            {/* 确认按钮 */}
+            {/* V32: 格式选择 + 确认按钮 */}
             <div className="flex gap-2">
+              <div className="flex items-center gap-1 bg-neutral-100 rounded-xl p-1">
+                <button
+                  onClick={() => setGenerationFormat('pdf')}
+                  className={`px-3 py-2 text-xs font-medium rounded-lg transition-all ${generationFormat === 'pdf' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
+                >PDF</button>
+                <button
+                  onClick={() => setGenerationFormat('pptx')}
+                  className={`px-3 py-2 text-xs font-medium rounded-lg transition-all ${generationFormat === 'pptx' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
+                >PPTX</button>
+              </div>
               <button
                 onClick={handleGeneratePptx}
                 disabled={generatingPptx}
@@ -992,7 +1029,7 @@ export default function ProjectDetailPage({
                 {generatingPptx ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> {pptxProgress || "生成中..."} {pptxPercent > 0 && <span className="text-blue-200 text-xs">({pptxPercent}%)</span>}</>
                 ) : (
-                  <>✅ 确认并生成VI手册</>
+                  <>✅ 生成VI手册({generationFormat.toUpperCase()})</>
                 )}
               </button>
               <button
@@ -1031,6 +1068,48 @@ export default function ProjectDetailPage({
           </div>
         )}
       </section>
+
+      {/* V32: 生成历史 */}
+      {generationHistory.length > 0 && (
+        <section className="bg-white rounded-xl border border-neutral-100 p-5">
+          <h3 className="text-sm font-bold text-neutral-900 mb-3">生成历史</h3>
+          <div className="space-y-2">
+            {generationHistory.filter((h: any) => h.status === 'completed').map((h: any) => (
+              <div key={h.id} className="flex items-center justify-between p-2.5 bg-neutral-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-neutral-700">{h.format?.toUpperCase() || 'PPTX'}</span>
+                  <span className="text-xs text-neutral-400">{h.pageCount}页</span>
+                  <span className="text-xs text-neutral-400">{h.completedAt ? new Date(h.completedAt).toLocaleString('zh-CN') : ''}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a href={h.downloadUrl || h.storageUrl} download className="px-2 py-1 text-[10px] font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100">下载</a>
+                  <button onClick={async () => {
+                    if (!confirm('确定删除此记录？')) return;
+                    await fetch(`/api/ai/generation-history?projectId=${project.id}&entryId=${h.id}`, { method: 'DELETE' });
+                    loadGenerationHistory();
+                  }} className="px-2 py-1 text-[10px] font-medium text-red-500 bg-red-50 rounded hover:bg-red-100">删除</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* V32: 方舟余额 */}
+      {arkBalance && (
+        <section className="bg-white rounded-xl border border-neutral-100 p-5">
+          <h3 className="text-sm font-bold text-neutral-900 mb-3">方舟Seedream余额</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {arkBalance.models?.map((m: any) => (
+              <div key={m.model} className="bg-neutral-50 rounded-lg p-2.5">
+                <p className="text-[10px] text-neutral-500">{m.model.split('doubao-seedream-')[1]}</p>
+                <p className="text-sm font-bold text-neutral-900">{m.remaining}<span className="text-[10px] text-neutral-400">/{m.freeQuota}</span></p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-neutral-400 mt-2">总计剩余 {arkBalance.summary?.totalRemaining}/{arkBalance.summary?.totalFree} 张 (免费额度)</p>
+        </section>
+      )}
 
       {/* 通义万相逐页生图 - 已移除（PptxGenJS方案更优） */}
 
