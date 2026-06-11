@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Lock, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,7 +23,8 @@ export default function AdminLoginPage() {
       });
       const data = await res.json();
       if (data.success) {
-        router.push("/admin/dashboard");
+        // 用整页跳转替代router.push，确保cookie在下次请求中生效
+        window.location.href = "/admin/dashboard";
       } else {
         setError(data.error || "登录失败");
       }

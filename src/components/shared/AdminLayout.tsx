@@ -31,7 +31,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // 登录页不需要侧边栏/头部/底部导航
+  const isLoginPage = pathname === "/admin/login";
+
   const isActive = (href: string) => pathname.startsWith(href);
+
+  // 登录页直接渲染内容，不带任何布局装饰
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-screen flex bg-neutral-50">

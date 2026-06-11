@@ -16,10 +16,10 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json({ success: true });
     res.cookies.set("admin_auth", "true", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production" || req.nextUrl.protocol === "https:",
+      secure: true,
       sameSite: "lax",
       maxAge: 60 * 60 * 8, // 8 hours
-      path: "/admin",
+      path: "/",  // 改为/，确保所有路径都能读cookie
     });
     return res;
   } catch {
