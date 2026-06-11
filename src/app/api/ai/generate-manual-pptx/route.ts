@@ -9,8 +9,10 @@
  * - 场景图从7张减为5张（¥0.20×5=¥1.00/份）
  * - 异步调用流程：提交任务 → 轮询结果 → 获取URL → 下载base64
  * - 新增analyze-brand共享逻辑
+ * - V27: 场景图方舟Ark Seedream图生图优先(Logo做参考) + DashScope降级
  */
 import { NextRequest, NextResponse } from "next/server";
+import { arkGenerateScene } from "@/lib/ip-image-provider/ark-seedream-provider";
 import path from "path";
 import { readFile, mkdir, writeFile, readdir } from "fs/promises";
 import { planPages } from "@/lib/page-planner";
@@ -358,6 +360,33 @@ async function generateXYQSceneImage(prompt: string): Promise<string | null> {
 }
 
 
+
+// ========== Ark Seedream 辅助：base64 → 公网URL ==========
+async function uploadBase64ToUrl(base64Data: string, label: string): Promise<string | null> {
+  try {
+    const matches = base64Data.match(/^data:(.+?);base64,(.+)$/);
+    if (!matches) return null;
+    const mime = matches[1];
+    const b64 = matches[2];
+    const buf = Buffer.from(b64, 'base64');
+    const ext = mime.includes('png') ? 'png' : mime.includes('svg') ? 'svg' : 'jpg';
+    const fileName = `ref-${label}-${Date.now()}.${ext}`;
+    const filePath = `ref-images/${fileName}`;
+    
+    const { data, error } = await supabaseAdmin.storage
+      .from('brand-brain-generated')
+      .upload(filePath, buf, { contentType: mime, upsert: true });
+    if (error) { console.warn('[uploadBase64ToUrl] Failed:', error.message); return null; }
+    
+    const { data: urlData } = supabaseAdmin.storage
+      .from('brand-brain-generated')
+      .getPublicUrl(filePath);
+    return urlData?.publicUrl || null;
+  } catch (e) {
+    console.warn('[uploadBase64ToUrl] Error:', String(e));
+    return null;
+  }
+}
 
 async function generateSceneImage(prompt: string, logoBase64?: string): Promise<string | null> {
   const apiKey = process.env.ALIYUN_API_KEY;
@@ -891,13 +920,43 @@ export async function POST(req: NextRequest) {
     const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
     let imgSuccess = 0;
 
-    console.log(`[generate-pptx] DashScope engine: ${imgDefs.length} images`);
+    // V27: 方舟Ark Seedream优先(图生图+Logo参考) → DashScope降级
+    const arkKey = process.env.ARK_API_KEY;
+    // 优先用Logo做图生图参考（Logo是品牌核心标识），其次用mascot
+    const primaryRef = logoData || mascotData || null;
+    const refLabel = logoData ? "logo" : mascotData ? "mascot" : null;
+    // 预上传参考图到公网URL（Ark图生图需要公网URL）
+    let refPublicUrl: string | null = null;
+    if (arkKey && primaryRef && refLabel) {
+      refPublicUrl = await uploadBase64ToUrl(primaryRef, refLabel);
+      console.log(`[generate-pptx] Ref image uploaded for Ark img2img:`, refPublicUrl ? "OK" : "FAILED");
+    }
 
-    // 全部5张并行提交，2个一批避免429限流
+    console.log(`[generate-pptx] Engine: ${arkKey ? "Ark Seedream(优先) + DashScope(降级)" : "DashScope only"}, ${imgDefs.length} images, refImage: ${refLabel || "none"}`);
+
     for (let i = 0; i < imgDefs.length; i += 2) {
       const batch = imgDefs.slice(i, i + 2);
       const results = await Promise.allSettled(
         batch.map(async (def) => {
+          // V27: Ark Seedream图生图优先
+          if (arkKey && refPublicUrl) {
+            try {
+              const arkResult = await arkGenerateScene({
+                prompt: def.rawPrompt,
+                refImageUrl: refPublicUrl,
+                size: "720x1280",
+              });
+              const imgResp = await fetch(arkResult.imageUrl);
+              if (imgResp.ok) {
+                const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+                console.log(`[generate-pptx] Ark Seedream OK (${arkResult.durationMs}ms, model: ${arkResult.model}) for ${def.key}`);
+                return { def, imgData: "data:image/png;base64," + imgBuf.toString("base64") };
+              }
+            } catch (e: any) {
+              console.warn(`[generate-pptx] Ark Seedream failed for ${def.key}:`, e.message);
+            }
+          }
+          // 降级: DashScope
           const imgData = await generateSceneImage(def.rawPrompt, mascotData || logoData || undefined);
           return { def, imgData };
         })
