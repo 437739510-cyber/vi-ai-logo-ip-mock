@@ -1,23 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 学生注册数据存储（内存中，生产环境应使用数据库）
-const studentApplications: Array<{
-  id: string;
-  name: string;
-  phone: string;
-  school: string;
-  major?: string;
-  wechat?: string;
-  intro?: string;
-  appliedAt: string;
-}> = [];
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { name, phone, school, major, wechat, intro } = body;
 
-    // 验证必填字段
     if (!name || !phone || !school) {
       return NextResponse.json(
         { error: '请填写必填字段（姓名、手机号、学校）' },
@@ -25,28 +15,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 生成申请ID
-    const id = `STU-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/students`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify({
+        real_name: name,
+        phone,
+        university: school,
+        major: major || '',
+        wechat: wechat || '',
+        bio: intro || '',
+        status: 'pending',
+      }),
+    });
 
-    // 保存申请
-    const application = {
-      id,
-      name,
-      phone,
-      school,
-      major: major || '',
-      wechat: wechat || '',
-      intro: intro || '',
-      appliedAt: new Date().toISOString(),
-    };
+    if (!response.ok) {
+      const err = await response.text();
+      console.error('[学生注册] Supabase错误:', err);
+      return NextResponse.json({ error: '注册失败，请稍后重试' }, { status: 500 });
+    }
 
-    studentApplications.push(application);
-
-    console.log('[学生注册] 新申请:', application);
+    const student = await response.json();
+    console.log('[学生注册] 新申请:', student);
 
     return NextResponse.json({
       success: true,
-      id,
+      id: student[0]?.id,
       message: '申请已提交，我们会在1-2个工作日内审核',
     });
   } catch (error: unknown) {
@@ -56,10 +55,22 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// 获取所有申请记录（供管理后台使用）
 export async function GET() {
-  return NextResponse.json({
-    students: studentApplications,
-    total: studentApplications.length,
-  });
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/students?select=*&order=created_at.desc`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+
+    if (!response.ok) {
+      return NextResponse.json({ students: [], total: 0 });
+    }
+
+    const students = await response.json();
+    return NextResponse.json({ students, total: students.length });
+  } catch {
+    return NextResponse.json({ students: [], total: 0 });
+  }
 }

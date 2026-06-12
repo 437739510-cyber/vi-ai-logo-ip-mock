@@ -1,67 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { GraduationCap, Phone, MapPin, TrendingUp } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { GraduationCap, Phone, TrendingUp, Trash2, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 
 interface Student {
   id: string;
-  realName: string;
+  real_name: string;
   phone: string;
   university: string;
   major: string;
   grade: string;
   wechat: string;
-  serviceArea: string;
+  service_area: string;
+  bio: string;
   status: "active" | "pending" | "suspended";
-  clientCount: number;
-  totalEarnings: number;
-  createdAt: string;
+  created_at: string;
 }
-
-const MOCK_STUDENTS: Student[] = [
-  {
-    id: "STU-001",
-    realName: "张晓明",
-    phone: "138****5678",
-    university: "武汉大学",
-    major: "视觉传达设计",
-    grade: "大三",
-    wechat: "zxm_design",
-    serviceArea: "武昌区",
-    status: "active",
-    clientCount: 5,
-    totalEarnings: 750,
-    createdAt: "2026-05-20",
-  },
-  {
-    id: "STU-002",
-    realName: "李思雨",
-    phone: "139****1234",
-    university: "华中科技大学",
-    major: "数字媒体艺术",
-    grade: "大二",
-    wechat: "lsy_art",
-    serviceArea: "洪山区",
-    status: "active",
-    clientCount: 3,
-    totalEarnings: 450,
-    createdAt: "2026-05-22",
-  },
-  {
-    id: "STU-003",
-    realName: "王鹏飞",
-    phone: "137****9876",
-    university: "湖北美术学院",
-    major: "平面设计",
-    grade: "大四",
-    wechat: "wpf_design",
-    serviceArea: "江岸区",
-    status: "pending",
-    clientCount: 0,
-    totalEarnings: 0,
-    createdAt: "2026-06-01",
-  },
-];
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   active: { label: "已认证", color: "bg-green-100 text-green-700" },
@@ -70,51 +24,91 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 };
 
 export default function StudentsPage() {
-  const [students] = useState<Student[]>(MOCK_STUDENTS);
+  const [students, setStudents] = useState<Student[]>([]);
   const [filter, setFilter] = useState<"all" | "active" | "pending">("all");
+  const [loading, setLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const filtered = students.filter((s) => filter === "all" || s.status === filter);
+  const fetchStudents = useCallback(async () => {
+    try {
+      const res = await fetch("/api/students/register");
+      const data = await res.json();
+      setStudents(data.students || []);
+    } catch {
+      console.error("获取学生列表失败");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchStudents(); }, [fetchStudents]);
+
+  const handleDelete = async (id: string) => {
+    setActionLoading(id);
+    try {
+      await fetch(`/api/students/delete?id=${id}`, { method: "DELETE" });
+      setStudents(prev => prev.filter(s => s.id !== id));
+      setDeleteConfirm(null);
+    } catch {
+      alert("删除失败，请重试");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleStatusChange = async (id: string, status: string) => {
+    setActionLoading(id);
+    try {
+      await fetch("/api/students/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      setStudents(prev => prev.map(s => s.id === id ? { ...s, status: status as Student["status"] } : s));
+    } catch {
+      alert("操作失败，请重试");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const filtered = students.filter(s => filter === "all" || s.status === filter);
 
   const stats = {
     total: students.length,
-    active: students.filter((s) => s.status === "active").length,
-    pending: students.filter((s) => s.status === "pending").length,
-    totalEarnings: students.reduce((sum, s) => sum + s.totalEarnings, 0),
+    active: students.filter(s => s.status === "active").length,
+    pending: students.filter(s => s.status === "pending").length,
   };
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-20 text-neutral-400">加载中...</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-neutral-900">大学生管理</h2>
-          <p className="text-sm text-neutral-500 mt-1">管理大学生代理，查看认证状态和佣金</p>
+          <p className="text-sm text-neutral-500 mt-1">管理大学生代理，查看认证状态</p>
         </div>
+        <button onClick={fetchStudents} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 text-sm">
+          <RefreshCw className="w-3.5 h-3.5" />刷新
+        </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-4 border border-neutral-100">
-          <div className="flex items-center gap-2 text-neutral-500 text-sm">
-            <GraduationCap className="w-4 h-4" />总人数
-          </div>
+          <div className="flex items-center gap-2 text-neutral-500 text-sm"><GraduationCap className="w-4 h-4" />总人数</div>
           <div className="text-2xl font-bold text-neutral-900 mt-1">{stats.total}</div>
         </div>
         <div className="bg-white rounded-xl p-4 border border-neutral-100">
-          <div className="flex items-center gap-2 text-green-600 text-sm">
-            <GraduationCap className="w-4 h-4" />已认证
-          </div>
+          <div className="flex items-center gap-2 text-green-600 text-sm"><GraduationCap className="w-4 h-4" />已认证</div>
           <div className="text-2xl font-bold text-neutral-900 mt-1">{stats.active}</div>
         </div>
         <div className="bg-white rounded-xl p-4 border border-neutral-100">
-          <div className="flex items-center gap-2 text-amber-600 text-sm">
-            <GraduationCap className="w-4 h-4" />待审核
-          </div>
+          <div className="flex items-center gap-2 text-amber-600 text-sm"><GraduationCap className="w-4 h-4" />待审核</div>
           <div className="text-2xl font-bold text-neutral-900 mt-1">{stats.pending}</div>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-neutral-100">
-          <div className="flex items-center gap-2 text-blue-600 text-sm">
-            <TrendingUp className="w-4 h-4" />佣金总支出
-          </div>
-          <div className="text-2xl font-bold text-neutral-900 mt-1">&yen;{stats.totalEarnings}</div>
         </div>
       </div>
 
@@ -123,16 +117,9 @@ export default function StudentsPage() {
           { key: "all", label: "全部" },
           { key: "active", label: "已认证" },
           { key: "pending", label: "待审核" },
-        ].map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key as typeof filter)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              filter === f.key
-                ? "bg-primary text-white"
-                : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-            }`}
-          >
+        ].map(f => (
+          <button key={f.key} onClick={() => setFilter(f.key as typeof filter)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === f.key ? "bg-primary text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"}`}>
             {f.label}
           </button>
         ))}
@@ -145,39 +132,67 @@ export default function StudentsPage() {
               <tr className="border-b border-neutral-100 bg-neutral-50">
                 <th className="text-left px-4 py-3 font-medium text-neutral-500">姓名</th>
                 <th className="text-left px-4 py-3 font-medium text-neutral-500">学校/专业</th>
-                <th className="text-left px-4 py-3 font-medium text-neutral-500">服务区域</th>
-                <th className="text-left px-4 py-3 font-medium text-neutral-500">客户数</th>
-                <th className="text-left px-4 py-3 font-medium text-neutral-500">佣金</th>
+                <th className="text-left px-4 py-3 font-medium text-neutral-500">微信</th>
                 <th className="text-left px-4 py-3 font-medium text-neutral-500">状态</th>
                 <th className="text-left px-4 py-3 font-medium text-neutral-500">注册时间</th>
+                <th className="text-left px-4 py-3 font-medium text-neutral-500">操作</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s) => (
+              {filtered.map(s => (
                 <tr key={s.id} className="border-b border-neutral-50 hover:bg-neutral-50">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-neutral-900">{s.realName}</div>
+                    <div className="font-medium text-neutral-900">{s.real_name}</div>
                     <div className="text-xs text-neutral-400 flex items-center gap-1 mt-0.5">
                       <Phone className="w-3 h-3" />{s.phone}
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="text-neutral-900">{s.university}</div>
-                    <div className="text-xs text-neutral-400">{s.major} · {s.grade}</div>
+                    <div className="text-xs text-neutral-400">{s.major}{s.grade ? ` · ${s.grade}` : ""}</div>
                   </td>
+                  <td className="px-4 py-3 text-neutral-600">{s.wechat || "-"}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 text-neutral-600">
-                      <MapPin className="w-3 h-3" />{s.serviceArea}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-medium text-neutral-900">{s.clientCount}</td>
-                  <td className="px-4 py-3 font-medium text-neutral-900">&yen;{s.totalEarnings}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_MAP[s.status].color}`}>
-                      {STATUS_MAP[s.status].label}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_MAP[s.status]?.color || "bg-gray-100 text-gray-700"}`}>
+                      {STATUS_MAP[s.status]?.label || s.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-neutral-500">{s.createdAt}</td>
+                  <td className="px-4 py-3 text-neutral-500">{s.created_at?.slice(0, 10)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      {s.status === "pending" && (
+                        <button onClick={() => handleStatusChange(s.id, "active")} disabled={actionLoading === s.id}
+                          className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 disabled:opacity-50" title="通过审核">
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                      {s.status === "active" && (
+                        <button onClick={() => handleStatusChange(s.id, "suspended")} disabled={actionLoading === s.id}
+                          className="p-1.5 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 disabled:opacity-50" title="暂停">
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                      {s.status === "suspended" && (
+                        <button onClick={() => handleStatusChange(s.id, "active")} disabled={actionLoading === s.id}
+                          className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 disabled:opacity-50" title="恢复">
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                      {deleteConfirm === s.id ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleDelete(s.id)} disabled={actionLoading === s.id}
+                            className="px-2 py-1 rounded text-xs bg-red-500 text-white hover:bg-red-600 disabled:opacity-50">确认删除</button>
+                          <button onClick={() => setDeleteConfirm(null)}
+                            className="px-2 py-1 rounded text-xs bg-neutral-100 text-neutral-600 hover:bg-neutral-200">取消</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setDeleteConfirm(s.id)} disabled={actionLoading === s.id}
+                          className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 disabled:opacity-50" title="删除">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
