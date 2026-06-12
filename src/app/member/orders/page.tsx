@@ -86,7 +86,7 @@ export default function MemberOrdersPage() {
       <div className="bg-white rounded-2xl border border-neutral-100 p-5 text-center">
         <FileText className="w-8 h-8 text-neutral-200 mx-auto mb-2" />
         <p className="text-sm text-neutral-500">如需升级套餐或续费</p>
-        <p className="text-xs text-neutral-400 mt-1">请联系客服微信 BrandBrain_CN</p>
+        {process.env.NEXT_PUBLIC_SHOW_WECHAT === 'true' && <p className="text-xs text-neutral-400 mt-1">请联系客服微信 sweetheart4913</p>}
       </div>
     </div>
   );
