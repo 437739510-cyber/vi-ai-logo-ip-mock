@@ -73,7 +73,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <footer className="border-t border-neutral-100 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-sm text-neutral-400">
           <div className="space-y-1">
-            <p>客服微信：BrandBrain_CN ｜ 电话：400-888-0000 ｜ 工作时间：周一至周六 9:00-18:00</p>
+            <p>客服微信：BrandBrain_CN ｜ 电话：400-666-1806 ｜ 工作时间：周一至周六 9:00-18:00</p>
             <p>&copy; 2026 品牌大脑 ｜ <Link href="/privacy" className="hover:text-neutral-600">隐私政策</Link> ｜ <Link href="/terms" className="hover:text-neutral-600">服务协议</Link></p>
           </div>
         </div>

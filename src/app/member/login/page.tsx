@@ -15,6 +15,7 @@ export default function MemberLoginPage() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [error, setError] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   const handleSendOtp = async () => {
     if (!phone.match(/^1[3-9]\d{9}$/)) {
@@ -32,6 +33,13 @@ export default function MemberLoginPage() {
       const data = await res.json();
       if (data.success) {
         setOtpSent(true);
+        setCountdown(60);
+        const timer = setInterval(() => {
+          setCountdown((prev) => {
+            if (prev <= 1) { clearInterval(timer); return 0; }
+            return prev - 1;
+          });
+        }, 1000);
       } else {
         setError(data.error || "发送失败");
       }
@@ -135,14 +143,17 @@ export default function MemberLoginPage() {
                   <button
                     type="button"
                     onClick={handleSendOtp}
-                    disabled={sendingOtp || !phone.match(/^1[3-9]\d{9}$/)}
+                    disabled={sendingOtp || countdown > 0 || !phone.match(/^1[3-9]\d{9}$/)}
                     className="shrink-0 px-4 py-2.5 text-sm font-medium text-primary border border-primary/30 rounded-xl hover:bg-primary/5 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
-                    {sendingOtp ? "发送中..." : otpSent ? "重新发送" : "获取验证码"}
+                    {sendingOtp ? "发送中..." : countdown > 0 ? `${countdown}s` : otpSent ? "重新发送" : "获取验证码"}
                   </button>
                 </div>
                 {otpSent && (
-                  <p className="text-xs text-green-600 mt-1.5">验证码已发送，开发期间输入任意6位数字即可</p>
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg text-center">
+                    <p className="text-sm font-medium text-green-700">✓ 验证码已发送</p>
+                    <p className="text-xs text-green-600 mt-0.5">输入任意6位数字即可登录</p>
+                  </div>
                 )}
               </div>
             )}

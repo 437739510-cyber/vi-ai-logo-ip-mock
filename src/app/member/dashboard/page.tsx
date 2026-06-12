@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Image as ImageIcon, Clock, CheckCircle, Send, Loader2, Plus, Sparkles, Copy, Check } from "lucide-react";
+import { Image as ImageIcon, Clock, CheckCircle, Send, Loader2, Plus, Sparkles, Copy, Check, Wand2, Download } from "lucide-react";
 import Link from "next/link";
+
+interface ComposedImage {
+  template: string;
+  url: string;
+}
 
 interface ContentItem {
   id: string;
@@ -12,6 +17,7 @@ interface ContentItem {
   note: string;
   created_at: string;
   platform?: string;
+  composed_images?: ComposedImage[];
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
@@ -27,6 +33,12 @@ const PLATFORM_OPTIONS = [
   { value: "douyin", label: "抖音" },
 ];
 
+const TEMPLATE_OPTIONS = [
+  { value: "product_showcase", label: "产品展示", icon: "📦" },
+  { value: "promo", label: "促销活动", icon: "🎉" },
+  { value: "daily", label: "日常种草", icon: "🌿" },
+];
+
 export default function MemberDashboard() {
   const [contents, setContents] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +46,9 @@ export default function MemberDashboard() {
   const [quotaTotal, setQuotaTotal] = useState(2);
   const [plan, setPlan] = useState("free");
   const [generating, setGenerating] = useState<string | null>(null);
+  const [composing, setComposing] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [previewImg, setPreviewImg] = useState<string | null>(null);
   const isFree = plan === "free";
   const isQuotaFull = quotaUsed >= quotaTotal;
 
@@ -65,7 +79,6 @@ export default function MemberDashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        // 刷新列表
         loadData();
       } else {
         alert(data.error || "生成失败");
@@ -74,6 +87,27 @@ export default function MemberDashboard() {
       alert("网络错误，请重试");
     } finally {
       setGenerating(null);
+    }
+  };
+
+  const handleCompose = async (contentId: string, template: string) => {
+    setComposing(contentId);
+    try {
+      const res = await fetch("/api/member/compose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentId, template }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadData();
+      } else {
+        alert(data.error || "合成失败");
+      }
+    } catch {
+      alert("网络错误，请重试");
+    } finally {
+      setComposing(null);
     }
   };
 
@@ -136,6 +170,7 @@ export default function MemberDashboard() {
               const status = STATUS_MAP[item.status] || STATUS_MAP.pending;
               const StatusIcon = status.icon;
               const isGenerating = generating === item.id;
+              const isComposing = composing === item.id;
               return (
                 <div key={item.id} className="bg-white rounded-xl border border-neutral-100 p-4">
                   <div className="flex gap-3">
@@ -156,12 +191,12 @@ export default function MemberDashboard() {
                       </p>
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${status.color}`}>
-                          {item.status === "processing" || isGenerating ? (
+                          {item.status === "processing" || isGenerating || isComposing ? (
                             <StatusIcon className="w-3 h-3 animate-spin" />
                           ) : (
                             <StatusIcon className="w-3 h-3" />
                           )}
-                          {isGenerating ? "生成中" : status.label}
+                          {isComposing ? "合成中" : isGenerating ? "生成中" : status.label}
                         </span>
                         <span className="text-xs text-neutral-400">{new Date(item.created_at).toLocaleDateString("zh-CN")}</span>
                       </div>
@@ -169,15 +204,51 @@ export default function MemberDashboard() {
                     <span className="text-xs text-neutral-400 self-start">{item.images.length}张</span>
                   </div>
 
-                  {/* 操作按钮 */}
+                  {/* AI文案生成按钮 */}
                   {item.status === "pending" && !isGenerating && (
-                    <div className="mt-3 flex gap-2">
-                      {PLATFORM_OPTIONS.map((p) => (
-                        <button key={p.value} onClick={() => handleGenerate(item.id, p.value)}
-                          className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-all">
-                          <Sparkles className="w-3.5 h-3.5" />{p.label}文案
-                        </button>
-                      ))}
+                    <div className="mt-3">
+                      <p className="text-xs text-neutral-400 mb-2">生成文案</p>
+                      <div className="flex gap-2">
+                        {PLATFORM_OPTIONS.map((p) => (
+                          <button key={p.value} onClick={() => handleGenerate(item.id, p.value)}
+                            className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-all">
+                            <Sparkles className="w-3.5 h-3.5" />{p.label}文案
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AI模板合成按钮 */}
+                  {(item.status === "pending" || item.status === "ready") && !isComposing && item.images.some((u: string) => !u.startsWith("pending_")) && (
+                    <div className="mt-3">
+                      <p className="text-xs text-neutral-400 mb-2">生成品牌图</p>
+                      <div className="flex gap-2">
+                        {TEMPLATE_OPTIONS.map((t) => (
+                          <button key={t.value} onClick={() => handleCompose(item.id, t.value)}
+                            className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-white bg-primary/80 rounded-lg hover:bg-primary transition-all">
+                            <Wand2 className="w-3.5 h-3.5" />{t.icon}{t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 合成图片展示 */}
+                  {item.composed_images && item.composed_images.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-xs text-neutral-400 mb-2">品牌化图片</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {item.composed_images.map((ci, i) => (
+                          <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-neutral-100 cursor-pointer group"
+                            onClick={() => setPreviewImg(ci.url)}>
+                            <img src={ci.url} alt={ci.template} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <Download className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -197,6 +268,26 @@ export default function MemberDashboard() {
           </div>
         )}
       </div>
+
+      {/* 图片预览弹窗 */}
+      {previewImg && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setPreviewImg(null)}>
+          <div className="relative max-w-lg w-full">
+            <img src={previewImg} alt="预览" className="w-full rounded-xl" />
+            <div className="mt-3 flex gap-3 justify-center">
+              <a href={previewImg} download="brand-image.jpg"
+                className="flex items-center gap-2 px-4 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium hover:bg-neutral-100">
+                <Download className="w-4 h-4" />保存图片
+              </a>
+              <button onClick={() => setPreviewImg(null)}
+                className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm hover:bg-white/30">
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
