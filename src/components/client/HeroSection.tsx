@@ -31,7 +31,7 @@ export function HeroSection() {
             transition={{ duration: 0.6, delay: 0.15 }}
           >
             一家开了十年的老面馆，招牌比隔壁奶茶店还丑——不是你的错，是没人帮你。
-            我们用 AI 生成 LOGO、IP 公仔、VI 手册，大学生上门拍照代发，让你从巷子深处变成整条街最靓的店。
+            我们用 AI 生成 LOGO、IP 公仔、VI 手册，¥99 起，大学生上门拍照代发，让你从巷子深处变成整条街最靓的店。
           </motion.p>
 
           <motion.div
@@ -47,6 +47,12 @@ export function HeroSection() {
               开始品牌访谈
             </Link>
             <Link
+              href="/interview"
+              className="inline-flex items-center px-6 py-3 border border-primary text-primary text-base font-medium rounded-xl hover:bg-primary/5 transition-colors"
+            >
+              免费生成 Logo
+            </Link>
+            <Link
               href="/progress"
               className="inline-flex items-center px-6 py-3 border border-neutral-300 text-neutral-700 text-base font-medium rounded-xl hover:bg-neutral-50 transition-colors"
             >
@@ -60,7 +66,7 @@ export function HeroSection() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.45 }}
           >
-            无需注册，免费提交需求
+            ¥99 起 · 无需注册 · 免费体验 Logo 生成
           </motion.p>
         </div>
       </div>

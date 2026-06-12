@@ -26,7 +26,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               进度查询
             </Link>
             <Link href="/student/register" className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors">
-              大学生加入
+              大学生兼职
             </Link>
             <Link
               href="/consultation"
@@ -56,7 +56,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               进度查询
             </Link>
             <Link href="/student/register" className="block text-sm text-blue-600 font-medium" onClick={() => setMenuOpen(false)}>
-              大学生加入
+              大学生兼职
             </Link>
           </div>
         )}
@@ -66,7 +66,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
       <footer className="border-t border-neutral-100 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-sm text-neutral-400">
-          <p>&copy; 2026 官氏VI手册生成服务. All rights reserved.</p>
+          <div className="space-y-1">
+            <p>客服微信：BrandBrain_CN ｜ 电话：400-888-0000 ｜ 工作时间：周一至周六 9:00-18:00</p>
+            <p>&copy; 2026 品牌大脑 ｜ <Link href="/privacy" className="hover:text-neutral-600">隐私政策</Link> ｜ <Link href="/terms" className="hover:text-neutral-600">服务协议</Link></p>
+          </div>
         </div>
       </footer>
     </div>

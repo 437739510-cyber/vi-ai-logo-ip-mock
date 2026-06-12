@@ -7,7 +7,7 @@ const STEPS = [
   {
     icon: Upload,
     title: "提交素材",
-    description: "上传您的品牌 Logo、IP 公仔，以及参考 VI 手册（可选），填写基本信息即可",
+    description: "上传品牌 Logo、IP 公仔（可选），及参考 VI 手册（可选）。没有 Logo？选「AI帮我生成」即可。支持 AI/PNG/SVG，单文件 ≤ 10MB",
   },
   {
     icon: Sparkles,
@@ -17,7 +17,7 @@ const STEPS = [
   {
     icon: FileCheck,
     title: "专业交付",
-    description: "设计师精修确认后，交付完整 VI 手册（PDF + 可编辑源文件）",
+    description: "AI 生成 + 设计师精修后，交付完整 VI 手册。基础版 PDF 交付，标准版另含 PPTX 可编辑源文件，商用版权全归您",
   },
 ];
 

@@ -63,8 +63,8 @@ export default function StudentRegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
       <div className="max-w-lg mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">大学生加入</h1>
-          <p className="text-gray-500 mt-2">加入品牌大脑，帮老店焕新颜，赚取丰厚佣金</p>
+          <h1 className="text-3xl font-bold text-gray-900">大学生兼职 · 上门拍照代发</h1>
+          <p className="text-gray-500 mt-2">帮老店拍门店照片、代发社交平台，时间自由，按次结算</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-6">
