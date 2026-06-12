@@ -56,7 +56,7 @@ export async function GET() {
           const colonIdx = img.indexOf(':');
           if (colonIdx > 0) {
             composedFromImages.push({
-              template: img.substring(8, colonIdx), // skip "composed_"
+              template: img.substring(9, colonIdx), // skip "composed_"
               url: img.substring(colonIdx + 1),
             });
           }
