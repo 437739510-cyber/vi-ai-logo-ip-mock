@@ -24,7 +24,10 @@ export default function MemberDashboard() {
   const [contents, setContents] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [quotaUsed, setQuotaUsed] = useState(0);
-  const quotaTotal = 12;
+  const [quotaTotal, setQuotaTotal] = useState(2);
+  const [plan, setPlan] = useState("free");
+  const isFree = plan === "free";
+  const isQuotaFull = quotaUsed >= quotaTotal;
 
   useEffect(() => {
     fetch("/api/member/contents")
@@ -33,6 +36,8 @@ export default function MemberDashboard() {
         if (data.success) {
           setContents(data.contents || []);
           setQuotaUsed(data.quotaUsed || 0);
+          setQuotaTotal(data.quotaTotal || 2);
+          setPlan(data.plan || "free");
         }
       })
       .catch(() => {})
@@ -45,17 +50,31 @@ export default function MemberDashboard() {
       <div className="bg-white rounded-2xl border border-neutral-100 p-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold text-neutral-900">本月内容配额</h2>
-          <span className="text-2xl font-bold text-primary">{quotaUsed}<span className="text-sm text-neutral-400 font-normal">/{quotaTotal}条</span></span>
+          <div className="flex items-center gap-2">
+            {isFree && <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500">免费体验</span>}
+            {!isFree && <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">会员</span>}
+            <span className="text-2xl font-bold text-primary">{quotaUsed}<span className="text-sm text-neutral-400 font-normal">/{quotaTotal}条</span></span>
+          </div>
         </div>
         <div className="w-full bg-neutral-100 rounded-full h-2">
           <div
-            className="bg-primary rounded-full h-2 transition-all"
+            className={`rounded-full h-2 transition-all ${isQuotaFull ? "bg-red-400" : "bg-primary"}`}
             style={{ width: `${Math.min((quotaUsed / quotaTotal) * 100, 100)}%` }}
           />
         </div>
-        <p className="text-xs text-neutral-400 mt-2">
-          超出配额 ¥30/条 · 续费请咨询客服
-        </p>
+        {isFree && !isQuotaFull && (
+          <p className="text-xs text-neutral-400 mt-2">免费体验{quotaTotal}条内容，用完后开通会员继续使用</p>
+        )}
+        {isFree && isQuotaFull && (
+          <div className="mt-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
+            <p className="text-sm font-medium text-primary">免费体验已用完</p>
+            <p className="text-xs text-neutral-500 mt-1">开通会员¥299/月，每月12条品牌内容，AI自动生成文案+品牌化图片</p>
+            <a href="https://brandbrain.zeabur.app" className="inline-block mt-2 px-4 py-1.5 bg-primary text-white text-sm font-medium rounded-lg">立即开通</a>
+          </div>
+        )}
+        {!isFree && (
+          <p className="text-xs text-neutral-400 mt-2">超出配额 ¥30/条 · 续费请咨询客服</p>
+        )}
       </div>
 
       {/* 快捷操作 */}

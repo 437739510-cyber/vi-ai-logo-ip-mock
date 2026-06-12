@@ -142,7 +142,7 @@ export default function MemberLoginPage() {
                   </button>
                 </div>
                 {otpSent && (
-                  <p className="text-xs text-green-600 mt-1.5">验证码已发送到 {phone}</p>
+                  <p className="text-xs text-green-600 mt-1.5">验证码已发送，开发期间输入任意6位数字即可</p>
                 )}
               </div>
             )}
@@ -184,7 +184,7 @@ export default function MemberLoginPage() {
           </form>
 
           <p className="text-xs text-neutral-400 text-center mt-6">
-            首次使用？下单后手机号即为您账号
+            注册即享2条免费体验 · 开通会员¥299/月
           </p>
         </div>
 

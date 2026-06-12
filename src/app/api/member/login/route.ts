@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         } else {
           const { data: newMember, error: createError } = await supabaseAdmin
             .from("members")
-            .insert({ phone, name: phone.slice(-4) + "老板", quota_used: 0, quota_total: 12 })
+            .insert({ phone, name: phone.slice(-4) + "老板", quota_used: 0, quota_total: 2, plan: "free" })
             .select("id")
             .single();
 

@@ -26,7 +26,8 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [memberName, setMemberName] = useState("老板");
   const [quotaUsed, setQuotaUsed] = useState(0);
-  const quotaTotal = 12;
+  const [quotaTotal, setQuotaTotal] = useState(2);
+  const [plan, setPlan] = useState("free");
 
   const isLoginPage = pathname === "/member/login";
   const isActive = (href: string) => pathname.startsWith(href);
@@ -42,6 +43,8 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
         } else {
           setMemberName(data.member?.name || data.member?.phone || "老板");
           setQuotaUsed(data.member?.quota_used || 0);
+          setQuotaTotal(data.member?.quota_total || 2);
+          setPlan(data.member?.plan || "free");
         }
       })
       .catch(() => {
@@ -74,6 +77,7 @@ export function MemberLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-neutral-500">{quotaUsed}/{quotaTotal}条</span>
+            {plan === "free" && <span className="text-xs px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-400">免费</span>}
             <span className="text-sm text-neutral-700">{memberName}</span>
             <button onClick={handleLogout} className="text-neutral-400 hover:text-neutral-600">
               <LogOut className="w-4 h-4" />

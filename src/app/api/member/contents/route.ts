@@ -24,7 +24,7 @@ export async function GET() {
     // 获取member
     const { data: member } = await supabaseAdmin
       .from("members")
-      .select("id, quota_used, quota_total")
+      .select("id, quota_used, quota_total, plan")
       .eq("id", session.member_id)
       .single();
 
@@ -42,13 +42,15 @@ export async function GET() {
 
     if (error) {
       // 表可能还没建，返回空列表
-      return NextResponse.json({ success: true, contents: [], quotaUsed: member.quota_used });
+      return NextResponse.json({ success: true, contents: [], quotaUsed: member.quota_used, quotaTotal: member.quota_total, plan: member.plan || "free" });
     }
 
     return NextResponse.json({ 
       success: true, 
       contents: contents || [], 
-      quotaUsed: member.quota_used 
+      quotaUsed: member.quota_used, 
+      quotaTotal: member.quota_total, 
+      plan: member.plan || "free" 
     });
   } catch (err: any) {
     console.error("[member/contents] Error:", err);

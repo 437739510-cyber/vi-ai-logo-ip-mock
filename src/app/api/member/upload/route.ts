@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     // 获取member
     const { data: member } = await supabaseAdmin
       .from("members")
-      .select("id, quota_used, quota_total, phone")
+      .select("id, quota_used, quota_total, phone, plan")
       .eq("id", session.member_id)
       .single();
 
@@ -34,9 +34,13 @@ export async function POST(req: NextRequest) {
 
     // 检查配额
     if (member.quota_used >= member.quota_total) {
+      const isFree = member.plan === "free" || !member.plan;
       return NextResponse.json({ 
         success: false, 
-        error: "本月配额已用完，如需额外发布请咨询客服（¥30/条）" 
+        error: isFree 
+          ? "免费体验已用完，开通会员¥299/月，每月12条品牌内容" 
+          : "本月配额已用完，如需额外发布请咨询客服（¥30/条）",
+        needUpgrade: isFree,
       }, { status: 400 });
     }
 
