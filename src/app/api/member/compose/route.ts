@@ -192,12 +192,22 @@ export async function POST(req: NextRequest) {
       composedUrl = `data:image/jpeg;base64,${resultBuffer.toString("base64")}`;
     }
 
-    // 更新content记录
+    // 更新content记录 — 尝试写入composed_images，如果列不存在则存到images
     const existingComposed = content.composed_images || [];
-    await supabaseAdmin.from("member_contents").update({
+    const { error: updateError } = await supabaseAdmin.from("member_contents").update({
       composed_images: [...existingComposed, { template, url: composedUrl }],
       status: "ready",
     }).eq("id", contentId);
+
+    if (updateError) {
+      console.error("[member/compose] composed_images update failed, trying fallback:", updateError.message);
+      // Fallback: 存到images数组里，用composed_前缀标记
+      const existingImages = content.images || [];
+      await supabaseAdmin.from("member_contents").update({
+        images: [...existingImages, `composed_${template}:${composedUrl}`],
+        status: "ready",
+      }).eq("id", contentId);
+    }
 
     return NextResponse.json({
       success: true,

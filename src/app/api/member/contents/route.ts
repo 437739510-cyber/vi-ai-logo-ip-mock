@@ -45,9 +45,36 @@ export async function GET() {
       return NextResponse.json({ success: true, contents: [], quotaUsed: member.quota_used, quotaTotal: member.quota_total, plan: member.plan || "free" });
     }
 
+    // 处理数据：从images中分离composed_前缀的合成图
+    const processedContents = (contents || []).map((item: any) => {
+      const images: string[] = item.images || [];
+      const composedFromImages: { template: string; url: string }[] = [];
+      const realImages: string[] = [];
+      
+      for (const img of images) {
+        if (typeof img === 'string' && img.startsWith('composed_')) {
+          const colonIdx = img.indexOf(':');
+          if (colonIdx > 0) {
+            composedFromImages.push({
+              template: img.substring(8, colonIdx), // skip "composed_"
+              url: img.substring(colonIdx + 1),
+            });
+          }
+        } else {
+          realImages.push(img);
+        }
+      }
+      
+      return {
+        ...item,
+        images: realImages,
+        composed_images: [...(item.composed_images || []), ...composedFromImages],
+      };
+    });
+
     return NextResponse.json({ 
       success: true, 
-      contents: contents || [], 
+      contents: processedContents, 
       quotaUsed: member.quota_used, 
       quotaTotal: member.quota_total, 
       plan: member.plan || "free" 
