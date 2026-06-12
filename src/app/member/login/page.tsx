@@ -170,6 +170,9 @@ export default function MemberLoginPage() {
             {error && (
               <div className="px-3 py-2 bg-red-50 text-red-600 text-sm rounded-lg text-center">
                 {error}
+                {error === "请先在官网完成品牌资料填写" && (
+                  <a href="/" className="block mt-1 text-primary font-medium underline">前往填写品牌资料 →</a>
+                )}
               </div>
             )}
 

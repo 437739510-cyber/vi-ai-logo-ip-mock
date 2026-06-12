@@ -28,6 +28,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <Link href="/student/register" className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors">
               大学生兼职
             </Link>
+            <Link href="/member/login" className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors">
+              会员后台
+            </Link>
             <Link
               href="/consultation"
               className="inline-flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
@@ -57,6 +60,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             </Link>
             <Link href="/student/register" className="block text-sm text-blue-600 font-medium" onClick={() => setMenuOpen(false)}>
               大学生兼职
+            </Link>
+            <Link href="/member/login" className="block text-sm text-neutral-600" onClick={() => setMenuOpen(false)}>
+              会员后台
             </Link>
           </div>
         )}
