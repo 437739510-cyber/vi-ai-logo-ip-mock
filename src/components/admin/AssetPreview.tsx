@@ -49,12 +49,21 @@ export function AssetPreview({ label, files, emptyText = "暂无素材" }: Asset
               <p className="text-xs text-neutral-400">{formatSize(file.size)}</p>
             </div>
             <div className="flex gap-1">
-              <button className="p-1.5 rounded hover:bg-neutral-200 text-neutral-400 hover:text-neutral-600 transition-colors">
+              <button
+                onClick={() => window.open(file.url, "_blank")}
+                className="p-1.5 rounded hover:bg-neutral-200 text-neutral-400 hover:text-neutral-600 transition-colors"
+                title="预览"
+              >
                 <Eye className="w-3.5 h-3.5" />
               </button>
-              <button className="p-1.5 rounded hover:bg-neutral-200 text-neutral-400 hover:text-neutral-600 transition-colors">
+              <a
+                href={file.url}
+                download
+                className="p-1.5 rounded hover:bg-neutral-200 text-neutral-400 hover:text-neutral-600 transition-colors"
+                title="下载"
+              >
                 <Download className="w-3.5 h-3.5" />
-              </button>
+              </a>
             </div>
           </div>
         ))}
