@@ -1,5 +1,5 @@
 // API Route: POST /api/view
-// Client view logo - verify password and return logo data
+// Client view logo - verify by phone + password (or projectId + password for backward compat)
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -8,27 +8,73 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { projectId, viewPassword } = body;
+    const { phone, viewPassword, projectId } = body;
 
-    if (!projectId || !viewPassword) {
+    // Support both phone-based and projectId-based lookup
+    const hasPhone = phone && phone.trim();
+    const hasProjectId = projectId && projectId.trim();
+
+    if (!hasPhone && !hasProjectId) {
       return NextResponse.json(
-        { error: "请输入项目编号和查看密码" },
+        { error: "请输入手机号或项目编号" },
+        { status: 400 }
+      );
+    }
+    if (!viewPassword) {
+      return NextResponse.json(
+        { error: "请输入查看密码" },
         { status: 400 }
       );
     }
 
-    // Find project by ID
-    const { data: project, error: projErr } = await supabaseAdmin
-      .from("projects")
-      .select("id, status, client_info, submission_id")
-      .eq("id", projectId)
-      .single();
+    let project: any = null;
 
-    if (projErr || !project) {
-      return NextResponse.json(
-        { error: "项目不存在，请检查项目编号" },
-        { status: 404 }
-      );
+    if (hasPhone) {
+      // Phone-based lookup: find submission by phone, then get project
+      const { data: submission, error: subErr } = await supabaseAdmin
+        .from("submissions")
+        .select("id, phone")
+        .eq("phone", phone.trim())
+        .order("submitted_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (subErr || !submission) {
+        return NextResponse.json(
+          { error: "未找到该手机号关联的项目" },
+          { status: 404 }
+        );
+      }
+
+      // Find project by submission_id
+      const { data: proj, error: projErr } = await supabaseAdmin
+        .from("projects")
+        .select("id, status, client_info, submission_id")
+        .eq("submission_id", submission.id)
+        .single();
+
+      if (projErr || !proj) {
+        return NextResponse.json(
+          { error: "未找到关联项目" },
+          { status: 404 }
+        );
+      }
+      project = proj;
+    } else {
+      // Legacy projectId-based lookup
+      const { data: proj, error: projErr } = await supabaseAdmin
+        .from("projects")
+        .select("id, status, client_info, submission_id")
+        .eq("id", projectId.trim())
+        .single();
+
+      if (projErr || !proj) {
+        return NextResponse.json(
+          { error: "项目不存在，请检查项目编号" },
+          { status: 404 }
+        );
+      }
+      project = proj;
     }
 
     // Verify password from client_info
@@ -46,13 +92,12 @@ export async function POST(req: NextRequest) {
     const brandProfile = clientInfo.brandProfile || {};
     const logoResults = brandProfile.logoGenerationResults || [];
     const selectedLogo = brandProfile.selectedLogo || null;
-    const generationStatus = clientInfo.generationStatus || "pending";
+    const generationStatus = clientInfo.generationStatus || project.status || "pending";
 
-    // Also get company name and industry from submission if available
+    // Get company name and industry from submission if available
     let companyName = clientInfo.companyName || "";
     let industry = clientInfo.industry || "";
     let mainProducts = clientInfo.mainProducts || "";
-    let businessForm = clientInfo.businessForm || "";
     
     const submissionId = project.submission_id;
     if (submissionId) {
@@ -80,7 +125,6 @@ export async function POST(req: NextRequest) {
         companyName,
         industry,
         mainProducts,
-        businessForm,
         generationStatus,
         logos: validLogos,
         selectedLogo,

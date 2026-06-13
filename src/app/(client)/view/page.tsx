@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon } from "lucide-react";
+import { Search, Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon, Phone, Key } from "lucide-react";
 import Link from "next/link";
 
 interface LogoItem {
@@ -26,7 +26,7 @@ interface ProjectData {
 }
 
 export default function ViewLogoPage() {
-  const [projectId, setProjectId] = useState("");
+  const [phone, setPhone] = useState("");
   const [viewPassword, setViewPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +36,7 @@ export default function ViewLogoPage() {
   const [confirmSuccess, setConfirmSuccess] = useState(false);
 
   const handleView = async () => {
-    if (!projectId.trim() || !viewPassword.trim()) return;
+    if (!phone.trim() || viewPassword.length < 6) return;
     setLoading(true);
     setError(null);
     setProjectData(null);
@@ -48,7 +48,7 @@ export default function ViewLogoPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectId: projectId.trim().toUpperCase(),
+          phone: phone.trim(),
           viewPassword: viewPassword.trim().toUpperCase(),
         }),
       });
@@ -58,7 +58,6 @@ export default function ViewLogoPage() {
         return;
       }
       setProjectData(data.project);
-      // Pre-select the AI-selected logo if exists
       if (data.project.selectedLogo) {
         setSelectedIdx(data.project.selectedLogo.index);
       }
@@ -109,6 +108,7 @@ export default function ViewLogoPage() {
       designing: "设计制作中",
       reviewing: "审核中",
       delivered: "已交付",
+      paid: "已付款",
     };
     return map[status] || status;
   };
@@ -118,7 +118,7 @@ export default function ViewLogoPage() {
       <div className="text-center mb-10">
         <h1 className="text-3xl font-bold text-neutral-900">查看Logo方案</h1>
         <p className="mt-3 text-neutral-500">
-          输入项目编号和查看密码，查看您的品牌Logo设计
+          输入手机号和查看密码，查看您的品牌Logo设计
         </p>
       </div>
 
@@ -128,18 +128,21 @@ export default function ViewLogoPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">
-                项目编号
+                <Phone className="w-3.5 h-3.5 inline mr-1" />
+                手机号
               </label>
               <input
-                type="text"
-                placeholder="如 VI-20260608-A1B2"
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value.toUpperCase())}
-                className="w-full px-3 py-2.5 border border-neutral-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                type="tel"
+                placeholder="提交时填写的手机号"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                maxLength={11}
+                className="w-full px-3 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">
+                <Key className="w-3.5 h-3.5 inline mr-1" />
                 查看密码
               </label>
               <input
@@ -158,9 +161,7 @@ export default function ViewLogoPage() {
             </div>
             <button
               onClick={handleView}
-              disabled={
-                !projectId.trim() || viewPassword.length < 6 || loading
-              }
+              disabled={phone.length < 11 || viewPassword.length < 6 || loading}
               className="w-full py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -224,6 +225,20 @@ export default function ViewLogoPage() {
               >
                 刷新查看
               </button>
+            </div>
+          )}
+
+          {/* 等待付款/处理中 */}
+          {(projectData.generationStatus === "submitted" || 
+            projectData.generationStatus === "pending") && (
+            <div className="bg-white border border-neutral-100 rounded-2xl p-12 shadow-sm text-center">
+              <ImageIcon className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-neutral-900 mb-2">
+                方案准备中
+              </h3>
+              <p className="text-neutral-500 text-sm">
+                确认付款后3个工作日内出Logo方案，请耐心等待
+              </p>
             </div>
           )}
 
@@ -310,10 +325,12 @@ export default function ViewLogoPage() {
             </div>
           )}
 
-          {/* 无Logo */}
+          {/* 无Logo（非生成中、非待处理状态） */}
           {projectData.logos.length === 0 &&
             projectData.generationStatus !== "logo_generating" &&
-            projectData.generationStatus !== "brand_analyzing" && (
+            projectData.generationStatus !== "brand_analyzing" &&
+            projectData.generationStatus !== "submitted" &&
+            projectData.generationStatus !== "pending" && (
               <div className="bg-white border border-neutral-100 rounded-2xl p-12 shadow-sm text-center">
                 <ImageIcon className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-neutral-900 mb-2">

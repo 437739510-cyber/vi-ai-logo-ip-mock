@@ -235,7 +235,7 @@ export function ConsultationForm() {
       }
 
       const result = await submitRes.json();
-      router.push(`/confirm?projectId=${result.projectId}&viewPassword=${result.viewPassword || ""}`);
+      router.push(`/confirm?projectId=${result.projectId}&viewPassword=${result.viewPassword || ""}&phone=${encodeURIComponent(data.phone || "")}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "提交失败，请稍后重试";
       setSubmitError(msg);

@@ -10,6 +10,7 @@ import { AssetPreview } from "@/components/admin/AssetPreview";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { ProcessedAssetsViewer } from "@/components/admin/ProcessedAssetsViewer";
 import { getProjectById, getSubmissionById, getPlansByProject } from "@/lib/mock";
+import { supabaseAdmin } from "@/lib/supabase";
 import type { Project, Submission, AiGenerationPlan } from "@/types";
 
 interface RefItem {
@@ -37,6 +38,7 @@ export default function ProjectDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState(false);
   const router = useRouter();
 
   // Reference upload & analysis state
@@ -689,6 +691,25 @@ export default function ProjectDetailPage({
     }
   };
 
+  // V43: 标记已付款
+  const handleMarkPaid = async () => {
+    if (!project) return;
+    setMarkingPaid(true);
+    try {
+      const newStatus = project.status === "paid" ? "submitted" : "paid";
+      const { error } = await supabaseAdmin
+        .from("projects")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("id", project.id);
+      if (error) throw error;
+      setProject({ ...project, status: newStatus });
+    } catch (e) {
+      console.error("Mark paid failed:", e);
+    } finally {
+      setMarkingPaid(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
@@ -759,6 +780,34 @@ export default function ProjectDetailPage({
           )}
         </section>
       )}
+
+      {/* V43: 付款状态 */}
+      <section className="bg-white rounded-xl border border-neutral-100 p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-neutral-700">付款状态</h3>
+          <button
+            onClick={handleMarkPaid}
+            disabled={markingPaid}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 ${
+              project.status === "paid"
+                ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
+                : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+            }`}
+          >
+            {markingPaid ? "处理中..." : project.status === "paid" ? "✓ 已付款 — 点击撤销" : "标记已付款"}
+          </button>
+        </div>
+        <div className="mt-3 flex items-center gap-4 text-sm">
+          <span className={project.status === "paid" ? "text-green-600 font-medium" : "text-neutral-400"}>
+            {project.status === "paid" ? "💰 客户已付款，可开始生成" : "⏳ 等待客户付款"}
+          </span>
+          {(project as any).client_info?.viewPassword && (
+            <span className="text-neutral-400">
+              查看密码：<span className="font-mono font-medium text-neutral-600">{(project as any).client_info?.viewPassword}</span>
+            </span>
+          )}
+        </div>
+      </section>
 
       {/* brand assets */}
       {submission && (
