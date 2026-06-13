@@ -696,13 +696,40 @@ export default function ProjectDetailPage({
     if (!project) return;
     setMarkingPaid(true);
     try {
-      const newStatus = project.status === "paid" ? "submitted" : "paid";
+      // If already paid, revert to submitted (undo)
+      if (project.status === "paid") {
+        const { error } = await supabaseAdmin
+          .from("projects")
+          .update({ status: "submitted", updated_at: new Date().toISOString() })
+          .eq("id", project.id);
+        if (error) throw error;
+        setProject({ ...project, status: "submitted" });
+        return;
+      }
+
+      // Mark as paid
       const { error } = await supabaseAdmin
         .from("projects")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ status: "paid", updated_at: new Date().toISOString() })
         .eq("id", project.id);
       if (error) throw error;
-      setProject({ ...project, status: newStatus });
+      setProject({ ...project, status: "paid" });
+
+      // Auto-trigger Logo generation after confirming payment
+      try {
+        const res = await fetch("/api/ai/generate-logo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId: project.id }),
+        });
+        if (res.ok) {
+          console.log("[MarkPaid] Logo generation auto-triggered for", project.id);
+        } else {
+          console.warn("[MarkPaid] Logo generation trigger failed:", await res.text());
+        }
+      } catch (e) {
+        console.warn("[MarkPaid] Logo generation trigger error:", e);
+      }
     } catch (e) {
       console.error("Mark paid failed:", e);
     } finally {
@@ -794,12 +821,18 @@ export default function ProjectDetailPage({
                 : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
             }`}
           >
-            {markingPaid ? "处理中..." : project.status === "paid" ? "✓ 已付款 — 点击撤销" : "标记已付款"}
+            {markingPaid ? "处理中..." : project.status === "paid" ? "✓ 已确认付款 — 点击撤销" : project.status === "payment_uploaded" ? "确认付款" : "标记已付款"}
           </button>
         </div>
         <div className="mt-3 flex items-center gap-4 text-sm">
-          <span className={project.status === "paid" ? "text-green-600 font-medium" : "text-neutral-400"}>
-            {project.status === "paid" ? "💰 客户已付款，可开始生成" : "⏳ 等待客户付款"}
+          <span className={
+            project.status === "paid" ? "text-green-600 font-medium" :
+            project.status === "payment_uploaded" ? "text-yellow-600 font-medium" :
+            "text-neutral-400"
+          }>
+            {project.status === "paid" ? "💰 已确认付款，可开始生成" :
+             project.status === "payment_uploaded" ? "📸 客户已上传付款截图，请确认" :
+             "⏳ 等待客户付款"}
           </span>
           {(project as any).client_info?.viewPassword && (
             <span className="text-neutral-400">
@@ -807,6 +840,31 @@ export default function ProjectDetailPage({
             </span>
           )}
         </div>
+        {/* 付款截图展示 */}
+        {(project as any).client_info?.paymentScreenshot && (
+          <div className="mt-4 p-3 bg-neutral-50 rounded-lg">
+            <p className="text-xs text-neutral-500 mb-2">
+              客户付款截图
+              {(project as any).client_info?.paymentUploadedAt && (
+                <span className="ml-2">
+                  ({new Date((project as any).client_info.paymentUploadedAt).toLocaleString("zh-CN")})
+                </span>
+              )}
+            </p>
+            <a
+              href={(project as any).client_info.paymentScreenshot}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block"
+            >
+              <img
+                src={(project as any).client_info.paymentScreenshot}
+                alt="付款截图"
+                className="max-h-48 rounded-lg border border-neutral-200 hover:opacity-80 transition-opacity"
+              />
+            </a>
+          </div>
+        )}
       </section>
 
       {/* brand assets */}

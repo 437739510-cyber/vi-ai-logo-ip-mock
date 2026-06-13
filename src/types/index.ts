@@ -2,6 +2,7 @@
 
 export type ProjectStatus =
   | "submitted"      // 已提交
+  | "payment_uploaded" // 已上传付款截图
   | "paid"           // 已付款
   | "confirmed"      // 需求已确认
   | "ai_analysis"    // AI 分析中
@@ -11,6 +12,7 @@ export type ProjectStatus =
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   submitted: "已提交",
+  payment_uploaded: "待确认付款",
   paid: "已付款",
   confirmed: "需求已确认",
   ai_analysis: "AI 分析中",
@@ -21,6 +23,7 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 
 export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
   submitted: "bg-neutral-100 text-neutral-700",
+  payment_uploaded: "bg-yellow-100 text-yellow-700",
   paid: "bg-green-100 text-green-700",
   confirmed: "bg-blue-100 text-blue-700",
   ai_analysis: "bg-purple-100 text-purple-700",

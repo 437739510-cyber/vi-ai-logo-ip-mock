@@ -108,6 +108,7 @@ export default function ViewLogoPage() {
       designing: "设计制作中",
       reviewing: "审核中",
       delivered: "已交付",
+      payment_uploaded: "待确认付款",
       paid: "已付款",
     };
     return map[status] || status;
@@ -228,17 +229,32 @@ export default function ViewLogoPage() {
             </div>
           )}
 
-          {/* 等待付款/处理中 */}
+          {/* 等待付款/确认中 */}
           {(projectData.generationStatus === "submitted" || 
-            projectData.generationStatus === "pending") && (
+            projectData.generationStatus === "pending" ||
+            projectData.generationStatus === "payment_uploaded") && (
             <div className="bg-white border border-neutral-100 rounded-2xl p-12 shadow-sm text-center">
-              <ImageIcon className="w-12 h-12 text-amber-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-neutral-900 mb-2">
-                方案准备中
-              </h3>
-              <p className="text-neutral-500 text-sm">
-                确认付款后3个工作日内出Logo方案，请耐心等待
-              </p>
+              {projectData.generationStatus === "payment_uploaded" ? (
+                <>
+                  <CheckCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-neutral-900 mb-2">
+                    付款截图已上传
+                  </h3>
+                  <p className="text-neutral-500 text-sm">
+                    我们正在确认您的付款，确认后3个工作日内出Logo方案
+                  </p>
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-neutral-900 mb-2">
+                    方案准备中
+                  </h3>
+                  <p className="text-neutral-500 text-sm">
+                    确认付款后3个工作日内出Logo方案，请耐心等待
+                  </p>
+                </>
+              )}
             </div>
           )}
 
