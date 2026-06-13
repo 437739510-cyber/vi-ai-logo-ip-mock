@@ -1072,19 +1072,23 @@ export default function ProjectDetailPage({
               {logoResults.length > 0 && (
                 <div className="mt-2">
                   <p className="text-xs text-neutral-500 mb-2">已生成Logo方案：</p>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 gap-3">
                     {logoResults.map((logo: any, i: number) => (
                       <div key={i} className={`relative rounded-lg border-2 overflow-hidden ${
                         preferredLogo === i ? "border-blue-500 ring-2 ring-blue-200" : "border-neutral-200"
                       }`}>
-                        <img
-                          src={logo.imageUrl || logo.url}
-                          alt={`Logo方案${i + 1}`}
-                          className="w-full aspect-square object-contain bg-white p-1"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5">
-                          方案 {i + 1}
-                          {preferredLogo === i && " ✓"}
+                        <div className="aspect-square bg-neutral-50 flex items-center justify-center p-4">
+                          <img
+                            src={logo.imageUrl || logo.url}
+                            alt={`Logo方案${i + 1}`}
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        </div>
+                        <div className="p-2 border-t border-neutral-100">
+                          <span className="text-xs font-medium text-neutral-700">方案 {i + 1}</span>
+                          {preferredLogo === i && (
+                            <span className="ml-1 text-xs text-blue-600">✓ 客人已选</span>
+                          )}
                         </div>
                       </div>
                     ))}
