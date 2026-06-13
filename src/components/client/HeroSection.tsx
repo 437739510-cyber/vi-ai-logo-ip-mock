@@ -68,7 +68,7 @@ export function HeroSection() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.45 }}
           >
-            ¥99 起 · 无需注册 · 免费体验 Logo 生成
+            ¥99 起 · 无需注册 · 3个工作日出方案
           </motion.p>
         </div>
       </div>
