@@ -35,6 +35,25 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("[brand-analysis] Analyzing:", clientInfo.companyName, "| Industry:", clientInfo.industry);
+
+    // Auto-fill from submission if clientInfo is incomplete
+    if (!clientInfo.companyName || !clientInfo.industry) {
+      const { data: proj } = await supabaseAdmin.from("projects").select("submission_id, client_name, industry").eq("id", projectId).single();
+      if (proj?.submission_id) {
+        const { data: sub } = await supabaseAdmin.from("submissions").select("*").eq("id", proj.submission_id).single();
+        if (sub) {
+          clientInfo.companyName = clientInfo.companyName || sub.company_name || proj.client_name || "";
+          clientInfo.industry = clientInfo.industry || sub.industry || proj.industry || "";
+          clientInfo.province = clientInfo.province || sub.province || "";
+          clientInfo.city = clientInfo.city || sub.city || "";
+          clientInfo.brandVision = clientInfo.brandVision || sub.brand_vision || "";
+          clientInfo.coreValues = clientInfo.coreValues || sub.core_values || "";
+          clientInfo.targetMarket = clientInfo.targetMarket || sub.target_market || "";
+          clientInfo.description = clientInfo.description || sub.description || "";
+          clientInfo.mainProducts = clientInfo.mainProducts || sub.main_products || "";
+        }
+      }
+    }
     // V12: 更新项目状态为"品牌分析中"
     await supabaseAdmin.from("projects").update({ status: "brand_analyzing", updated_at: new Date().toISOString() }).eq("id", projectId);
 

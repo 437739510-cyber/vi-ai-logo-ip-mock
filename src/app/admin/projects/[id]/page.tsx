@@ -715,20 +715,66 @@ export default function ProjectDetailPage({
       if (error) throw error;
       setProject({ ...project, status: "paid" });
 
-      // Auto-trigger Logo generation after confirming payment
+      // Auto-trigger: Brand analysis → Logo generation
       try {
-        const res = await fetch("/api/ai/generate-logo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId: project.id }),
-        });
-        if (res.ok) {
-          console.log("[MarkPaid] Logo generation auto-triggered for", project.id);
+        const ci = (project as any).client_info || {};
+        const bp = ci.brandProfile || {};
+        const needsAnalysis = !bp.logoDesignSuggestions?.prompts || bp.logoDesignSuggestions.prompts.length === 0;
+
+        if (needsAnalysis) {
+          // Step 1: Run brand analysis first
+          console.log("[MarkPaid] No brand analysis found, running brand analysis...");
+          const analysisRes = await fetch("/api/ai/brand-analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectId: project.id,
+              clientInfo: {
+                companyName: ci.companyName || (project as any).client_name || "",
+                industry: ci.industry || (project as any).industry || "",
+                province: ci.province || "",
+                city: ci.city || "",
+                brandVision: ci.brandVision || "",
+                coreValues: ci.coreValues || "",
+                targetMarket: ci.targetMarket || "",
+                mainProducts: ci.mainProducts || "",
+                description: ci.description || "",
+                logoPhilosophy: ci.logoPhilosophy || "",
+                mascotPhilosophy: ci.mascotPhilosophy || "",
+              },
+            }),
+          });
+          if (analysisRes.ok) {
+            console.log("[MarkPaid] Brand analysis completed, now triggering logo generation...");
+            // Step 2: Generate logo after analysis
+            const logoRes = await fetch("/api/ai/generate-logo", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId: project.id }),
+            });
+            if (logoRes.ok) {
+              console.log("[MarkPaid] Logo generation auto-triggered");
+            } else {
+              console.warn("[MarkPaid] Logo generation failed:", await logoRes.text());
+            }
+          } else {
+            console.warn("[MarkPaid] Brand analysis failed:", await analysisRes.text());
+          }
         } else {
-          console.warn("[MarkPaid] Logo generation trigger failed:", await res.text());
+          // Brand analysis already done, just generate logo
+          const logoRes = await fetch("/api/ai/generate-logo", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ projectId: project.id }),
+          });
+          if (logoRes.ok) {
+            console.log("[MarkPaid] Logo generation auto-triggered");
+          } else {
+            console.warn("[MarkPaid] Logo generation failed:", await logoRes.text());
+          }
         }
       } catch (e) {
-        console.warn("[MarkPaid] Logo generation trigger error:", e);
+        console.warn("[MarkPaid] Auto-trigger error:", e);
       }
     } catch (e) {
       console.error("Mark paid failed:", e);
