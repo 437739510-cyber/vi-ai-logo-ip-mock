@@ -117,6 +117,12 @@ export async function POST(req: NextRequest) {
       (r: any) => r.imageUrl && !r.error
     );
 
+    // Get logo history
+    const logoHistory = clientInfo.logoHistory || [];
+
+    // Get preferred logo
+    const preferredLogo = brandProfile.preferredLogo || null;
+
     return NextResponse.json({
       success: true,
       project: {
@@ -128,6 +134,8 @@ export async function POST(req: NextRequest) {
         generationStatus,
         logos: validLogos,
         selectedLogo,
+        preferredLogo,
+        logoHistory,
       },
     });
   } catch (error: any) {

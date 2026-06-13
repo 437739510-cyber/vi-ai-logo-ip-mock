@@ -1,13 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon, Phone, Key } from "lucide-react";
+import { Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon, Phone, Key, RefreshCw, History, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 interface LogoItem {
   index: number;
   imageUrl: string;
   prompt?: string;
+}
+
+interface LogoRound {
+  logos: LogoItem[];
+  savedAt: string;
+  round: number;
 }
 
 interface ProjectData {
@@ -21,8 +27,13 @@ interface ProjectData {
   selectedLogo: {
     imageUrl: string;
     index: number;
-    selectionMethod: string;
   } | null;
+  preferredLogo: {
+    index: number;
+    imageUrl: string;
+    savedAt: string;
+  } | null;
+  logoHistory: LogoRound[];
 }
 
 export default function ViewLogoPage() {
@@ -32,16 +43,22 @@ export default function ViewLogoPage() {
   const [error, setError] = useState<string | null>(null);
   const [projectData, setProjectData] = useState<ProjectData | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [confirmSuccess, setConfirmSuccess] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [historyRound, setHistoryRound] = useState<number | null>(null); // null = current, 1/2/3... = history round
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const handleView = async () => {
-    if (!phone.trim() || viewPassword.length < 6) return;
+    if (phone.length < 11 || viewPassword.length < 6) return;
     setLoading(true);
     setError(null);
     setProjectData(null);
     setSelectedIdx(null);
     setConfirmSuccess(false);
+    setSaveSuccess(false);
+    setHistoryRound(null);
 
     try {
       const res = await fetch("/api/view", {
@@ -58,13 +75,38 @@ export default function ViewLogoPage() {
         return;
       }
       setProjectData(data.project);
-      if (data.project.selectedLogo) {
-        setSelectedIdx(data.project.selectedLogo.index);
+      if (data.project.preferredLogo) {
+        setSelectedIdx(data.project.preferredLogo.index);
       }
-    } catch (e: any) {
+    } catch {
       setError("网络错误，请稍后重试");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSavePreference = async () => {
+    if (selectedIdx === null || !projectData) return;
+    setSaving(true);
+    setSaveSuccess(false);
+    try {
+      const res = await fetch("/api/ai/save-logo-preference", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: phone.trim(),
+          viewPassword: viewPassword.trim().toUpperCase(),
+          logoIndex: selectedIdx,
+        }),
+      });
+      if (res.ok) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -72,7 +114,10 @@ export default function ViewLogoPage() {
     if (selectedIdx === null || !projectData) return;
     setConfirming(true);
     try {
-      const logo = projectData.logos.find((l) => l.index === selectedIdx);
+      const currentLogos = historyRound !== null
+        ? (projectData.logoHistory?.find(h => h.round === historyRound)?.logos || projectData.logos)
+        : projectData.logos;
+      const logo = currentLogos.find((l) => l.index === selectedIdx);
       if (!logo) return;
 
       const res = await fetch("/api/ai/select-logo", {
@@ -90,10 +135,43 @@ export default function ViewLogoPage() {
       if (res.ok) {
         setConfirmSuccess(true);
       }
-    } catch (e) {
-      // Silently fail - non-critical
+    } catch {
+      // Silently fail
     } finally {
       setConfirming(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!projectData) return;
+    setRegenerating(true);
+    try {
+      const res = await fetch("/api/ai/regenerate-logo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: phone.trim(),
+          viewPassword: viewPassword.trim().toUpperCase(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        // Switch to generating state
+        setProjectData({
+          ...projectData,
+          generationStatus: "logo_generating",
+        });
+        setHistoryRound(null);
+        setSelectedIdx(null);
+        // Auto-refresh to check progress
+        setTimeout(() => handleView(), 10000);
+      } else {
+        setError(data.error || "重新生成失败");
+      }
+    } catch {
+      setError("网络错误");
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -104,15 +182,20 @@ export default function ViewLogoPage() {
       logo_generating: "Logo生成中",
       logo_generated: "Logo已生成",
       submitted: "已提交",
+      payment_uploaded: "待确认付款",
+      paid: "已付款",
       confirmed: "需求确认中",
       designing: "设计制作中",
       reviewing: "审核中",
       delivered: "已交付",
-      payment_uploaded: "待确认付款",
-      paid: "已付款",
     };
     return map[status] || status;
   };
+
+  // Get the logos to display based on current history round
+  const displayLogos = historyRound !== null
+    ? (projectData?.logoHistory?.find(h => h.round === historyRound)?.logos || [])
+    : (projectData?.logos || []);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 md:py-16">
@@ -150,9 +233,7 @@ export default function ViewLogoPage() {
                 type="text"
                 placeholder="6位查看密码"
                 value={viewPassword}
-                onChange={(e) =>
-                  setViewPassword(e.target.value.toUpperCase().slice(0, 6))
-                }
+                onChange={(e) => setViewPassword(e.target.value.toUpperCase().slice(0, 6))}
                 maxLength={6}
                 className="w-full px-3 py-2.5 border border-neutral-200 rounded-lg text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-1 focus:ring-primary"
               />
@@ -179,9 +260,7 @@ export default function ViewLogoPage() {
             </button>
           </div>
           {error && (
-            <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
-              {error}
-            </div>
+            <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
           )}
         </div>
       )}
@@ -203,9 +282,7 @@ export default function ViewLogoPage() {
             <div className="mt-3 flex gap-4 text-sm text-neutral-600">
               {projectData.companyName && <span>{projectData.companyName}</span>}
               {projectData.industry && <span>{projectData.industry}</span>}
-              {projectData.mainProducts && (
-                <span>主营: {projectData.mainProducts}</span>
-              )}
+              {projectData.mainProducts && <span>主营: {projectData.mainProducts}</span>}
             </div>
           </div>
 
@@ -214,12 +291,8 @@ export default function ViewLogoPage() {
             projectData.generationStatus === "brand_analyzing") && (
             <div className="bg-white border border-neutral-100 rounded-2xl p-12 shadow-sm text-center">
               <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-neutral-900 mb-2">
-                Logo正在生成中
-              </h3>
-              <p className="text-neutral-500 text-sm">
-                AI正在为您设计Logo方案，请稍后刷新查看
-              </p>
+              <h3 className="text-lg font-medium text-neutral-900 mb-2">Logo正在生成中</h3>
+              <p className="text-neutral-500 text-sm">AI正在为您设计Logo方案，约2-5分钟</p>
               <button
                 onClick={handleView}
                 className="mt-4 px-4 py-2 text-sm text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
@@ -230,49 +303,84 @@ export default function ViewLogoPage() {
           )}
 
           {/* 等待付款/确认中 */}
-          {(projectData.generationStatus === "submitted" || 
+          {(projectData.generationStatus === "submitted" ||
             projectData.generationStatus === "pending" ||
             projectData.generationStatus === "payment_uploaded") && (
             <div className="bg-white border border-neutral-100 rounded-2xl p-12 shadow-sm text-center">
               {projectData.generationStatus === "payment_uploaded" ? (
                 <>
                   <CheckCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-neutral-900 mb-2">
-                    付款截图已上传
-                  </h3>
-                  <p className="text-neutral-500 text-sm">
-                    我们正在确认您的付款，确认后3个工作日内出Logo方案
-                  </p>
+                  <h3 className="text-lg font-medium text-neutral-900 mb-2">付款截图已上传</h3>
+                  <p className="text-neutral-500 text-sm">我们正在确认您的付款，确认后3个工作日内出Logo方案</p>
                 </>
               ) : (
                 <>
                   <ImageIcon className="w-12 h-12 text-amber-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-neutral-900 mb-2">
-                    方案准备中
-                  </h3>
-                  <p className="text-neutral-500 text-sm">
-                    确认付款后3个工作日内出Logo方案，请耐心等待
-                  </p>
+                  <h3 className="text-lg font-medium text-neutral-900 mb-2">方案准备中</h3>
+                  <p className="text-neutral-500 text-sm">确认付款后3个工作日内出Logo方案</p>
                 </>
               )}
             </div>
           )}
 
           {/* Logo展示区 */}
-          {projectData.logos.length > 0 && (
+          {displayLogos.length > 0 && (
             <div>
-              <h2 className="text-lg font-semibold text-neutral-900 mb-4">
-                Logo设计方案
-                <span className="text-sm font-normal text-neutral-400 ml-2">
-                  (共{projectData.logos.length}个方案)
-                </span>
-              </h2>
+              {/* 历史轮次切换 */}
+              {projectData.logoHistory && projectData.logoHistory.length > 0 && (
+                <div className="flex items-center gap-3 mb-4">
+                  <History className="w-4 h-4 text-neutral-400" />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setHistoryRound(null)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                        historyRound === null
+                          ? "bg-primary text-white"
+                          : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                      }`}
+                    >
+                      最新方案
+                    </button>
+                    {[...projectData.logoHistory].reverse().map((h) => (
+                      <button
+                        key={h.round}
+                        onClick={() => setHistoryRound(h.round)}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                          historyRound === h.round
+                            ? "bg-primary text-white"
+                            : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                        }`}
+                      >
+                        第{h.round}轮
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 当前轮次标签 */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-neutral-900">
+                  {historyRound !== null ? `第${historyRound}轮方案` : "Logo设计方案"}
+                  <span className="text-sm font-normal text-neutral-400 ml-2">
+                    (共{displayLogos.length}个)
+                  </span>
+                </h2>
+                {historyRound !== null && (
+                  <span className="text-xs text-neutral-400 bg-neutral-50 px-2 py-1 rounded">
+                    历史方案 · 仍可选择确认
+                  </span>
+                )}
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {projectData.logos.map((logo, i) => (
+                {displayLogos.map((logo, i) => (
                   <div
-                    key={i}
-                    onClick={() => setSelectedIdx(logo.index)}
+                    key={`${historyRound}-${logo.index}`}
+                    onClick={() => {
+                      setSelectedIdx(logo.index);
+                      setSaveSuccess(false);
+                    }}
                     className={`relative cursor-pointer rounded-xl border-2 overflow-hidden transition-all ${
                       selectedIdx === logo.index
                         ? "border-primary ring-2 ring-primary/30"
@@ -280,7 +388,6 @@ export default function ViewLogoPage() {
                     }`}
                   >
                     <div className="aspect-square bg-neutral-50 flex items-center justify-center p-4">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={logo.imageUrl}
                         alt={`Logo方案 ${i + 1}`}
@@ -289,72 +396,88 @@ export default function ViewLogoPage() {
                     </div>
                     <div className="p-3 border-t border-neutral-100">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-neutral-700">
-                          方案 {i + 1}
-                        </span>
+                        <span className="text-sm font-medium text-neutral-700">方案 {i + 1}</span>
                         {selectedIdx === logo.index && (
                           <span className="flex items-center gap-1 text-xs text-primary font-medium">
                             <CheckCircle className="w-3.5 h-3.5" />
-                            已选择
+                            已选
                           </span>
                         )}
-                        {projectData.selectedLogo?.index === logo.index &&
-                          projectData.selectedLogo.index !== selectedIdx && (
-                            <span className="text-xs text-neutral-400">
-                              AI推荐
-                            </span>
-                          )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* 确认按钮 */}
+              {/* 操作按钮组 */}
               {!confirmSuccess ? (
-                <button
-                  onClick={handleConfirmLogo}
-                  disabled={selectedIdx === null || confirming}
-                  className="w-full py-3 bg-primary text-white font-medium rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                >
-                  {confirming ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      确认中...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4" />
-                      确认选择并生成VI手册
-                    </>
-                  )}
-                </button>
+                <div className="space-y-3">
+                  {/* 保存偏好 + 确认生成VI */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleSavePreference}
+                      disabled={selectedIdx === null || saving}
+                      className="flex-1 py-3 border-2 border-primary text-primary font-medium rounded-xl hover:bg-primary/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                    >
+                      {saving ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> 保存中...</>
+                      ) : saveSuccess ? (
+                        <><CheckCircle className="w-4 h-4" /> 已保存</>
+                      ) : (
+                        "先保存，再看看"
+                      )}
+                    </button>
+                    <button
+                      onClick={handleConfirmLogo}
+                      disabled={selectedIdx === null || confirming}
+                      className="flex-1 py-3 bg-primary text-white font-medium rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                    >
+                      {confirming ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> 确认中...</>
+                      ) : (
+                        <><CheckCircle className="w-4 h-4" /> 确认选择，生成VI手册</>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* 重新生成 */}
+                  <button
+                    onClick={handleRegenerate}
+                    disabled={regenerating}
+                    className="w-full py-2.5 border border-neutral-300 text-neutral-600 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {regenerating ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> 正在重新生成...</>
+                    ) : (
+                      <><RefreshCw className="w-4 h-4" /> 不满意？重新生成4个方案</>
+                    )}
+                  </button>
+
+                  <p className="text-xs text-neutral-400 text-center">
+                    💡 保存偏好后仍可更改；确认选择后将开始生成VI手册
+                  </p>
+                </div>
               ) : (
                 <div className="text-center p-6 bg-green-50 rounded-xl">
                   <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-2" />
                   <p className="text-green-700 font-medium">已确认选择！</p>
-                  <p className="text-green-600 text-sm mt-1">
-                    我们将为您生成完整的VI手册
-                  </p>
+                  <p className="text-green-600 text-sm mt-1">我们将为您生成完整的VI手册</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* 无Logo（非生成中、非待处理状态） */}
-          {projectData.logos.length === 0 &&
+          {/* 无Logo（非生成/待处理） */}
+          {displayLogos.length === 0 &&
             projectData.generationStatus !== "logo_generating" &&
             projectData.generationStatus !== "brand_analyzing" &&
             projectData.generationStatus !== "submitted" &&
-            projectData.generationStatus !== "pending" && (
+            projectData.generationStatus !== "pending" &&
+            projectData.generationStatus !== "payment_uploaded" && (
               <div className="bg-white border border-neutral-100 rounded-2xl p-12 shadow-sm text-center">
                 <ImageIcon className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-neutral-900 mb-2">
-                  暂无Logo方案
-                </h3>
-                <p className="text-neutral-500 text-sm">
-                  Logo方案正在准备中，请稍后刷新查看
-                </p>
+                <h3 className="text-lg font-medium text-neutral-900 mb-2">暂无Logo方案</h3>
+                <p className="text-neutral-500 text-sm">Logo方案正在准备中，请稍后刷新查看</p>
               </div>
             )}
 
@@ -365,6 +488,8 @@ export default function ViewLogoPage() {
                 setProjectData(null);
                 setSelectedIdx(null);
                 setConfirmSuccess(false);
+                setHistoryRound(null);
+                setSaveSuccess(false);
               }}
               className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors flex items-center gap-1 mx-auto"
             >
