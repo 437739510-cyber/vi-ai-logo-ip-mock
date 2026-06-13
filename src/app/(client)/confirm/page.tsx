@@ -89,10 +89,8 @@ function PaymentContent() {
 
         {/* 收款码区域 */}
         <div className="flex flex-col items-center mb-5">
-          <div className="w-56 h-56 bg-neutral-50 border border-neutral-200 rounded-xl flex flex-col items-center justify-center p-4">
-            <QrCode className="w-20 h-20 text-neutral-300 mb-2" />
-            <p className="text-xs text-neutral-400">微信扫码支付</p>
-            <p className="text-[10px] text-neutral-300 mt-1">收款码待上传</p>
+          <div className="w-56 h-56 bg-neutral-50 border border-neutral-200 rounded-xl flex flex-col items-center justify-center p-4 overflow-hidden">
+            <img src="https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/assets/wechat-pay-qr.png" alt="微信收款码" className="w-full h-full object-contain" />
           </div>
         </div>
 
