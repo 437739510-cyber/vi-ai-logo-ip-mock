@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Loader2, Eye, EyeOff } from "lucide-react";
+import { Lock, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
@@ -23,7 +24,6 @@ export default function AdminLoginPage() {
       });
       const data = await res.json();
       if (data.success) {
-        // 用整页跳转替代router.push，确保cookie在下次请求中生效
         window.location.href = "/admin/dashboard";
       } else {
         setError(data.error || "登录失败");
@@ -38,10 +38,15 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
+        <Link href="/" className="inline-flex items-center gap-1 text-sm text-neutral-400 hover:text-neutral-600 mb-6 transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+          返回首页
+        </Link>
+
         <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-8">
           <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-6 h-6 text-primary" />
+            <div className="w-14 h-14 bg-neutral-900/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-6 h-6 text-neutral-700" />
             </div>
             <h1 className="text-xl font-bold text-neutral-900">管理后台</h1>
             <p className="text-sm text-neutral-400 mt-1">请输入管理员密码</p>
@@ -54,7 +59,7 @@ export default function AdminLoginPage() {
                 placeholder="密码"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 pr-10 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full px-4 py-2.5 pr-10 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900 transition-all"
                 autoFocus
               />
               <button
@@ -67,7 +72,7 @@ export default function AdminLoginPage() {
             </div>
 
             {error && (
-              <div className="px-3 py-2 bg-danger/10 text-danger text-sm rounded-lg text-center">{error}</div>
+              <div className="px-3 py-2 bg-red-50 text-red-600 text-sm rounded-lg text-center">{error}</div>
             )}
 
             <button

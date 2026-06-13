@@ -6,6 +6,7 @@ import { FaqSection } from "@/components/client/FaqSection";
 import { PricingSection } from "@/components/client/PricingSection";
 import { DeliverableSection } from "@/components/client/DeliverableSection";
 import { TrustSection } from "@/components/client/TrustSection";
+import { BottomCtaSection } from "@/components/client/BottomCtaSection";
 
 export default function HomePage() {
   return (
@@ -18,6 +19,7 @@ export default function HomePage() {
       <TrustSection />
       <CaseCarousel />
       <FaqSection />
+      <BottomCtaSection />
     </>
   );
 }

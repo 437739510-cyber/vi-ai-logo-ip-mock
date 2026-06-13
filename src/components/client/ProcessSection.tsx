@@ -2,6 +2,7 @@
 
 import { Upload, Sparkles, FileCheck } from "lucide-react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 const STEPS = [
   {
@@ -48,20 +49,14 @@ export function ProcessSection() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.15 }}
               >
-                {/* 步骤编号 */}
                 <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-primary text-white text-sm font-bold flex items-center justify-center">
                   {index + 1}
                 </div>
-
-                {/* 图标 */}
                 <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                   <Icon className="w-7 h-7 text-primary" />
                 </div>
-
                 <h3 className="text-lg font-semibold text-neutral-900 mb-2">{step.title}</h3>
                 <p className="text-sm text-neutral-500 leading-relaxed">{step.description}</p>
-
-                {/* 连接线（仅桌面端） */}
                 {index < STEPS.length - 1 && (
                   <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-0.5 bg-neutral-200" />
                 )}
@@ -69,6 +64,24 @@ export function ProcessSection() {
             );
           })}
         </div>
+
+        {/* CTA 按钮 */}
+        <motion.div
+          className="text-center mt-12"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <Link
+            href="/interview"
+            className="inline-flex items-center gap-2 px-8 py-3.5 bg-primary text-white text-base font-medium rounded-xl hover:bg-primary-dark transition-colors shadow-sm"
+          >
+            <Sparkles className="w-5 h-5" />
+            免费获取VI方案
+          </Link>
+          <p className="text-sm text-neutral-400 mt-3">无需注册，3分钟开始</p>
+        </motion.div>
       </div>
     </section>
   );

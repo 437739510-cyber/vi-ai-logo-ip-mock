@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Phone, Lock, Loader2, Eye, EyeOff, MessageSquare } from "lucide-react";
+import { Phone, Lock, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 type LoginMode = "otp" | "password";
 
@@ -16,6 +17,7 @@ export default function MemberLoginPage() {
   const [error, setError] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [agreed, setAgreed] = useState(false);
 
   const handleSendOtp = async () => {
     if (!phone.match(/^1[3-9]\d{9}$/)) {
@@ -52,6 +54,10 @@ export default function MemberLoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreed) {
+      setError("请先同意用户协议和隐私政策");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -80,31 +86,34 @@ export default function MemberLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
+        {/* 返回首页 */}
+        <Link href="/" className="inline-flex items-center gap-1 text-sm text-neutral-400 hover:text-neutral-600 mb-6 transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+          返回首页
+        </Link>
+
         <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-8">
           <div className="text-center mb-8">
             <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <MessageSquare className="w-6 h-6 text-primary" />
+              <Phone className="w-6 h-6 text-primary" />
             </div>
-            <h1 className="text-xl font-bold text-neutral-900">品牌管家</h1>
-            <p className="text-sm text-neutral-400 mt-1">拍照上传，我们帮你发内容</p>
+            <h1 className="text-xl font-bold text-neutral-900">手机号验证码登录/注册</h1>
+            <p className="text-sm text-neutral-400 mt-1">新用户自动开通账号，立享2条免费体验</p>
           </div>
 
-          <div className="flex mb-6 bg-neutral-100 rounded-xl p-1">
+          {/* 切换模式 */}
+          <div className="flex bg-neutral-100 rounded-lg p-1 mb-6">
             <button
-              onClick={() => { setMode("otp"); setError(""); }}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                mode === "otp" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
-              }`}
+              onClick={() => setMode("otp")}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${mode === "otp" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"}`}
             >
               验证码登录
             </button>
             <button
-              onClick={() => { setMode("password"); setError(""); }}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                mode === "password" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
-              }`}
+              onClick={() => setMode("password")}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${mode === "password" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"}`}
             >
               密码登录
             </button>
@@ -187,23 +196,39 @@ export default function MemberLoginPage() {
               </div>
             )}
 
+            {/* 用户协议勾选 */}
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 rounded border-neutral-300 text-primary focus:ring-primary/20"
+              />
+              <span className="text-xs text-neutral-500 leading-relaxed">
+                我已阅读并同意
+                <Link href="/terms" className="text-primary underline" target="_blank">《用户协议》</Link>
+                和
+                <Link href="/privacy" className="text-primary underline" target="_blank">《隐私政策》</Link>
+              </span>
+            </label>
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !agreed}
               className="w-full py-2.5 bg-primary text-white font-medium rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loading ? "登录中..." : "登录"}
+              {loading ? "登录中..." : "登录/注册"}
             </button>
           </form>
 
           <p className="text-xs text-neutral-400 text-center mt-6">
-            注册即享2条免费体验 · 开通会员¥299/月
+            开通会员¥299/月 · 注册即享2条免费体验
           </p>
         </div>
 
         <p className="text-xs text-neutral-400 text-center mt-4">
-          © 2026 Brand Brain 品牌管家
+          © 2026 Brand Brain 品牌脑
         </p>
       </div>
     </div>
