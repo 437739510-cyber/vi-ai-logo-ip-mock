@@ -11,11 +11,13 @@ import {
   Menu,
   X,
   Home,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/member/dashboard", label: "我的内容", icon: Image },
+  { href: "/member/vi-manuals", label: "VI手册", icon: BookOpen },
   { href: "/member/upload", label: "拍照上传", icon: Camera },
   { href: "/member/orders", label: "订单记录", icon: FileText },
 ];
