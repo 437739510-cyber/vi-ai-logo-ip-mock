@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { phone, viewPassword, projectId } = body;
+    const { phone, viewPassword, projectId, feedback } = body;
 
     const hasPhone = phone?.trim();
     const hasProjectId = projectId?.trim();
@@ -87,12 +87,30 @@ export async function POST(req: NextRequest) {
     }
 
     // Clear current results, keep suggestions for re-generation
+    // If feedback provided, append it to the prompts for AI reference
+    const logoSuggestions = brandProfile.logoDesignSuggestions || {};
+    if (feedback && feedback.trim()) {
+      const feedbackNote = `[客户反馈：${feedback.trim()}]`;
+      // Append feedback to each existing prompt so AI incorporates the feedback
+      if (logoSuggestions.prompts && logoSuggestions.prompts.length > 0) {
+        logoSuggestions.prompts = logoSuggestions.prompts.map((p: string) => `${p}, ${feedbackNote}`);
+      }
+      // Also update concept to include feedback
+      logoSuggestions.concept = `${logoSuggestions.concept || ""} 客户反馈：${feedback.trim()}`;
+      // Save feedback to history
+      clientInfo.regenerationFeedback = [
+        ...(clientInfo.regenerationFeedback || []),
+        { feedback: feedback.trim(), at: new Date().toISOString() },
+      ];
+    }
+
     clientInfo.brandProfile = {
       ...brandProfile,
+      logoDesignSuggestions: logoSuggestions,
       logoGenerationResults: [],
     };
     clientInfo.generationStatus = "logo_generating";
-    clientInfo.generationMessage = "重新生成Logo中...";
+    clientInfo.generationMessage = feedback ? "根据您的意见重新生成中..." : "重新生成Logo中...";
 
     await supabaseAdmin.from("projects").update({
       status: "logo_generating",

@@ -49,6 +49,8 @@ export default function ViewLogoPage() {
   const [regenerating, setRegenerating] = useState(false);
   const [historyRound, setHistoryRound] = useState<number | null>(null); // null = current, 1/2/3... = history round
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const handleView = async () => {
     if (phone.length < 11 || viewPassword.length < 4) return;
@@ -152,6 +154,7 @@ export default function ViewLogoPage() {
         body: JSON.stringify({
           phone: phone.trim(),
           viewPassword: viewPassword.trim(),
+          feedback: feedback.trim(),
         }),
       });
       const data = await res.json();
@@ -440,18 +443,46 @@ export default function ViewLogoPage() {
                     </button>
                   </div>
 
-                  {/* 重新生成 */}
-                  <button
-                    onClick={handleRegenerate}
-                    disabled={regenerating}
-                    className="w-full py-2.5 border border-neutral-300 text-neutral-600 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                  >
-                    {regenerating ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> 正在重新生成...</>
-                    ) : (
-                      <><RefreshCw className="w-4 h-4" /> 不满意？重新生成4个方案</>
+                  {/* 意见反馈 + 重新生成 */}
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setShowFeedback(!showFeedback)}
+                      className="w-full py-2.5 border border-neutral-300 text-neutral-600 text-sm font-medium rounded-xl hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      {showFeedback ? "收起意见栏" : "不满意？提意见重新生成"}
+                    </button>
+
+                    {showFeedback && (
+                      <div className="space-y-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                        <p className="text-xs text-amber-700">
+                          ✏️ 告诉我们您的想法，AI会根据您的意见调整设计方向
+                        </p>
+                        <textarea
+                          value={feedback}
+                          onChange={(e) => setFeedback(e.target.value.slice(0, 500))}
+                          placeholder="例如：希望颜色更鲜艳、不要用书法风格、加个皇冠元素、更简洁现代一些..."
+                          rows={3}
+                          maxLength={500}
+                          className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary bg-white"
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-neutral-400">{feedback.length}/500</span>
+                          <button
+                            onClick={handleRegenerate}
+                            disabled={regenerating}
+                            className="px-6 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                          >
+                            {regenerating ? (
+                              <><Loader2 className="w-4 h-4 animate-spin" /> 生成中...</>
+                            ) : (
+                              <><RefreshCw className="w-4 h-4" /> 提交意见并重新生成</>
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     )}
-                  </button>
+                  </div>
 
                   <p className="text-xs text-neutral-400 text-center">
                     💡 保存偏好后仍可更改；确认选择后将开始生成VI手册
@@ -490,6 +521,8 @@ export default function ViewLogoPage() {
                 setConfirmSuccess(false);
                 setHistoryRound(null);
                 setSaveSuccess(false);
+                setFeedback("");
+                setShowFeedback(false);
               }}
               className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors flex items-center gap-1 mx-auto"
             >

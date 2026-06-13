@@ -758,7 +758,7 @@ export default function ProjectDetailPage({
             body: JSON.stringify({
               projectId: project.id,
               clientInfo: {
-                companyName: ci.companyName || (project as any).client_name || "",
+                companyName: ci.companyName || submission?.companyName || (project as any).client_name || "",
                 industry: ci.industry || (project as any).industry || "",
                 province: ci.province || "",
                 city: ci.city || "",
