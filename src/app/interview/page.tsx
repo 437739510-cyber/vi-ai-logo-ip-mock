@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import Link from 'next/link';
 
 interface Message {
@@ -20,8 +21,10 @@ const QUESTIONS = [
   '您希望品牌化之后，店铺给顾客的第一印象是什么？',
 ];
 
-export default function InterviewPage() {
+function InterviewContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const plan = searchParams.get('plan') || 'basic';
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: QUESTIONS[0] },
   ]);
@@ -48,7 +51,7 @@ export default function InterviewPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.submissionId) {
-          router.push(`/consultation?from=interview&sid=${data.submissionId}`);
+          router.push(`/consultation?from=interview&sid=${data.submissionId}&plan=${plan}`);
           return;
         }
       }
@@ -56,7 +59,7 @@ export default function InterviewPage() {
       console.warn('Interview save failed, going to consultation directly');
     }
     setSaving(false);
-    router.push('/consultation?from=interview');
+    router.push(`/consultation?from=interview&plan=${plan}`);
   };
 
   const handleSend = async () => {
@@ -201,5 +204,18 @@ export default function InterviewPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+
+export default function InterviewPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center">
+        <div className="animate-pulse text-neutral-400">加载中...</div>
+      </div>
+    }>
+      <InterviewContent />
+    </Suspense>
   );
 }

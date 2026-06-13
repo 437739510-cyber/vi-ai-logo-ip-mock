@@ -31,6 +31,7 @@ const STORAGE_PREFIX = "uploads/form-assets";
 export function ConsultationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const plan = searchParams.get("plan") || "basic";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [prefillLoading, setPrefillLoading] = useState(false);
@@ -235,7 +236,7 @@ export function ConsultationForm() {
       }
 
       const result = await submitRes.json();
-      router.push(`/confirm?projectId=${result.projectId}&viewPassword=${result.viewPassword || ""}&phone=${encodeURIComponent(data.phone || "")}`);
+      router.push(`/confirm?projectId=${result.projectId}&viewPassword=${result.viewPassword || ""}&phone=${encodeURIComponent(data.phone || "")}&plan=${plan}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "提交失败，请稍后重试";
       setSubmitError(msg);

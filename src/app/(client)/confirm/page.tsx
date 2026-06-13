@@ -10,6 +10,14 @@ function PaymentContent() {
   const projectId = searchParams.get("projectId") ?? "";
   const viewPassword = searchParams.get("viewPassword") ?? "";
   const phone = searchParams.get("phone") ?? "";
+  const plan = searchParams.get("plan") || "basic";
+
+  const PLAN_CONFIG: Record<string, { price: string; name: string; desc: string }> = {
+    basic: { price: "99", name: "基础版", desc: "Logo方案+VI手册" },
+    standard: { price: "499", name: "标准版", desc: "品牌故事+Logo+IP+完整VI" },
+    manager: { price: "299", name: "品牌管家", desc: "每月12条品牌化内容" },
+  };
+  const planConfig = PLAN_CONFIG[plan] || PLAN_CONFIG.basic;
 
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
@@ -90,15 +98,15 @@ function PaymentContent() {
 
         {/* 金额 */}
         <div className="text-center mb-4">
-          <span className="text-3xl font-bold text-primary">¥99</span>
-          <span className="text-sm text-neutral-500 ml-1">基础版 · Logo方案+VI手册</span>
+          <span className="text-3xl font-bold text-primary">¥{planConfig.price}</span>
+          <span className="text-sm text-neutral-500 ml-1">{planConfig.name} · {planConfig.desc}</span>
         </div>
 
         {/* 付款说明 */}
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
           <p className="font-medium text-amber-800 mb-2">💰 付款步骤</p>
           <ol className="space-y-1.5 text-amber-700 list-decimal list-inside">
-            <li>微信扫码支付 <strong>¥99</strong>，备注您的手机号</li>
+            <li>微信扫码支付 <strong>¥{planConfig.price}</strong>，备注您的手机号</li>
             <li>截图付款成功页面</li>
             <li>在下方上传付款截图</li>
             <li>确认后 <strong>3个工作日内</strong> 出Logo方案</li>

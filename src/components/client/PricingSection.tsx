@@ -17,8 +17,8 @@ const PLANS = [
       "3 个工作日交付",
       "商用版权全归您",
     ],
-    cta: "开始品牌访谈",
-    href: "/interview",
+    cta: "免费品牌访谈",
+    href: "/interview?plan=basic",
     highlight: false,
   },
   {
@@ -35,8 +35,8 @@ const PLANS = [
       "5 个工作日交付",
       "商用版权全归您",
     ],
-    cta: "开始品牌访谈",
-    href: "/interview",
+    cta: "免费品牌访谈",
+    href: "/interview?plan=standard",
     highlight: true,
   },
   {
@@ -53,7 +53,7 @@ const PLANS = [
       "停发即停费，不绑定",
     ],
     cta: "开通品牌管家",
-    href: "/interview",
+    href: "/member/login",
     highlight: false,
   },
 ];
