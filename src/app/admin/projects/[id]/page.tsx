@@ -79,7 +79,7 @@ export default function ProjectDetailPage({
         if (freshRes.ok) {
           const freshData = await freshRes.json();
           if (freshData.project) {
-            setProject({ ...project, ...freshData.project, status: project.status } as any);
+            setProject({ ...project, ...freshData.project, status: project.status, client_info: freshData.project.client_info || (project as any).client_info } as any);
           }
         }
       } catch {}
@@ -118,6 +118,11 @@ export default function ProjectDetailPage({
         if (dataRes.ok) {
           const projData = await dataRes.json();
           const ci = projData?.project?.client_info;
+          // V49-fix: Store client_info on project so UI can access it
+          if (ci) {
+            (p as any).client_info = ci;
+            setProject({ ...p });
+          }
           if (ci?.pptxResult) {
             setPptxResult({ url: ci.pptxResult.url, downloadUrl: ci.pptxResult.downloadUrl || undefined, storageUrl: ci.pptxResult.storageUrl || undefined, pageCount: ci.pptxResult.pageCount, fileName: ci.pptxResult.fileName });
           }
@@ -953,7 +958,7 @@ export default function ProjectDetailPage({
                   if (freshRes.ok) {
                     const freshData = await freshRes.json();
                     if (freshData.project) {
-                      setProject({ ...project, ...freshData.project, status: project.status } as any);
+                      setProject({ ...project, ...freshData.project, status: project.status, client_info: freshData.project.client_info || (project as any).client_info } as any);
                     }
                   }
                 }
