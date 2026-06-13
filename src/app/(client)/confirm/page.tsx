@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useRef } from "react";
+import { Suspense, useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, QrCode, Phone, Key, Upload, Loader2, ImageIcon } from "lucide-react";
@@ -12,12 +12,25 @@ function PaymentContent() {
   const phone = searchParams.get("phone") ?? "";
   const plan = searchParams.get("plan") || "basic";
 
-  const PLAN_CONFIG: Record<string, { price: string; name: string; desc: string }> = {
+  // 动态定价（从管理后台配置读取）
+  const FALLBACK: Record<string, { price: string; name: string; desc: string }> = {
     basic: { price: "99", name: "基础版", desc: "Logo方案+VI手册" },
     standard: { price: "499", name: "标准版", desc: "品牌故事+Logo+IP+完整VI" },
     manager: { price: "299", name: "品牌管家", desc: "每月12条品牌化内容" },
   };
-  const planConfig = PLAN_CONFIG[plan] || PLAN_CONFIG.basic;
+  const [planConfig, setPlanConfig] = useState(FALLBACK[plan] || FALLBACK.basic);
+
+  useEffect(() => {
+    fetch("/api/config/pricing")
+      .then(r => r.json())
+      .then(d => {
+        if (d.pricing && d.pricing[plan]) {
+          const p = d.pricing[plan];
+          setPlanConfig({ price: p.price, name: p.name, desc: p.desc });
+        }
+      })
+      .catch(() => {});
+  }, [plan]);
 
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);

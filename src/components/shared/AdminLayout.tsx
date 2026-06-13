@@ -10,6 +10,7 @@ import {
   Users,
   Grid3X3,
   Wallet,
+  Tag,
   GraduationCap,
   ChevronLeft,
   Menu,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/admin/students", label: "大学生管理", icon: GraduationCap },
   { href: "/admin/templates", label: "模板库", icon: Grid3X3 },
   { href: "/admin/billing", label: "Billing", icon: Wallet },
+  { href: "/admin/pricing", label: "定价管理", icon: Tag },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
