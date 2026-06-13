@@ -65,6 +65,29 @@ export default function ProjectDetailPage({
   const [logoResult, setLogoResult] = useState<any>(null);
   const [selectingLogo, setSelectingLogo] = useState(false);
 
+  // V49: Auto-poll logo generation status when generating
+  useEffect(() => {
+    if (!project) return;
+    const ci = (project as any)?.client_info || {};
+    const genStatus = ci.generationStatus || "";
+    const isGenerating = ["brand_analyzing", "logo_generating", "scene_rendering", "pptx_assembling"].includes(genStatus);
+    if (!isGenerating) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const freshRes = await fetch(`/api/get-project-data?projectId=${project.id}`);
+        if (freshRes.ok) {
+          const freshData = await freshRes.json();
+          if (freshData.project) {
+            setProject({ ...project, ...freshData.project, status: project.status } as any);
+          }
+        }
+      } catch {}
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [project?.id, (project as any)?.client_info?.generationStatus]);
+
   /** Load generated manual files for this project */
   const loadGeneratedManuals = async (projectId: string) => {
     try {
@@ -911,6 +934,175 @@ export default function ProjectDetailPage({
             </a>
           </div>
         )}
+      </section>
+
+
+      {/* V49: Logo生成状态 */}
+      <section className="bg-white rounded-xl border border-neutral-100 p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-neutral-700">🎨 Logo生成状态</h3>
+          <button
+            onClick={async () => {
+              if (!project) return;
+              try {
+                const res = await fetch(`/api/ai/get-project-status?projectId=${project.id}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  // Refresh project data to pick up latest client_info
+                  const freshRes = await fetch(`/api/get-project-data?projectId=${project.id}`);
+                  if (freshRes.ok) {
+                    const freshData = await freshRes.json();
+                    if (freshData.project) {
+                      setProject({ ...project, ...freshData.project, status: project.status } as any);
+                    }
+                  }
+                }
+              } catch {}
+            }}
+            className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            刷新
+          </button>
+        </div>
+
+        {(() => {
+          const ci = (project as any)?.client_info || {};
+          const genStatus = ci.generationStatus || "pending";
+          const logoGenStatus = ci.logoGenerationStatus || {};
+          const brandProfile = ci.brandProfile || {};
+          const analysisStatus = brandProfile.analysisStatus || null;
+          const logoResults = brandProfile.logoGenerationResults || [];
+          const preferredLogo = brandProfile.preferredLogo || null;
+
+          // Status config
+          const statusConfig: Record<string, { label: string; color: string; icon: string; progress: number }> = {
+            pending: { label: "等待处理", color: "neutral", icon: "⏳", progress: 0 },
+            brand_analyzing: { label: "AI品牌分析中", color: "blue", icon: "🧠", progress: 20 },
+            logo_generating: { label: "Logo生成中", color: "amber", icon: "🎨", progress: 40 },
+            logo_generated: { label: "Logo生成完成", color: "green", icon: "✅", progress: 50 },
+            logo_selecting: { label: "Logo选择中", color: "blue", icon: "👆", progress: 55 },
+            scene_rendering: { label: "场景图渲染中", color: "purple", icon: "🖼️", progress: 70 },
+            pptx_assembling: { label: "手册组装中", color: "purple", icon: "📖", progress: 90 },
+            completed: { label: "全部完成", color: "green", icon: "🎉", progress: 100 },
+            failed: { label: "生成失败", color: "red", icon: "❌", progress: 0 },
+          };
+          const cfg = statusConfig[genStatus] || statusConfig.pending;
+          const isGenerating = ["brand_analyzing", "logo_generating", "scene_rendering", "pptx_assembling"].includes(genStatus);
+
+          return (
+            <div className="mt-3 space-y-3">
+              {/* Status badge + progress */}
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+                  cfg.color === "green" ? "bg-green-50 text-green-700" :
+                  cfg.color === "amber" ? "bg-amber-50 text-amber-700" :
+                  cfg.color === "blue" ? "bg-blue-50 text-blue-700" :
+                  cfg.color === "purple" ? "bg-purple-50 text-purple-700" :
+                  cfg.color === "red" ? "bg-red-50 text-red-700" :
+                  "bg-neutral-50 text-neutral-500"
+                }`}>
+                  {isGenerating && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {cfg.icon} {cfg.label}
+                </span>
+                {genStatus !== "pending" && (
+                  <span className="text-xs text-neutral-400">{cfg.progress}%</span>
+                )}
+              </div>
+
+              {/* Progress bar */}
+              {genStatus !== "pending" && (
+                <div className="w-full h-2 bg-neutral-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      cfg.color === "green" ? "bg-green-500" :
+                      cfg.color === "amber" ? "bg-amber-500" :
+                      cfg.color === "blue" ? "bg-blue-500" :
+                      cfg.color === "purple" ? "bg-purple-500" :
+                      cfg.color === "red" ? "bg-red-500" :
+                      "bg-neutral-300"
+                    }`}
+                    style={{ width: `${cfg.progress}%` }}
+                  />
+                </div>
+              )}
+
+              {/* Brand analysis sub-status */}
+              {analysisStatus && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-neutral-500">品牌分析：</span>
+                  {analysisStatus === "completed" ? (
+                    <span className="text-green-600 font-medium">✓ 已完成</span>
+                  ) : analysisStatus === "analyzing" ? (
+                    <span className="text-blue-600 font-medium flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> 分析中...
+                    </span>
+                  ) : (
+                    <span className="text-neutral-400">{analysisStatus}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Logo generation progress detail */}
+              {logoGenStatus.total > 0 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-neutral-500">Logo进度：</span>
+                  <span className="font-medium text-neutral-700">
+                    {logoGenStatus.completed || 0} / {logoGenStatus.total}
+                  </span>
+                  {logoGenStatus.completedAt && (
+                    <span className="text-neutral-400">
+                      （完成于 {new Date(logoGenStatus.completedAt).toLocaleString("zh-CN")}）
+                    </span>
+                  )}
+                  {logoGenStatus.failedAt && (
+                    <span className="text-red-500">
+                      （失败于 {new Date(logoGenStatus.failedAt).toLocaleString("zh-CN")}）
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Logo thumbnails */}
+              {logoResults.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs text-neutral-500 mb-2">已生成Logo方案：</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {logoResults.map((logo: any, i: number) => (
+                      <div key={i} className={`relative rounded-lg border-2 overflow-hidden ${
+                        preferredLogo === i ? "border-blue-500 ring-2 ring-blue-200" : "border-neutral-200"
+                      }`}>
+                        <img
+                          src={logo.imageUrl || logo.url}
+                          alt={`Logo方案${i + 1}`}
+                          className="w-full aspect-square object-contain bg-white p-1"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5">
+                          方案 {i + 1}
+                          {preferredLogo === i && " ✓"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Failed message */}
+              {genStatus === "failed" && ci.generationMessage && (
+                <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+                  {ci.generationMessage}
+                </div>
+              )}
+
+              {/* Pending status hint */}
+              {genStatus === "pending" && project.status === "paid" && (
+                <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                  💡 已确认付款，品牌分析和Logo生成将在下方品牌大脑区域手动触发，或刷新页面查看最新状态。
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </section>
 
       {/* brand assets */}
