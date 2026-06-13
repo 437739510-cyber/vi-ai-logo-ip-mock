@@ -35,7 +35,7 @@ export default function ProgressPage() {
   const [error, setError] = useState<string | null>(null);
 
   const handleSearch = async () => {
-    if (phone.length < 11 || viewPassword.length < 6) return;
+    if (phone.length < 11 || viewPassword.length < 4) return;
     setLoading(true);
     setError(null);
     setProject(null);
@@ -46,7 +46,7 @@ export default function ProgressPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone: phone.trim(),
-          viewPassword: viewPassword.trim().toUpperCase(),
+          viewPassword: viewPassword.trim(),
         }),
       });
       const data = await res.json();
@@ -97,7 +97,7 @@ export default function ProgressPage() {
             </label>
             <input
               type="text"
-              placeholder="6位查看密码"
+              placeholder="4位查看密码"
               value={viewPassword}
               onChange={(e) => setViewPassword(e.target.value.toUpperCase().slice(0, 6))}
               maxLength={6}
@@ -106,7 +106,7 @@ export default function ProgressPage() {
           </div>
           <button
             onClick={handleSearch}
-            disabled={phone.length < 11 || viewPassword.length < 6 || loading}
+            disabled={phone.length < 11 || viewPassword.length < 4 || loading}
             className="w-full py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
             {loading ? (

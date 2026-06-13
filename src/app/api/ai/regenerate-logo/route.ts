@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     // Verify password
     const clientInfo = (project.client_info as Record<string, any>) || {};
     const storedPassword = clientInfo.viewPassword || "";
-    if (!storedPassword || storedPassword.toUpperCase() !== viewPassword.toUpperCase()) {
+    if (!storedPassword || storedPassword !== viewPassword) {
       return NextResponse.json({ error: "查看密码不正确" }, { status: 403 });
     }
 

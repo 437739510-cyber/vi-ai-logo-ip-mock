@@ -159,10 +159,5 @@ export async function POST(req: NextRequest) {
 
 // Generate 6-digit view password for client
 function generateViewPassword(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let pwd = "";
-  for (let i = 0; i < 6; i++) {
-    pwd += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return pwd;
+  const d = Math.floor(Math.random() * 10).toString(); return d + d + d + d;
 }
