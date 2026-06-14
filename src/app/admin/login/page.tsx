@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Lock, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect") || "/admin/dashboard";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +27,7 @@ export default function AdminLoginPage() {
       });
       const data = await res.json();
       if (data.success) {
-        window.location.href = "/admin/dashboard";
+        window.location.replace(redirectUrl);
       } else {
         setError(data.error || "登录失败");
       }
@@ -59,6 +62,8 @@ export default function AdminLoginPage() {
                 placeholder="密码"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                inputMode="text"
+                autoComplete="current-password"
                 className="w-full px-4 py-2.5 pr-10 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:border-neutral-900 transition-all"
                 autoFocus
               />
@@ -87,5 +92,13 @@ export default function AdminLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense>
+      <AdminLoginForm />
+    </Suspense>
   );
 }
