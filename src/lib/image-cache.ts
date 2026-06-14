@@ -309,48 +309,8 @@ export async function processAndCacheImage(
   index.entries[key] = entry;
   await saveIndex(index);
 
-  // Trigger semantic analysis in background (fire-and-forget)
-  triggerAssetAnalysis(originalPath, assetType || "logo").catch(() => {});
 
   return entry;
-}
-
-/** Trigger semantic analysis for an asset (calls analyze-asset API, updates cache). */
-async function triggerAssetAnalysis(originalPath: string, assetType: string): Promise<void> {
-  try {
-    const resp = await fetch(process.env.NEXT_PUBLIC_SITE_URL ? process.env.NEXT_PUBLIC_SITE_URL + "/api/ai/analyze-asset" : "http://localhost:3001/api/ai/analyze-asset", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: originalPath, assetType }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!resp.ok) return;
-    const analysis = await resp.json();
-    if (analysis.analysisStatus !== "completed") return;
-
-    // Update the cache entry with analysis results
-    const key = cacheKey(originalPath);
-    const idx = await loadIndex();
-    const entry = idx.entries[key];
-    if (!entry) return;
-
-    // Merge analysis fields into entry
-    entry.analysisStatus = "completed";
-    if (analysis.logoElements) entry.logoElements = analysis.logoElements;
-    if (analysis.logoSyleTags) entry.logoSyleTags = analysis.logoSyleTags;
-    if (analysis.logoMeaning) entry.logoMeaning = analysis.logoMeaning;
-    if (analysis.extractedColors) entry.extractedColors = analysis.extractedColors;
-    if (analysis.mascotName) entry.mascotName = analysis.mascotName;
-    if (analysis.mascotStyle) entry.mascotStyle = analysis.mascotStyle;
-    if (analysis.mascotPersonality) entry.mascotPersonality = analysis.mascotPersonality;
-    if (analysis.mascotDescription) entry.mascotDescription = analysis.mascotDescription;
-    if (analysis.mascotLabels) entry.mascotLabels = analysis.mascotLabels;
-
-    idx.entries[key] = entry;
-    await saveIndex(idx);
-  } catch {
-    // Background analysis failed silently; entry stays without analysis
-  }
 }
 
 /**

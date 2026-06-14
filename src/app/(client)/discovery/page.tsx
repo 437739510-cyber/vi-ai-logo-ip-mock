@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Send, Camera, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import {
   DiscoveryPhase,
@@ -45,6 +46,7 @@ interface ChatResponse {
 
 export default function DiscoveryPage() {
   // 状态管理
+  const router = useRouter();
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -58,6 +60,7 @@ export default function DiscoveryPage() {
   const [showStyles, setShowStyles] = useState(false);
   const [briefData, setBriefData] = useState<any>(null);
   const [isGeneratingBrief, setIsGeneratingBrief] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -269,7 +272,32 @@ export default function DiscoveryPage() {
       e.preventDefault();
       sendMessage();
     }
-  };
+  };;
+
+  // 提交访谈结果，跳转到付款确认页
+  const handleSubmitDiscovery = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/discovery/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, briefData }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.projectId) {
+        // 跳转到付款确认页
+        router.push(`/confirm?projectId=${data.projectId}&viewPassword=${data.viewPassword}&plan=${data.plan}`);
+      } else {
+        alert(data.error || "提交失败，请重试");
+      }
+    } catch (error) {
+      console.error("提交失败:", error);
+      alert("提交失败，请重试");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   // 获取阶段名称
   const getPhaseName = (phase: DiscoveryPhase): string => {
@@ -403,9 +431,22 @@ export default function DiscoveryPage() {
                 </div>
               </div>
 
-              <button className="w-full mt-5 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all">
-                <span>开始生成VI手册</span>
-                <ArrowRight className="w-5 h-5" />
+              <button
+                onClick={handleSubmitDiscovery}
+                disabled={isSubmitting}
+                className="w-full mt-5 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>正在提交...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>开始生成VI手册</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
               </button>
             </div>
           )}
