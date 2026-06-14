@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
-
-function getAdmin() {
-  return createClient(supabaseUrl, serviceKey);
-}
+import { supabaseAdmin } from "@/lib/supabase";
 
 // GET /api/ai/generation-history?projectId=XXX
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return NextResponse.json({ error: "projectId required" }, { status: 400 });
 
-  const supabaseAdmin = getAdmin();
   const { data, error } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -28,7 +20,6 @@ export async function DELETE(req: NextRequest) {
   const generationId = req.nextUrl.searchParams.get("generationId");
   if (!projectId || !generationId) return NextResponse.json({ error: "projectId and generationId required" }, { status: 400 });
 
-  const supabaseAdmin = getAdmin();
   const { data, error } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -18,76 +18,12 @@ import { readFile, mkdir, writeFile, readdir } from "fs/promises";
 import { planPages } from "@/lib/page-planner";
 import { renderPptxToBuffer } from "@/lib/render-pptx";
 import { supabaseAdmin } from "@/lib/supabase";
+import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/industry-types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 // ========== 行业判定（与analyze-brand共享） ==========
-export type IndustryType = "restaurant" | "fastfood" | "beverage" | "beauty" | "fashion" | "mother_baby" | "wedding" | "fitness" | "pharmacy" | "pet" | "retail" | "education" | "general";
-
-export function getIndustryType(industry?: string): IndustryType {
-  if (!industry) return "general";
-  const s = industry.toLowerCase();
-  
-  // V14: 优先匹配二级格式（一级:二级）
-  if (s.includes(":")) {
-    const [cat, sub] = s.split(":");
-    // 美食
-    if (cat === "美食") {
-      if (/小吃快餐|速食/.test(sub)) return "fastfood";
-      return "restaurant";
-    }
-    if (cat === "饮品") return "beverage";
-    if (cat === "丽人") return "beauty";
-    if (cat === "购物") {
-      if (/服装|鞋帽/.test(sub)) return "fashion";
-      if (/母婴|儿童/.test(sub)) return "mother_baby";
-      return "retail";
-    }
-    if (cat === "生活服务") {
-      if (/婚庆|摄影/.test(sub)) return "wedding";
-      if (/宠物/.test(sub)) return "pet";
-      return "general";
-    }
-    if (cat === "运动健身") return "fitness";
-    if (cat === "教育培训") return "education";
-    if (cat === "医疗保健") return "pharmacy";
-    if (cat === "汽车服务") return "retail";
-    if (cat === "公司企业") return "general";
-    return "general";
-  }
-  
-  // V14: 兼容旧版一级格式
-  // 1. 美容/美发（在零售之前拦截）
-  if (/美容|美发|理发|美甲|spa|沙龙|造型|护肤|美体|美睫|剪发|烫发/.test(s)) return "beauty";
-  // 2. 婚庆/摄影
-  if (/婚|婚庆|婚纱|摄影|影楼|照相|写真|跟拍|司仪/.test(s)) return "wedding";
-  // 3. 药店/诊所（含养生馆、中医馆）
-  if (/药|诊所|中医|牙科|骨科|推拿|针灸|理疗|药房|大药房|养生/.test(s)) return "pharmacy";
-  // 4. 宠物
-  if (/宠物|猫咖|狗咖|水族/.test(s)) return "pet";
-  // 5. 健身/运动
-  if (/健身|瑜伽|武术|搏击|游泳|运动|跆拳道|舞蹈|普拉提/.test(s)) return "fitness";
-  // 6. 母婴/儿童
-  if (/母婴|儿童|婴儿|奶粉|早教|月子|孕妇|宝宝/.test(s)) return "mother_baby";
-  // 7. 服装/鞋帽
-  if (/服装|鞋|帽|服饰|女装|男装|内衣|皮具|箱包|裁缝|西装|潮牌/.test(s)) return "fashion";
-  // 8. 饮品/茶饮
-  if (/饮品|茶饮|奶茶|咖啡|果汁|椰|椰子|椰汁|酒|酒吧|气泡|矿泉|纯净水/.test(s)) return "beverage";
-  // 9. 小吃快餐（V14新增，区别于正餐）
-  if (/小吃快餐|速食|快餐|汉堡|炸鸡|盒饭|盖浇/.test(s)) return "fastfood";
-  // 10. 餐厅/正餐
-  if (/餐厅|正餐|面馆|饭馆|炒菜|海鲜|川菜|粤菜|湘菜|鲁菜|饭店/.test(s)) return "restaurant";
-  // 11. 火锅/烧烤
-  if (/火锅|串串|烧烤|烘焙|饺子|包子|小吃/.test(s)) return "restaurant";
-  // 12. 通用餐饮匹配兜底
-  if (/餐饮|餐|食|面|外卖/.test(s)) return "restaurant";
-  // 13. 零售/电商
-  if (/零售|超市|便利|商店|杂货|数码/.test(s)) return "retail";
-  // 14. 教育/培训
-  if (/教育|培训|学|课|幼儿园|托管|辅导/.test(s)) return "education";
-  return "general";
-}
 
 // ========== 行业场景图定义（5张/份，¥1.00） ==========
 interface SceneImgDef {
@@ -189,28 +125,6 @@ const SCENE_IMG_DEFS: Record<IndustryType, SceneImgDef[]> = {
     { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a pet event display stand, playful design, studio lighting" },
   ],
 };
-
-// ========== 行业默认色 ==========
-const INDUSTRY_DEFAULTS: Record<string, { primary: string; secondary: string; accent: string }> = {
-  restaurant:  { primary: "#2E7D32", secondary: "#E65100", accent: "#F9A825" },
-  fastfood:    { primary: "#D32F2F", secondary: "#F9A825", accent: "#FFFFFF" },
-  beverage:    { primary: "#00695C", secondary: "#D84315", accent: "#FFB300" },
-  beauty:      { primary: "#E8576C", secondary: "#9B72CF", accent: "#F0D5A8" },
-  fashion:     { primary: "#1A1A2E", secondary: "#C9A96E", accent: "#E8D5B7" },
-  mother_baby: { primary: "#E8836B", secondary: "#5B9EA6", accent: "#F5C6AA" },
-  wedding:     { primary: "#8B6F4E", secondary: "#D4A574", accent: "#F5E6D3" },
-  fitness:     { primary: "#D32F2F", secondary: "#1B5E20", accent: "#FFC107" },
-  pharmacy:    { primary: "#1565C0", secondary: "#2E7D32", accent: "#BBDEFB" },
-  pet:         { primary: "#FF8F00", secondary: "#5D4037", accent: "#FFE082" },
-  retail:      { primary: "#1565C0", secondary: "#EF6C00", accent: "#78909C" },
-  education:   { primary: "#283593", secondary: "#00897B", accent: "#FF8F00" },
-  general:     { primary: "#37474F", secondary: "#00897B", accent: "#FFB300" },
-};
-
-export function getIndustryDefaults(industry?: string): { primary: string; secondary: string; accent: string } {
-  const it = getIndustryType(industry);
-  return INDUSTRY_DEFAULTS[it] || INDUSTRY_DEFAULTS.general;
-}
 
 function normalizeColors(colors: any, industry?: string): { primary: string; secondary: string; accent: string } {
   const defaults = getIndustryDefaults(industry);
@@ -734,98 +648,103 @@ export async function POST(req: NextRequest) {
 
     sendProgress("analyzing", "正在进行AI品牌分析...", 15);
     // ===== Step 2.5: AI 品牌分析 =====
-    // V12: 更新项目状态
-    await supabaseAdmin.from("projects").update({ status: "brand_analyzing", updated_at: new Date().toISOString() }).eq("id", projectId);
+    // 优化：优先复用已有品牌分析结果，避免重复DeepSeek调用
+    const existingBrandProfile = (project?.client_info as Record<string, any>)?.brandProfile;
     let brandProfile: any = null;
     let effectiveBrandVision = brandVision;
     let effectiveCoreValues = coreValues;
     let effectiveTargetMarket = targetMarket;
     let dynamicScenePrompts: Array<{zh: string; en: string}> | null = null;
 
-    try {
-      // 调用品牌分析引擎（内部调用，不走HTTP）
-      const { planLayoutEngine } = await import("@/lib/plan-layout-engine");
-      
-      // 直接调用brand-analysis核心逻辑
-      const apiKey = process.env.DEEPSEEK_API_KEY;
-      if (apiKey && (companyName !== "品牌")) {
-        const analysisPrompt = buildBrandAnalysisPrompt({
-          companyName, industry, brandVision, coreValues, targetMarket,
-          logoPhilosophy, mascotPhilosophy,
-          province: body.clientInfo?.province || submission?.province,
-          city: body.clientInfo?.city || submission?.city,
-          description: body.clientInfo?.description || submission?.description,
-          brandColors: realColors,
-        });
-
-        const analysisResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            messages: [
-              { role: "system", content: BRAND_ANALYSIS_SYSTEM_PROMPT },
-              { role: "user", content: analysisPrompt },
-            ],
-            temperature: 0.7,
-            max_tokens: 4096,
-          }),
-          signal: AbortSignal.timeout(45000),
-        });
-
-        if (analysisResp.ok) {
-          const analysisData = await analysisResp.json();
-          const analysisContent = analysisData.choices?.[0]?.message?.content || "{}";
-          try {
-            const cleaned = analysisContent.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-            brandProfile = JSON.parse(cleaned);
-            console.log("[generate-pptx] Brand analysis OK:", brandProfile.brandToneKeywords);
-            sendProgress("analyzed", "品牌分析完成", 30);
-
-            // 用AI分析结果增强客户信息（客户写了的保留，没写的AI补）
-            if (brandProfile.refinedBrandVision) effectiveBrandVision = brandProfile.refinedBrandVision;
-            if (brandProfile.refinedCoreValues) effectiveCoreValues = brandProfile.refinedCoreValues;
-            if (brandProfile.refinedTargetMarket) effectiveTargetMarket = brandProfile.refinedTargetMarket;
-
-            // V10: 保存logoDesignSuggestions到brandProfile
-            if (brandProfile.logoDesignSuggestions) {
-              console.log("[generate-pptx] Logo design suggestions available:", brandProfile.logoDesignSuggestions.style);
-            }
-
-            // 用AI建议的场景图prompt
-            if (brandProfile.sceneImageSuggestions?.length >= 5) {
-              dynamicScenePrompts = brandProfile.sceneImageSuggestions;
-              console.log("[generate-pptx] Using dynamic scene prompts from AI analysis");
-            }
-
-            // 保存品牌档案到 projects.client_info（保留selectedLogo和logoGenerationResults）
-            const { data: projInfo } = await supabaseAdmin
-              .from("projects").select("client_info").eq("id", projectId).single();
-            const existingInfo = (projInfo?.client_info as Record<string, any>) || {};
-            const existingBP = (existingInfo.brandProfile as Record<string, any>) || {};
-            await supabaseAdmin.from("projects").update({
-              client_info: {
-                ...existingInfo,
-                brandProfile: {
-                  ...brandProfile,
-                  analyzedAt: new Date().toISOString(),
-                  // V10: 保留Logo选择和生成结果
-                  selectedLogo: existingBP.selectedLogo || null,
-                  logoGenerationResults: existingBP.logoGenerationResults || null,
-                  logoGeneratedAt: existingBP.logoGeneratedAt || null,
-                }
-              },
-              updated_at: new Date().toISOString(),
-            }).eq("id", projectId);
-          } catch (parseErr) {
-            console.warn("[generate-pptx] Brand analysis parse failed:", parseErr);
-          }
-        } else {
-          console.warn("[generate-pptx] Brand analysis API failed:", analysisResp.status);
-        }
+    if (existingBrandProfile?.brandToneKeywords?.length > 0) {
+      // 复用已有分析 — 跳过DeepSeek调用，省20秒+0.04元
+      brandProfile = existingBrandProfile;
+      if (brandProfile.refinedBrandVision) effectiveBrandVision = brandProfile.refinedBrandVision;
+      if (brandProfile.refinedCoreValues) effectiveCoreValues = brandProfile.refinedCoreValues;
+      if (brandProfile.refinedTargetMarket) effectiveTargetMarket = brandProfile.refinedTargetMarket;
+      if (brandProfile.sceneImageSuggestions?.length >= 5) dynamicScenePrompts = brandProfile.sceneImageSuggestions;
+      if (brandProfile.logoDesignSuggestions) {
+        console.log("[generate-pptx] Reusing brand analysis, logo suggestions available:", brandProfile.logoDesignSuggestions.style);
       }
-    } catch (analysisErr) {
-      console.warn("[generate-pptx] Brand analysis error:", analysisErr);
+      console.log("[generate-pptx] Reusing existing brand analysis — skipped DeepSeek call");
+      sendProgress("analyzed", "品牌分析完成(复用)", 30);
+    } else {
+      // 无已有分析 — 执行DeepSeek品牌分析
+      await supabaseAdmin.from("projects").update({ status: "brand_analyzing", updated_at: new Date().toISOString() }).eq("id", projectId);
+      try {
+        const apiKey = process.env.DEEPSEEK_API_KEY;
+        if (apiKey && (companyName !== "品牌")) {
+          const analysisPrompt = buildBrandAnalysisPrompt({
+            companyName, industry, brandVision, coreValues, targetMarket,
+            logoPhilosophy, mascotPhilosophy,
+            province: body.clientInfo?.province || submission?.province,
+            city: body.clientInfo?.city || submission?.city,
+            description: body.clientInfo?.description || submission?.description,
+            brandColors: realColors,
+          });
+
+          const analysisResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
+            body: JSON.stringify({
+              model: "deepseek-chat",
+              messages: [
+                { role: "system", content: BRAND_ANALYSIS_SYSTEM_PROMPT },
+                { role: "user", content: analysisPrompt },
+              ],
+              temperature: 0.7,
+              max_tokens: 4096,
+            }),
+            signal: AbortSignal.timeout(45000),
+          });
+
+          if (analysisResp.ok) {
+            const analysisData = await analysisResp.json();
+            const analysisContent = analysisData.choices?.[0]?.message?.content || "{}";
+            try {
+              const cleaned = analysisContent.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+              brandProfile = JSON.parse(cleaned);
+              console.log("[generate-pptx] Brand analysis OK:", brandProfile.brandToneKeywords);
+              sendProgress("analyzed", "品牌分析完成", 30);
+
+              if (brandProfile.refinedBrandVision) effectiveBrandVision = brandProfile.refinedBrandVision;
+              if (brandProfile.refinedCoreValues) effectiveCoreValues = brandProfile.refinedCoreValues;
+              if (brandProfile.refinedTargetMarket) effectiveTargetMarket = brandProfile.refinedTargetMarket;
+              if (brandProfile.logoDesignSuggestions) {
+                console.log("[generate-pptx] Logo design suggestions available:", brandProfile.logoDesignSuggestions.style);
+              }
+              if (brandProfile.sceneImageSuggestions?.length >= 5) {
+                dynamicScenePrompts = brandProfile.sceneImageSuggestions;
+              }
+
+              // 保存品牌档案到DB（保留selectedLogo和logoGenerationResults）
+              const { data: projInfo } = await supabaseAdmin
+                .from("projects").select("client_info").eq("id", projectId).single();
+              const existingInfo = (projInfo?.client_info as Record<string, any>) || {};
+              const existingBP = (existingInfo.brandProfile as Record<string, any>) || {};
+              await supabaseAdmin.from("projects").update({
+                client_info: {
+                  ...existingInfo,
+                  brandProfile: {
+                    ...brandProfile,
+                    analyzedAt: new Date().toISOString(),
+                    selectedLogo: existingBP.selectedLogo || null,
+                    logoGenerationResults: existingBP.logoGenerationResults || null,
+                    logoGeneratedAt: existingBP.logoGeneratedAt || null,
+                  }
+                },
+                updated_at: new Date().toISOString(),
+              }).eq("id", projectId);
+            } catch (parseErr) {
+              console.warn("[generate-pptx] Brand analysis parse failed:", parseErr);
+            }
+          } else {
+            console.warn("[generate-pptx] Brand analysis API failed:", analysisResp.status);
+          }
+        }
+      } catch (analysisErr) {
+        console.warn("[generate-pptx] Brand analysis error:", analysisErr);
+      }
     }
 
     sendProgress("loading_assets", "正在加载品牌素材...", 40);

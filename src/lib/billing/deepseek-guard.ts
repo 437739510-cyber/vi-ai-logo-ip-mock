@@ -6,7 +6,7 @@
  */
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
 // DeepSeek deepseek-chat pricing (CNY per 1K tokens)
 // Input: ¥0.001/1K, Output: ¥0.002/1K, Cached input: ¥0.0001/1K

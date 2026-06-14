@@ -3,7 +3,7 @@
  * V13: 调用DeepSeek做深度品牌分析，保存brandProfile（含logoDesignSuggestions）到数据库
  */
 import { NextRequest, NextResponse } from "next/server";
-import { getIndustryType, getIndustryDefaults, type IndustryType } from "../generate-manual-pptx/route";
+import { getIndustryType, type IndustryType, getIndustryDefaults } from "@/lib/industry-types";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";

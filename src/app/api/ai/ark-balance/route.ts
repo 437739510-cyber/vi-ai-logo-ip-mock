@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+import { supabaseAdmin } from "@/lib/supabase";
 
 // GET /api/ai/ark-balance
 export async function GET() {
-  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
   
   const { data, error } = await supabaseAdmin
     .from("projects")

@@ -14,6 +14,7 @@
 import PptxGenJS from "pptxgenjs";
 import type { PageBlueprint } from "./page-planner";
 import { compressImage } from "./compress-image";
+import { type IndustryType, getIndustryType } from "./industry-types";
 
 const SW = 8.27;
 const SH = 11.69;
@@ -41,50 +42,6 @@ export interface RenderPptxOptions {
 }
 
 // ========== 行业类型 ==========
-type IndustryType = "restaurant" | "fastfood" | "beverage" | "beauty" | "fashion" | "mother_baby" | "wedding" | "fitness" | "pharmacy" | "pet" | "retail" | "education" | "general";
-
-function getIndustryType(industry?: string): IndustryType {
-  if (!industry) return "general";
-  const s = industry.toLowerCase();
-  // V13: 行业匹配优先级 — 越具体越靠前
-  if (/美容|美发|理发|美甲|spa|沙龙|造型|护肤|美体|美睫|剪发|烫发/.test(s)) return "beauty";
-  if (/婚|婚庆|婚纱|摄影|影楼|照相|写真|跟拍|司仪/.test(s)) return "wedding";
-  if (/药|诊所|中医|牙科|骨科|推拿|针灸|理疗|药房|大药房/.test(s)) return "pharmacy";
-  if (/宠物|猫咖|狗咖|水族/.test(s)) return "pet";
-  if (/健身|瑜伽|武术|搏击|游泳|运动|跆拳道|舞蹈|普拉提/.test(s)) return "fitness";
-  if (/母婴|儿童|婴儿|奶粉|早教|月子|孕妇|宝宝/.test(s)) return "mother_baby";
-  if (/服装|鞋|帽|服饰|女装|男装|内衣|皮具|箱包|裁缝|西装|潮牌/.test(s)) return "fashion";
-  if (/椰|椰子|椰汁|茶|咖啡|饮|奶茶|果汁|酒|酒吧|饮品|奶茶店|气泡|矿泉|纯净水/.test(s)) return "beverage";
-  // V14: 二级格式优先匹配
-  if (s.includes(":")) {
-    const [cat, sub] = s.split(":");
-    if (cat === "美食") {
-      if (/小吃快餐|速食|快餐/.test(sub)) return "fastfood";
-      return "restaurant";
-    }
-    if (cat === "饮品") return "beverage";
-    if (cat === "丽人") return "beauty";
-    if (cat === "购物") {
-      if (/服装|鞋帽/.test(sub)) return "fashion";
-      if (/母婴|儿童/.test(sub)) return "mother_baby";
-      return "retail";
-    }
-    if (cat === "生活服务") {
-      if (/婚庆|摄影/.test(sub)) return "wedding";
-      if (/宠物/.test(sub)) return "pet";
-      return "general";
-    }
-    if (cat === "运动健身") return "fitness";
-    if (cat === "教育培训") return "education";
-    if (cat === "医疗保健") return "pharmacy";
-  }
-  // V14: fastfood在restaurant之前匹配
-  if (/小吃快餐|速食|快餐|汉堡|炸鸡|盒饭|盖浇/.test(s)) return "fastfood";
-  if (/餐|食|面|火锅|烧烤|烘焙|饺子|包子|炒菜|饭店|小吃|饭馆|海鲜|川菜|粤菜|湘菜|鲁菜|馆|外卖/.test(s)) return "restaurant";
-  if (/零售|超市|便利|商店|杂货|数码/.test(s)) return "retail";
-  if (/教育|培训|学|课|幼儿园|托管|辅导/.test(s)) return "education";
-  return "general";
-}
 
 // 行业默认色（与route.ts保持一致）
 const INDUSTRY_BC: Record<IndustryType, { pri: string; sec: string; acc: string }> = {

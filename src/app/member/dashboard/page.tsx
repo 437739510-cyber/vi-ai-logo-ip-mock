@@ -138,7 +138,7 @@ export default function MemberDashboard() {
           <div className="mt-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
             <p className="text-sm font-medium text-primary">免费体验已用完</p>
             <p className="text-xs text-neutral-500 mt-1">开通会员¥299/月，每月12条品牌内容，AI自动生成文案+品牌化图片</p>
-            <a href="https://brandbrain.zeabur.app" className="inline-block mt-2 px-4 py-1.5 bg-primary text-white text-sm font-medium rounded-lg">立即开通</a>
+            <a href="/" className="inline-block mt-2 px-4 py-1.5 bg-primary text-white text-sm font-medium rounded-lg">立即开通</a>
           </div>
         )}
         {!isFree && <p className="text-xs text-neutral-400 mt-2">超出配额 ¥30/条 · 续费请咨询客服</p>}

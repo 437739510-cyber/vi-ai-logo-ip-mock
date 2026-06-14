@@ -10,9 +10,7 @@
     },
     "dependencies": {
         "@hookform/resolvers": "^5.0.0",
-        "@rajesh-200/logo-generator": "^2.0.1",
         "@supabase/supabase-js": "^2.106.2",
-        "class-variance-authority": "^0.7.0",
         "clsx": "^2.1.0",
         "framer-motion": "^12.9.0",
         "lucide-react": "^0.510.0",
@@ -27,8 +25,7 @@
         "react-hook-form": "^7.55.0",
         "sharp": "^0.34.5",
         "tailwind-merge": "^3.2.0",
-        "zod": "^3.24.0",
-        "zustand": "^5.0.0"
+        "zod": "^3.24.0"
     },
     "devDependencies": {
         "@tailwindcss/postcss": "^4.1.0",
