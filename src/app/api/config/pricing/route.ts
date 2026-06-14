@@ -5,54 +5,70 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// 默认定价（fallback）
 const DEFAULT_PRICING = {
   basic: { price: "99", name: "基础版", period: "一次性", desc: "Logo方案+VI手册", enabled: true },
   standard: { price: "499", name: "标准版", period: "一次性", desc: "品牌故事+Logo+IP+完整VI", enabled: true },
   manager: { price: "299", name: "品牌管家", period: "/月", desc: "每月12条品牌化内容", enabled: true },
 };
 
+const DEFAULT_LOGO_PRICING = {
+  standalone: { price: "49", name: "Logo单独购买", desc: "仅Logo方案，不含VI手册", enabled: true },
+  upgrade_basic: { price: "400", name: "基础版补差价", desc: "从基础版升级到标准版", enabled: true },
+  upgrade_standard: { price: "0", name: "标准版补差价", desc: "已有标准版，无需补差", enabled: true },
+};
+
 export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from("site_config")
-      .select("value")
-      .eq("key", "pricing")
-      .single();
+      .select("key, value")
+      .in("key", ["pricing", "logo_pricing"]);
 
-    if (error || !data?.value) {
-      return NextResponse.json({ success: true, pricing: DEFAULT_PRICING });
-    }
+    const pricingData = data?.find((d: any) => d.key === "pricing")?.value;
+    const logoPricingData = data?.find((d: any) => d.key === "logo_pricing")?.value;
 
-    const pricing = { ...DEFAULT_PRICING, ...data.value };
-    return NextResponse.json({ success: true, pricing });
+    const pricing = pricingData ? { ...DEFAULT_PRICING, ...pricingData } : DEFAULT_PRICING;
+    const logoPricing = logoPricingData ? { ...DEFAULT_LOGO_PRICING, ...logoPricingData } : DEFAULT_LOGO_PRICING;
+
+    return NextResponse.json({ success: true, pricing, logoPricing });
   } catch {
-    return NextResponse.json({ success: true, pricing: DEFAULT_PRICING });
+    return NextResponse.json({ success: true, pricing: DEFAULT_PRICING, logoPricing: DEFAULT_LOGO_PRICING });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { pricing } = body;
+    const { pricing, logoPricing } = body;
 
-    if (!pricing || typeof pricing !== "object") {
-      return NextResponse.json({ error: "pricing 配置无效" }, { status: 400 });
-    }
-
-    const { error } = await supabaseAdmin
-      .from("site_config")
-      .upsert(
-        { key: "pricing", value: pricing, updated_at: new Date().toISOString() },
-        { onConflict: "key" }
+    const updates = [];
+    if (pricing && typeof pricing === "object") {
+      updates.push(
+        supabaseAdmin
+          .from("site_config")
+          .upsert({ key: "pricing", value: pricing, updated_at: new Date().toISOString() }, { onConflict: "key" })
       );
-
-    if (error) {
-      console.error("保存定价失败:", error);
-      return NextResponse.json({ error: "保存失败: " + error.message }, { status: 500 });
+    }
+    if (logoPricing && typeof logoPricing === "object") {
+      updates.push(
+        supabaseAdmin
+          .from("site_config")
+          .upsert({ key: "logo_pricing", value: logoPricing, updated_at: new Date().toISOString() }, { onConflict: "key" })
+      );
     }
 
-    return NextResponse.json({ success: true, pricing });
+    if (updates.length === 0) {
+      return NextResponse.json({ error: "无有效配置" }, { status: 400 });
+    }
+
+    const results = await Promise.all(updates);
+    const errors = results.filter((r: any) => r.error);
+    if (errors.length > 0) {
+      console.error("保存定价失败:", errors);
+      return NextResponse.json({ error: "保存失败" }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "保存失败" }, { status: 500 });
   }

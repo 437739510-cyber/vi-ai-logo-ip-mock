@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Settings, Save, RotateCcw, CheckCircle, AlertCircle } from "lucide-react";
+import { Settings, Save, RotateCcw, CheckCircle, AlertCircle, Palette } from "lucide-react";
 
 interface PlanConfig {
   price: string;
@@ -11,12 +11,24 @@ interface PlanConfig {
   enabled: boolean;
 }
 
+interface LogoPricingConfig {
+  standalone: { price: string; name: string; desc: string; enabled: boolean };
+  upgrade_basic: { price: string; name: string; desc: string; enabled: boolean };
+  upgrade_standard: { price: string; name: string; desc: string; enabled: boolean };
+}
+
 type PricingConfig = Record<string, PlanConfig>;
 
 const DEFAULT_PRICING: PricingConfig = {
   basic: { price: "99", name: "基础版", period: "一次性", desc: "Logo方案+VI手册", enabled: true },
   standard: { price: "499", name: "标准版", period: "一次性", desc: "品牌故事+Logo+IP+完整VI", enabled: true },
   manager: { price: "299", name: "品牌管家", period: "/月", desc: "每月12条品牌化内容", enabled: true },
+};
+
+const DEFAULT_LOGO_PRICING: LogoPricingConfig = {
+  standalone: { price: "49", name: "Logo单独购买", desc: "仅Logo方案，不含VI手册", enabled: true },
+  upgrade_basic: { price: "400", name: "基础版补差价", desc: "从基础版升级到标准版", enabled: true },
+  upgrade_standard: { price: "0", name: "标准版补差价", desc: "已有标准版，无需补差", enabled: true },
 };
 
 const PLAN_LABELS: Record<string, string> = {
@@ -31,8 +43,21 @@ const PLAN_COLORS: Record<string, string> = {
   manager: "bg-green-50 border-green-200",
 };
 
+const LOGO_COLORS: Record<string, string> = {
+  standalone: "bg-purple-50 border-purple-200",
+  upgrade_basic: "bg-amber-50 border-amber-200",
+  upgrade_standard: "bg-teal-50 border-teal-200",
+};
+
+const LOGO_LABELS: Record<string, string> = {
+  standalone: "Logo单独购买",
+  upgrade_basic: "基础版补差价",
+  upgrade_standard: "标准版补差价",
+};
+
 export default function PricingPage() {
   const [pricing, setPricing] = useState<PricingConfig>(DEFAULT_PRICING);
+  const [logoPricing, setLogoPricing] = useState<LogoPricingConfig>(DEFAULT_LOGO_PRICING);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
@@ -42,6 +67,7 @@ export default function PricingPage() {
       .then((r) => r.json())
       .then((d) => {
         if (d.pricing) setPricing({ ...DEFAULT_PRICING, ...d.pricing });
+        if (d.logoPricing) setLogoPricing({ ...DEFAULT_LOGO_PRICING, ...d.logoPricing });
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -58,7 +84,7 @@ export default function PricingPage() {
       const res = await fetch("/api/config/pricing", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pricing }),
+        body: JSON.stringify({ pricing, logoPricing }),
       });
       const data = await res.json();
       if (data.success) {
@@ -75,10 +101,18 @@ export default function PricingPage() {
 
   const handleReset = () => {
     setPricing(DEFAULT_PRICING);
+    setLogoPricing(DEFAULT_LOGO_PRICING);
   };
 
   const updatePlan = (key: string, field: keyof PlanConfig, value: string | boolean) => {
     setPricing((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], [field]: value },
+    }));
+  };
+
+  const updateLogoPricing = (key: keyof LogoPricingConfig, field: string, value: string | boolean) => {
+    setLogoPricing((prev) => ({
       ...prev,
       [key]: { ...prev[key], [field]: value },
     }));
@@ -134,92 +168,175 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* Plan Cards */}
-      <div className="space-y-4">
-        {Object.entries(pricing).map(([key, plan]) => (
-          <div
-            key={key}
-            className={`rounded-2xl border p-5 ${PLAN_COLORS[key] || "bg-white border-neutral-200"} ${
-              !plan.enabled ? "opacity-50" : ""
-            }`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <h3 className="text-lg font-semibold text-neutral-900">
-                  {PLAN_LABELS[key] || key}
-                </h3>
-                <span className="text-xs px-2 py-0.5 bg-neutral-200 text-neutral-600 rounded-full font-mono">
-                  {key}
-                </span>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <span className="text-xs text-neutral-500">{plan.enabled ? "已启用" : "已禁用"}</span>
-                <div
-                  className={`relative w-10 h-5 rounded-full transition-colors ${
-                    plan.enabled ? "bg-primary" : "bg-neutral-300"
-                  }`}
-                  onClick={() => updatePlan(key, "enabled", !plan.enabled)}
-                >
-                  <div
-                    className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                      plan.enabled ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
+      {/* VI套餐定价 */}
+      <div>
+        <h2 className="text-sm font-bold text-neutral-700 mb-3 flex items-center gap-2">
+          <span className="w-1.5 h-4 bg-primary rounded-full" />
+          VI 套餐定价
+        </h2>
+        <div className="space-y-4">
+          {Object.entries(pricing).map(([key, plan]) => (
+            <div
+              key={key}
+              className={`rounded-2xl border p-5 ${PLAN_COLORS[key] || "bg-white border-neutral-200"} ${
+                !plan.enabled ? "opacity-50" : ""
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-semibold text-neutral-900">
+                    {PLAN_LABELS[key] || key}
+                  </h3>
+                  <span className="text-xs px-2 py-0.5 bg-neutral-200 text-neutral-600 rounded-full font-mono">
+                    {key}
+                  </span>
                 </div>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1">价格（元）</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">¥</span>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-xs text-neutral-500">{plan.enabled ? "已启用" : "已禁用"}</span>
+                  <div
+                    className={`relative w-10 h-5 rounded-full transition-colors ${
+                      plan.enabled ? "bg-primary" : "bg-neutral-300"
+                    }`}
+                    onClick={() => updatePlan(key, "enabled", !plan.enabled)}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        plan.enabled ? "translate-x-5" : "translate-x-0.5"
+                      }`}
+                    />
+                  </div>
+                </label>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">价格（元）</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">¥</span>
+                    <input
+                      type="text"
+                      value={plan.price}
+                      onChange={(e) => updatePlan(key, "price", e.target.value)}
+                      className="w-full pl-7 pr-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">名称</label>
                   <input
                     type="text"
-                    value={plan.price}
-                    onChange={(e) => updatePlan(key, "price", e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    value={plan.name}
+                    onChange={(e) => updatePlan(key, "name", e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">周期</label>
+                  <input
+                    type="text"
+                    value={plan.period}
+                    onChange={(e) => updatePlan(key, "period", e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    placeholder="一次性 / /月"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">描述</label>
+                  <input
+                    type="text"
+                    value={plan.desc}
+                    onChange={(e) => updatePlan(key, "desc", e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1">名称</label>
-                <input
-                  type="text"
-                  value={plan.name}
-                  onChange={(e) => updatePlan(key, "name", e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1">周期</label>
-                <input
-                  type="text"
-                  value={plan.period}
-                  onChange={(e) => updatePlan(key, "period", e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                  placeholder="一次性 / /月"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1">描述</label>
-                <input
-                  type="text"
-                  value={plan.desc}
-                  onChange={(e) => updatePlan(key, "desc", e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                />
+              <div className="mt-3 flex items-baseline gap-1">
+                <span className="text-2xl font-bold text-neutral-900">¥{plan.price}</span>
+                <span className="text-sm text-neutral-500">{plan.period}</span>
+                <span className="text-sm text-neutral-400 ml-2">· {plan.desc}</span>
               </div>
             </div>
+          ))}
+        </div>
+      </div>
 
-            {/* Preview */}
-            <div className="mt-3 flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-neutral-900">¥{plan.price}</span>
-              <span className="text-sm text-neutral-500">{plan.period}</span>
-              <span className="text-sm text-neutral-400 ml-2">· {plan.desc}</span>
+      {/* Logo定价 */}
+      <div>
+        <h2 className="text-sm font-bold text-neutral-700 mb-3 flex items-center gap-2">
+          <Palette className="w-4 h-4 text-purple-500" />
+          Logo 定价
+        </h2>
+        <div className="space-y-4">
+          {(Object.entries(logoPricing) as [keyof LogoPricingConfig, { price: string; name: string; desc: string; enabled: boolean }][]).map(([key, item]) => (
+            <div
+              key={key}
+              className={`rounded-2xl border p-5 ${LOGO_COLORS[key] || "bg-white border-neutral-200"} ${
+                !item.enabled ? "opacity-50" : ""
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-semibold text-neutral-900">
+                    {LOGO_LABELS[key] || key}
+                  </h3>
+                  <span className="text-xs px-2 py-0.5 bg-neutral-200 text-neutral-600 rounded-full font-mono">
+                    {key}
+                  </span>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-xs text-neutral-500">{item.enabled ? "已启用" : "已禁用"}</span>
+                  <div
+                    className={`relative w-10 h-5 rounded-full transition-colors ${
+                      item.enabled ? "bg-primary" : "bg-neutral-300"
+                    }`}
+                    onClick={() => updateLogoPricing(key, "enabled", !item.enabled)}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        item.enabled ? "translate-x-5" : "translate-x-0.5"
+                      }`}
+                    />
+                  </div>
+                </label>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">价格（元）</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">¥</span>
+                    <input
+                      type="text"
+                      value={item.price}
+                      onChange={(e) => updateLogoPricing(key, "price", e.target.value)}
+                      className="w-full pl-7 pr-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">名称</label>
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) => updateLogoPricing(key, "name", e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">描述</label>
+                  <input
+                    type="text"
+                    value={item.desc}
+                    onChange={(e) => updateLogoPricing(key, "desc", e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                  />
+                </div>
+              </div>
+              <div className="mt-3 flex items-baseline gap-1">
+                <span className="text-2xl font-bold text-neutral-900">¥{item.price}</span>
+                <span className="text-sm text-neutral-400 ml-2">· {item.desc}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Note */}
