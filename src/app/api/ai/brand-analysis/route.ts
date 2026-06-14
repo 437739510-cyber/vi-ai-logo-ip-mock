@@ -14,8 +14,8 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -42,11 +42,6 @@ export async function POST(req: NextRequest) {
         profile: { ...existingBP, submissionId, projectId },
         reused: true,
       });
-    }
-
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "DeepSeek API key not configured" }, { status: 500 });
     }
 
     console.log("[brand-analysis] Analyzing:", clientInfo.companyName, "| Industry:", clientInfo.industry);
@@ -76,14 +71,9 @@ export async function POST(req: NextRequest) {
     const analysisPrompt = buildAnalysisPrompt(clientInfo);
 
     // 调用 DeepSeek
-    const resp = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + apiKey,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const resp = await guardedDeepSeekCall({
+      route: "ai/brand-analysis",
+      body: {model: "deepseek-chat",
         messages: [
           {
             role: "system",
@@ -171,9 +161,8 @@ export async function POST(req: NextRequest) {
           },
         ],
         temperature: 0.7,
-        max_tokens: 4096,
-      }),
-      signal: AbortSignal.timeout(45000),
+        max_tokens: 4096,},
+      timeoutMs: 45000,
     });
 
     if (!resp.ok) {

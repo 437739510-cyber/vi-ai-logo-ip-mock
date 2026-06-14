@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
-const DEEPSEEK_BASE_URL = 'https://api.deepseek.com';
 
 const SYSTEM_PROMPT = `你是品牌大脑的AI品牌顾问，正在和一位老店店主进行品牌访谈。
 你的角色：亲切、接地气、有洞察力的品牌顾问。
@@ -30,14 +29,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { messages, questionIndex = 0 } = body;
 
-    if (!DEEPSEEK_API_KEY) {
-      // Fallback to preset questions
-      const fallbackIndex = Math.min(questionIndex, FALLBACK_QUESTIONS.length - 1);
-      return NextResponse.json({
-        message: FALLBACK_QUESTIONS[fallbackIndex],
-        source: 'fallback',
-      });
-    }
+    // DeepSeek key check handled by guardedDeepSeekCall
 
     // Build conversation for DeepSeek
     const chatMessages = [
@@ -51,18 +43,15 @@ export async function POST(request: Request) {
       },
     ];
 
-    const res = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
-      },
-      body: JSON.stringify({
+    const res = await guardedDeepSeekCall({
+      route: 'interview/chat',
+      body: {
         model: 'deepseek-chat',
         messages: chatMessages,
         max_tokens: 200,
         temperature: 0.7,
-      }),
+      },
+      timeoutMs: 30000,
     });
 
     if (!res.ok) {

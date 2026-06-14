@@ -1,5 +1,5 @@
 /**
- * DeepSeek API 调用守卫 (V51)
+ * DeepSeek API 调用守卫 (V54: timeoutMs支持 + 全量路由接入)
  * - 记录每次调用的路由、token用量、费用、时间戳到 api_usage_log
  * - 每日预算上限（默认5元），超出自动拦截
  * - 所有 DeepSeek 调用必须通过此模块
@@ -173,9 +173,10 @@ export async function deepseekPostLog(
 export async function guardedDeepSeekCall(
   options: GuardOptions & {
     body: Record<string, unknown>;
+    timeoutMs?: number;  // 超时毫秒数，默认60000
   }
 ): Promise<Response> {
-  const { route, body, projectId, requestSummary, dailyBudgetCny } = options;
+  const { route, body, projectId, requestSummary, dailyBudgetCny, timeoutMs = 60000 } = options;
 
   const check = await deepseekPreCheck({
     route,
@@ -200,6 +201,9 @@ export async function guardedDeepSeekCall(
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -207,7 +211,10 @@ export async function guardedDeepSeekCall(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (response.ok) {
       const cloned = response.clone();
@@ -235,9 +242,12 @@ export async function guardedDeepSeekCall(
 
     return response;
   } catch (error) {
+    const isTimeout = error instanceof DOMException && error.name === 'AbortError';
     await deepseekPostLog(check.logId, {
       response_status: 0,
-      error_message: error instanceof Error ? error.message : 'Network error',
+      error_message: isTimeout
+        ? `Timeout after ${timeoutMs}ms`
+        : (error instanceof Error ? error.message : 'Network error'),
     });
     throw error;
   }

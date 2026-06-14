@@ -1,23 +1,14 @@
 // API Route: POST /api/ai/chat
 // 编辑器内的 AI 设计助手，使用 DeepSeek 进行实时对话
 import { NextRequest, NextResponse } from "next/server";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 
 export async function POST(req: NextRequest) {
   try {
     const { messages, projectId, manualContext } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: "messages required" }, { status: 400 });
-    }
-
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-
-    if (!apiKey) {
-      // 无 API 密钥时返回固定提示
-      return NextResponse.json({
-        reply: "抱歉，AI 助手尚未配置 API 密钥，暂时无法回答您的问题。请在 .env.local 中设置 DEEPSEEK_API_KEY。",
-      });
     }
 
     const systemPrompt = `你是 VI 品牌手册编辑器的 AI 设计助手。你的职责是协助用户完成 VI 手册的设计和编辑。
@@ -37,19 +28,14 @@ ${manualContext ? JSON.stringify(manualContext, null, 2) : "暂无"}
 如果用户要求修改颜色或字体，请直接给出具体的颜色 HEX 值或字体名称。
 如果用户的要求超出你的能力范围，请诚实告知。`;
 
-    const deepseekRes = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const deepseekRes = await guardedDeepSeekCall({
+      route: "ai/chat",
+      body: {model: "deepseek-chat",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages.slice(-10), // 只保留最近 10 条消息作为上下文
-        ],
-      }),
+        ],},
+      timeoutMs: 30000,
     });
 
     if (!deepseekRes.ok) {

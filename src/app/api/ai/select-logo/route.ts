@@ -10,11 +10,11 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 
 interface LogoCandidate {
   index: number;
@@ -25,8 +25,7 @@ interface LogoCandidate {
 async function aiScoreLogos(
   logos: LogoCandidate[],
   companyName: string,
-  industry: string,
-  apiKey: string
+  industry: string
 ): Promise<{ bestIndex: number; scores: number[]; reasoning: string }> {
   const prompt = `你是一位品牌设计评审专家。请对以下${logos.length}个Logo方案进行评分。
 
@@ -43,19 +42,14 @@ Logo方案：${logos.map((l, i) => `\n方案${i + 1}：设计提示词 - ${l.pro
 请严格按以下JSON格式回复，不要有其他内容：
 {"scores":[分数1,分数2,...],"best":最佳方案序号(从1开始),"reasoning":"简短说明选择理由(50字以内)"}`;
 
-  const resp = await fetch(DEEPSEEK_API, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "deepseek-chat",
+  const resp = await guardedDeepSeekCall({
+      route: "ai/select-logo",
+      body: {model: "deepseek-chat",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
-      max_tokens: 200,
-    }),
-  });
+      max_tokens: 200,},
+      timeoutMs: 30000,
+    });
 
   if (!resp.ok) {
     throw new Error(`DeepSeek API error: ${resp.status}`);
@@ -110,15 +104,12 @@ export async function POST(req: NextRequest) {
 
       if (candidates.length === 0) {
         return NextResponse.json({ error: "No logo candidates found for auto-selection" }, { status: 400 });
-      }
-
-      const dsKey = process.env.DEEPSEEK_API_KEY;
-      const name = companyName || clientInfo.companyName || "品牌";
+      }      const name = companyName || clientInfo.companyName || "品牌";
       const ind = industry || clientInfo.industry || "通用";
 
-      if (dsKey && candidates.length > 1) {
+      if (candidates.length > 1) {
         try {
-          const result = await aiScoreLogos(candidates, name, ind, dsKey);
+          const result = await aiScoreLogos(candidates, name, ind);
           selectedIndex = result.bestIndex;
           scores = result.scores;
           reasoning = result.reasoning;

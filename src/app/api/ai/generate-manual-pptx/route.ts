@@ -19,6 +19,7 @@ import { planPages } from "@/lib/page-planner";
 import { renderPptxToBuffer } from "@/lib/render-pptx";
 import { supabaseAdmin } from "@/lib/supabase";
 import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/industry-types";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -671,9 +672,7 @@ export async function POST(req: NextRequest) {
     } else {
       // 无已有分析 — 执行DeepSeek品牌分析
       await supabaseAdmin.from("projects").update({ status: "brand_analyzing", updated_at: new Date().toISOString() }).eq("id", projectId);
-      try {
-        const apiKey = process.env.DEEPSEEK_API_KEY;
-        if (apiKey && (companyName !== "品牌")) {
+      try {        if ((companyName !== "品牌")) {
           const analysisPrompt = buildBrandAnalysisPrompt({
             companyName, industry, brandVision, coreValues, targetMarket,
             logoPhilosophy, mascotPhilosophy,
@@ -683,20 +682,17 @@ export async function POST(req: NextRequest) {
             brandColors: realColors,
           });
 
-          const analysisResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
-            body: JSON.stringify({
-              model: "deepseek-chat",
+          const analysisResp = await guardedDeepSeekCall({
+      route: "ai/generate-manual-pptx",
+      body: {model: "deepseek-chat",
               messages: [
                 { role: "system", content: BRAND_ANALYSIS_SYSTEM_PROMPT },
                 { role: "user", content: analysisPrompt },
               ],
               temperature: 0.7,
-              max_tokens: 4096,
-            }),
-            signal: AbortSignal.timeout(45000),
-          });
+              max_tokens: 4096,},
+      timeoutMs: 45000,
+    });
 
           if (analysisResp.ok) {
             const analysisData = await analysisResp.json();

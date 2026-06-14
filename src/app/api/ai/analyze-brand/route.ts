@@ -1,6 +1,6 @@
 /**
  * API: Analyze Brand — AI分析面板
- * V13: 调用DeepSeek做深度品牌分析，保存brandProfile（含logoDesignSuggestions）到数据库
+ * V54: 本地行业分析 + 委托 /api/ai/brand-analysis 做深度品牌分析（消除重复DeepSeek调用）
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getIndustryType, type IndustryType, getIndustryDefaults } from "@/lib/industry-types";
@@ -9,91 +9,6 @@ import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const BRAND_ANALYSIS_SYSTEM_PROMPT = `你是一位资深的品牌战略分析师，精通中国本土市场的品牌定位与VI策略。
-
-你的任务是：根据客户提供的品牌基础信息，进行深度分析，输出品牌档案。
-
-## 分析框架
-1. 行业洞察：市场趋势、痛点与机会
-2. 品牌定位：差异化定位方向、品牌调性关键词
-3. 文案补全：客户没写的AI代写，已写的润色保留原意
-4. 视觉方向：推荐视觉风格 + 5个写实场景图描述（中英文对照）
-5. Logo设计建议：为没有Logo的客户提供4个不同方向的Logo设计方案
-
-## 输出格式（严格JSON，不要markdown包裹）
-{
-  "industryInsight": "行业洞察，2-3句话",
-  "brandPositioning": "品牌定位建议，2-3句话",
-  "refinedBrandVision": "AI提炼/补充的品牌愿景",
-  "refinedCoreValues": "AI提炼/补充的核心价值，逗号分隔",
-  "refinedTargetMarket": "AI细化/补充的目标市场",
-  "brandToneKeywords": ["关键词1", "关键词2", "关键词3"],
-  "visualStyleSuggestion": "视觉风格建议",
-  "sceneImageSuggestions": [
-    {"zh": "名片", "en": "Professional product photography of branded business cards with company logo printed on them, arranged on wooden desk, studio lighting, angled view"},
-    {"zh": "手提袋", "en": "Professional product photography of a branded paper tote bag with company logo printed on front, standing upright, studio lighting"},
-    {"zh": "产品", "en": "Professional product photography of a branded product with company logo label, on clean surface, studio lighting, product fully visible"},
-    {"zh": "促销海报", "en": "Professional product photography of a branded promotional poster standee in store, with company branding visible, studio setting"},
-    {"zh": "会员卡", "en": "Professional product photography of a branded VIP membership card with company logo, clean studio background"}
-  ],
-  "logoDesignSuggestions": {
-    "concept": "Logo设计核心概念，1-2句话",
-    "style": "设计风格",
-    "elements": "建议包含的设计元素",
-    "colorGuidance": "配色建议",
-    "prompts": [
-      "英文prompt1：用于AI生图的详细描述",
-      "英文prompt2：风格变体",
-      "英文prompt3：不同方向变体",
-      "英文prompt4：另一个创意方向"
-    ]
-  }
-}`;
-
-function buildBrandAnalysisPrompt(info: {
-  companyName: string; industry: string;
-  mainProducts?: string; businessForm?: string;
-  brandVision?: string; coreValues?: string; targetMarket?: string;
-  logoPhilosophy?: string; mascotPhilosophy?: string;
-  province?: string; city?: string; description?: string;
-  brandColors?: { primary: string; secondary: string; accent: string };
-}): string {
-  const parts: string[] = [];
-  parts.push("## 客户品牌基础信息");
-  parts.push("");
-  parts.push("公司名称：" + (info.companyName || "未提供"));
-  parts.push("所属行业：" + (info.industry || "未提供"));
-  if (info.mainProducts) parts.push("主营产品/服务：" + info.mainProducts);
-  if (info.businessForm) {
-    const viHints: Record<string, string> = {
-      "路边摊/档口": "该客户是路边摊/档口经营，品牌视觉需要：远距离可识别、色彩饱和度高、图形简洁醒目、接地气、烟火气、适合招牌和包装印刷",
-      "小店/夫妻店": "该客户是小店/夫妻店经营，品牌视觉需要：温馨亲切、社区感、有温度、可信赖、适合门头和小物料印刷",
-      "门店/商铺": "该客户是门店/商铺经营，品牌视觉需要：专业感、标准化、适合多种物料应用、品牌识别清晰",
-      "连锁/品牌": "该客户是连锁/品牌经营，品牌视觉需要：成熟品牌调性、系统化、可扩展、适合多门店统一形象",
-      "高端/精品": "该客户是高端/精品经营，品牌视觉需要：品质感、精致、简约大气、适合高端场景展示",
-    };
-    const hint = viHints[info.businessForm];
-    if (hint) parts.push("经营形态提示：" + hint);
-    else parts.push("经营形态：" + info.businessForm);
-  }
-  if (info.province || info.city) parts.push("所在地：" + (info.province || "") + (info.city || ""));
-  parts.push("");
-  parts.push("### 客户已填写的品牌信息（有则保留润色，无则AI代写）：");
-  parts.push("品牌愿景：" + (info.brandVision || "（客户未填写，请AI代写）"));
-  parts.push("核心价值：" + (info.coreValues || "（客户未填写，请AI代写）"));
-  parts.push("目标市场：" + (info.targetMarket || "（客户未填写，请AI代写）"));
-  if (info.logoPhilosophy) parts.push("LOGO设计理念：" + info.logoPhilosophy);
-  if (info.mascotPhilosophy) parts.push("IP公仔设计理念：" + info.mascotPhilosophy);
-  if (info.brandColors) parts.push("品牌色：" + info.brandColors.primary + " / " + info.brandColors.secondary + " / " + info.brandColors.accent);
-  if (info.description) parts.push("补充描述：" + info.description);
-  parts.push("");
-  parts.push("请基于以上信息进行深度品牌分析。");
-  parts.push("");
-  parts.push("重要：sceneImageSuggestions必须根据具体行业和品牌定制。zh字段是中文标签，en字段是英文生图prompt。prompt必须明确描述产品上印有品牌标识。");
-  parts.push("");
-  parts.push("重要：logoDesignSuggestions是为没有Logo的客户设计的。请根据品牌名称、行业特征，设计4个不同方向的Logo方案。每个prompt需要是完整的英文AI生图指令，详细描述设计风格、核心图形元素、配色方案、排版布局。");
-  return parts.join("\n");
-}
 
 const SCENE_MATERIALS: Record<IndustryType, Record<string, { title: string; items: string[] }>> = {
   restaurant: { stationery: { title: "餐饮应用系统", items: ["餐巾纸套 / 筷子套", "围裙 / 工服"] }, packaging: { title: "餐饮包装系统", items: ["外卖袋 / 手提袋", "打包盒"] }, marketing: { title: "餐饮营销系统", items: ["促销海报 / 展架", "评价卡 / 立牌"] } },
@@ -187,8 +102,7 @@ export async function POST(req: NextRequest) {
     // ===== DeepSeek brand analysis → background fire-and-forget =====
     // API returns immediately with basic analysis.
     // DeepSeek runs in background, saves brandProfile (with logoDesignSuggestions) to DB.
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    const shouldRunDeepSeek = apiKey && companyName !== "品牌";
+    const shouldRunDeepSeek = companyName !== "品牌";
     
     // Update status to "analyzing" immediately
     if (shouldRunDeepSeek) {
@@ -208,91 +122,44 @@ export async function POST(req: NextRequest) {
         }).eq("id", projectId);
       } catch (e) { /* ignore */ }
 
-      // Fire-and-forget background DeepSeek call
+      // V54: 委托给 brand-analysis 路由，避免重复DeepSeek调用
       void (async () => {
         try {
-          const analysisPrompt = buildBrandAnalysisPrompt({
-            companyName, industry, mainProducts, businessForm, brandVision, coreValues, targetMarket,
-            logoPhilosophy, mascotPhilosophy,
-            province: body.clientInfo?.province || submission?.province,
-            city: body.clientInfo?.city || submission?.city,
-            description: body.clientInfo?.description || submission?.description,
-            brandColors: { primary: primaryColor, secondary: defaults.secondary, accent: defaults.accent },
-          });
-
-          console.log("[analyze-brand BG] Calling DeepSeek for:", companyName);
-          const analysisResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+          console.log("[analyze-brand BG] Delegating to /api/ai/brand-analysis for:", companyName);
+          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+          const analysisResp = await fetch(`${baseUrl}/api/ai/brand-analysis`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              model: "deepseek-chat",
-              messages: [
-                { role: "system", content: BRAND_ANALYSIS_SYSTEM_PROMPT },
-                { role: "user", content: analysisPrompt },
-              ],
-              temperature: 0.7,
-              max_tokens: 4096,
+              projectId,
+              clientInfo: {
+                companyName, industry, mainProducts, businessForm,
+                brandVision, coreValues, targetMarket,
+                logoPhilosophy, mascotPhilosophy,
+                province: body.clientInfo?.province || submission?.province,
+                city: body.clientInfo?.city || submission?.city,
+                description: body.clientInfo?.description || submission?.description,
+                brandColors: { primary: primaryColor, secondary: defaults.secondary, accent: defaults.accent },
+              },
             }),
             signal: AbortSignal.timeout(90000),
           });
 
           if (analysisResp.ok) {
-            const analysisData = await analysisResp.json();
-            const analysisContent = analysisData.choices?.[0]?.message?.content || "{}";
-            const cleaned = analysisContent.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-            const brandProfile = JSON.parse(cleaned);
-            console.log("[analyze-brand BG] DeepSeek OK, logoDesignSuggestions:", brandProfile.logoDesignSuggestions ? "YES" : "NO");
-
-            // Save to DB
-            const { data: latestProject } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
-            const existingInfo = (latestProject?.client_info as Record<string, any>) || {};
-            const existingBP = (existingInfo.brandProfile as Record<string, any>) || {};
-            await supabaseAdmin.from("projects").update({
-              client_info: {
-                ...existingInfo,
-                companyName: companyName || existingInfo.companyName || null,
-                industry: industry || existingInfo.industry || null,
-                brandProfile: {
-                  ...brandProfile,
-                  analysisStatus: "completed",
-                  analyzedAt: new Date().toISOString(),
-                  selectedLogo: existingBP.selectedLogo || null,
-                  logoGenerationResults: existingBP.logoGenerationResults || null,
-                  logoGeneratedAt: existingBP.logoGeneratedAt || null,
-                }
-              }
-            }).eq("id", projectId);
-            console.log("[analyze-brand BG] Saved brandProfile to DB for", projectId);
+            const result = await analysisResp.json();
+            if (result.success) {
+              console.log("[analyze-brand BG] brand-analysis OK, reused:", result.reused || false);
+            } else {
+              console.warn("[analyze-brand BG] brand-analysis error:", result.error);
+              await markAnalysisFailed(projectId);
+            }
           } else {
-            console.warn("[analyze-brand BG] DeepSeek failed:", analysisResp.status);
-            // Mark as failed
-            const { data: latestProject } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
-            const existingInfo = (latestProject?.client_info as Record<string, any>) || {};
-            await supabaseAdmin.from("projects").update({
-              client_info: {
-                ...existingInfo,
-                brandProfile: {
-                  ...(existingInfo.brandProfile as Record<string, any> || {}),
-                  analysisStatus: "failed",
-                }
-              }
-            }).eq("id", projectId);
+            console.warn("[analyze-brand BG] brand-analysis fetch failed:", analysisResp.status);
+            await markAnalysisFailed(projectId);
           }
         } catch (err: any) {
           console.warn("[analyze-brand BG] Error:", err?.message);
-          try {
-            const { data: latestProject } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
-            const existingInfo = (latestProject?.client_info as Record<string, any>) || {};
-            await supabaseAdmin.from("projects").update({
-              client_info: {
-                ...existingInfo,
-                brandProfile: {
-                  ...(existingInfo.brandProfile as Record<string, any> || {}),
-                  analysisStatus: "failed",
-                }
-              }
-            }).eq("id", projectId);
-          } catch (e) { /* ignore */ }
+          await markAnalysisFailed(projectId);
         }
       })();
     }
@@ -316,6 +183,23 @@ export async function POST(req: NextRequest) {
     console.error("[analyze-brand] Error:", error);
     return NextResponse.json({ error: error.message || "Analysis failed" }, { status: 500 });
   }
+}
+
+
+async function markAnalysisFailed(projectId: string) {
+  try {
+    const { data: latestProject } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
+    const existingInfo = (latestProject?.client_info as Record<string, any>) || {};
+    await supabaseAdmin.from("projects").update({
+      client_info: {
+        ...existingInfo,
+        brandProfile: {
+          ...(existingInfo.brandProfile as Record<string, any> || {}),
+          analysisStatus: "failed",
+        }
+      }
+    }).eq("id", projectId);
+  } catch (e) { /* ignore */ }
 }
 
 function analyzeColorMeaning(hex: string, industry: IndustryType): string {

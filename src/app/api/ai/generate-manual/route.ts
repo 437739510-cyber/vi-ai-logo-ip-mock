@@ -1,8 +1,8 @@
 // API Route: POST /api/ai/generate-manual
 // 基于客户素材 + 参考手册分析 → 生成真正可用的完整 VI 手册规范数据
 import { NextRequest, NextResponse } from "next/server";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 
 function getDefaultManual(projectId: string): any {
   const now = new Date().toISOString().slice(0, 7);
@@ -38,10 +38,7 @@ function getDefaultManual(projectId: string): any {
 export async function POST(req: NextRequest) {
   try {
     const { projectId, clientInfo, referenceAnalysis } = await req.json();
-    if (!projectId) return NextResponse.json({ error: "projectId required" }, { status: 400 });
-
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    const hasLogo = clientInfo?.logoAssets?.length > 0;
+    if (!projectId) return NextResponse.json({ error: "projectId required" }, { status: 400 });    const hasLogo = clientInfo?.logoAssets?.length > 0;
     const hasMascot = clientInfo?.mascotAssets?.length > 0;
     const hasReference = referenceAnalysis?.used;
     const mascotNames = clientInfo?.mascotAssets?.map((m: any) => m.name).join("、") || "";
@@ -83,24 +80,15 @@ export async function POST(req: NextRequest) {
 }
 
 注意：只输出 JSON。字体用真实名称（思源黑体/Noto Sans SC/Inter/Poppins等）。颜色根据行业合理设计。如有IP公仔素材请详细编写公仔规范。`;
-
-    if (!apiKey) {
-      const manual = getDefaultManual(projectId);
-      manual.cover.companyName = clientInfo?.companyName || "品牌名称";
-      return NextResponse.json(manual);
-    }
-
-    const deepseekRes = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const deepseekRes = await guardedDeepSeekCall({
+      route: "ai/generate-manual",
+      body: {model: "deepseek-chat",
         messages: [
           { role: "system", content: "你是品牌 VI 规范编写专家。严格按用户要求的 JSON 格式输出真实可用的设计规范数据，只输出 JSON。" },
           { role: "user", content: prompt },
         ],
-        response_format: { type: "json_object" },
-      }),
+        response_format: { type: "json_object" },},
+      timeoutMs: 30000,
     });
 
     if (!deepseekRes.ok) throw new Error(`DeepSeek error: ${deepseekRes.status}`);

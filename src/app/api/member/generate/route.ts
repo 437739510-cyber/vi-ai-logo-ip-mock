@@ -3,8 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { cookies } from "next/headers";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 const ALIYUN_API = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
 export async function POST(req: NextRequest) {
@@ -159,19 +159,14 @@ ${photoContext}
 
 只返回JSON，不要其他内容。`;
 
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) return fallbackCaption(brand, note, photoDescs, platform);
-
   try {
-    const res = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const res = await guardedDeepSeekCall({
+      route: "member/generate",
+      body: {model: "deepseek-chat",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 500,
-        temperature: 0.8,
-      }),
+        temperature: 0.8,},
+      timeoutMs: 60000,
     });
 
     const data = await res.json();

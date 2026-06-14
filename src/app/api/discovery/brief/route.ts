@@ -8,12 +8,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ExtractedData, STYLE_OPTIONS } from "@/lib/discovery/state-machine";
 import { getSession } from "@/lib/discovery/session-store";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
 // ============================================
 // DeepSeek API 配置
 // ============================================
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 const MODEL_NAME = "deepseek-chat";
 
 // ============================================
@@ -71,28 +71,18 @@ async function callDeepSeek(
   systemPrompt: string,
   userMessage: string
 ): Promise<string> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
 
-  if (!apiKey) {
-    throw new Error("DeepSeek API key not configured");
-  }
-
-  const response = await fetch(DEEPSEEK_API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: MODEL_NAME,
+  const response = await guardedDeepSeekCall({
+      route: "discovery/brief",
+      body: {model: MODEL_NAME,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
-    }),
-  });
+      max_tokens: 2000,},
+      timeoutMs: 30000,
+    });
 
   if (!response.ok) {
     const errorText = await response.text();

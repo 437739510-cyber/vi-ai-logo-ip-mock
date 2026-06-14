@@ -2,8 +2,8 @@
 // 分析 Logo 图片，提取品牌色和风格标签（使用 DeepSeek API）
 
 import { NextRequest, NextResponse } from "next/server";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 
 const MOCK_RESPONSE = {
   primaryColors: [
@@ -16,24 +16,13 @@ const MOCK_RESPONSE = {
 };
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-
-  if (!apiKey) {
-    // 无 Key 时返回 Mock 数据
-    return NextResponse.json(MOCK_RESPONSE);
-  }
-
+  
   try {
     const { imageUrl } = await req.json();
 
-    const deepseekRes = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const deepseekRes = await guardedDeepSeekCall({
+      route: "ai/analyze-logo",
+      body: {model: "deepseek-chat",
         messages: [
           {
             role: "system",
@@ -45,8 +34,8 @@ export async function POST(req: NextRequest) {
             content: `分析这个 Logo 的风格和配色：${imageUrl}`,
           },
         ],
-        response_format: { type: "json_object" },
-      }),
+        response_format: { type: "json_object" },},
+      timeoutMs: 30000,
     });
 
     if (!deepseekRes.ok) {

@@ -3,8 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 
 const MOCK_SUMMARY =
   "该行业品牌设计通常偏向专业、可信赖的风格，建议采用稳重的中性色调配合简洁的排版，适当运用行业标志性元素增强品牌识别度。";
@@ -46,12 +46,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         summary: "暂未获取到客户行业信息，无法生成分析。",
         analyzed: false,
-      });
-    }
-
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ summary: MOCK_SUMMARY, analyzed: false });
+      }, { status: 400 });
     }
 
     // 2. 调用 DeepSeek 分析行业
@@ -68,22 +63,17 @@ export async function POST(req: NextRequest) {
 
 以一段流畅的中文总结输出（100-150字），直接输出总结内容，不要带标题和编号。`;
 
-    const deepseekRes = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const deepseekRes = await guardedDeepSeekCall({
+      route: "ai/analyze-industry",
+      body: {model: "deepseek-chat",
         messages: [
           {
             role: "system",
             content: "你是专业的品牌VI设计策略分析师，擅长根据客户行业特征提供精准的设计方向建议。输出简洁、专业、有洞察力。",
           },
           { role: "user", content: prompt },
-        ],
-      }),
+        ],},
+      timeoutMs: 30000,
     });
 
     if (!deepseekRes.ok) {

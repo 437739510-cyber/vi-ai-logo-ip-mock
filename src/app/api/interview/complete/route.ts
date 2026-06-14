@@ -2,9 +2,8 @@
 // 访谈结束后提取结构化数据 → 写入Supabase → 返回submissionId
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
-const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 
 const EXTRACTION_PROMPT = `你是品牌分析师。根据以下品牌访谈对话记录，提取结构化品牌信息。
 
@@ -44,25 +43,21 @@ export async function POST(req: NextRequest) {
     let extracted: Record<string, any> = {};
 
     // Try DeepSeek extraction
-    if (DEEPSEEK_API_KEY) {
-      try {
+    try {
         const chatMessages = [
           { role: "system", content: EXTRACTION_PROMPT },
           { role: "user", content: JSON.stringify(messages) },
         ];
 
-        const res = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
-          },
-          body: JSON.stringify({
+        const res = await guardedDeepSeekCall({
+          route: 'interview/complete',
+          body: {
             model: "deepseek-chat",
             messages: chatMessages,
             max_tokens: 800,
             temperature: 0.3,
-          }),
+          },
+          timeoutMs: 30000,
         });
 
         if (res.ok) {
@@ -77,7 +72,6 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.warn("[INTERVIEW-COMPLETE] DeepSeek extraction failed:", e);
       }
-    }
 
     // Build submission data with fallbacks
     const now = new Date();

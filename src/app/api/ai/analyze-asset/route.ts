@@ -4,28 +4,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 
 export async function POST(req: NextRequest) {
   try {
     const { imageUrl, assetType } = await req.json();
     if (!imageUrl) {
       return NextResponse.json({ error: "imageUrl required" }, { status: 400 });
-    }
-
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-      // No API key: return basic fallback
-      return NextResponse.json({
-        analysisStatus: "failed",
-        logoElements: [],
-        logoMeaning: "",
-        mascotName: "",
-        mascotStyle: "",
-        mascotPersonality: "",
-        extractedColors: [],
-      });
     }
 
     // Read the image file and convert to base64 for multimodal analysis
@@ -50,11 +36,9 @@ export async function POST(req: NextRequest) {
       ? `分析这张品牌LOGO图片。请返回JSON（不要markdown）：\n{\n  "logoElements": ["设计元素1", "设计元素2"],\n  "logoSyleTags": ["风格标签1", "风格标签2"],\n  "logoMeaning": "设计含义描述",\n  "extractedColors": [{"hex": "#HEX", "name": "颜色名", "usage": "主色/辅助色/强调色"}]\n}`
       : `分析这张IP公仔/吉祥物图片。请返回JSON（不要markdown）：\n{\n  "mascotName": "角色名",\n  "mascotStyle": "风格（3D/扁平/Q版/手绘）",\n  "mascotPersonality": "性格描述",\n  "mascotDescription": "整体描述",\n  "mascotLabels": ["图片上的文字标签，如正面"],\n  "extractedColors": [{"hex": "#HEX", "name": "颜色名", "usage": "主色/辅助色"}]\n}`;
 
-    const resp = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const resp = await guardedDeepSeekCall({
+      route: "ai/analyze-asset",
+      body: {model: "deepseek-chat",
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -65,9 +49,8 @@ export async function POST(req: NextRequest) {
             ],
           },
         ],
-        response_format: { type: "json_object" },
-      }),
-      signal: AbortSignal.timeout(30000),
+        response_format: { type: "json_object" },},
+      timeoutMs: 30000,
     });
 
     if (!resp.ok) {

@@ -3,8 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 const MOCK_DIR = path.join(process.cwd(), "public", "mock");
 
 const MOCK_SCHEMES = [
@@ -47,22 +47,16 @@ async function extractPdfText(pdfPath: string): Promise<string> {
 
 /** 通过 DeepSeek 分析参考手册的色彩/字体/风格 */
 async function analyzeManualWithDeepSeek(
-  pdfText: string,
-  apiKey: string
+  pdfText: string
 ): Promise<{ extractedColors: string[]; extractedFonts: string[]; styleSummary: string }> {
   try {
     if (!pdfText || pdfText.length < 20) {
       return { extractedColors: [], extractedFonts: [], styleSummary: "" };
     }
 
-    const resp = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const resp = await guardedDeepSeekCall({
+      route: "ai/generate-scheme",
+      body: {model: "deepseek-chat",
         messages: [
           { role: "system", content: "你是品牌 VI 设计专家，擅长分析品牌手册的设计语言。" },
           {
@@ -79,8 +73,8 @@ ${pdfText}
 }`,
           },
         ],
-        response_format: { type: "json_object" },
-      }),
+        response_format: { type: "json_object" },},
+      timeoutMs: 30000,
     });
 
     if (!resp.ok) throw new Error(`DeepSeek error: ${resp.status}`);
@@ -92,11 +86,6 @@ ${pdfText}
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-
-  if (!apiKey) {
-    return NextResponse.json(MOCK_SCHEMES);
-  }
 
   try {
     const params = await req.json();
@@ -123,7 +112,7 @@ export async function POST(req: NextRequest) {
 
           if (sub?.referenceManual?.url) {
             const pdfText = await extractPdfText(sub.referenceManual.url);
-            const analysis = await analyzeManualWithDeepSeek(pdfText, apiKey);
+            const analysis = await analyzeManualWithDeepSeek(pdfText);
 
             referenceData = {
               pdfText,
@@ -163,20 +152,15 @@ export async function POST(req: NextRequest) {
       systemPrompt += `\n\n【AI 行业分析建议（请在设计时参考）】\n${industryAnalysis}`;
     }
 
-    const deepseekRes = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const deepseekRes = await guardedDeepSeekCall({
+      route: "ai/generate-scheme",
+      body: {model: "deepseek-chat",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: JSON.stringify(params) },
         ],
-        response_format: { type: "json_object" },
-      }),
+        response_format: { type: "json_object" },},
+      timeoutMs: 30000,
     });
 
     if (!deepseekRes.ok) {

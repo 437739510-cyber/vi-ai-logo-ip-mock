@@ -3,26 +3,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 
 export async function POST(req: NextRequest) {
   try {
     const { pdfPath } = await req.json();
     if (!pdfPath) {
       return NextResponse.json({ error: "pdfPath required" }, { status: 400 });
-    }
-
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-      // 无 API 密钥时返回默认分析结果
-      return NextResponse.json({
-        used: false,
-        extractedColors: ["#1A73E8", "#34A853", "#FBBC04"],
-        extractedFonts: ["Noto Sans SC", "Inter"],
-        styleSummary: "现代简约风格，偏向科技感",
-        analysisConfidence: 0,
-      });
     }
 
     // 尝试读取 PDF 的部分内容（前 10KB）作为文本分析素材
@@ -60,20 +48,15 @@ ${
   "analysisConfidence": 0-1 之间的置信度分数
 }`;
 
-    const deepseekRes = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const deepseekRes = await guardedDeepSeekCall({
+      route: "ai/analyze-manual",
+      body: {model: "deepseek-chat",
         messages: [
           { role: "system", content: "你是品牌 VI 设计专家，擅长分析品牌手册的设计语言。" },
           { role: "user", content: prompt },
         ],
-        response_format: { type: "json_object" },
-      }),
+        response_format: { type: "json_object" },},
+      timeoutMs: 30000,
     });
 
     if (!deepseekRes.ok) {

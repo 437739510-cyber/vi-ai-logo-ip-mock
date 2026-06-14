@@ -8,6 +8,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { analysisToDesignSystem, createTemplate, findBestMatchingTemplates } from "@/lib/template-library";
 import fs from "fs";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
 const execAsync = promisify(exec);
 
@@ -72,12 +73,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Send all pages to DeepSeek for per-page analysis + mapping
-    const deepseekKey = process.env.DEEPSEEK_API_KEY;
     let pageMapping: Record<string, any> = {};
     let overallStyle = "";
     let rawDeepseekResponse = "";
 
-    if (deepseekKey) {
+    {  // DeepSeek call via guard
       // Build a per-page text summary for the prompt (truncate each page to 800 chars to fit context)
       const perPageSummary = pages.map(p =>
         `[Page ${p.pageNumber}]\n${p.text.slice(0, 800)}`
@@ -131,14 +131,9 @@ IMPORTANT:
 - Extract exact hex color codes whenever possible (look for #RGB or #RRGGBB patterns). For colors field, provide actual hex values like 'Forest Green (#227338)'. Be extremely specific and detailed in every field - at least 2-3 sentences for layout, typography, visualHierarchy fields.  
 - Return ONLY valid JSON, no markdown.`;
 
-      const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + deepseekKey,
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
+      const resp = await guardedDeepSeekCall({
+      route: "ai/analyze-reference-pdf",
+      body: {model: "deepseek-chat",
           messages: [
             {
               role: "system",
@@ -146,10 +141,9 @@ IMPORTANT:
             },
             { role: "user", content: prompt },
           ],
-          response_format: { type: "json_object" },
-        }),
-        signal: AbortSignal.timeout(120000),
-      });
+          response_format: { type: "json_object" },},
+      timeoutMs: 120000,
+    });
 
       if (resp.ok) {
         const data = await resp.json();

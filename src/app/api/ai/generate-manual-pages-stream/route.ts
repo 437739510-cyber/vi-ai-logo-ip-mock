@@ -7,6 +7,7 @@ import { saveGenerationLog, type GenerationLogEntry } from "@/lib/generation-log
 import { arkGenerateScene } from "@/lib/ip-image-provider/ark-seedream-provider";
 import { renderProfessionalPage } from "@/lib/vi-page-renderer";
 import { supabaseAdmin } from "@/lib/supabase";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
 // ===== V4: 14页 PAGE_DEFS =====
 const PAGE_DEFS = [
@@ -175,7 +176,6 @@ async function generateDesignDecision(
   clientInfo: any,
   brandColors: any,
   hasMascot: boolean,
-  deepseekKey: string,
 ): Promise<DesignDecision> {
   const brief = [
     `公司名：${clientInfo?.companyName || "未提供"}`,
@@ -193,23 +193,17 @@ async function generateDesignDecision(
   ].join("\n");
 
   try {
-    const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${deepseekKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const resp = await guardedDeepSeekCall({
+      route: "ai/generate-manual-pages-stream",
+      body: {model: "deepseek-chat",
         messages: [
           { role: "system", content: DESIGN_DIRECTOR_PROMPT },
           { role: "user", content: `请为以下品牌生成VI设计决策：\n\n${brief}` },
         ],
         temperature: 0.7,
         max_tokens: 3000,
-        response_format: { type: "json_object" },
-      }),
-      signal: AbortSignal.timeout(15000),
+        response_format: { type: "json_object" },},
+      timeoutMs: 15000,
     });
 
     if (!resp.ok) {
@@ -523,11 +517,8 @@ export async function POST(req: Request) {
   const { projectId, clientInfo, brandColors, logoUrl, mascotUrl, maxPages, refId, startPage } = await req.json();
   const startIdx = startPage ?? 0;
   const totalToGenerate = maxPages || PAGE_DEFS.length;
-  if (!projectId) return new Response(JSON.stringify({ error: "projectId required" }), { status: 400 });
-
-  const deepseekKey = process.env.DEEPSEEK_API_KEY;
-  const aliyunKey = process.env.ALIYUN_API_KEY;
-  if (!deepseekKey || !aliyunKey) return new Response(JSON.stringify({ error: "API keys not configured" }), { status: 500 });
+  if (!projectId) return new Response(JSON.stringify({ error: "projectId required" }), { status: 400 });  const aliyunKey = process.env.ALIYUN_API_KEY;
+  if (!aliyunKey) return new Response(JSON.stringify({ error: "API keys not configured" }), { status: 500 });
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -540,7 +531,7 @@ export async function POST(req: Request) {
         // ===== V4 Phase 1: 设计决策 =====
         sse(controller, "page:start", { pageId: "design-decision", label: "AI设计决策", index: -1, total: 0 });
         const designDecision = await generateDesignDecision(
-          clientInfo, brandColors, Boolean(mascotUrl), deepseekKey,
+          clientInfo, brandColors, Boolean(mascotUrl),
         );
         sse(controller, "page:done", { pageId: "design-decision", label: "AI设计决策完成", url: "", index: -1, total: 0 });
 

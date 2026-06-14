@@ -18,12 +18,12 @@ import {
   formatQuestion,
 } from "@/lib/discovery/state-machine";
 import { getOrCreateSession, saveSession } from "@/lib/discovery/session-store";
+import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 
 // ============================================
 // DeepSeek API 配置
 // ============================================
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 const MODEL_NAME = "deepseek-chat";
 
 // ============================================
@@ -38,11 +38,6 @@ async function callDeepSeek(
   userMessage: string,
   conversationHistory: Array<{ role: string; content: string }> = []
 ): Promise<string> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("DeepSeek API key not configured");
-  }
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -50,19 +45,14 @@ async function callDeepSeek(
     { role: "user", content: userMessage },
   ];
 
-  const response = await fetch(DEEPSEEK_API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: MODEL_NAME,
+  const response = await guardedDeepSeekCall({
+      route: "discovery/chat",
+      body: {model: MODEL_NAME,
       messages,
       temperature: 0.7,
-      max_tokens: 500,
-    }),
-  });
+      max_tokens: 500,},
+      timeoutMs: 30000,
+    });
 
   if (!response.ok) {
     const errorText = await response.text();
