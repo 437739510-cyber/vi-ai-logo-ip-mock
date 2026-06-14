@@ -29,6 +29,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // 优化：检查已有品牌分析，避免重复调用
+    const { data: existingProject } = await supabaseAdmin
+      .from("projects").select("client_info").eq("id", projectId).single();
+    const existingCI = (existingProject?.client_info as Record<string, any>) || {};
+    const existingBP = existingCI.brandProfile;
+    
+    if (existingBP?.brandToneKeywords?.length > 0) {
+      console.log("[brand-analysis] Reusing existing brand analysis — skipped DeepSeek call");
+      return NextResponse.json({
+        success: true,
+        profile: { ...existingBP, submissionId, projectId },
+        reused: true,
+      });
+    }
+
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "DeepSeek API key not configured" }, { status: 500 });
