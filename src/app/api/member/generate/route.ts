@@ -162,7 +162,7 @@ ${photoContext}
   try {
     const res = await guardedDeepSeekCall({
       route: "member/generate",
-      body: {model: "deepseek-chat",
+      body: {model: "deepseek-v4-flash",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 500,
         temperature: 0.8,},

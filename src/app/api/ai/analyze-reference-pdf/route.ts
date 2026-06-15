@@ -133,7 +133,7 @@ IMPORTANT:
 
       const resp = await guardedDeepSeekCall({
       route: "ai/analyze-reference-pdf",
-      body: {model: "deepseek-chat",
+      body: {model: "deepseek-v4-flash",
           messages: [
             {
               role: "system",

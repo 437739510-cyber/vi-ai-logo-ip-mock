@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     // 调用 DeepSeek
     const resp = await guardedDeepSeekCall({
       route: "ai/brand-analysis",
-      body: {model: "deepseek-chat",
+      body: {model: "deepseek-v4-flash",
         messages: [
           {
             role: "system",

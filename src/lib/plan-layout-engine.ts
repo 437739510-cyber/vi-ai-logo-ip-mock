@@ -64,7 +64,7 @@ export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLa
         Authorization: "Bearer " + apiKey,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "deepseek-v4-flash",
         messages: [
           {
             role: "system",

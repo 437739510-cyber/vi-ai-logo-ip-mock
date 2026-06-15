@@ -195,7 +195,7 @@ async function generateDesignDecision(
   try {
     const resp = await guardedDeepSeekCall({
       route: "ai/generate-manual-pages-stream",
-      body: {model: "deepseek-chat",
+      body: {model: "deepseek-v4-flash",
         messages: [
           { role: "system", content: DESIGN_DIRECTOR_PROMPT },
           { role: "user", content: `请为以下品牌生成VI设计决策：\n\n${brief}` },

@@ -684,7 +684,7 @@ export async function POST(req: NextRequest) {
 
           const analysisResp = await guardedDeepSeekCall({
       route: "ai/generate-manual-pptx",
-      body: {model: "deepseek-chat",
+      body: {model: "deepseek-v4-flash",
               messages: [
                 { role: "system", content: BRAND_ANALYSIS_SYSTEM_PROMPT },
                 { role: "user", content: analysisPrompt },

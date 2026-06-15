@@ -56,7 +56,7 @@ async function analyzeManualWithDeepSeek(
 
     const resp = await guardedDeepSeekCall({
       route: "ai/generate-scheme",
-      body: {model: "deepseek-chat",
+      body: {model: "deepseek-v4-flash",
         messages: [
           { role: "system", content: "你是品牌 VI 设计专家，擅长分析品牌手册的设计语言。" },
           {
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
 
     const deepseekRes = await guardedDeepSeekCall({
       route: "ai/generate-scheme",
-      body: {model: "deepseek-chat",
+      body: {model: "deepseek-v4-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: JSON.stringify(params) },

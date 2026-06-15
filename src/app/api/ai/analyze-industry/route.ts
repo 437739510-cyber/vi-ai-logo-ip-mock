@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     const deepseekRes = await guardedDeepSeekCall({
       route: "ai/analyze-industry",
-      body: {model: "deepseek-chat",
+      body: {model: "deepseek-v4-flash",
         messages: [
           {
             role: "system",

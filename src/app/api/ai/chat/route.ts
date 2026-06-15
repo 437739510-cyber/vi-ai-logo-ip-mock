@@ -30,7 +30,7 @@ ${manualContext ? JSON.stringify(manualContext, null, 2) : "暂无"}
 
     const deepseekRes = await guardedDeepSeekCall({
       route: "ai/chat",
-      body: {model: "deepseek-chat",
+      body: {model: "deepseek-v4-flash",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages.slice(-10), // 只保留最近 10 条消息作为上下文

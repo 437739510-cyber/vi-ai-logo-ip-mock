@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
         const res = await guardedDeepSeekCall({
           route: 'interview/complete',
           body: {
-            model: "deepseek-chat",
+            model: "deepseek-v4-flash",
             messages: chatMessages,
             max_tokens: 800,
             temperature: 0.3,

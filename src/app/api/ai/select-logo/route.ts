@@ -44,7 +44,7 @@ Logo方案：${logos.map((l, i) => `\n方案${i + 1}：设计提示词 - ${l.pro
 
   const resp = await guardedDeepSeekCall({
       route: "ai/select-logo",
-      body: {model: "deepseek-chat",
+      body: {model: "deepseek-v4-flash",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
       max_tokens: 200,},

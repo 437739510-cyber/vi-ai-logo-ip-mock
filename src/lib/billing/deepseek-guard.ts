@@ -8,7 +8,7 @@
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
-// DeepSeek deepseek-chat pricing (CNY per 1K tokens)
+// DeepSeek deepseek-v4-flash pricing (CNY per 1K tokens)
 // Input: ¥0.001/1K, Output: ¥0.002/1K, Cached input: ¥0.0001/1K
 const PRICE_INPUT_PER_1K = 0.001;
 const PRICE_OUTPUT_PER_1K = 0.002;
@@ -46,7 +46,7 @@ export async function deepseekPreCheck(options: GuardOptions): Promise<{
   const {
     route,
     method = 'POST',
-    model = 'deepseek-chat',
+    model = 'deepseek-v4-flash',
     projectId,
     requestSummary,
     dailyBudgetCny = DEFAULT_DAILY_BUDGET,

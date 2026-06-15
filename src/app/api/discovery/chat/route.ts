@@ -24,7 +24,7 @@ import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
 // DeepSeek API 配置
 // ============================================
 
-const MODEL_NAME = "deepseek-chat";
+const MODEL_NAME = "deepseek-v4-flash";
 
 // ============================================
 // DeepSeek API 调用

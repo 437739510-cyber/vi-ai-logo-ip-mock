@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS api_usage_log (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   route TEXT NOT NULL,
   method TEXT DEFAULT 'POST',
-  model TEXT DEFAULT 'deepseek-chat',
+  model TEXT DEFAULT 'deepseek-v4-flash',
   input_tokens INTEGER DEFAULT 0,
   output_tokens INTEGER DEFAULT 0,
   cost_cny NUMERIC(10,6) DEFAULT 0,
