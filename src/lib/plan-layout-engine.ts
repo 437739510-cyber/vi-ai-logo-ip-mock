@@ -1,13 +1,14 @@
 /**
  * Plan Layout Engine
  * 
- * AI 布局规划核心引擎，直接调用 DeepSeek 生成页面布局。
+ * AI 布局规划核心引擎，通过 guardedDeepSeekCall 调用 DeepSeek 生成页面布局。
  * 供 ai-layout-planner.ts 和 API route 共用，避免 HTTP 端口依赖。
+ * 
+ * V56: 替换直接fetch为guardedDeepSeekCall，纳入预算管控和用量追踪
  */
 
 import type { PageElement } from "./page-planner";
-
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
+import { guardedDeepSeekCall } from "@/lib/billing/deepseek-guard";
 
 export interface PlanLayoutParams {
   pageId: string;
@@ -42,11 +43,6 @@ export interface PlanLayoutResult {
  * 使用 DeepSeek 规划页面布局（核心引擎）
  */
 export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLayoutResult> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    return { success: false, pageId: params.pageId, elements: [], count: 0, error: "DeepSeek API key not configured" };
-  }
-
   const priHex = params.brandColors?.primary?.hex || "#1A73E8";
   const secHex = params.brandColors?.secondary?.hex || "#34A853";
   const accHex = params.brandColors?.accent?.hex || "#FBBC04";
@@ -57,13 +53,9 @@ export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLa
   });
 
   try {
-    const resp = await fetch(DEEPSEEK_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + apiKey,
-      },
-      body: JSON.stringify({
+    const resp = await guardedDeepSeekCall({
+      route: "plan-layout-engine",
+      body: {
         model: "deepseek-chat",
         messages: [
           {
@@ -116,8 +108,8 @@ export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLa
         ],
         temperature: 0.7,
         max_tokens: 4096,
-      }),
-      signal: AbortSignal.timeout(10000),
+      },
+      timeoutMs: 15000,
     });
 
     if (!resp.ok) {
