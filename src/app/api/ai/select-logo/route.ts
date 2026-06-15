@@ -1,12 +1,11 @@
 /**
  * API: POST /api/ai/select-logo
  *
- * V12 Logo选择模块 — 支持人工选择和AI智能选优
+ * V13 Logo选择模块 — 支持人工选择和AI智能选优
  *
- * 新增 autoSelect 模式：
- * - autoSelect=true 时，用DeepSeek对4张Logo评分，选最高分的
- * - 评分维度：品牌契合度、视觉辨识度、行业适配性
- * - 人工选择时行为不变
+ * 优化：
+ * - projects查询从2次合并为1次（提前获取submission_id+client_info）
+ * - 两个Storage桶上传并行化
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -83,18 +82,20 @@ export async function POST(req: NextRequest) {
     let scores: number[] = [];
     let reasoning = "";
 
+    // 前置查询：一次性获取project数据（原2次查询合并为1次）
+    const { data: project } = await supabaseAdmin
+      .from("projects")
+      .select("id, submission_id, client_info")
+      .eq("id", projectId)
+      .single();
+
+    const clientInfo = (project?.client_info as Record<string, any>) || {};
+    const submissionId = project?.submission_id;
+
     // === AI智能选优模式 ===
     if (autoSelect) {
       console.log("[select-logo] Auto-select mode activated");
 
-      // 从Supabase读取Logo生成结果
-      const { data: project } = await supabaseAdmin
-        .from("projects")
-        .select("id, client_info")
-        .eq("id", projectId)
-        .single();
-
-      const clientInfo = (project?.client_info as Record<string, any>) || {};
       const brandProfile = clientInfo.brandProfile || {};
       const logoResults = brandProfile.logoGenerationResults || [];
 
@@ -104,7 +105,8 @@ export async function POST(req: NextRequest) {
 
       if (candidates.length === 0) {
         return NextResponse.json({ error: "No logo candidates found for auto-selection" }, { status: 400 });
-      }      const name = companyName || clientInfo.companyName || "品牌";
+      }
+      const name = companyName || clientInfo.companyName || "品牌";
       const ind = industry || clientInfo.industry || "通用";
 
       if (candidates.length > 1) {
@@ -145,45 +147,34 @@ export async function POST(req: NextRequest) {
     const imgSize = imgBuffer.length;
     console.log(`[select-logo] Downloaded: ${imgSize} bytes`);
 
-    // Step 2: 获取 project → submission 信息
-    const { data: project } = await supabaseAdmin
-      .from("projects")
-      .select("id, submission_id, client_info")
-      .eq("id", projectId)
-      .single();
-
-    const submissionId = project?.submission_id;
-    const clientInfo = (project?.client_info as Record<string, any>) || {};
-
-    // Step 3: 上传到 Supabase Storage (form-assets)
+    // Step 2: 并行上传到两个Storage桶
     const timestamp = Date.now();
     const logoFileName = `logo-${timestamp}.png`;
     const formAssetsPath = `${projectId}/${logoFileName}`;
-
-    const { error: uploadErr1 } = await supabaseAdmin.storage
-      .from("form-assets")
-      .upload(formAssetsPath, imgBuffer, { contentType: "image/png", upsert: true });
-
-    if (uploadErr1) {
-      console.warn("[select-logo] form-assets upload failed:", uploadErr1.message);
-    } else {
-      console.log("[select-logo] Uploaded to form-assets:", formAssetsPath);
-    }
-
-    // Step 4: 上传到 processed-assets 桶
     const processedPath = `${projectId}/logo-${timestamp}.png`;
 
-    const { error: uploadErr2 } = await supabaseAdmin.storage
-      .from("processed-assets")
-      .upload(processedPath, imgBuffer, { contentType: "image/png", upsert: true });
+    const [uploadRes1, uploadRes2] = await Promise.allSettled([
+      supabaseAdmin.storage
+        .from("form-assets")
+        .upload(formAssetsPath, imgBuffer, { contentType: "image/png", upsert: true }),
+      supabaseAdmin.storage
+        .from("processed-assets")
+        .upload(processedPath, imgBuffer, { contentType: "image/png", upsert: true }),
+    ]);
 
-    if (uploadErr2) {
-      console.warn("[select-logo] processed-assets upload failed:", uploadErr2.message);
+    if (uploadRes1.status === "fulfilled" && !uploadRes1.value.error) {
+      console.log("[select-logo] Uploaded to form-assets:", formAssetsPath);
     } else {
-      console.log("[select-logo] Uploaded to processed-assets:", processedPath);
+      console.warn("[select-logo] form-assets upload failed:", uploadRes1.status === "fulfilled" ? uploadRes1.value.error?.message : "rejected");
     }
 
-    // Step 5: 更新 submissions.logo_assets
+    if (uploadRes2.status === "fulfilled" && !uploadRes2.value.error) {
+      console.log("[select-logo] Uploaded to processed-assets:", processedPath);
+    } else {
+      console.warn("[select-logo] processed-assets upload failed:", uploadRes2.status === "fulfilled" ? uploadRes2.value.error?.message : "rejected");
+    }
+
+    // Step 3: 更新 submissions.logo_assets
     if (submissionId) {
       const formAssetsUrl = supabaseAdmin.storage.from("form-assets").getPublicUrl(formAssetsPath).data.publicUrl;
       const logoAssetEntry = { fileName: logoFileName, url: formAssetsUrl, size: imgSize, source: "ai-generated" };
@@ -209,7 +200,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Step 6: 更新 project.client_info
+    // Step 4: 更新 project.client_info
     const updatedInfo = {
       ...clientInfo,
       brandProfile: {
