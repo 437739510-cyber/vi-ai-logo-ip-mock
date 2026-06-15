@@ -55,6 +55,13 @@ export function HeroSection() {
               开通品牌管家
             </Link>
             <Link
+              href="/partner"
+              className="inline-flex items-center px-6 py-3 border border-amber-400 text-amber-700 text-base font-medium rounded-xl hover:bg-amber-50 transition-colors"
+            >
+              <GraduationCap className="w-5 h-5 mr-1" />
+              诚招大学生合作
+            </Link>
+            <Link
               href="/progress"
               className="inline-flex items-center px-6 py-3 border border-neutral-300 text-neutral-700 text-base font-medium rounded-xl hover:bg-neutral-50 transition-colors"
             >
