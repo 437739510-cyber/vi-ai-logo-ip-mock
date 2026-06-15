@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/core/utils";
 import { Sparkles } from "lucide-react";
 import type { ReferenceMode } from "@/types";
 

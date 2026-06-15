@@ -1,7 +1,7 @@
 // API Route: GET /api/member/vi-manuals
 // Member views their VI manuals (linked via phone)
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 import { cookies } from "next/headers";
 
 export async function GET() {

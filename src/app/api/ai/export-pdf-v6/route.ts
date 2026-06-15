@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     }
     if (pageList.length === 0) {
       try {
-        const { supabase, supabaseAdmin } = await import("@/lib/supabase");
+        const { supabase, supabaseAdmin } = await import("@/lib/core/supabase");
         const dbClient = supabaseAdmin ?? supabase;
         const { data: manuals } = await dbClient.from("vi_manuals").select("pages, generated_at").eq("project_id", projectId).order("generated_at", { ascending: false }).limit(1);
         if (manuals?.[0]?.pages) pageList = manuals[0].pages;

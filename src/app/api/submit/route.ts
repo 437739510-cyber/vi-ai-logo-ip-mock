@@ -1,7 +1,7 @@
 // API Route: POST /api/submit
 // Save to Supabase + local JSON fallback
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 import { writeFile, readFile, mkdir } from "fs/promises";
 import path from "path";
 

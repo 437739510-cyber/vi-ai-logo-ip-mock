@@ -15,7 +15,7 @@ import type {
   ProjectFilters,
 } from "@/types";
 
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/core/supabase";
 
 
 // ========== 内存存储（提交的数据暂存在这里，管理端可读取）==========

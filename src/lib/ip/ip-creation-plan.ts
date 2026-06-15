@@ -9,8 +9,8 @@
  */
 
 import type { MascotProfile, MascotDesignMode } from "@/agents/mascot-designer";
-import type { BrandProfile } from "./brand-analyzer";
-import type { BusinessProfile } from "./business-profile";
+import type { BrandProfile } from "@/lib/brand/brand-analyzer";
+import type { BusinessProfile } from "@/lib/brand/business-profile";
 
 // ========== Public Types ==========
 

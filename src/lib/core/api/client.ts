@@ -4,7 +4,7 @@
  * 提供统一的 fetch 封装，自动读取环境变量中的 API 端点。
  * 所有请求走服务端（避免 CORS 问题），通过 Next.js API Routes 代理。
  *
- * 使用方式：import { apiClient } from "@/lib/api/client";
+ * 使用方式：import { apiClient } from "@/lib/core/api/client";
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000/api";

@@ -6,9 +6,9 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import { analysisToDesignSystem, createTemplate, findBestMatchingTemplates } from "@/lib/template-library";
+import { analysisToDesignSystem, createTemplate, findBestMatchingTemplates } from "@/lib/vi-manual/template-library";
 import fs from "fs";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 const execAsync = promisify(exec);
 

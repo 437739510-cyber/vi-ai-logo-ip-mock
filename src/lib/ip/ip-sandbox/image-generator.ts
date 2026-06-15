@@ -9,11 +9,11 @@
  */
 
 import type { IPSandboxStep } from "./types";
-import type { BrandProfile } from "@/lib/brand-analyzer";
+import type { BrandProfile } from "@/lib/brand/brand-analyzer";
 import type { MascotProfile } from "@/agents/mascot-designer";
-import type { MascotPromptSet } from "@/lib/mascot-prompt-strategy";
-import type { GenerateImageParams } from "@/lib/ip-image-provider/types";
-import { getDefaultRegistry } from "@/lib/ip-image-provider/provider";
+import type { MascotPromptSet } from "@/lib/ip/mascot-prompt-strategy";
+import type { GenerateImageParams } from "@/lib/ip/ip-image-provider/types";
+import { getDefaultRegistry } from "@/lib/ip/ip-image-provider/provider";
 
 // ========== Input Types ==========
 

@@ -8,7 +8,7 @@
  */
 
 import type { PageElement } from "./page-planner";
-import { guardedDeepSeekCall } from "@/lib/billing/deepseek-guard";
+import { guardedDeepSeekCall } from "@/lib/core/billing/deepseek-guard";
 
 export interface PlanLayoutParams {
   pageId: string;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getSubmissions, getProjects } from "@/lib/mock";
+import { getSubmissions, getProjects } from "@/lib/core/mock";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Users, Phone, Building2 } from "lucide-react";
 import type { Submission, Project } from "@/types";

@@ -26,7 +26,7 @@ export function RecentActivityList({ projects }: RecentActivityListProps) {
             <div className="flex items-center gap-3">
               <Clock className="w-4 h-4 text-neutral-300" />
               <div>
-                <p className="text-sm font-medium text-neutral-700">{project.brandName}</p>
+                <p className="text-sm font-medium text-neutral-700">{project.name}</p>
                 <p className="text-xs text-neutral-400">{project.industry}</p>
               </div>
             </div>

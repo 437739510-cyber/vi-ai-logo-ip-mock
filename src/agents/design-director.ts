@@ -11,7 +11,7 @@
 
 import type { Agent, AgentResult, AgentContext } from "./types";
 import { AGENT_IDENTITIES } from "./types";
-import { getProfileForBrand } from "@/lib/industry-knowledge";
+import { getProfileForBrand } from "@/lib/brand/industry-knowledge";
 
 export const designDirectorIdentity = AGENT_IDENTITIES["design-director"];
 

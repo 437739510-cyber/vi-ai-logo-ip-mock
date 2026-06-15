@@ -15,11 +15,11 @@ import {
   BUSINESS_FORM_OPTIONS,
   normalizeIndustry,
   type ConsultationFormData,
-} from "@/lib/consultation-schema";
-import { PROVINCE_CITY_DATA, PROVINCE_OPTIONS } from "@/lib/province-city-data";
+} from "@/lib/core/consultation-schema";
+import { PROVINCE_CITY_DATA, PROVINCE_OPTIONS } from "@/lib/core/province-city-data";
 import { LogoUploadArea, MascotUploadArea, ReferenceUploadArea } from "./FileUploadArea";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/core/supabase";
 
 // File size limits (matching FileUploadArea hints)
 const MAX_LOGO_SIZE = 20 * 1024 * 1024;      // 20MB

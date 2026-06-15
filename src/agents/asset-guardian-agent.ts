@@ -21,7 +21,7 @@ import {
   type ProtectedAssetPolicy,
   DEFAULT_LOGO_POLICY,
   DEFAULT_MASCOT_POLICY,
-} from "@/lib/asset-guardian";
+} from "@/lib/core/asset-guardian";
 
 export const assetGuardianIdentity = AGENT_IDENTITIES["asset-guardian"];
 

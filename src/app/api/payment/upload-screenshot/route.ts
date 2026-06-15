@@ -1,7 +1,7 @@
 // API Route: POST /api/payment/upload-screenshot
 // Guest uploads payment screenshot after scanning QR code
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 
 export const dynamic = "force-dynamic";
 

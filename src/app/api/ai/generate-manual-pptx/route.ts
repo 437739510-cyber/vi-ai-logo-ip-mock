@@ -12,14 +12,14 @@
  * - V27: 场景图方舟Ark Seedream图生图优先(Logo做参考) + DashScope降级
  */
 import { NextRequest, NextResponse } from "next/server";
-import { arkGenerateScene } from "@/lib/ip-image-provider/ark-seedream-provider";
+import { arkGenerateScene } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
 import path from "path";
 import { readFile, mkdir, writeFile, readdir } from "fs/promises";
-import { planPages } from "@/lib/page-planner";
-import { renderPptxToBuffer } from "@/lib/render-pptx";
-import { supabaseAdmin } from "@/lib/supabase";
-import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/industry-types";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { planPages } from "@/lib/vi-manual/page-planner";
+import { renderPptxToBuffer } from "@/lib/pptx/render-pptx";
+import { supabaseAdmin } from "@/lib/core/supabase";
+import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;

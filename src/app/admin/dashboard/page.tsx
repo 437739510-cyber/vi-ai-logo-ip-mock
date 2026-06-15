@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { StatCard } from "@/components/admin/StatCard";
 import { RecentActivityList } from "@/components/admin/RecentActivityList";
-import { getProjects } from "@/lib/mock";
+import { getProjects } from "@/lib/core/mock";
 import { FolderKanban, Clock, CheckCircle, AlertCircle, Wallet, RefreshCw, FileText, AlertTriangle } from "lucide-react";
 import type { Project } from "@/types";
 

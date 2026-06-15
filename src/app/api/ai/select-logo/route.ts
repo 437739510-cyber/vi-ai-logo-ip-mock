@@ -8,8 +8,8 @@
  * - 两个Storage桶上传并行化
  */
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { supabaseAdmin } from "@/lib/core/supabase";
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";

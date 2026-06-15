@@ -11,7 +11,7 @@ import type {
   IPSandboxStepStatus,
   IPSandboxSessionStatus,
 } from "./types";
-import type { IPCreationPlan } from "@/lib/ip-creation-plan";
+import type { IPCreationPlan } from "@/lib/ip/ip-creation-plan";
 
 // ========== Cost Constants ==========
 

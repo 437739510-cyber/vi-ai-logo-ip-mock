@@ -16,9 +16,9 @@ import {
   getProgressFromState,
   getPhaseFromState,
   formatQuestion,
-} from "@/lib/discovery/state-machine";
-import { getOrCreateSession, saveSession } from "@/lib/discovery/session-store";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+} from "@/lib/core/discovery/state-machine";
+import { getOrCreateSession, saveSession } from "@/lib/core/discovery/session-store";
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 // ============================================
 // DeepSeek API 配置

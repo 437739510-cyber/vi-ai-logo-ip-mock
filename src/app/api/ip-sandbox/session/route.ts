@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getBalance, getOrCreateAccount } from "@/lib/billing/balance";
+import { getBalance, getOrCreateAccount } from "@/lib/core/billing/balance";
 import {
   createSession,
   approveStep,
@@ -18,13 +18,13 @@ import {
   completeGeneration,
   failGeneration,
   getSessionSummary,
-} from "@/lib/ip-sandbox/session";
+} from "@/lib/ip/ip-sandbox/session";
 import {
   saveSandboxSession,
   loadSandboxSession,
-} from "@/lib/ip-sandbox/memory";
-import { generateStepImage } from "@/lib/ip-sandbox/image-generator";
-import type { IPSandboxSession } from "@/lib/ip-sandbox/types";
+} from "@/lib/ip/ip-sandbox/memory";
+import { generateStepImage } from "@/lib/ip/ip-sandbox/image-generator";
+import type { IPSandboxSession } from "@/lib/ip/ip-sandbox/types";
 
 // ========== POST: Create Session ==========
 

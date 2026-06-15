@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/core/utils";
 import { UploadCloud } from "lucide-react";
 
 interface FileUploadProps {

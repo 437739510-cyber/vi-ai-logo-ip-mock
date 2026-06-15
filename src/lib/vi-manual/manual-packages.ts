@@ -12,9 +12,9 @@
  * which are optionally available.
  */
 
-import type { BrandProfile } from "./brand-analyzer";
-import type { BusinessProfile } from "./business-profile";
-import { calculateBusinessScore } from "./business-profile";
+import type { BrandProfile } from "@/lib/brand/brand-analyzer";
+import type { BusinessProfile } from "@/lib/brand/business-profile";
+import { calculateBusinessScore } from "@/lib/brand/business-profile";
 
 // ========== Package Tier ==========
 

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { GenerationPanel } from "@/components/admin/GenerationPanel";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { getProjectById } from "@/lib/mock";
+import { getProjectById } from "@/lib/core/mock";
 import type { Project } from "@/types";
 
 export default function GeneratePage({

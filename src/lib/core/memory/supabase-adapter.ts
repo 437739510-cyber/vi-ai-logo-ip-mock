@@ -10,7 +10,7 @@
  * Adapter selection is controlled by NEXT_PUBLIC_MEMORY_ADAPTER env var.
  */
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 import type {
   MemoryAdapter,
   ClientMemory,

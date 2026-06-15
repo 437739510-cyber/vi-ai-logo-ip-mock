@@ -40,7 +40,7 @@ export const BUDGET_LEVEL_LABELS: Record<BudgetLevel, string> = {
 
 // ====== Business score for package recommendation ======
 
-import type { ManualPackageType } from "./manual-packages";
+import type { ManualPackageType } from "@/lib/vi-manual/manual-packages";
 
 export interface BusinessScoreResult {
   scores: Record<ManualPackageType, number>;

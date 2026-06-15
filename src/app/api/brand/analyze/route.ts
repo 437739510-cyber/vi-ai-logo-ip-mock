@@ -15,8 +15,8 @@
  */
 
 import { executeBrandBrainPipeline } from "@/agents/orchestrator";
-import { initializeMemorySystem } from "@/lib/memory";
-import { getProfileForBrand } from "@/lib/industry-knowledge";
+import { initializeMemorySystem } from "@/lib/core/memory";
+import { getProfileForBrand } from "@/lib/brand/industry-knowledge";
 
 let memoryInitialized = false;
 

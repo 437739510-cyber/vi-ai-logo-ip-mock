@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Search } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/core/utils";
 import { PROJECT_STATUS_LABELS, type ProjectStatus } from "@/types";
 import type { ProjectFilters } from "@/types";
 

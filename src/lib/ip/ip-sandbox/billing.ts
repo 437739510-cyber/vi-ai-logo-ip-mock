@@ -5,8 +5,8 @@
  * Thin wrapper over the billing system — no direct file I/O.
  */
 
-import { checkSufficient, deductBalance } from "@/lib/billing/balance";
-import { logUsage } from "@/lib/billing/usage-log";
+import { checkSufficient, deductBalance } from "@/lib/core/billing/balance";
+import { logUsage } from "@/lib/core/billing/usage-log";
 import type { IPSandboxSession, IPSandboxStep } from "./types";
 
 /**

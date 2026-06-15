@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Check, X, Sparkles, Wand2 } from "lucide-react";
-import type { RecommendedModule } from "@/lib/module-planner";
+import type { RecommendedModule } from "@/lib/vi-manual/module-planner";
 
 interface DecisionLayerProps {
   step: 1 | 2 | 3 | 4 | 5;

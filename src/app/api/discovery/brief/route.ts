@@ -6,9 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { ExtractedData, STYLE_OPTIONS } from "@/lib/discovery/state-machine";
-import { getSession } from "@/lib/discovery/session-store";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { ExtractedData, STYLE_OPTIONS } from "@/lib/core/discovery/state-machine";
+import { getSession } from "@/lib/core/discovery/session-store";
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 // ============================================
 // DeepSeek API 配置

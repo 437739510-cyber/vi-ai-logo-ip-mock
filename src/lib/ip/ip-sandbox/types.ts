@@ -8,7 +8,7 @@
  * No real image generation. No Tongyi Wanxiang. No SVG changes.
  */
 
-import type { IPCreationPlan } from "@/lib/ip-creation-plan";
+import type { IPCreationPlan } from "@/lib/ip/ip-creation-plan";
 
 // ========== Step Status ==========
 

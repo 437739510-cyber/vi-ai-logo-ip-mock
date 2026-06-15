@@ -3,7 +3,7 @@
  * PUT /api/config/pricing — 更新定价配置（管理后台）
  */
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 
 const DEFAULT_PRICING = {
   basic: { price: "99", name: "基础版", period: "一次性", desc: "Logo方案+VI手册", enabled: true },

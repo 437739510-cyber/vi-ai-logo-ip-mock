@@ -10,9 +10,9 @@
  * This is the bridge between "who is the brand" and "what pages to generate".
  */
 
-import type { BrandProfile } from "./brand-analyzer";
+import type { BrandProfile } from "@/lib/brand/brand-analyzer";
 import { recommendPackage, type PackageRecommendation } from "./manual-packages";
-import { getProfileForBrand, type IndustryProfile } from "./industry-knowledge";
+import { getProfileForBrand, type IndustryProfile } from "@/lib/brand/industry-knowledge";
 
 export interface RecommendedModule {
   id: string;

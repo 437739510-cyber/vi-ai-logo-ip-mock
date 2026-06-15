@@ -9,7 +9,7 @@ import { FontSelector } from "@/components/admin/editor/FontSelector";
 import { CanvasPreview } from "@/components/admin/editor/CanvasPreview";
 import { AIChatPanel } from "@/components/admin/editor/AIChatPanel";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { getManualByProject } from "@/lib/mock";
+import { getManualByProject } from "@/lib/core/mock";
 import type { ViManual } from "@/types";
 
 const DEFAULT_MANUAL: ViManual = {

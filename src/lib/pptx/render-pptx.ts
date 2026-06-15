@@ -12,9 +12,9 @@
  * 7. 留白率30-40%
  */
 import PptxGenJS from "pptxgenjs";
-import type { PageBlueprint } from "./page-planner";
+import type { PageBlueprint } from "@/lib/vi-manual/page-planner";
 import { compressImage } from "./compress-image";
-import { type IndustryType, getIndustryType } from "./industry-types";
+import { type IndustryType, getIndustryType } from "@/lib/brand/industry-types";
 
 const SW = 8.27;
 const SH = 11.69;

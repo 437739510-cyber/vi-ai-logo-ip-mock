@@ -2,7 +2,7 @@
 // Client-side triggered: verify phone+password, then trigger logo regeneration
 // Saves current logos to history before regenerating
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 
 export const dynamic = "force-dynamic";
 

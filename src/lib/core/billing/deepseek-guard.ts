@@ -11,7 +11,7 @@
  * - 现在统一使用 supabaseAdmin，确保始终有service_role权限
  */
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 
 // DeepSeek deepseek-chat pricing (CNY per 1K tokens)
 // Input: ¥0.001/1K, Output: ¥0.002/1K, Cached input: ¥0.0001/1K

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { getManualByProject } from "@/lib/mock";
+import { getManualByProject } from "@/lib/core/mock";
 import type { ViManual } from "@/types";
 
 // Define the page structure based on real VI manual content

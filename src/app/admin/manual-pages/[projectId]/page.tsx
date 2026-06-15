@@ -5,14 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Loader2, Hand, Play, Trash2, Wand2, Download } from "lucide-react";
 // Brand Brain imports
-import type { BrandProfile } from "@/lib/brand-analyzer";
-import type { ModulePlan, RecommendedModule } from "@/lib/module-planner";
-import { modulePlanToPages } from "@/lib/module-to-page";
-import { supabase } from "@/lib/supabase";
+import type { BrandProfile } from "@/lib/brand/brand-analyzer";
+import type { ModulePlan, RecommendedModule } from "@/lib/vi-manual/module-planner";
+import { modulePlanToPages } from "@/lib/vi-manual/module-to-page";
+import { supabase } from "@/lib/core/supabase";
 import { DecisionLayer } from "@/components/admin/DecisionLayer";
-import { generateMascotPromptSet, type MascotPromptSet } from "@/lib/mascot-prompt-strategy";
-import { generateIPCreationPlan } from "@/lib/ip-creation-plan";
-import { estimateFullCost } from "@/lib/billing/cost-estimator";
+import { generateMascotPromptSet, type MascotPromptSet } from "@/lib/ip/mascot-prompt-strategy";
+import { generateIPCreationPlan } from "@/lib/ip/ip-creation-plan";
+import { estimateFullCost } from "@/lib/core/billing/cost-estimator";
 
 interface ManualPage {
   pageId: string;

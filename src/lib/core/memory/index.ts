@@ -18,7 +18,7 @@ export type { MemoryAdapter, ClientMemory, IndustryMemory, ProjectMemory, BrainR
 
 import { JsonMemoryAdapter } from "./json-adapter";
 import { SupabaseMemoryAdapter } from "./supabase-adapter";
-import { getAllIndustryProfiles, getSubCategories } from "../industry-knowledge";
+import { getAllIndustryProfiles, getSubCategories } from "@/lib/brand/industry-knowledge";
 import type { IndustryMemory, MemoryAdapter } from "./types";
 
 let _instance: MemoryAdapter | null = null;

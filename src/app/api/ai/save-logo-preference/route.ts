@@ -1,7 +1,7 @@
 // API Route: POST /api/ai/save-logo-preference
 // Client saves their preferred logo (not final confirm, can change)
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 
 export const dynamic = "force-dynamic";
 

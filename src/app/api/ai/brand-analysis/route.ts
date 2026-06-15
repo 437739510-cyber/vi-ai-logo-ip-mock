@@ -13,8 +13,8 @@
  * 输出：品牌档案 JSON → 存入 projects.client_info (JSONB)
  */
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { supabaseAdmin } from "@/lib/core/supabase";
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 
 export const maxDuration = 60;

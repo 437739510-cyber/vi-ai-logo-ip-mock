@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 
 const MOCK_SUMMARY =

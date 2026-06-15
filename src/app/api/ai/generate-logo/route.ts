@@ -11,8 +11,8 @@
  * 5. 全部完成后状态变为 logo_generated
  */
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { arkGenerateLogo } from "@/lib/ip-image-provider/ark-seedream-provider";
+import { supabaseAdmin } from "@/lib/core/supabase";
+import { arkGenerateLogo } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
 
 export const maxDuration = 180;
 export const dynamic = "force-dynamic";

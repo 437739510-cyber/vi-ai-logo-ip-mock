@@ -16,7 +16,7 @@ import type {
   GenerateImageParams,
   GenerateImageResult,
 } from "./types";
-import { estimateWanxiangCost } from "@/lib/wanxiang-cost";
+import { estimateWanxiangCost } from "@/lib/ip/wanxiang-cost";
 
 // ========== Constants ==========
 

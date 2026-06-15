@@ -16,7 +16,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/core/utils";
 
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "工作台", icon: LayoutDashboard },
