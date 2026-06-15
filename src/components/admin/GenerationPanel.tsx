@@ -6,7 +6,7 @@ import { Sparkles, Loader2, Wand2, ArrowRight } from "lucide-react";
 import { ReferenceModeSelector } from "./ReferenceModeSelector";
 import { PlanCard } from "./PlanCard";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { getPlansByProject, toggleFavorite } from "@/lib/mock";
+import { getPlansByProject, toggleFavorite } from "@/lib/core/mock";
 import type { AiGenerationPlan, ReferenceMode } from "@/types";
 
 interface GenerationPanelProps {

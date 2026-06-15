@@ -1,7 +1,7 @@
 // API Route: POST /api/view
 // Client view logo - verify by phone + password (or projectId + password for backward compat)
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 
 export const dynamic = "force-dynamic";
 

@@ -12,14 +12,14 @@
  * - V27: 场景图方舟Ark Seedream图生图优先(Logo做参考) + DashScope降级
  */
 import { NextRequest, NextResponse } from "next/server";
-import { arkGenerateScene } from "@/lib/ip-image-provider/ark-seedream-provider";
+import { arkGenerateScene } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
 import path from "path";
 import { readFile, mkdir, writeFile, readdir } from "fs/promises";
-import { planPages } from "@/lib/page-planner";
-import { renderPptxToBuffer } from "@/lib/render-pptx";
-import { supabaseAdmin } from "@/lib/supabase";
-import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/industry-types";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { planPages } from "@/lib/vi-manual/page-planner";
+import { renderPptxToBuffer } from "@/lib/pptx/render-pptx";
+import { supabaseAdmin } from "@/lib/core/supabase";
+import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -536,13 +536,15 @@ function createStreamResponse() {
 
 
 // ========== DB-based progress helpers (for background async tasks) ==========
-function createDbProgressHelpers(projectId: string) {
+function createDbProgressHelpers(projectId: string, initialClientInfo: Record<string, any>) {
+  // Cache client_info in memory to avoid redundant select before every update
+  let cachedClientInfo = { ...initialClientInfo };
+
   async function updateDb(status: string, message: string, percent?: number, extra?: Record<string, any>) {
     try {
-      const { data: existingInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
-      const prev = (existingInfo?.client_info as Record<string, any>) || {};
+      cachedClientInfo = { ...cachedClientInfo, generationStatus: status, generationMessage: message, generationPercent: percent ?? cachedClientInfo.generationPercent, ...(extra || {}) };
       await supabaseAdmin.from("projects").update({
-        client_info: { ...prev, generationStatus: status, generationMessage: message, generationPercent: percent ?? prev.generationPercent, ...(extra || {}) },
+        client_info: cachedClientInfo,
         updated_at: new Date().toISOString(),
       }).eq("id", projectId);
     } catch (e: any) {
@@ -572,6 +574,7 @@ export async function POST(req: NextRequest) {
   // Parse request body first
   let projectId: string | null = null;
   let body: any = {};
+  let prev: Record<string, any> = {};  // cached client_info for reducing DB queries
   try {
     body = await req.json();
     projectId = body.projectId || null;
@@ -584,7 +587,7 @@ export async function POST(req: NextRequest) {
   // Set initial status in DB immediately
   try {
     const { data: existingInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
-    const prev = (existingInfo?.client_info as Record<string, any>) || {};
+    prev = (existingInfo?.client_info as Record<string, any>) || {};
     await supabaseAdmin.from("projects").update({
       status: "pptx_assembling",
       updated_at: new Date().toISOString(),
@@ -596,7 +599,7 @@ export async function POST(req: NextRequest) {
 
   // Run generation in background (fire-and-forget)
   void (async () => {
-    const { sendProgress, sendComplete, sendError } = createDbProgressHelpers(projectId!);
+    const { sendProgress, sendComplete, sendError } = createDbProgressHelpers(projectId!, prev);
     const generationId = `gen-${Date.now()}`;
     const arkUsageLog: { model: string; type: string; timestamp: string }[] = [];  // V32: 方舟用量追踪
     const generationFormat = body.format || 'pptx';
@@ -604,11 +607,11 @@ export async function POST(req: NextRequest) {
     // V30: 记录生成历史到viGenerationHistory
     sendProgress("loading", "正在加载项目数据...", 5);
     try {
-      const { data: histInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
-      const histPrev = (histInfo?.client_info as Record<string, any>) || {};
-      const history = histPrev.viGenerationHistory || [];
+      // Use cached prev instead of redundant select
+      const history = prev.viGenerationHistory || [];
       history.push({ id: generationId, format: generationFormat, status: 'generating', createdAt: new Date().toISOString(), fileName: '', fileSize: 0, pageCount: 0, selectedLogoUrl: '', sceneImageCount: 0, downloadUrl: '' });
-      await supabaseAdmin.from("projects").update({ client_info: { ...histPrev, viGenerationHistory: history } }).eq("id", projectId!);
+      prev.viGenerationHistory = history;
+      await supabaseAdmin.from("projects").update({ client_info: { ...prev } }).eq("id", projectId!);
     } catch (e: any) { console.warn("[generate-pptx] History record error:", e.message); }
     // ===== Step 1: 从 Supabase 查 project + submission =====
     const { data: project, error: projErr } = await supabaseAdmin

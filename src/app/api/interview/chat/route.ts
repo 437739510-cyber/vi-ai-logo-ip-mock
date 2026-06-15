@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 
 const SYSTEM_PROMPT = `你是品牌大脑的AI品牌顾问，正在和一位老店店主进行品牌访谈。

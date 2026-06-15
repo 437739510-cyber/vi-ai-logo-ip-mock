@@ -148,8 +148,8 @@ import { mascotDesignerAgent } from "./mascot-designer";
 import { designDirectorAgent } from "./design-director";
 import { assetGuardianAgent } from "./asset-guardian-agent";
 import { manualComposerAgent } from "./manual-composer";
-import { getMemoryAdapter } from "@/lib/memory";
-import type { ClientMemory, ProjectMemory, BrainResultSnapshot } from "@/lib/memory";
+import { getMemoryAdapter } from "@/lib/core/memory";
+import type { ClientMemory, ProjectMemory, BrainResultSnapshot } from "@/lib/core/memory";
 /**
  * Reverse mapping: encoded industry value → human-readable label used by brand-analyzer.
  * The analyzer expects labels like "餐饮/食品", but callers may pass "food_beverage".

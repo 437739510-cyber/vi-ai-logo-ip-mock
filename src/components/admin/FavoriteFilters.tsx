@@ -1,6 +1,6 @@
 "use client";
 
-import { INDUSTRY_OPTIONS } from "@/lib/consultation-schema";
+import { INDUSTRY_OPTIONS } from "@/lib/core/consultation-schema";
 import type { Industry } from "@/types";
 
 interface FavoriteFiltersProps {

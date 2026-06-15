@@ -1,7 +1,7 @@
 // API Route: POST /api/submit
 // Save to Supabase + local JSON fallback
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 import { writeFile, readFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -52,6 +52,12 @@ export async function POST(req: NextRequest) {
       viewPassword: generateViewPassword(),
       logoAssets: body.logoFiles || [],
       mascotAssets: body.mascotItems || [],
+      brandPersonality: body.brandPersonality || "",
+      logoUsage: body.logoUsage || "",
+      logoStyle: body.logoStyle || "",
+      avoidElements: body.avoidElements || "",
+      existingSignagePain: body.existingSignagePain || "",
+      competitorReference: body.competitorReference || "",
       referenceManual: body.referenceFile
         ? { fileName: body.referenceFile.fileName, url: body.referenceFile.url, pageCount: 0, isReferenceEnabled: true, referenceMode: body.referenceEnabled ? "weak" : "none" }
         : null,
@@ -101,6 +107,12 @@ export async function POST(req: NextRequest) {
         description: submission.description,
         logo_assets: submission.logoAssets,
         mascot_assets: submission.mascotAssets,
+        brand_personality: body.brandPersonality || "",
+        logo_usage: body.logoUsage || "",
+        logo_style: body.logoStyle || "",
+        avoid_elements: body.avoidElements || "",
+        existing_signage_pain: body.existingSignagePain || "",
+        competitor_reference: body.competitorReference || "",
         submitted_at: isoNow,
         student_id: body.studentId || null,
       };
@@ -122,6 +134,12 @@ export async function POST(req: NextRequest) {
           viewPassword: submission.viewPassword,
           mainProducts: submission.mainProducts || body.mainProducts || "",
           businessForm: submission.businessForm || body.businessForm || "",
+          brandPersonality: body.brandPersonality || "",
+          logoUsage: body.logoUsage || "",
+          logoStyle: body.logoStyle || "",
+          avoidElements: body.avoidElements || "",
+          existingSignagePain: body.existingSignagePain || "",
+          competitorReference: body.competitorReference || "",
         },
         created_at: isoNow,
         updated_at: isoNow,

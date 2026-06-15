@@ -3,8 +3,8 @@
  * V54: 本地行业分析 + 委托 /api/ai/brand-analysis 做深度品牌分析（消除重复DeepSeek调用）
  */
 import { NextRequest, NextResponse } from "next/server";
-import { getIndustryType, type IndustryType, getIndustryDefaults } from "@/lib/industry-types";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getIndustryType, type IndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
+import { supabaseAdmin } from "@/lib/core/supabase";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

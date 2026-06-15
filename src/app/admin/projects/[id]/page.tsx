@@ -9,8 +9,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AssetPreview } from "@/components/admin/AssetPreview";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { ProcessedAssetsViewer } from "@/components/admin/ProcessedAssetsViewer";
-import { getProjectById, getSubmissionById, getPlansByProject } from "@/lib/mock";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getProjectById, getSubmissionById, getPlansByProject } from "@/lib/core/mock";
+import { supabaseAdmin } from "@/lib/core/supabase";
 import type { Project, Submission, AiGenerationPlan } from "@/types";
 
 interface RefItem {

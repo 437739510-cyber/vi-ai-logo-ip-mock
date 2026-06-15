@@ -22,17 +22,23 @@ export function BottomCtaSection() {
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/interview"
+              href="/consultation"
               className="inline-flex items-center gap-2 px-8 py-3.5 bg-primary text-white text-base font-medium rounded-xl hover:bg-primary-dark transition-colors shadow-sm"
             >
               <Sparkles className="w-5 h-5" />
-              免费获取VI方案
+              免费品牌诊断
             </Link>
             <Link
               href="/member/login"
               className="inline-flex items-center px-8 py-3.5 border border-primary text-primary text-base font-medium rounded-xl hover:bg-primary/5 transition-colors"
             >
               开通品牌管家 ¥299/月
+            </Link>
+            <Link
+              href="/partner"
+              className="inline-flex items-center gap-1 px-8 py-3.5 border border-amber-400 text-amber-700 text-base font-medium rounded-xl hover:bg-amber-50 transition-colors"
+            >
+              诚招大学生合作
             </Link>
           </div>
           <p className="text-sm text-neutral-400 mt-4">

@@ -1,8 +1,8 @@
 // API Route: POST /api/interview/complete
 // 访谈结束后提取结构化数据 → 写入Supabase → 返回submissionId
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { supabaseAdmin } from "@/lib/core/supabase";
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 
 const EXTRACTION_PROMPT = `你是品牌分析师。根据以下品牌访谈对话记录，提取结构化品牌信息。

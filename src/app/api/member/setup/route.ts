@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 
 // 一次性设置API：检查会员后台所需的数据表
 // 访问 /api/member/setup 查看状态

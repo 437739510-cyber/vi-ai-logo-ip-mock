@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/core/utils";
 
 interface BrandColor {
   name: string;

@@ -5,7 +5,7 @@
  * 使用共享引擎 plan-layout-engine 生成布局，同时对外提供 HTTP 接口。
  */
 import { NextRequest, NextResponse } from "next/server";
-import { planLayoutEngine } from "@/lib/plan-layout-engine";
+import { planLayoutEngine } from "@/lib/vi-manual/plan-layout-engine";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";

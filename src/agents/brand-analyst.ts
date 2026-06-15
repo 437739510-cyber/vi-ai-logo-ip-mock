@@ -13,7 +13,7 @@
 
 import type { Agent, AgentResult, AgentContext } from "./types";
 import { AGENT_IDENTITIES } from "./types";
-import { analyzeBrand } from "@/lib/brand-analyzer";
+import { analyzeBrand } from "@/lib/brand/brand-analyzer";
 
 export const brandAnalystIdentity = AGENT_IDENTITIES["brand-analyst"];
 

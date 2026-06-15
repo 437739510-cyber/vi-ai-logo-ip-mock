@@ -1,7 +1,7 @@
 // API Route: POST /api/member/compose
 // AI模板合成：照片底图 + Logo水印 + 品牌名文字 + 行业模板装饰 → 品牌化图片
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 import { cookies } from "next/headers";
 import sharp from "sharp";
 

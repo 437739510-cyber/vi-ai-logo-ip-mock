@@ -74,7 +74,7 @@ export function ProcessSection() {
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <Link
-            href="/interview"
+            href="/consultation"
             className="inline-flex items-center gap-2 px-8 py-3.5 bg-primary text-white text-base font-medium rounded-xl hover:bg-primary-dark transition-colors shadow-sm"
           >
             <Sparkles className="w-5 h-5" />

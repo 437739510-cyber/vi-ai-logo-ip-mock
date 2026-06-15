@@ -1,7 +1,7 @@
 // API Route: DELETE /api/delete-project
 // Remove a project from Supabase + local JSON
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
 

@@ -1,7 +1,7 @@
 // API Route: POST /api/ai/chat
 // 编辑器内的 AI 设计助手，使用 DeepSeek 进行实时对话
 import { NextRequest, NextResponse } from "next/server";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 
 export async function POST(req: NextRequest) {

@@ -1,7 +1,7 @@
 ﻿// API Route: POST /api/ai/reprocess-image
 // Force reprocess a cached image (LOGO or mascot) with optional method override.
 import { NextRequest, NextResponse } from "next/server";
-import { reprocessImage } from "@/lib/image-cache";
+import { reprocessImage } from "@/lib/core/image-cache";
 
 export async function POST(req: NextRequest) {
   try {

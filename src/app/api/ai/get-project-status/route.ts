@@ -1,7 +1,7 @@
 // API Route: GET /api/ai/get-project-status
 // V12: Get project generation status for real-time progress tracking
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/core/supabase";
 
 // Generation status workflow
 export type GenerationStatus = 

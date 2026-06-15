@@ -3,7 +3,7 @@
  * 获取或删除单个模板
  */
 import { NextRequest, NextResponse } from "next/server";
-import { getTemplate, deleteTemplate } from "@/lib/template-library";
+import { getTemplate, deleteTemplate } from "@/lib/vi-manual/template-library";
 
 export const dynamic = "force-dynamic";
 

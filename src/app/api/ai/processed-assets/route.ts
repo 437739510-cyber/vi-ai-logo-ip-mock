@@ -1,7 +1,7 @@
 ﻿// API Route: GET /api/ai/processed-assets
 // Returns all cached processed image entries for visualization.
 import { NextRequest, NextResponse } from "next/server";
-import { getAllProcessedEntries } from "@/lib/image-cache";
+import { getAllProcessedEntries } from "@/lib/core/image-cache";
 
 export async function GET(req: NextRequest) {
   try {

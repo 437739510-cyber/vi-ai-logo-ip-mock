@@ -9,8 +9,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { getSession } from "@/lib/discovery/session-store";
+import { supabaseAdmin } from "@/lib/core/supabase";
+import { getSession } from "@/lib/core/discovery/session-store";
 
 export async function POST(req: NextRequest) {
   try {

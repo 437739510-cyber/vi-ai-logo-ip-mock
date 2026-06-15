@@ -3,7 +3,7 @@
  * 获取模板库列表
  */
 import { NextResponse } from "next/server";
-import { listTemplates } from "@/lib/template-library";
+import { listTemplates } from "@/lib/vi-manual/template-library";
 
 export const dynamic = "force-dynamic";
 

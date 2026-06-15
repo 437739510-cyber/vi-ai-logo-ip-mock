@@ -13,7 +13,7 @@ import {
   Home,
   BookOpen,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/core/utils";
 
 const NAV_ITEMS = [
   { href: "/member/dashboard", label: "我的内容", icon: Image },

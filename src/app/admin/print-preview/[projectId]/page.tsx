@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Printer } from "lucide-react";
-import { getManualByProject } from "@/lib/mock";
+import { getManualByProject } from "@/lib/core/mock";
 import type { ViManual } from "@/types";
 
 export default function PrintPreviewPage({

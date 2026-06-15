@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/core/utils";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
 interface ErrorStateProps {

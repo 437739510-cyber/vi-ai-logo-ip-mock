@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { FavoriteFilters } from "@/components/admin/FavoriteFilters";
 import { FavoriteList } from "@/components/admin/FavoriteList";
-import { getFavorites } from "@/lib/mock";
+import { getFavorites } from "@/lib/core/mock";
 import type { Favorite } from "@/types";
 
 export default function FavoritesPage() {

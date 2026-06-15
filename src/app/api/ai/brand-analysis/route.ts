@@ -3,18 +3,18 @@
  *
  * AI 品牌分析引擎 — 补全"信息断层"的核心层
  * 
+ * V55优化：Supabase查询从7次→4次
+ * - 合并Query1+2: 一次查projects获取client_info+submission_id
+ * - 消除Query5: 复用已有的existingCI数据，不再重复查询
+ * - 合并Query6+7: status和client_info一次update写入
+ * 
  * 输入：客户原始信息（公司名、行业、地理位置、品牌愿景等）
  * 处理：DeepSeek 分析 → 行业洞察、地理环境、竞品格局、品牌定位
  * 输出：品牌档案 JSON → 存入 projects.client_info (JSONB)
- * 
- * 下游消费：
- * - planPages（蓝图规划）→ 品牌档案内容驱动页面结构
- * - buildScenePrompt（写实图prompt）→ 行业+定位驱动场景描述
- * - ai-layout-planner → 品牌调性驱动布局风格
  */
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { supabaseAdmin } from "@/lib/core/supabase";
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 
 export const maxDuration = 60;
@@ -29,9 +29,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // 优化：检查已有品牌分析，避免重复调用
+    // V55: 一次查询获取 client_info + submission_id（合并原Query1+2）
     const { data: existingProject } = await supabaseAdmin
-      .from("projects").select("client_info").eq("id", projectId).single();
+      .from("projects").select("client_info, submission_id, client_name, industry").eq("id", projectId).single();
     const existingCI = (existingProject?.client_info as Record<string, any>) || {};
     const existingBP = existingCI.brandProfile;
     
@@ -48,12 +48,11 @@ export async function POST(req: NextRequest) {
 
     // Auto-fill from submission if clientInfo is incomplete
     if (!clientInfo.companyName || !clientInfo.industry) {
-      const { data: proj } = await supabaseAdmin.from("projects").select("submission_id, client_name, industry").eq("id", projectId).single();
-      if (proj?.submission_id) {
-        const { data: sub } = await supabaseAdmin.from("submissions").select("*").eq("id", proj.submission_id).single();
+      if (existingProject?.submission_id) {
+        const { data: sub } = await supabaseAdmin.from("submissions").select("*").eq("id", existingProject.submission_id).single();
         if (sub) {
-          clientInfo.companyName = clientInfo.companyName || sub.company_name || proj.client_name || "";
-          clientInfo.industry = clientInfo.industry || sub.industry || proj.industry || "";
+          clientInfo.companyName = clientInfo.companyName || sub.company_name || existingProject.client_name || "";
+          clientInfo.industry = clientInfo.industry || sub.industry || existingProject.industry || "";
           clientInfo.province = clientInfo.province || sub.province || "";
           clientInfo.city = clientInfo.city || sub.city || "";
           clientInfo.brandVision = clientInfo.brandVision || sub.brand_vision || "";
@@ -61,10 +60,22 @@ export async function POST(req: NextRequest) {
           clientInfo.targetMarket = clientInfo.targetMarket || sub.target_market || "";
           clientInfo.description = clientInfo.description || sub.description || "";
           clientInfo.mainProducts = clientInfo.mainProducts || sub.main_products || "";
+          clientInfo.brandPersonality = clientInfo.brandPersonality || sub.brand_personality || "";
+          clientInfo.logoUsage = clientInfo.logoUsage || sub.logo_usage || "";
+          clientInfo.logoStyle = clientInfo.logoStyle || sub.logo_style || "";
+          clientInfo.avoidElements = clientInfo.avoidElements || sub.avoid_elements || "";
+          clientInfo.existingSignagePain = clientInfo.existingSignagePain || sub.existing_signage_pain || "";
+          clientInfo.competitorReference = clientInfo.competitorReference || sub.competitor_reference || "";
+          clientInfo.customerProfile = clientInfo.customerProfile || sub.customer_profile || "";
+          clientInfo.existingBrandColor = clientInfo.existingBrandColor || sub.existing_brand_color || "";
+          clientInfo.brandHighlight = clientInfo.brandHighlight || sub.brand_highlight || "";
+          clientInfo.businessForm = clientInfo.businessForm || sub.business_form || "";
+          clientInfo.budgetRange = clientInfo.budgetRange || sub.budget_range || "";
+          clientInfo.businessYears = clientInfo.businessYears || sub.business_years;
         }
       }
     }
-    // V12: 更新项目状态为"品牌分析中"
+    // 更新项目状态为"品牌分析中"
     await supabaseAdmin.from("projects").update({ status: "brand_analyzing", updated_at: new Date().toISOString() }).eq("id", projectId);
 
     // 构建分析prompt
@@ -188,28 +199,20 @@ export async function POST(req: NextRequest) {
 
     console.log("[brand-analysis] Analysis complete:", profile.brandToneKeywords);
 
-    // 保存到 projects.client_info (JSONB)
-    // 获取当前client_info，合并
-    const { data: projData } = await supabaseAdmin
-      .from("projects")
-      .select("client_info")
-      .eq("id", projectId)
-      .single();
-
-    const existingInfo = (projData?.client_info as Record<string, any>) || {};
+    // V55: 复用existingCI（已在开头查询），不再重复查projects
     const updatedInfo = {
-      ...existingInfo,
+      ...existingCI,
       // 原始客户信息
-      companyName: clientInfo.companyName || existingInfo.companyName,
-      industry: clientInfo.industry || existingInfo.industry,
-      province: clientInfo.province || existingInfo.province,
-      city: clientInfo.city || existingInfo.city,
-      brandVision: clientInfo.brandVision || existingInfo.brandVision,
-      coreValues: clientInfo.coreValues || existingInfo.coreValues,
-      targetMarket: clientInfo.targetMarket || existingInfo.targetMarket,
-      logoPhilosophy: clientInfo.logoPhilosophy || existingInfo.logoPhilosophy,
-      mascotPhilosophy: clientInfo.mascotPhilosophy || existingInfo.mascotPhilosophy,
-      description: clientInfo.description || existingInfo.description,
+      companyName: clientInfo.companyName || existingCI.companyName,
+      industry: clientInfo.industry || existingCI.industry,
+      province: clientInfo.province || existingCI.province,
+      city: clientInfo.city || existingCI.city,
+      brandVision: clientInfo.brandVision || existingCI.brandVision,
+      coreValues: clientInfo.coreValues || existingCI.coreValues,
+      targetMarket: clientInfo.targetMarket || existingCI.targetMarket,
+      logoPhilosophy: clientInfo.logoPhilosophy || existingCI.logoPhilosophy,
+      mascotPhilosophy: clientInfo.mascotPhilosophy || existingCI.mascotPhilosophy,
+      description: clientInfo.description || existingCI.description,
       // AI品牌档案
       brandProfile: {
         industryInsight: profile.industryInsight || "",
@@ -228,16 +231,15 @@ export async function POST(req: NextRequest) {
       },
     };
 
+    // V55: 合并status和client_info为一次update（原Query6+7→1次）
     const { error: dbError } = await supabaseAdmin
       .from("projects")
-      .update({ client_info: updatedInfo, updated_at: new Date().toISOString() })
+      .update({ client_info: updatedInfo, status: "brand_analyzed", updated_at: new Date().toISOString() })
       .eq("id", projectId);
 
     if (dbError) {
       console.warn("[brand-analysis] DB save failed:", dbError.message);
     }
-    // V12: 更新项目状态为"品牌分析完成"
-    await supabaseAdmin.from("projects").update({ status: "brand_analyzed", updated_at: new Date().toISOString() }).eq("id", projectId);
 
     return NextResponse.json({
       success: true,
@@ -301,6 +303,45 @@ function buildAnalysisPrompt(clientInfo: any): string {
     parts.push(`品牌色：${bc.primary || "未定"} / ${bc.secondary || "未定"} / ${bc.accent || "未定"}`);
   }
 
+  if (clientInfo.brandPersonality) {
+    parts.push(`品牌个性：${clientInfo.brandPersonality}`);
+  }
+  if (clientInfo.logoStyle) {
+    parts.push(`Logo图形偏好：${clientInfo.logoStyle}`);
+  }
+  if (clientInfo.logoUsage) {
+    parts.push(`Logo主要用途：${clientInfo.logoUsage}`);
+  }
+  if (clientInfo.avoidElements) {
+    parts.push(`设计禁忌（避免出现）：${clientInfo.avoidElements}`);
+  }
+  if (clientInfo.existingSignagePain) {
+    parts.push(`现有门头最不满意：${clientInfo.existingSignagePain}`);
+  }
+  if (clientInfo.existingBrandColor) {
+    parts.push(`现有门头颜色：${clientInfo.existingBrandColor}`);
+  }
+  if (clientInfo.competitorReference) {
+    parts.push(`喜欢的竞品/参考品牌：${clientInfo.competitorReference}`);
+  }
+  if (clientInfo.customerProfile) {
+    parts.push(`常见客户群体：${clientInfo.customerProfile}`);
+  }
+  if (clientInfo.brandHighlight) {
+    parts.push(`品牌独特点：${clientInfo.brandHighlight}`);
+  }
+  if (clientInfo.businessForm) {
+    parts.push(`经营形态：${clientInfo.businessForm}`);
+  }
+  if (clientInfo.budgetRange) {
+    parts.push(`预算范围：${clientInfo.budgetRange}`);
+  }
+  if (clientInfo.businessYears) {
+    parts.push(`经营年限：${clientInfo.businessYears}年`);
+  }
+  if (clientInfo.mainProducts) {
+    parts.push(`主营产品：${clientInfo.mainProducts}`);
+  }
   if (clientInfo.description) {
     parts.push(`补充描述：${clientInfo.description}`);
   }

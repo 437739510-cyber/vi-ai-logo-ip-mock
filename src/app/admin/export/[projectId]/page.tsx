@@ -14,7 +14,7 @@ import {
   Eye,
 } from "lucide-react";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { getProjectById, getManualByProject } from "@/lib/mock";
+import { getProjectById, getManualByProject } from "@/lib/core/mock";
 import type { Project, ViManual } from "@/types";
 
 type ExportFormat = "pdf-300" | "pdf-screen" | "ppt";

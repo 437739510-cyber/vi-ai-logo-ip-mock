@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ProjectFiltersBar } from "@/components/admin/ProjectFilters";
 import { ProjectTable } from "@/components/admin/ProjectTable";
-import { getProjects } from "@/lib/mock";
+import { getProjects } from "@/lib/core/mock";
 import type { Project, ProjectFilters } from "@/types";
 
 export default function ProjectsPage() {

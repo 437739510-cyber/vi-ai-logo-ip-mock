@@ -18,7 +18,7 @@ import {
   STYLE_OPTIONS,
   CUSTOMER_REASON_OPTIONS,
   BRAND_SPIRIT_OPTIONS,
-} from "@/lib/discovery/state-machine";
+} from "@/lib/core/discovery/state-machine";
 
 // ============================================
 // 类型定义

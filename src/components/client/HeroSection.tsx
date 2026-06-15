@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Sparkles, GraduationCap } from "lucide-react";
 
 export function HeroSection() {
   return (
@@ -42,17 +42,24 @@ export function HeroSection() {
             transition={{ duration: 0.6, delay: 0.3 }}
           >
             <Link
-              href="/interview"
+              href="/consultation"
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white text-base font-medium rounded-xl hover:bg-primary-dark transition-colors shadow-sm"
             >
               <Sparkles className="w-5 h-5" />
-              免费获取VI方案
+              免费品牌诊断
             </Link>
             <Link
               href="/member/login"
               className="inline-flex items-center px-6 py-3 border border-primary text-primary text-base font-medium rounded-xl hover:bg-primary/5 transition-colors"
             >
               开通品牌管家
+            </Link>
+            <Link
+              href="/partner"
+              className="inline-flex items-center px-6 py-3 border border-amber-400 text-amber-700 text-base font-medium rounded-xl hover:bg-amber-50 transition-colors"
+            >
+              <GraduationCap className="w-5 h-5 mr-1" />
+              诚招大学生合作
             </Link>
             <Link
               href="/progress"

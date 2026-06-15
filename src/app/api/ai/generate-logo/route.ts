@@ -11,8 +11,8 @@
  * 5. 全部完成后状态变为 logo_generated
  */
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { arkGenerateLogo } from "@/lib/ip-image-provider/ark-seedream-provider";
+import { supabaseAdmin } from "@/lib/core/supabase";
+import { arkGenerateLogo } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
 
 export const maxDuration = 180;
 export const dynamic = "force-dynamic";
@@ -121,33 +121,25 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // Update progress in DB
+        // Update progress in DB — use in-memory clientInfo cache, skip redundant select
         const completedCount = logoResults.filter(r => r.imageUrl).length;
         try {
-          const { data: latestProj } = await supabaseAdmin
-            .from("projects")
-            .select("client_info")
-            .eq("id", projectId)
-            .single();
-
-          const latestInfo = (latestProj?.client_info as Record<string, any>) || {};
+          const cachedInfo = { ...clientInfo };
+          cachedInfo.generationStatus = "logo_generating";
+          cachedInfo.generationMessage = `正在生成Logo (${i + 1}/${prompts.length})...`;
+          cachedInfo.logoGenerationStatus = {
+            total: prompts.length,
+            completed: i + 1,
+            results: logoResults.map(r => ({
+              index: r.index,
+              prompt: r.prompt,
+              imageUrl: r.imageUrl,
+              error: r.error,
+            })),
+            startedAt: cachedInfo.logoGenerationStatus?.startedAt || new Date().toISOString(),
+          };
           await supabaseAdmin.from("projects").update({
-            client_info: {
-              ...latestInfo,
-              generationStatus: "logo_generating",
-              generationMessage: `正在生成Logo (${i + 1}/${prompts.length})...`,
-              logoGenerationStatus: {
-                total: prompts.length,
-                completed: i + 1,
-                results: logoResults.map(r => ({
-                  index: r.index,
-                  prompt: r.prompt,
-                  imageUrl: r.imageUrl,
-                  error: r.error,
-                })),
-                startedAt: latestInfo.logoGenerationStatus?.startedAt || new Date().toISOString(),
-              },
-            },
+            client_info: cachedInfo,
             updated_at: new Date().toISOString(),
           }).eq("id", projectId);
         } catch (updateErr) {

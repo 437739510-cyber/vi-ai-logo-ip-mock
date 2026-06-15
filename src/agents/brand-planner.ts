@@ -13,8 +13,8 @@
 
 import type { Agent, AgentResult, AgentContext } from "./types";
 import { AGENT_IDENTITIES } from "./types";
-import { planModules } from "@/lib/module-planner";
-import { modulePlanToPages } from "@/lib/module-to-page";
+import { planModules } from "@/lib/vi-manual/module-planner";
+import { modulePlanToPages } from "@/lib/vi-manual/module-to-page";
 
 export const brandPlannerIdentity = AGENT_IDENTITIES["brand-planner"];
 

@@ -1,9 +1,9 @@
 // API Route: POST /api/member/generate
 // AI文案生成：照片识别(qwen-vl) + 品牌数据 + DeepSeek生成社交媒体文案
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 import { cookies } from "next/headers";
-import { guardedDeepSeekCall } from '@/lib/billing/deepseek-guard';
+import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 const ALIYUN_API = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
