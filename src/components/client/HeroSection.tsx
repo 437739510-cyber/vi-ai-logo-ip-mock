@@ -42,7 +42,7 @@ export function HeroSection() {
             transition={{ duration: 0.6, delay: 0.3 }}
           >
             <Link
-              href="/interview"
+              href="/consultation"
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white text-base font-medium rounded-xl hover:bg-primary-dark transition-colors shadow-sm"
             >
               <Sparkles className="w-5 h-5" />
