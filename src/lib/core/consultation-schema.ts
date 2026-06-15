@@ -92,6 +92,37 @@ export const consultationSchema = z.object({
     .max(500, "IP 公仔设计理念不超过 500 个字符")
     .optional()
     .or(z.literal("")),
+  // V58: 品牌个性与视觉偏好
+  brandPersonality: z
+    .string()
+    .max(200, "品牌个性不超过 200 个字符")
+    .optional()
+    .or(z.literal("")),
+  logoUsage: z
+    .string()
+    .max(300, "Logo用途不超过 300 个字符")
+    .optional()
+    .or(z.literal("")),
+  logoStyle: z
+    .string()
+    .max(100, "图形偏好不超过 100 个字符")
+    .optional()
+    .or(z.literal("")),
+  avoidElements: z
+    .string()
+    .max(300, "避免元素不超过 300 个字符")
+    .optional()
+    .or(z.literal("")),
+  existingSignagePain: z
+    .string()
+    .max(200, "门头不满不超过 200 个字符")
+    .optional()
+    .or(z.literal("")),
+  competitorReference: z
+    .string()
+    .max(500, "竞争参考不超过 500 个字符")
+    .optional()
+    .or(z.literal("")),
   description: z
     .string()
     .max(1000, "需求描述不超过 1000 个字符")
@@ -359,6 +390,73 @@ export const INDUSTRY_VISION_MAP: Record<string, { question: string; tags: strin
   "公司企业:其他公司企业": { question: "您希望客户怎么评价您？", tags: ["专业可靠", "省心省力", "值得托付"] },
   "其他（请填写）": { question: "您希望客人怎么记住您？", tags: ["10年老店", "随叫随到", "办事靠谱"] },
 };
+
+
+
+// V58: 品牌个性关键词选项
+export const BRAND_PERSONALITY_OPTIONS = [
+  "亲民温馨",
+  "极简高级",
+  "潮流有活力",
+  "复古怀旧",
+  "专业可靠",
+  "年轻时尚",
+  "传统经典",
+  "活泼可爱",
+  "高端奢华",
+  "自然清新",
+  "科技未来",
+  "手作匠心",
+] as const;
+
+// V58: Logo主要用途选项
+export const LOGO_USAGE_OPTIONS = [
+  "店招/门头",
+  "包装袋/盒",
+  "外卖封贴",
+  "菜单/传单",
+  "名片/工牌",
+  "社交媒体头像",
+  "App图标",
+  "工作服/围裙",
+  "车辆车身",
+  "印章/盖章",
+] as const;
+
+// V58: 图形偏好选项
+export const LOGO_STYLE_OPTIONS = [
+  "纯文字",
+  "字母缩写",
+  "抽象符号",
+  "具体图标",
+  "文字+图标组合",
+  "中式印章风格",
+  "手写/书法",
+] as const;
+
+// V58: 避免元素选项
+export const AVOID_ELEMENT_OPTIONS = [
+  "太复杂",
+  "太花哨",
+  "太幼稚",
+  "太冷硬",
+  "像竞品",
+  "宗教元素",
+  "政治元素",
+  "特定颜色",
+  "特定动物",
+] as const;
+
+// V58: 现有门头不满意选项
+export const SIGNAGE_PAIN_OPTIONS = [
+  "太普通没辨识度",
+  "显廉价",
+  "看不清店名",
+  "颜色不好看",
+  "风格过时",
+  "和定位不符",
+  "没有设计感",
+] as const;
 
 // 兼容旧版行业匹配：旧格式 → 新格式
 export function normalizeIndustry(industry: string): string {

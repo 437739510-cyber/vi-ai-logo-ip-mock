@@ -60,6 +60,18 @@ export async function POST(req: NextRequest) {
           clientInfo.targetMarket = clientInfo.targetMarket || sub.target_market || "";
           clientInfo.description = clientInfo.description || sub.description || "";
           clientInfo.mainProducts = clientInfo.mainProducts || sub.main_products || "";
+          clientInfo.brandPersonality = clientInfo.brandPersonality || sub.brand_personality || "";
+          clientInfo.logoUsage = clientInfo.logoUsage || sub.logo_usage || "";
+          clientInfo.logoStyle = clientInfo.logoStyle || sub.logo_style || "";
+          clientInfo.avoidElements = clientInfo.avoidElements || sub.avoid_elements || "";
+          clientInfo.existingSignagePain = clientInfo.existingSignagePain || sub.existing_signage_pain || "";
+          clientInfo.competitorReference = clientInfo.competitorReference || sub.competitor_reference || "";
+          clientInfo.customerProfile = clientInfo.customerProfile || sub.customer_profile || "";
+          clientInfo.existingBrandColor = clientInfo.existingBrandColor || sub.existing_brand_color || "";
+          clientInfo.brandHighlight = clientInfo.brandHighlight || sub.brand_highlight || "";
+          clientInfo.businessForm = clientInfo.businessForm || sub.business_form || "";
+          clientInfo.budgetRange = clientInfo.budgetRange || sub.budget_range || "";
+          clientInfo.businessYears = clientInfo.businessYears || sub.business_years;
         }
       }
     }
@@ -291,6 +303,45 @@ function buildAnalysisPrompt(clientInfo: any): string {
     parts.push(`品牌色：${bc.primary || "未定"} / ${bc.secondary || "未定"} / ${bc.accent || "未定"}`);
   }
 
+  if (clientInfo.brandPersonality) {
+    parts.push(`品牌个性：${clientInfo.brandPersonality}`);
+  }
+  if (clientInfo.logoStyle) {
+    parts.push(`Logo图形偏好：${clientInfo.logoStyle}`);
+  }
+  if (clientInfo.logoUsage) {
+    parts.push(`Logo主要用途：${clientInfo.logoUsage}`);
+  }
+  if (clientInfo.avoidElements) {
+    parts.push(`设计禁忌（避免出现）：${clientInfo.avoidElements}`);
+  }
+  if (clientInfo.existingSignagePain) {
+    parts.push(`现有门头最不满意：${clientInfo.existingSignagePain}`);
+  }
+  if (clientInfo.existingBrandColor) {
+    parts.push(`现有门头颜色：${clientInfo.existingBrandColor}`);
+  }
+  if (clientInfo.competitorReference) {
+    parts.push(`喜欢的竞品/参考品牌：${clientInfo.competitorReference}`);
+  }
+  if (clientInfo.customerProfile) {
+    parts.push(`常见客户群体：${clientInfo.customerProfile}`);
+  }
+  if (clientInfo.brandHighlight) {
+    parts.push(`品牌独特点：${clientInfo.brandHighlight}`);
+  }
+  if (clientInfo.businessForm) {
+    parts.push(`经营形态：${clientInfo.businessForm}`);
+  }
+  if (clientInfo.budgetRange) {
+    parts.push(`预算范围：${clientInfo.budgetRange}`);
+  }
+  if (clientInfo.businessYears) {
+    parts.push(`经营年限：${clientInfo.businessYears}年`);
+  }
+  if (clientInfo.mainProducts) {
+    parts.push(`主营产品：${clientInfo.mainProducts}`);
+  }
   if (clientInfo.description) {
     parts.push(`补充描述：${clientInfo.description}`);
   }
