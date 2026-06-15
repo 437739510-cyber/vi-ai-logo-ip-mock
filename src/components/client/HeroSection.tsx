@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Sparkles, GraduationCap } from "lucide-react";
 
 export function HeroSection() {
   return (
