@@ -46,7 +46,7 @@ export function HeroSection() {
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white text-base font-medium rounded-xl hover:bg-primary-dark transition-colors shadow-sm"
             >
               <Sparkles className="w-5 h-5" />
-              免费获取VI方案
+              免费品牌诊断
             </Link>
             <Link
               href="/member/login"
