@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { StatCard } from "@/components/admin/StatCard";
 import { RecentActivityList } from "@/components/admin/RecentActivityList";
 import { getProjects } from "@/lib/mock";
-import { FolderKanban, Clock, CheckCircle, AlertCircle, Wallet, Loader2, RefreshCw, FileText, AlertTriangle } from "lucide-react";
+import { FolderKanban, Clock, CheckCircle, AlertCircle, Wallet, RefreshCw, FileText, AlertTriangle } from "lucide-react";
 import type { Project } from "@/types";
 
 interface ApiBalance {
@@ -48,7 +48,7 @@ export default function DashboardPage() {
   const [todaySummary, setTodaySummary] = useState<TodaySummary | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  const fetchBalances = async () => {
+  const fetchBalances = useCallback(async () => {
     setBalanceLoading(true);
     try {
       const [dsRes, dqRes] = await Promise.allSettled([
@@ -59,9 +59,9 @@ export default function DashboardPage() {
       if (dqRes.status === "fulfilled") setDashscopeBalance(dqRes.value);
     } catch { /* ignore */ }
     setBalanceLoading(false);
-  };
+  }, []);
 
-  const fetchUsageLogs = async () => {
+  const fetchUsageLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
       const res = await fetch("/api/billing/usage-logs?limit=30");
@@ -72,16 +72,21 @@ export default function DashboardPage() {
       }
     } catch { /* ignore */ }
     setLogsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
-    getProjects().then((list) => {
-      setProjects(list);
+    // All 3 data fetches are independent — run in parallel
+    Promise.allSettled([
+      getProjects(),
+      fetchBalances(),
+      fetchUsageLogs(),
+    ]).then(([projectsResult]) => {
+      if (projectsResult.status === "fulfilled") {
+        setProjects(projectsResult.value);
+      }
       setLoading(false);
-      fetchBalances();
-      fetchUsageLogs();
     });
-  }, []);
+  }, [fetchBalances, fetchUsageLogs]);
 
   const pendingCount = projects.filter((p) => p.status === "submitted").length;
   const inProgressCount = projects.filter(
@@ -249,11 +254,11 @@ export default function DashboardPage() {
                     <td className="py-1.5 px-2 text-neutral-500 whitespace-nowrap">{formatTime(log.created_at)}</td>
                     <td className="py-1.5 px-2 font-medium text-neutral-700 max-w-[120px] truncate" title={log.route}>
                       {log.route.startsWith('[BLOCKED]') && <AlertTriangle className="w-3 h-3 text-red-500 inline mr-1" />}
-                      {log.route.replace('[BLOCKED] ', '\u{1F6AB} ')}
+                      {log.route.replace('[BLOCKED] ', '⛔ ')}
                     </td>
                     <td className="py-1.5 px-2 text-right text-neutral-500">{log.input_tokens || '—'}</td>
                     <td className="py-1.5 px-2 text-right text-neutral-500">{log.output_tokens || '—'}</td>
-                    <td className="py-1.5 px-2 text-right font-medium text-neutral-700">\u00A5{(log.cost_cny || 0).toFixed(4)}</td>
+                    <td className="py-1.5 px-2 text-right font-medium text-neutral-700">¥{(log.cost_cny || 0).toFixed(4)}</td>
                     <td className="py-1.5 px-2 text-center">
                       {log.response_status === 200 ? (
                         <span className="text-green-600">OK</span>
@@ -280,7 +285,7 @@ export default function DashboardPage() {
           <h3 className="text-sm font-bold text-neutral-900">最近动态</h3>
           <span className="text-xs text-neutral-400">实时</span>
         </div>
-        <RecentActivityList />
+        <RecentActivityList projects={projects} />
       </div>
     </div>
   );
