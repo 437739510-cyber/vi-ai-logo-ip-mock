@@ -1,12 +1,17 @@
 /**
- * DeepSeek API 调用守卫 (V54: timeoutMs支持 + 全量路由接入)
+ * DeepSeek API 调用守卫 (V55: 复用supabaseAdmin单例，修复env变量命名)
  * - 记录每次调用的路由、token用量、费用、时间戳到 api_usage_log
  * - 每日预算上限（默认5元），超出自动拦截
  * - 所有 DeepSeek 调用必须通过此模块
+ * 
+ * V55变更：移除本地Supabase客户端创建，改为复用 supabaseAdmin 单例
+ * - 修复：原代码用 process.env.SUPABASE_SERVICE_KEY 直接创建客户端，
+ *   该env在Zeabur中可能未配置（实际变量名为SUPABASE_SERVICE_ROLE_KEY），
+ *   导致guard功能静默降级为anon key（权限不足写不了api_usage_log）
+ * - 现在统一使用 supabaseAdmin，确保始终有service_role权限
  */
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
+import { supabaseAdmin } from "@/lib/supabase";
 
 // DeepSeek deepseek-chat pricing (CNY per 1K tokens)
 // Input: ¥0.001/1K, Output: ¥0.002/1K, Cached input: ¥0.0001/1K
@@ -57,41 +62,28 @@ export async function deepseekPreCheck(options: GuardOptions): Promise<{
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const spendRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/api_usage_log?select=cost_cny&created_at=gte.${todayStart.toISOString()}&route=not.like.[BLOCKED]%25`,
-      {
-        headers: {
-          'apikey': SUPABASE_SERVICE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-        },
-      }
-    );
+    const { data: spendRows } = await supabaseAdmin
+      .from("api_usage_log")
+      .select("cost_cny")
+      .gte("created_at", todayStart.toISOString())
+      .not("route", "like", "[BLOCKED]%");
 
     let todayTotal = 0;
-    if (spendRes.ok) {
-      const rows = (await spendRes.json()) as Array<{ cost_cny: number }>;
-      todayTotal = rows.reduce((sum, r) => sum + (r.cost_cny || 0), 0);
+    if (spendRows) {
+      todayTotal = spendRows.reduce((sum, r) => sum + (r.cost_cny || 0), 0);
     }
 
     if (todayTotal >= dailyBudgetCny) {
       // Budget exceeded - log the blocked attempt
-      await fetch(`${SUPABASE_URL}/rest/v1/api_usage_log`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_SERVICE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          route: `[BLOCKED] ${route}`,
-          method,
-          model,
-          cost_cny: 0,
-          project_id: projectId || null,
-          request_summary: `预算超限: ¥${todayTotal.toFixed(2)} / ¥${dailyBudgetCny.toFixed(2)}`,
-          response_status: 402,
-          error_message: 'Daily budget exceeded',
-        }),
+      await supabaseAdmin.from("api_usage_log").insert({
+        route: `[BLOCKED] ${route}`,
+        method,
+        model,
+        cost_cny: 0,
+        project_id: projectId || null,
+        request_summary: `预算超限: ¥${todayTotal.toFixed(2)} / ¥${dailyBudgetCny.toFixed(2)}`,
+        response_status: 402,
+        error_message: 'Daily budget exceeded',
       });
 
       return {
@@ -101,29 +93,20 @@ export async function deepseekPreCheck(options: GuardOptions): Promise<{
     }
 
     // 2. Log the call attempt
-    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/api_usage_log`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-      },
-      body: JSON.stringify({
+    const { data: inserted } = await supabaseAdmin
+      .from("api_usage_log")
+      .insert({
         route,
         method,
         model,
         cost_cny: 0,
         project_id: projectId || null,
         request_summary: (requestSummary || '').substring(0, 200),
-      }),
-    });
+      })
+      .select("id")
+      .single();
 
-    let logId: number | undefined;
-    if (insertRes.ok) {
-      const inserted = (await insertRes.json()) as Array<{ id: number }>;
-      logId = inserted[0]?.id;
-    }
+    const logId = inserted?.id;
 
     return { allowed: true, logId };
   } catch (error) {
@@ -147,21 +130,16 @@ export async function deepseekPostLog(
     const cachedCost = ((update.cached_tokens || 0) / 1000) * PRICE_CACHED_PER_1K;
     const totalCost = update.cost_cny ?? inputCost + outputCost + cachedCost;
 
-    await fetch(`${SUPABASE_URL}/rest/v1/api_usage_log?id=eq.${logId}`, {
-      method: 'PATCH',
-      headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    await supabaseAdmin
+      .from("api_usage_log")
+      .update({
         input_tokens: update.input_tokens || 0,
         output_tokens: update.output_tokens || 0,
         cost_cny: parseFloat(totalCost.toFixed(6)),
         response_status: update.response_status,
         error_message: update.error_message || null,
-      }),
-    });
+      })
+      .eq("id", logId);
   } catch (error) {
     console.error('[DeepSeek-Guard] Post-log failed:', error);
   }
@@ -265,19 +243,14 @@ export async function getTodayUsage(): Promise<{
   todayStart.setHours(0, 0, 0, 0);
 
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/api_usage_log?select=route,cost_cny&created_at=gte.${todayStart.toISOString()}&route=not.like.[BLOCKED]%25`,
-      {
-        headers: {
-          'apikey': SUPABASE_SERVICE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-        },
-      }
-    );
+    const { data: rows } = await supabaseAdmin
+      .from("api_usage_log")
+      .select("route, cost_cny")
+      .gte("created_at", todayStart.toISOString())
+      .not("route", "like", "[BLOCKED]%");
 
-    if (!res.ok) return { totalCost: 0, callCount: 0, byRoute: {} };
+    if (!rows) return { totalCost: 0, callCount: 0, byRoute: {} };
 
-    const rows = (await res.json()) as Array<{ route: string; cost_cny: number }>;
     const byRoute: Record<string, { cost: number; count: number }> = {};
     let totalCost = 0;
 
