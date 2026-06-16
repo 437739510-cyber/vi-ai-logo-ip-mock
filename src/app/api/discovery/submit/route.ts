@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     const yearsInBusiness = extractedData.yearsInBusiness || null;
 
     // 套餐推荐
-    const recommendedPlan = brief.package_recommendation?.package?.includes("499") || brief.package_recommendation?.price >= 499
+    const recommendedPlan = brief.package_recommendation?.package?.includes("99") || brief.package_recommendation?.price >= 99
       ? "standard"
       : "basic";
 
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
         brand_highlight: extractedData.proudMoment || "",
         customer_profile: extractedData.customerReasons?.join("、") || "",
         existing_brand_color: brief.visual_dna?.colors?.join(", ") || "",
-        budget_range: recommendedPlan === "standard" ? "499" : "99",
+        budget_range: recommendedPlan === "standard" ? "99" : "49",
         province: "",
         city: "",
         description: [

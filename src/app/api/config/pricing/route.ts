@@ -6,13 +6,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 
 const DEFAULT_PRICING = {
-  basic: { price: "99", name: "基础版", period: "一次性", desc: "Logo方案+VI手册", enabled: true },
-  standard: { price: "499", name: "标准版", period: "一次性", desc: "品牌故事+Logo+IP+完整VI", enabled: true },
+  basic: { price: "49", name: "基础版", period: "一次性", desc: "Logo方案+VI手册", enabled: true },
+  standard: { price: "99", name: "标准版", period: "一次性", desc: "品牌故事+Logo+IP+完整VI", enabled: true },
   manager: { price: "299", name: "品牌管家", period: "/月", desc: "每月12条品牌化内容", enabled: true },
 };
 
 const DEFAULT_LOGO_PRICING = {
-  standalone: { price: "49", name: "Logo单独购买", desc: "仅Logo方案，不含VI手册", enabled: true },
+  standalone: { price: "9.9", name: "Logo单独购买", desc: "仅Logo方案，不含VI手册", enabled: true },
   upgrade_basic: { price: "400", name: "基础版补差价", desc: "从基础版升级到标准版", enabled: true },
   upgrade_standard: { price: "0", name: "标准版补差价", desc: "已有标准版，无需补差", enabled: true },
 };

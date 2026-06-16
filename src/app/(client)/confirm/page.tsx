@@ -14,8 +14,8 @@ function PaymentContent() {
 
   // 动态定价（从管理后台配置读取）
   const FALLBACK: Record<string, { price: string; name: string; desc: string }> = {
-    basic: { price: "99", name: "基础版", desc: "Logo方案+VI手册" },
-    standard: { price: "499", name: "标准版", desc: "品牌故事+Logo+IP+完整VI" },
+    basic: { price: "49", name: "基础版", desc: "Logo方案+VI手册" },
+    standard: { price: "99", name: "标准版", desc: "品牌故事+Logo+IP+完整VI" },
     manager: { price: "299", name: "品牌管家", desc: "每月12条品牌化内容" },
   };
   const [planConfig, setPlanConfig] = useState(FALLBACK[plan] || FALLBACK.basic);

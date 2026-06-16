@@ -32,7 +32,7 @@ export function HeroSection() {
             transition={{ duration: 0.6, delay: 0.15 }}
           >
             一家开了十年的老面馆，招牌比隔壁奶茶店还丑——不是你的错，是没人帮你。
-            我们用 AI 生成 LOGO、IP 公仔、VI 手册，¥99 起，专业团队上门拍照代发，让你从巷子深处变成整条街最靓的店。
+            我们用 AI 生成 LOGO、IP 公仔、VI 手册，¥9.9 起，专业团队上门拍照代发，让你从巷子深处变成整条街最靓的店。
           </motion.p>
 
           <motion.div
@@ -75,7 +75,7 @@ export function HeroSection() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.45 }}
           >
-            ¥99 起 · 无需注册 · 3个工作日出方案
+            ¥9.9 起 · 无需注册 · 3个工作日出方案
           </motion.p>
         </div>
       </div>

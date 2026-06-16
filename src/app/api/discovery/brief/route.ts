@@ -238,7 +238,7 @@ function generateDefaultBrief(data: ExtractedData): BrandBriefJSON {
     package_recommendation: {
       package: isOldStore ? "老店焕新套餐" : "新店起步套餐",
       score: 75,
-      price: isOldStore ? 499 : 99,
+      price: isOldStore ? 99 : 49,
     },
     slogan_candidates: generateSlogans(data),
     quality_guard: {

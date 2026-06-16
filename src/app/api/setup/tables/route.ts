@@ -42,8 +42,8 @@ CREATE POLICY "Anon can update site_config" ON site_config FOR UPDATE USING (tru
 
 -- 默认定价配置
 INSERT INTO site_config (key, value) VALUES ('pricing', '{
-  "basic": {"price": "99", "name": "基础版", "period": "一次性", "desc": "Logo方案+VI手册", "enabled": true},
-  "standard": {"price": "499", "name": "标准版", "period": "一次性", "desc": "品牌故事+Logo+IP+完整VI", "enabled": true},
+  "basic": {"price": "49", "name": "基础版", "period": "一次性", "desc": "Logo方案+VI手册", "enabled": true},
+  "standard": {"price": "99", "name": "标准版", "period": "一次性", "desc": "品牌故事+Logo+IP+完整VI", "enabled": true},
   "manager": {"price": "299", "name": "品牌管家", "period": "/月", "desc": "每月12条品牌化内容", "enabled": true}
 }'::jsonb) ON CONFLICT (key) DO NOTHING;`;
 

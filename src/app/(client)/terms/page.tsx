@@ -17,8 +17,8 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-neutral-900">2. 服务套餐</h2>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong>基础版（¥99）</strong>：包含Logo方案生成，3个工作日内交付</li>
-            <li><strong>标准版（¥499）</strong>：包含Logo方案 + VI手册，3个工作日内交付</li>
+            <li><strong>基础版（¥49）</strong>：包含Logo方案生成，3个工作日内交付</li>
+            <li><strong>标准版（¥99）</strong>：包含Logo方案 + VI手册，3个工作日内交付</li>
             <li><strong>品牌管家（¥299/月）</strong>：包含每月品牌化内容生成与代发服务</li>
           </ul>
         </section>
