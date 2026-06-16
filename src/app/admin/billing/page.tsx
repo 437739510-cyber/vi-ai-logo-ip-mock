@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Wallet, TrendingUp, AlertCircle, CheckCircle2, KeyRound } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { Wallet, RefreshCw, CheckCircle2, KeyRound, AlertCircle, TrendingUp } from "lucide-react";
 
-interface ProviderBalance {
+interface ApiBalance {
   provider: string;
-  balance: number;
+  balance: number | null;
   currency: string;
-  status: string;
+  status?: string;
+  error?: string;
   detail?: string;
-}
-
-interface BillingData {
-  deepseek: ProviderBalance;
-  dashscope: ProviderBalance;
+  source?: string;
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
@@ -24,18 +21,26 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: typeof Ch
 };
 
 export default function BillingPage() {
-  const [data, setData] = useState<BillingData | null>(null);
+  const [deepseekBalance, setDeepseekBalance] = useState<ApiBalance | null>(null);
+  const [dashscopeBalance, setDashscopeBalance] = useState<ApiBalance | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/billing/summary")
-      .then((r) => r.json())
-      .then((d) => {
-        setData(d);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const fetchBalances = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [dsRes, dqRes] = await Promise.allSettled([
+        fetch("/api/billing/deepseek-balance").then(r => r.json()),
+        fetch("/api/billing/dashscope-balance").then(r => r.json()),
+      ]);
+      if (dsRes.status === "fulfilled") setDeepseekBalance(dsRes.value);
+      if (dqRes.status === "fulfilled") setDashscopeBalance(dqRes.value);
+    } catch { /* ignore */ }
+    setRefreshing(false);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchBalances(); }, [fetchBalances]);
 
   if (loading) {
     return (
@@ -45,12 +50,18 @@ export default function BillingPage() {
     );
   }
 
-  const providers = data ? [data.deepseek, data.dashscope].filter(Boolean) : [];
+  const providers = [deepseekBalance, dashscopeBalance].filter(Boolean) as ApiBalance[];
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-neutral-900">消耗明细</h1>
+        <button onClick={fetchBalances} disabled={refreshing}
+          className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600 transition-colors"
+        >
+          <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
+          刷新
+        </button>
       </div>
 
       {providers.length === 0 && (
@@ -61,7 +72,8 @@ export default function BillingPage() {
       )}
 
       {providers.map((p) => {
-        const statusInfo = STATUS_MAP[p.status] || STATUS_MAP.not_configured;
+        const statusKey = p.status || (p.error ? "error" : p.balance !== null && p.balance >= 0 ? "active" : "not_configured");
+        const statusInfo = STATUS_MAP[statusKey] || STATUS_MAP.not_configured;
         const StatusIcon = statusInfo.icon;
         return (
           <div key={p.provider} className="bg-white rounded-2xl border border-neutral-200 p-6">
@@ -69,9 +81,11 @@ export default function BillingPage() {
               <div>
                 <p className="text-sm text-neutral-500 mb-1">{p.provider}</p>
                 <div className="text-3xl font-bold text-primary">
-                  {p.balance >= 0 ? `¥${p.balance.toFixed(2)}` : "—"}
+                  {p.balance !== null && p.balance >= 0 ? `¥${p.balance.toFixed(2)}` : "—"}
                 </div>
-                {p.balance >= 0 && <p className="text-xs text-neutral-400 mt-1">余额（{p.currency}）</p>}
+                {p.balance !== null && p.balance >= 0 && (
+                  <p className="text-xs text-neutral-400 mt-1">余额（{p.currency || "CNY"}）</p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${statusInfo.color}`}>
@@ -83,8 +97,8 @@ export default function BillingPage() {
                 </div>
               </div>
             </div>
-            {p.detail && (
-              <p className="text-xs text-neutral-400 bg-neutral-50 rounded-lg p-2">{p.detail}</p>
+            {(p.detail || p.error) && (
+              <p className="text-xs text-neutral-400 bg-neutral-50 rounded-lg p-2">{p.detail || p.error}</p>
             )}
           </div>
         );
