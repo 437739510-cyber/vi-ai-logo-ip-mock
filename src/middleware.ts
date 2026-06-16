@@ -8,6 +8,7 @@ const ADMIN_ONLY_PATHS = [
   "/admin/pricing",
   "/admin/favorites",
   "/admin/templates",
+  "/admin/logo-library",
 ];
 
 // 大学生专属路径（管理员也能看）

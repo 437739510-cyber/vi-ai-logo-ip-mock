@@ -174,7 +174,17 @@ export function ConsultationForm() {
         uploadFiles(mascotFileList, "mascot"),
         referenceFileList.length > 0 ? uploadFiles(referenceFileList, "pdf") : Promise.resolve([]),
       ]);
-      const payload = { ...data, plan,
+      // V75: 过滤全白默认值，用户没选颜色时brandColors应为null，避免AI被误导
+      const bc = data.brandColors;
+      const isAllWhite = (!bc?.primary || bc.primary === '#FFFFFF' || bc.primary === '#ffffff')
+        && (!bc?.secondary || bc.secondary === '#FFFFFF' || bc.secondary === '#ffffff')
+        && (!bc?.accent || bc.accent === '#FFFFFF' || bc.accent === '#ffffff');
+      const cleanBrandColors = isAllWhite ? null : {
+        primary: bc?.primary || null,
+        secondary: bc?.secondary || null,
+        accent: bc?.accent || null,
+      };
+      const payload = { ...data, plan, brandColors: cleanBrandColors,
         logoFiles: logoAssets,
         mascotItems: mascotAssetsList.map((a, i) => ({ ...a, name: mascotNames[i] || "", personality: mascotPersonalities[i] || "" })),
         referenceFile: refAssets[0] || null, referenceEnabled,

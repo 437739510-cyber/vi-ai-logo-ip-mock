@@ -110,7 +110,15 @@ export async function POST(req: NextRequest) {
       id: projectId,
       submission_id: submissionId,
       status: "submitted",
-      brand_colors: extracted.brandColors || null,
+      // V75: 过滤全白默认值，避免AI被误导
+      brand_colors: (() => {
+        const bc = extracted.brandColors;
+        if (!bc) return null;
+        const isAllWhite = (!bc.primary || bc.primary === '#FFFFFF' || bc.primary === '#ffffff')
+          && (!bc.secondary || bc.secondary === '#FFFFFF' || bc.secondary === '#ffffff')
+          && (!bc.accent || bc.accent === '#FFFFFF' || bc.accent === '#ffffff');
+        return isAllWhite ? null : bc;
+      })(),
       client_info: {
         viewPassword,
         mainProducts: extracted.mainProducts || "",
