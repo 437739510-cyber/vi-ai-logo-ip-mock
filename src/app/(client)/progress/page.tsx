@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, FileQuestion, Eye, Phone, Key, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 
 const STATUS_STEPS: { key: string; label: string }[] = [
   { key: "submitted", label: "已提交" },
@@ -27,9 +29,15 @@ interface ProjectResult {
   generationStatus: string;
 }
 
-export default function ProgressPage() {
-  const [phone, setPhone] = useState("");
-  const [viewPassword, setViewPassword] = useState("");
+function ProgressPageContent() {
+  const searchParams = useSearchParams();
+  const justSubmitted = searchParams.get("pwd");
+  const submittedPhone = searchParams.get("phone") || "";
+  const submittedPwd = searchParams.get("pwd") || "";
+  const submittedId = searchParams.get("id") || "";
+
+  const [phone, setPhone] = useState(justSubmitted ? submittedPhone : "");
+  const [viewPassword, setViewPassword] = useState(justSubmitted ? submittedPwd : "");
   const [project, setProject] = useState<ProjectResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +81,36 @@ export default function ProgressPage() {
         </p>
       </div>
 
+      {/* V79: 刚提交成功 - 显示确认卡 */}
+      {justSubmitted && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 shadow-sm mb-8">
+          <div className="text-center">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <h2 className="text-xl font-bold text-green-800 mb-2">提交成功！</h2>
+            <p className="text-sm text-green-700 mb-4">我们已收到您的VI设计需求，AI正在分析中</p>
+            <div className="bg-white rounded-xl p-4 space-y-2 text-left">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-neutral-500">项目编号</span>
+                <span className="font-mono text-sm font-medium">{submittedId}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-neutral-500">手机号</span>
+                <span className="text-sm">{submittedPhone}</span>
+              </div>
+              <div className="border-t border-neutral-100 pt-2 mt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-neutral-500">查看密码</span>
+                  <span className="font-mono text-lg font-bold tracking-widest text-primary">{submittedPwd}</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-500 mt-3">⚠️ 请截图保存查看密码，后续查询进度和查看Logo方案时需要</p>
+          </div>
+        </div>
+      )}
+
       {/* 查询输入 */}
       <div className="bg-white border border-neutral-100 rounded-2xl p-6 shadow-sm mb-8">
         <div className="space-y-4">
@@ -100,7 +138,7 @@ export default function ProgressPage() {
               placeholder="4位查看密码"
               value={viewPassword}
               onChange={(e) => setViewPassword(e.target.value.toUpperCase().slice(0, 6))}
-              maxLength={6}
+              maxLength={4}
               className="w-full px-3 py-2.5 border border-neutral-200 rounded-lg text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
@@ -200,5 +238,13 @@ export default function ProgressPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProgressPage() {
+  return (
+    <Suspense fallback={<div className="max-w-2xl mx-auto px-4 py-12 text-center text-neutral-400">加载中...</div>}>
+      <ProgressPageContent />
+    </Suspense>
   );
 }

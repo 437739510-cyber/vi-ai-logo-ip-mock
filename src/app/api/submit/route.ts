@@ -208,12 +208,8 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Generate 6-digit view password for client
+// V79: Generate 4-digit same-number password (easy for elderly to remember)
 function generateViewPassword(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Remove confusing chars: I/O/0/1
-  let pwd = "";
-  for (let i = 0; i < 6; i++) {
-    pwd += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return pwd;
+  const digit = Math.floor(Math.random() * 9) + 1; // 1-9
+  return String(digit).repeat(4); // e.g. "1111", "6666"
 }

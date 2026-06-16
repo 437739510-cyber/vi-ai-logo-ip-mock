@@ -194,7 +194,10 @@ export function ConsultationForm() {
       const res = await fetch("/api/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) { const errData = await res.json().catch(() => ({})); throw new Error(errData.error || "提交失败"); }
       const result = await res.json();
-      if (result.projectId) router.push(`/progress?id=${result.projectId}`);
+      if (result.projectId) {
+        // V79: 提交成功后显示确认页面，包含查看密码
+        router.push(`/progress?id=${result.projectId}&pwd=${result.viewPassword}&phone=${encodeURIComponent(data.phone)}`);
+      }
     } catch (err: any) { setSubmitError(err.message || "提交失败"); } finally { setIsSubmitting(false); }
   };
 
