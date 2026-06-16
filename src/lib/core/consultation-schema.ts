@@ -57,6 +57,7 @@ export const consultationSchema = z.object({
     .optional()
     .or(z.literal("")),
   budgetRange: z.string().optional(),
+  storePhotos: z.array(z.any()).optional(),  // V79: 门头照/经营器具照片
   brandVision: z
     .string()
     .max(200, "品牌愿景不超过 200 个字符")

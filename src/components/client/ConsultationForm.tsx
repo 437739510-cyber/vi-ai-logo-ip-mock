@@ -61,6 +61,7 @@ export function ConsultationForm() {
   const [logoFileList, setLogoFileList] = useState<File[]>([]);
   const [mascotFileList, setMascotFileList] = useState<File[]>([]);
   const [referenceFileList, setReferenceFileList] = useState<File[]>([]);
+  const [storePhotoList, setStorePhotoList] = useState<File[]>([]);
   const [mascotNames, setMascotNames] = useState<string[]>([]);
   const [mascotPersonalities, setMascotPersonalities] = useState<string[]>([]);
   const [referenceEnabled, setReferenceEnabled] = useState(true);
@@ -169,10 +170,11 @@ export function ConsultationForm() {
   const onSubmit = async (data: ConsultationFormData) => {
     setIsSubmitting(true); setSubmitError(null);
     try {
-      const [logoAssets, mascotAssetsList, refAssets] = await Promise.all([
+      const [logoAssets, mascotAssetsList, refAssets, storeAssets] = await Promise.all([
         uploadFiles(logoFileList, "logo"),
         uploadFiles(mascotFileList, "mascot"),
         referenceFileList.length > 0 ? uploadFiles(referenceFileList, "pdf") : Promise.resolve([]),
+        uploadFiles(storePhotoList, "logo"),  // 门头照复用logo bucket上传
       ]);
       // V75: 过滤全白默认值，用户没选颜色时brandColors应为null，避免AI被误导
       const bc = data.brandColors;
@@ -187,7 +189,7 @@ export function ConsultationForm() {
       const payload = { ...data, plan, brandColors: cleanBrandColors,
         logoFiles: logoAssets,
         mascotItems: mascotAssetsList.map((a, i) => ({ ...a, name: mascotNames[i] || "", personality: mascotPersonalities[i] || "" })),
-        referenceFile: refAssets[0] || null, referenceEnabled,
+        referenceFile: refAssets[0] || null, referenceEnabled, storePhotos: storeAssets,
       };
       const res = await fetch("/api/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) { const errData = await res.json().catch(() => ({})); throw new Error(errData.error || "提交失败"); }
@@ -326,8 +328,49 @@ export function ConsultationForm() {
               {errors.businessYears && <p className="mt-1 text-xs text-danger">{errors.businessYears.message}</p>}
             </div>
           </div>
+          {/* V79: 门头照/经营器具上传 - 提升AI辨识度+合成参考 */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">门头照/经营器具 <span className="text-neutral-400 text-xs">（选填，帮助AI更准确理解您的店铺风格）</span></label>
+            <p className="text-xs text-neutral-400 mb-2">上传门头、店内环境或招牌器具照片，AI将据此辨识您的经营特色，生成时融入真实场景感</p>
+            {storePhotoList.length > 0 && (
+              <div className="mb-3 space-y-1.5">
+                {storePhotoList.map((f, i) => (
+                  <div key={i} className="group flex items-center gap-3 px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-sm hover:border-neutral-300 transition-all">
+                    <svg className="w-4 h-4 text-neutral-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span className="truncate flex-1 text-neutral-700 font-medium">{f.name}</span>
+                    <span className="text-neutral-400 text-xs shrink-0">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                    <button type="button" onClick={() => setStorePhotoList((prev) => prev.filter((_, idx) => idx !== i))} className="p-0.5 rounded-lg hover:bg-neutral-200 text-neutral-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button type="button" onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'image/png,image/jpeg,image/jpg,image/heic,image/heif';
+              input.multiple = true;
+              input.onchange = (e: any) => {
+                const files = Array.from(e.target.files || []) as File[];
+                if (files.length > 0) {
+                  setStorePhotoList((prev) => [...prev, ...files].slice(0, 5));
+                }
+              };
+              input.click();
+            }} className="w-full relative overflow-hidden rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all duration-300 hover:border-primary/50 hover:bg-neutral-50 group">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-neutral-100 text-neutral-400 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </div>
+                <p className="text-sm font-medium text-neutral-700">点击上传门头/器具照片</p>
+                <p className="text-xs text-neutral-400">支持 JPG、PNG、HEIC，最多5张，每张最大20MB</p>
+              </div>
+            </button>
+          </div>
+
           {/* 初期推广阶段暂不展示预算范围 */}
-          <div className="hidden">
+          <div style={{display:"none"}}>
             <label className="block text-sm font-medium text-neutral-700 mb-1">预算范围 <span className="text-neutral-400 text-xs">（选填）</span></label>
             <select {...register("budgetRange")} className={sc}>
               <option value="">请选择预算</option>

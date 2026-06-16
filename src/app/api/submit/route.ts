@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
       referenceManual: body.referenceFile
         ? { fileName: body.referenceFile.fileName, url: body.referenceFile.url, pageCount: 0, isReferenceEnabled: true, referenceMode: body.referenceEnabled ? "weak" : "none" }
         : null,
+      storePhotos: body.storePhotos || [],  // V79: 门头照/经营器具照片
       submittedAt: isoNow,
       status: "submitted",
     };
@@ -131,11 +132,25 @@ export async function POST(req: NextRequest) {
         avoid_elements: body.avoidElements || "",
         existing_signage_pain: body.existingSignagePain || "",
         competitor_reference: body.competitorReference || "",
+        main_products: body.mainProducts || "",
+        business_form: body.businessForm || "",
+        company_scale: companyScale,
+        scale_reason: scaleReason,
+        store_photos: body.storePhotos || [],
+        reference_manual: submission.referenceManual,
         submitted_at: isoNow,
         student_id: body.studentId || null,
       };
       const { error: subErr } = await supabaseAdmin.from("submissions").insert(supabaseSub);
-      if (subErr) console.warn("[SUBMIT] Supabase submission error:", subErr.message);
+      if (subErr) {
+        console.warn("[SUBMIT] Supabase submission error:", subErr.message);
+        // V79: 如果是因为新列不存在导致的错误，去掉新列重试
+        if (subErr.message.includes('does not exist') || subErr.code === '42703') {
+          const { main_products, business_form, company_scale, scale_reason, store_photos, ...fallbackSub } = supabaseSub as any;
+          const { error: retryErr } = await supabaseAdmin.from("submissions").insert(fallbackSub);
+          if (retryErr) console.warn("[SUBMIT] Supabase fallback submission error:", retryErr.message);
+        }
+      }
     } catch (e) {
       console.warn("[SUBMIT] Supabase submission skipped:", e);
     }
