@@ -71,6 +71,27 @@ Logo方案：${logos.map((l, i) => `\n方案${i + 1}：设计提示词 - ${l.pro
   };
 }
 
+function extractLibStyleTags(prompt: string): string[] {
+  const tags: string[] = [];
+  const kw: Record<string, string[]> = {
+    "极简": ["minimalist","minimal","simple","极简","简约","简洁"],
+    "国风": ["chinese","国风","传统","中式","古风","东方"],
+    "现代": ["modern","现代","时尚","潮流"],
+    "可爱": ["cute","可爱","卡通","萌","kawaii"],
+    "高端": ["luxury","高端","奢华","premium","elegant","优雅"],
+    "活力": ["energetic","活力","动感","运动","dynamic"],
+    "自然": ["nature","自然","生态","organic","green"],
+    "科技": ["tech","科技","数字","digital","cyber"],
+    "复古": ["vintage","复古","怀旧","retro"],
+    "卡通吉祥物": ["cartoon","卡通","mascot","吉祥物"],
+  };
+  const lower = prompt.toLowerCase();
+  for (const [tag, words] of Object.entries(kw)) {
+    if (words.some(w => lower.includes(w))) tags.push(tag);
+  }
+  return tags.length > 0 ? tags : ["通用"];
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -90,14 +111,15 @@ export async function POST(req: NextRequest) {
       .single();
 
     const clientInfo = (project?.client_info as Record<string, any>) || {};
+    const brandProfile = (clientInfo.brandProfile || {}) as Record<string, any>;
     const submissionId = project?.submission_id;
 
     // === AI智能选优模式 ===
     if (autoSelect) {
       console.log("[select-logo] Auto-select mode activated");
 
-      const brandProfile = clientInfo.brandProfile || {};
-      const logoResults = brandProfile.logoGenerationResults || [];
+      const brandProfileLocal = clientInfo.brandProfile || {};  // used locally in autoSelect
+      const logoResults = brandProfileLocal.logoGenerationResults || [];
 
       const candidates: LogoCandidate[] = logoResults
         .filter((r: any) => r.imageUrl)
@@ -222,6 +244,52 @@ export async function POST(req: NextRequest) {
       .eq("id", projectId);
 
     console.log("[select-logo] Done! Logo saved and linked to project.");
+
+    // === Auto-collect unselected logos to library ===
+    (async () => {
+      try {
+        const unselectedLogos = (brandProfile.logoGenerationResults || [])
+          .filter((l: any) => l.index !== selectedIndex && l.imageUrl);
+        if (unselectedLogos.length > 0) {
+          const { data: existingLib } = await supabaseAdmin
+            .from("logo_library").select("project_id, logo_index")
+            .eq("project_id", projectId);
+          const existingSet = new Set((existingLib || []).map((e: any) => e.logo_index));
+          
+          let industry = "未分类", companyName = "", businessType = "店铺";
+          if (submissionId) {
+            const { data: sub } = await supabaseAdmin.from("submissions")
+              .select("company_name, industry").eq("id", submissionId).single();
+            if (sub) { industry = sub.industry || "未分类"; companyName = sub.company_name || ""; }
+          }
+          if ((clientInfo as any).businessType) businessType = (clientInfo as any).businessType;
+          
+          for (const logo of unselectedLogos) {
+            if (existingSet.has(logo.index)) continue;
+            try {
+              const imgResp = await fetch(logo.imageUrl);
+              if (!imgResp.ok) continue;
+              const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+              const ts = Date.now();
+              const sp = `library/${projectId}/logo-${logo.index}-${ts}.png`;
+              const { error: upErr } = await supabaseAdmin.storage.from("brand-brain-generated")
+                .upload(sp, imgBuf, { contentType: "image/png", upsert: true });
+              if (upErr) continue;
+              const permUrl = supabaseAdmin.storage.from("brand-brain-generated").getPublicUrl(sp).data.publicUrl;
+              const styleTags = extractLibStyleTags(logo.prompt || "");
+              await supabaseAdmin.from("logo_library").insert({
+                project_id: projectId, company_name: companyName, industry,
+                business_type: businessType, logo_index: logo.index,
+                image_url: permUrl, storage_path: sp, prompt: logo.prompt,
+                style_tags: styleTags, brand_colors: brandProfile.brand_colors || null,
+                file_size: imgBuf.length,
+              });
+              console.log(`[select-logo] Collected unselected logo #${logo.index} to library`);
+            } catch (e: any) { console.warn("[select-logo] Failed to collect logo:", e.message); }
+          }
+        }
+      } catch (e: any) { console.warn("[select-logo] Library collection error:", e.message); }
+    })();
 
     return NextResponse.json({
       success: true,

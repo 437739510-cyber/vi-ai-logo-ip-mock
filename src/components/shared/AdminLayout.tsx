@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FolderKanban, Star, Users, Grid3X3,
-  Wallet, Tag, GraduationCap, ChevronLeft, Menu, X,
+  Wallet, Tag, GraduationCap, ChevronLeft, Menu, X, Palette,
   Briefcase, Coins, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/core/utils";
@@ -14,7 +14,7 @@ import { getNavForRole } from "@/lib/core/admin-roles";
 
 const ICON_MAP: Record<string, any> = {
   LayoutDashboard, FolderKanban, Star, Users, Grid3X3,
-  Wallet, Tag, GraduationCap, Briefcase, Coins,
+  Wallet, Tag, GraduationCap, Briefcase, Coins, Palette,
 };
 
 const ROLE_LABEL: Record<AdminRole, string> = {
