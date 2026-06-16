@@ -98,7 +98,7 @@ export function ConsultationForm() {
   };
 
   const stepFields: Record<number, (keyof ConsultationFormData)[]> = {
-    1: ["clientName", "companyName", "phone", "province", "city", "industry"],
+    1: ["clientName", "companyName", "phone", "province", "city", "industry", "businessForm", "mainProducts", "businessYears"],
     2: [], 3: [], 4: [],
   };
 
@@ -292,11 +292,14 @@ export function ConsultationForm() {
             {showIndustryCustom && <input {...register("industryCustom")} placeholder="请填写您的行业" className={ic + " mt-2"} />}
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">经营形态 <span className="text-neutral-400 text-xs">（选填）</span></label>
-            <div className="flex flex-wrap gap-2">
-              {BUSINESS_FORM_OPTIONS.map((form) => (<TagBtn key={form} label={form} selected={selectedBusinessForm === form} onClick={() => { const val = selectedBusinessForm === form ? "" : form; setSelectedBusinessForm(val); setValue("businessForm", val); }} />))}
-            </div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1"
+              >经营形态 <span className="text-danger">*</span></label>
+            <select value={selectedBusinessForm} onChange={(e) => { setSelectedBusinessForm(e.target.value); setValue("businessForm", e.target.value, { shouldValidate: true }); }} className={sc}>
+              <option value="">请选择经营形态</option>
+              {BUSINESS_FORM_OPTIONS.map((form) => (<option key={form} value={form}>{form}</option>))}
+            </select>
             <input type="hidden" {...register("businessForm")} />
+            {errors.businessForm && <p className="mt-1 text-xs text-danger">{errors.businessForm.message}</p>}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
