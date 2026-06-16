@@ -203,7 +203,20 @@ export function ConsultationForm() {
   const tc = ic + " resize-none";
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form onSubmit={handleSubmit(onSubmit, (errs) => {
+      const errKeys = Object.keys(errs) as (keyof ConsultationFormData)[];
+      if (errKeys.length > 0) {
+        const errStepMap: Record<string, number> = {};
+        stepFields[1] && stepFields[1].forEach(k => errStepMap[k] = 1);
+        ["brandHighlight","customerProfile","brandVision","coreValues","targetMarket","brandPersonality","competitorReference"].forEach(k => errStepMap[k] = 2);
+        ["existingBrandColor","logoStyle","logoUsage","avoidElements","existingSignagePain","brandColors","description"].forEach(k => errStepMap[k] = 3);
+        ["logoPhilosophy","mascotPhilosophy"].forEach(k => errStepMap[k] = 4);
+        const firstErrKey = errKeys[0];
+        const targetStep = errStepMap[firstErrKey] || 1;
+        setCurrentStep(targetStep);
+        setSubmitError(`第${targetStep}步有必填项未填写，请检查后重新提交`);
+      }
+    })}>
       {/* Progress Bar */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
@@ -313,7 +326,8 @@ export function ConsultationForm() {
               {errors.businessYears && <p className="mt-1 text-xs text-danger">{errors.businessYears.message}</p>}
             </div>
           </div>
-          <div>
+          {/* 初期推广阶段暂不展示预算范围 */}
+          <div className="hidden">
             <label className="block text-sm font-medium text-neutral-700 mb-1">预算范围 <span className="text-neutral-400 text-xs">（选填）</span></label>
             <select {...register("budgetRange")} className={sc}>
               <option value="">请选择预算</option>
