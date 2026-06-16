@@ -2,21 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Briefcase, ExternalLink, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Briefcase, ExternalLink } from "lucide-react";
 
 interface ClientProject {
   id: string;
   brand_name: string;
   industry: string;
   status: string;
-  plan: string;
   created_at: string;
-  student_confirmed: boolean;
 }
 
 export default function WorkspacePage() {
   const [projects, setProjects] = useState<ClientProject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/me").then((r) => r.json()).then((d) => {
@@ -24,8 +23,8 @@ export default function WorkspacePage() {
         window.location.href = "/admin/login";
         return;
       }
+      setUserName(d.name || "合伙人");
     });
-    // 复用项目列表API，后续可加student_id过滤
     fetch("/api/admin/projects")
       .then((r) => r.json())
       .then((d) => {
@@ -48,19 +47,16 @@ export default function WorkspacePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-            <Briefcase className="w-5 h-5 text-amber-600" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-neutral-900">我的客户</h1>
-            <p className="text-xs text-neutral-500">管理你服务的品牌项目</p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+          <Briefcase className="w-5 h-5 text-amber-600" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-neutral-900">我的客户</h1>
+          <p className="text-xs text-neutral-500">{userName}，管理你服务的品牌项目</p>
         </div>
       </div>
 
-      {/* 统计卡片 */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-neutral-200 p-4 text-center">
           <div className="text-2xl font-bold text-neutral-900">{projects.length}</div>
@@ -76,7 +72,6 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {/* 客户列表 */}
       <div className="space-y-3">
         {projects.length === 0 && (
           <div className="text-center py-16">
@@ -101,15 +96,12 @@ export default function WorkspacePage() {
                  project.status === "generating" ? "进行中" : "待处理"}
               </span>
             </div>
-            <div className="flex items-center gap-4">
-              <Link
-                href={`/admin/projects/${project.id}`}
-                className="flex items-center gap-1 text-sm text-primary hover:underline"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                查看项目
-              </Link>
-            </div>
+            <Link href={`/admin/projects/${project.id}`}
+              className="flex items-center gap-1 text-sm text-primary hover:underline"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              查看项目
+            </Link>
           </div>
         ))}
       </div>

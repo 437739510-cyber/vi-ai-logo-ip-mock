@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FolderKanban, Star, Users, Grid3X3,
   Wallet, Tag, GraduationCap, ChevronLeft, Menu, X,
-  Briefcase, Coins,
+  Briefcase, Coins, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/core/utils";
 import type { AdminRole } from "@/lib/core/admin-roles";
@@ -26,13 +26,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [role, setRole] = useState<AdminRole>("admin");
+  const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/admin/me")
       .then((r) => r.json())
       .then((d) => {
-        if (d.success && d.role) setRole(d.role);
+        if (d.success && d.role) {
+          setRole(d.role);
+          setUserName(d.name || "");
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -41,6 +45,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const navItems = getNavForRole(role);
   const isLoginPage = pathname === "/admin/login";
   const isActive = (href: string) => pathname.startsWith(href);
+
+  const handleLogout = async () => {
+    await fetch("/api/admin/login", { method: "DELETE" }).catch(() => {});
+    document.cookie = "admin_auth=; path=/; max-age=0";
+    document.cookie = "admin_role=; path=/; max-age=0";
+    document.cookie = "admin_user_id=; path=/; max-age=0";
+    window.location.href = "/admin/login";
+  };
 
   if (isLoginPage) return <>{children}</>;
 
@@ -76,7 +88,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-3 border-t border-neutral-100">
+        <div className="p-3 border-t border-neutral-100 space-y-1">
+          {userName && (
+            <div className="px-3 py-2 text-xs text-neutral-500">
+              <span className="font-medium text-neutral-700">{userName}</span>
+              <span className="ml-1">({role === "admin" ? "管理员" : "合伙人"})</span>
+            </div>
+          )}
+          <button onClick={handleLogout}
+            className="flex items-center gap-2 px-3 py-2 text-xs text-neutral-500 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors w-full"
+          >
+            <LogOut className="w-3 h-3" />
+            退出登录
+          </button>
           <Link href="/" className="flex items-center gap-2 px-3 py-2 text-xs text-neutral-500 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors">
             <ChevronLeft className="w-3 h-3" />
             返回客户端
@@ -94,9 +118,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               {role === "student" ? "合伙人工作台" : "管理后台"}
             </h1>
           </div>
-          <span className="md:hidden text-xs text-neutral-400">
-            {navItems.find((item) => isActive(item.href))?.label || ""}
-          </span>
+          <div className="flex items-center gap-3">
+            {userName && <span className="text-xs text-neutral-400 hidden md:inline">{userName}</span>}
+            <button onClick={handleLogout} className="md:hidden p-1.5 rounded-lg hover:bg-red-50 text-neutral-400 hover:text-red-600">
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </header>
 
         {mobileMenuOpen && (
@@ -124,7 +151,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">{children}</main>
       </div>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 flex z-50">
