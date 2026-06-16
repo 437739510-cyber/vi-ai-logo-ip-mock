@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Lock, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Lock, Loader2, Eye, EyeOff, ArrowLeft, GraduationCap } from "lucide-react";
 import Link from "next/link";
 
 function AdminLoginForm() {
@@ -27,7 +27,12 @@ function AdminLoginForm() {
       });
       const data = await res.json();
       if (data.success) {
-        window.location.replace(redirectUrl);
+        // 根据角色跳转
+        if (data.role === "student") {
+          window.location.replace("/admin/workspace");
+        } else {
+          window.location.replace(redirectUrl);
+        }
       } else {
         setError(data.error || "登录失败");
       }
@@ -52,14 +57,14 @@ function AdminLoginForm() {
               <Lock className="w-6 h-6 text-neutral-700" />
             </div>
             <h1 className="text-xl font-bold text-neutral-900">管理后台</h1>
-            <p className="text-sm text-neutral-400 mt-1">请输入管理员密码</p>
+            <p className="text-sm text-neutral-400 mt-1">管理员 / 合伙人登录</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
               <input
                 type={showPw ? "text" : "password"}
-                placeholder="密码"
+                placeholder="输入密码"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 inputMode="text"
@@ -89,6 +94,13 @@ function AdminLoginForm() {
               {loading ? "验证中..." : "进入后台"}
             </button>
           </form>
+
+          <div className="mt-6 pt-4 border-t border-neutral-100">
+            <div className="flex items-center gap-2 text-xs text-neutral-400">
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>大学生合伙人请使用专属密码登录</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

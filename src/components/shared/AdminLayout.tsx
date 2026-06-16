@@ -1,131 +1,121 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  FolderKanban,
-  Star,
-  Users,
-  Grid3X3,
-  Wallet,
-  Tag,
-  GraduationCap,
-  ChevronLeft,
-  Menu,
-  X,
+  LayoutDashboard, FolderKanban, Star, Users, Grid3X3,
+  Wallet, Tag, GraduationCap, ChevronLeft, Menu, X,
+  Briefcase, Coins,
 } from "lucide-react";
 import { cn } from "@/lib/core/utils";
+import type { AdminRole } from "@/lib/core/admin-roles";
+import { getNavForRole } from "@/lib/core/admin-roles";
 
-const NAV_ITEMS = [
-  { href: "/admin/dashboard", label: "工作台", icon: LayoutDashboard },
-  { href: "/admin/projects", label: "项目列表", icon: FolderKanban },
-  { href: "/admin/favorites", label: "收藏", icon: Star },
-  { href: "/admin/clients", label: "客户管理", icon: Users },
-  { href: "/admin/students", label: "大学生管理", icon: GraduationCap },
-  { href: "/admin/templates", label: "模板库", icon: Grid3X3 },
-  { href: "/admin/billing", label: "Billing", icon: Wallet },
-  { href: "/admin/pricing", label: "定价管理", icon: Tag },
-];
+const ICON_MAP: Record<string, any> = {
+  LayoutDashboard, FolderKanban, Star, Users, Grid3X3,
+  Wallet, Tag, GraduationCap, Briefcase, Coins,
+};
+
+const ROLE_LABEL: Record<AdminRole, string> = {
+  admin: "VI 管理后台",
+  student: "合伙人工作台",
+};
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [role, setRole] = useState<AdminRole>("admin");
+  const [loading, setLoading] = useState(true);
 
-  // 登录页不需要侧边栏/头部/底部导航
+  useEffect(() => {
+    fetch("/api/admin/me")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.role) setRole(d.role);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const navItems = getNavForRole(role);
   const isLoginPage = pathname === "/admin/login";
-
   const isActive = (href: string) => pathname.startsWith(href);
 
-  // 登录页直接渲染内容，不带任何布局装饰
-  if (isLoginPage) {
-    return <>{children}</>;
+  if (isLoginPage) return <>{children}</>;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen flex bg-neutral-50">
-      {/* 桌面端侧边栏 */}
       <aside className="hidden md:flex w-60 bg-white border-r border-neutral-200 flex-col shrink-0">
         <div className="h-16 flex items-center px-5 border-b border-neutral-100">
           <Link href="/admin/dashboard" className="font-bold text-neutral-900">
-            VI 管理后台
+            {ROLE_LABEL[role]}
           </Link>
         </div>
-        
         <nav className="flex-1 py-4 px-3 space-y-1">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
+          {navItems.map((item) => {
+            const Icon = ICON_MAP[item.icon];
             return (
-              <Link
-                key={item.href}
-                href={item.href}
+              <Link key={item.href} href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive(item.href)
-                    ? "bg-primary/10 text-primary"
-                    : "text-neutral-600 hover:bg-neutral-100"
+                  isActive(item.href) ? "bg-primary/10 text-primary" : "text-neutral-600 hover:bg-neutral-100"
                 )}
               >
-                <Icon className="w-4 h-4" />
+                {Icon && <Icon className="w-4 h-4" />}
                 {item.label}
               </Link>
             );
           })}
         </nav>
-        
         <div className="p-3 border-t border-neutral-100">
-          <Link
-            href="/"
-            className="flex items-center gap-2 px-3 py-2 text-xs text-neutral-500 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors"
-          >
+          <Link href="/" className="flex items-center gap-2 px-3 py-2 text-xs text-neutral-500 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors">
             <ChevronLeft className="w-3 h-3" />
             返回客户端
           </Link>
         </div>
       </aside>
 
-      {/* 主内容区 */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-14 md:h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-4 md:px-6 shrink-0">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-500"
-            >
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-500">
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
-            <h1 className="text-base md:text-lg font-semibold text-neutral-900">管理后台</h1>
+            <h1 className="text-base md:text-lg font-semibold text-neutral-900">
+              {role === "student" ? "合伙人工作台" : "管理后台"}
+            </h1>
           </div>
           <span className="md:hidden text-xs text-neutral-400">
-            {NAV_ITEMS.find((item) => isActive(item.href))?.label || ""}
+            {navItems.find((item) => isActive(item.href))?.label || ""}
           </span>
         </header>
 
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-b border-neutral-200 px-3 py-2 space-y-1">
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
+            {navItems.map((item) => {
+              const Icon = ICON_MAP[item.icon];
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
+                <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                    isActive(item.href)
-                      ? "bg-primary/10 text-primary"
-                      : "text-neutral-600 hover:bg-neutral-100"
+                    isActive(item.href) ? "bg-primary/10 text-primary" : "text-neutral-600 hover:bg-neutral-100"
                   )}
                 >
-                  <Icon className="w-4 h-4" />
+                  {Icon && <Icon className="w-4 h-4" />}
                   {item.label}
                 </Link>
               );
             })}
-            <Link
-              href="/"
-              onClick={() => setMobileMenuOpen(false)}
+            <Link href="/" onClick={() => setMobileMenuOpen(false)}
               className="flex items-center gap-2 px-3 py-2.5 text-sm text-neutral-500 hover:text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors"
             >
               <ChevronLeft className="w-3 h-3" />
@@ -138,20 +128,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 flex z-50">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
+        {navItems.slice(0, 5).map((item) => {
+          const Icon = ICON_MAP[item.icon];
           return (
-            <Link
-              key={item.href}
-              href={item.href}
+            <Link key={item.href} href={item.href}
               className={cn(
                 "flex-1 flex flex-col items-center py-2 text-[10px] font-medium transition-colors",
-                isActive(item.href)
-                  ? "text-primary"
-                  : "text-neutral-400 hover:text-neutral-600"
+                isActive(item.href) ? "text-primary" : "text-neutral-400 hover:text-neutral-600"
               )}
             >
-              <Icon className="w-5 h-5 mb-0.5" />
+              {Icon && <Icon className="w-5 h-5 mb-0.5" />}
               {item.label}
             </Link>
           );
