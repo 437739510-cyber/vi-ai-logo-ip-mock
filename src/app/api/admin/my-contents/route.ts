@@ -12,10 +12,10 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "仅大学生可访问" }, { status: 403 });
     }
 
-    // 查找该大学生生成的内容
+    // 查找该大学生生成的内容（含images字段）
     const { data: contents, error } = await supabaseAdmin
       .from("member_contents")
-      .select("id, member_id, caption, status, confirmed, platform, created_at, note")
+      .select("id, member_id, caption, status, confirmed, platform, created_at, note, images")
       .eq("student_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);
