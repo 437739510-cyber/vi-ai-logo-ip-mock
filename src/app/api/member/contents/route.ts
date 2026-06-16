@@ -10,7 +10,6 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "未登录" }, { status: 401 });
     }
 
-    // 查找session
     const { data: session } = await supabaseAdmin
       .from("member_sessions")
       .select("member_id")
@@ -21,7 +20,6 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "session无效" }, { status: 401 });
     }
 
-    // 获取member
     const { data: member } = await supabaseAdmin
       .from("members")
       .select("id, quota_used, quota_total, plan")
@@ -32,7 +30,6 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "用户不存在" }, { status: 401 });
     }
 
-    // 获取内容列表
     const { data: contents, error } = await supabaseAdmin
       .from("member_contents")
       .select("*")
@@ -41,11 +38,27 @@ export async function GET() {
       .limit(50);
 
     if (error) {
-      // 表可能还没建，返回空列表
       return NextResponse.json({ success: true, contents: [], quotaUsed: member.quota_used, quotaTotal: member.quota_total, plan: member.plan || "free" });
     }
 
-    // 处理数据：从images中分离composed_前缀的合成图
+    // 获取关联的大学生姓名
+    const studentIds = [...new Set(
+      (contents || [])
+        .filter((c: any) => c.student_id)
+        .map((c: any) => c.student_id)
+    )];
+    let studentMap: Record<string, string> = {};
+    if (studentIds.length > 0) {
+      const { data: students } = await supabaseAdmin
+        .from("student_accounts")
+        .select("id, name")
+        .in("id", studentIds);
+      (students || []).forEach((s: any) => {
+        studentMap[s.id] = s.name;
+      });
+    }
+
+    // 处理数据
     const processedContents = (contents || []).map((item: any) => {
       const images: string[] = item.images || [];
       const composedFromImages: { template: string; url: string }[] = [];
@@ -56,7 +69,7 @@ export async function GET() {
           const colonIdx = img.indexOf(':');
           if (colonIdx > 0) {
             composedFromImages.push({
-              template: img.substring(9, colonIdx), // skip "composed_"
+              template: img.substring(9, colonIdx),
               url: img.substring(colonIdx + 1),
             });
           }
@@ -69,6 +82,9 @@ export async function GET() {
         ...item,
         images: realImages,
         composed_images: [...(item.composed_images || []), ...composedFromImages],
+        source: item.source || "self",
+        confirmed: item.confirmed !== false,
+        student_name: item.student_id ? studentMap[item.student_id] : undefined,
       };
     });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Image as ImageIcon, Clock, CheckCircle, Send, Loader2, Plus, Sparkles, Copy, Check, Wand2, Download } from "lucide-react";
+import { Image as ImageIcon, Clock, CheckCircle, Send, Loader2, Plus, Sparkles, Copy, Check, Wand2, Download, UserCheck, XCircle } from "lucide-react";
 import Link from "next/link";
 
 interface ComposedImage {
@@ -18,6 +18,9 @@ interface ContentItem {
   created_at: string;
   platform?: string;
   composed_images?: ComposedImage[];
+  source?: "self" | "student";
+  confirmed?: boolean;
+  student_name?: string;
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
@@ -49,6 +52,7 @@ export default function MemberDashboard() {
   const [composing, setComposing] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
   const isFree = plan === "free";
   const isQuotaFull = quotaUsed >= quotaTotal;
 
@@ -78,16 +82,8 @@ export default function MemberDashboard() {
         body: JSON.stringify({ contentId, platform }),
       });
       const data = await res.json();
-      if (data.success) {
-        loadData();
-      } else {
-        alert(data.error || "生成失败");
-      }
-    } catch {
-      alert("网络错误，请重试");
-    } finally {
-      setGenerating(null);
-    }
+      if (data.success) { loadData(); } else { alert(data.error || "生成失败"); }
+    } catch { alert("网络错误，请重试"); } finally { setGenerating(null); }
   };
 
   const handleCompose = async (contentId: string, template: string) => {
@@ -99,16 +95,25 @@ export default function MemberDashboard() {
         body: JSON.stringify({ contentId, template }),
       });
       const data = await res.json();
+      if (data.success) { loadData(); } else { alert(data.error || "合成失败"); }
+    } catch { alert("网络错误，请重试"); } finally { setComposing(null); }
+  };
+
+  const handleConfirm = async (contentId: string, confirmed: boolean) => {
+    setConfirming(contentId);
+    try {
+      const res = await fetch("/api/member/confirm-content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentId, confirmed }),
+      });
+      const data = await res.json();
       if (data.success) {
         loadData();
       } else {
-        alert(data.error || "合成失败");
+        alert(data.error || "操作失败");
       }
-    } catch {
-      alert("网络错误，请重试");
-    } finally {
-      setComposing(null);
-    }
+    } catch { alert("网络错误"); } finally { setConfirming(null); }
   };
 
   const handleCopy = (text: string, id: string) => {
@@ -116,6 +121,9 @@ export default function MemberDashboard() {
     setCopied(id);
     setTimeout(() => setCopied(null), 2000);
   };
+
+  // 待确认数量
+  const pendingConfirmCount = contents.filter(c => c.source === "student" && c.confirmed === false).length;
 
   return (
     <div className="space-y-6">
@@ -137,16 +145,28 @@ export default function MemberDashboard() {
         {isFree && isQuotaFull && (
           <div className="mt-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
             <p className="text-sm font-medium text-primary">免费体验已用完</p>
-            <p className="text-xs text-neutral-500 mt-1">开通会员¥299/月，每月12条品牌内容，AI自动生成文案+品牌化图片</p>
+            <p className="text-xs text-neutral-500 mt-1">开通会员¥299/月，每月12条品牌内容</p>
             <a href="/" className="inline-block mt-2 px-4 py-1.5 bg-primary text-white text-sm font-medium rounded-lg">立即开通</a>
           </div>
         )}
         {!isFree && <p className="text-xs text-neutral-400 mt-2">超出配额 ¥30/条 · 续费请咨询客服</p>}
       </div>
 
+      {/* 待确认提示 */}
+      {pendingConfirmCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+          <UserCheck className="w-5 h-5 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-800">{pendingConfirmCount}条内容待确认</p>
+            <p className="text-xs text-amber-600">大学生已为您生成内容，请查看并确认</p>
+          </div>
+        </div>
+      )}
+
       {/* 快捷操作 */}
       <Link href="/member/upload"
-        className="flex items-center justify-center gap-2 w-full py-3 bg-primary text-white font-medium rounded-2xl hover:bg-primary-dark transition-all shadow-sm">
+        className="flex items-center justify-center gap-2 w-full py-3 bg-primary text-white font-medium rounded-2xl hover:bg-primary-dark transition-all shadow-sm"
+      >
         <Plus className="w-5 h-5" />
         拍照上传
       </Link>
@@ -171,10 +191,23 @@ export default function MemberDashboard() {
               const StatusIcon = status.icon;
               const isGenerating = generating === item.id;
               const isComposing = composing === item.id;
+              const isFromStudent = item.source === "student";
+              const needsConfirm = isFromStudent && item.confirmed === false;
               return (
-                <div key={item.id} className="bg-white rounded-xl border border-neutral-100 p-4">
+                <div key={item.id} className={`bg-white rounded-xl border p-4 ${needsConfirm ? "border-amber-200 bg-amber-50/30" : "border-neutral-100"}`}>
+                  {/* 大学生来源标签 */}
+                  {isFromStudent && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium">
+                        🤝 {item.student_name || "大学生"}生成
+                      </span>
+                      {needsConfirm && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">待确认</span>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
-                    {/* 缩略图 */}
                     <div className="w-16 h-16 rounded-lg bg-neutral-100 overflow-hidden shrink-0">
                       {item.images[0] && !item.images[0].startsWith("pending_") ? (
                         <img src={item.images[0]} alt="" className="w-full h-full object-cover" />
@@ -184,7 +217,6 @@ export default function MemberDashboard() {
                         </div>
                       )}
                     </div>
-                    {/* 信息 */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-neutral-700 line-clamp-2">
                         {item.caption || item.note || "待生成文案"}
@@ -204,14 +236,33 @@ export default function MemberDashboard() {
                     <span className="text-xs text-neutral-400 self-start">{item.images.length}张</span>
                   </div>
 
-                  {/* AI文案生成按钮 */}
-                  {item.status === "pending" && !isGenerating && (
+                  {/* 确认/拒绝按钮 */}
+                  {needsConfirm && (
+                    <div className="mt-3 flex gap-2">
+                      <button onClick={() => handleConfirm(item.id, true)} disabled={confirming === item.id}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-all"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        {confirming === item.id ? "处理中..." : "确认使用"}
+                      </button>
+                      <button onClick={() => handleConfirm(item.id, false)} disabled={confirming === item.id}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium bg-white border border-neutral-300 text-neutral-600 rounded-lg hover:bg-neutral-50 disabled:opacity-50 transition-all"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        不满意
+                      </button>
+                    </div>
+                  )}
+
+                  {/* AI文案生成按钮 — 只有自己的内容才能生成 */}
+                  {item.status === "pending" && !isGenerating && !isFromStudent && (
                     <div className="mt-3">
                       <p className="text-xs text-neutral-400 mb-2">生成文案</p>
                       <div className="flex gap-2">
                         {PLATFORM_OPTIONS.map((p) => (
                           <button key={p.value} onClick={() => handleGenerate(item.id, p.value)}
-                            className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-all">
+                            className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-all"
+                          >
                             <Sparkles className="w-3.5 h-3.5" />{p.label}文案
                           </button>
                         ))}
@@ -226,7 +277,8 @@ export default function MemberDashboard() {
                       <div className="flex gap-2">
                         {TEMPLATE_OPTIONS.map((t) => (
                           <button key={t.value} onClick={() => handleCompose(item.id, t.value)}
-                            className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-white bg-primary/80 rounded-lg hover:bg-primary transition-all">
+                            className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-white bg-primary/80 rounded-lg hover:bg-primary transition-all"
+                          >
                             <Wand2 className="w-3.5 h-3.5" />{t.icon}{t.label}
                           </button>
                         ))}
@@ -257,7 +309,8 @@ export default function MemberDashboard() {
                     <div className="mt-3 p-3 bg-neutral-50 rounded-lg relative group">
                       <p className="text-sm text-neutral-700 whitespace-pre-wrap pr-8">{item.caption}</p>
                       <button onClick={() => handleCopy(item.caption, item.id)}
-                        className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-neutral-200 transition-colors text-neutral-400 hover:text-neutral-600">
+                        className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-neutral-200 transition-colors text-neutral-400 hover:text-neutral-600"
+                      >
                         {copied === item.id ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                       </button>
                     </div>
@@ -277,11 +330,13 @@ export default function MemberDashboard() {
             <img src={previewImg} alt="预览" className="w-full rounded-xl" />
             <div className="mt-3 flex gap-3 justify-center">
               <a href={previewImg} download="brand-image.jpg"
-                className="flex items-center gap-2 px-4 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium hover:bg-neutral-100">
+                className="flex items-center gap-2 px-4 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium hover:bg-neutral-100"
+              >
                 <Download className="w-4 h-4" />保存图片
               </a>
               <button onClick={() => setPreviewImg(null)}
-                className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm hover:bg-white/30">
+                className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm hover:bg-white/30"
+              >
                 关闭
               </button>
             </div>
