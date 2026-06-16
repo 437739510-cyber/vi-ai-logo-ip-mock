@@ -78,7 +78,7 @@ export const PACKAGE_DEFINITIONS: Record<ManualPackageType, PackageDefinition> =
       "brand-story",
       "marketing-collateral",
     ],
-    estimatedPages: [12, 18],
+    estimatedPages: [10, 12],  // 6 modules × ~2 pages
     estimatedApiCalls: 8,
     estimatedMinutes: 8,
     features: [
@@ -113,7 +113,7 @@ export const PACKAGE_DEFINITIONS: Record<ManualPackageType, PackageDefinition> =
       "retail-store",
       "event-exhibition",
     ],
-    estimatedPages: [18, 30],
+    estimatedPages: [16, 20],  // 10 modules × ~2 pages
     estimatedApiCalls: 12,
     estimatedMinutes: 12,
     features: [
@@ -151,7 +151,7 @@ export const PACKAGE_DEFINITIONS: Record<ManualPackageType, PackageDefinition> =
       "signage-wayfinding",
       "digital-products",
     ],
-    estimatedPages: [30, 50],
+    estimatedPages: [20, 26],  // 12 modules × ~2 pages
     estimatedApiCalls: 16,
     estimatedMinutes: 16,
     features: [

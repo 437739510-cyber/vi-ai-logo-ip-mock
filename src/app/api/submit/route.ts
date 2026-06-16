@@ -2,6 +2,7 @@
 // Save to Supabase + local JSON fallback
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { detectCompanyScale, type CompanyScale, getScaleLabel } from "@/lib/brand/company-scale";
 import { writeFile, readFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -24,6 +25,23 @@ export async function POST(req: NextRequest) {
     const submissionId = `SBM-${dateStr}-${String(Date.now()).slice(-4)}`;
 
     const isoNow = now.toISOString();
+
+    // V78: 智能识别公司规模（后端提交时检测，~0.001元/次）
+    let companyScale: CompanyScale = "micro";
+    let scaleReason = "";
+    try {
+      const scaleResult = await detectCompanyScale(
+        body.companyName || "",
+        body.industry || "",
+        body.province || "",
+        body.city || "",
+      );
+      companyScale = scaleResult.scale;
+      scaleReason = scaleResult.reason;
+      console.log(`[SUBMIT] Company scale: ${body.companyName} → ${getScaleLabel(companyScale)} (${scaleReason})`);
+    } catch (e) {
+      console.warn("[SUBMIT] Company scale detection skipped:", e);
+    }
 
     const submission = {
       id: submissionId,
@@ -134,6 +152,9 @@ export async function POST(req: NextRequest) {
           viewPassword: submission.viewPassword,
           mainProducts: submission.mainProducts || body.mainProducts || "",
           businessForm: submission.businessForm || body.businessForm || "",
+          companyScale,
+          companyScaleLabel: getScaleLabel(companyScale),
+          companyScaleReason: scaleReason,
           brandPersonality: body.brandPersonality || "",
           logoUsage: body.logoUsage || "",
           logoStyle: body.logoStyle || "",

@@ -300,12 +300,14 @@ export function ConsultationForm() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">主营产品 <span className="text-neutral-400 text-xs">（选填）</span></label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">主营产品 <span className="text-danger">*</span></label>
               <input {...register("mainProducts")} placeholder="如：汉堡、炸鸡、手冲咖啡" className={ic} />
+              {errors.mainProducts && <p className="mt-1 text-xs text-danger">{errors.mainProducts.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">经营年限 <span className="text-neutral-400 text-xs">（选填）</span></label>
-              <input type="number" {...register("businessYears")} placeholder="年数" className={ic} min={0} />
+              <label className="block text-sm font-medium text-neutral-700 mb-1">经营年限 <span className="text-danger">*</span></label>
+              <input type="number" {...register("businessYears", { valueAsNumber: true })} placeholder="如：5" className={ic} min={0} />
+              {errors.businessYears && <p className="mt-1 text-xs text-danger">{errors.businessYears.message}</p>}
             </div>
           </div>
           <div>

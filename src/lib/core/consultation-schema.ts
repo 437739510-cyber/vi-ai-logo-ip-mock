@@ -32,18 +32,15 @@ export const consultationSchema = z.object({
     .or(z.literal("")),
   businessForm: z
     .string()
-    .max(20, "经营形态不超过 20 个字符")
-    .optional()
-    .or(z.literal("")),
+    .min(1, "请选择经营形态")
+    .max(20, "经营形态不超过 20 个字符"),
   mainProducts: z
     .string()
-    .max(200, "主营产品不超过 200 个字符")
-    .optional()
-    .or(z.literal("")),
+    .min(1, "请填写主营产品")
+    .max(200, "主营产品不超过 200 个字符"),
   businessYears: z
-    .union([z.number().int().min(0).max(200), z.nan()])
-    .optional()
-    .transform(v => (typeof v === "number" && !isNaN(v) ? v : undefined)),
+    .union([z.number().int().min(0, "经营年限不能为负").max(200), z.nan()])
+    .refine(v => typeof v === "number" && !isNaN(v), { message: "请填写经营年限" }),
   brandHighlight: z
     .string()
     .max(200, "品牌独特点不超过 200 个字符")
