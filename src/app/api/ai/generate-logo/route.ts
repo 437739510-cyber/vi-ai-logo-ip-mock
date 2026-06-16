@@ -20,6 +20,31 @@ export const dynamic = "force-dynamic";
 const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation";
 const DASHSCOPE_TASK = "https://dashscope.aliyuncs.com/api/v1/tasks";
 
+// V72: 下载临时图片并转存到Supabase Storage（解决URL 24小时过期问题）
+async function persistLogoImage(projectId: string, index: number, tempUrl: string): Promise<string | null> {
+  try {
+    const res = await fetch(tempUrl, { signal: AbortSignal.timeout(30000) });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const fileName = `${projectId}/logo_${index}_${Date.now()}.jpeg`;
+    const { error } = await supabaseAdmin.storage
+      .from("brand-brain-generated")
+      .upload(fileName, buffer, { contentType: "image/jpeg", upsert: true });
+    if (error) {
+      console.error(`[persistLogo] Upload failed for ${fileName}:`, error.message);
+      return null;
+    }
+    const { data } = supabaseAdmin.storage.from("brand-brain-generated").getPublicUrl(fileName);
+    console.log(`[persistLogo] Persisted logo ${index} → ${data.publicUrl}`);
+    return data.publicUrl;
+  } catch (e) {
+    console.error(`[persistLogo] Error persisting logo ${index}:`, e);
+    return null;
+  }
+}
+
+
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -154,6 +179,16 @@ export async function POST(req: NextRequest) {
 
       const successCount = logoResults.filter(r => r.imageUrl).length;
       console.log(`[generate-logo] Background: Done: ${successCount}/${prompts.length} success`);
+
+      // V72: 将临时URL转存到Supabase Storage永久保存
+      for (const r of logoResults) {
+        if (r.imageUrl && !r.imageUrl.includes("fzoscrutqhdfzwnjgjvs.supabase.co")) {
+          const permanentUrl = await persistLogoImage(projectId, r.index, r.imageUrl);
+          if (permanentUrl) {
+            r.imageUrl = permanentUrl;
+          }
+        }
+      }
 
       // Final update: save results
       try {
