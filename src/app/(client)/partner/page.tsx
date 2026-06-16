@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 import {
   GraduationCap,
   DollarSign,
+  Award,
   Clock,
   Smartphone,
-  Award,
   TrendingUp,
   Users,
   MessageCircle,
@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { PARTNER_CONFIG } from "@/lib/core/partner-config";
 
-const { commission, pricing, earning, contact, training } = PARTNER_CONFIG;
+const { contact, training } = PARTNER_CONFIG;
 
 const steps = [
   {
@@ -44,32 +44,6 @@ const tasks = [
   { icon: Users, title: "维护关系", desc: "跟进客户满意度，促成复购" },
 ];
 
-const tiers = [
-  {
-    level: "新手合伙人",
-    commission: commission.base,
-    color: "text-neutral-600",
-    bg: "bg-neutral-50",
-    border: "border-neutral-200",
-    orders: `0~${commission.upgradeOrders.silver - 1}单`,
-  },
-  {
-    level: "银级合伙人",
-    commission: commission.silver,
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    orders: `${commission.upgradeOrders.silver}~${commission.upgradeOrders.gold - 1}单`,
-  },
-  {
-    level: "金级合伙人",
-    commission: commission.gold,
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-    orders: `${commission.upgradeOrders.gold}单以上`,
-  },
-];
 
 export default function PartnerPage() {
   return (
@@ -184,74 +158,6 @@ export default function PartnerPage() {
           </div>
         </section>
 
-        {/* 分成方案 */}
-        <section className="py-16 bg-white">
-          <div className="max-w-5xl mx-auto px-4">
-            <h2 className="text-2xl font-bold text-neutral-900 text-center mb-4">
-              分成方案
-            </h2>
-            <p className="text-neutral-500 text-center mb-12">
-              多劳多得，越做越高
-            </p>
-            <div className="grid md:grid-cols-3 gap-6 mb-10">
-              {tiers.map((tier) => (
-                <div
-                  key={tier.level}
-                  className={`p-6 rounded-2xl ${tier.bg} border ${tier.border} text-center`}
-                >
-                  <h3 className={`font-bold text-lg ${tier.color} mb-2`}>
-                    {tier.level}
-                  </h3>
-                  <div className="text-4xl font-bold text-neutral-900 mb-1">
-                    {tier.commission}
-                    <span className="text-lg text-neutral-500">%</span>
-                  </div>
-                  <p className="text-sm text-neutral-500">
-                    客户支付金额的 {tier.commission}%
-                  </p>
-                  <p className="text-xs text-neutral-400 mt-2">{tier.orders}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* 收益测算 */}
-            <div className="bg-neutral-50 rounded-2xl p-6 border border-neutral-100">
-              <h3 className="font-bold text-neutral-900 mb-4 text-center">
-                收益测算
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold text-primary">
-                    ¥{pricing.basic}
-                  </p>
-                  <p className="text-xs text-neutral-500 mt-1">基础版定价</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-primary">
-                    ¥{pricing.standard}
-                  </p>
-                  <p className="text-xs text-neutral-500 mt-1">标准版定价</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-primary">
-                    ¥{pricing.premium}
-                  </p>
-                  <p className="text-xs text-neutral-500 mt-1">高级版定价</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-primary">
-                    ¥{earning.perOrderMin}~{earning.perOrderMax}
-                  </p>
-                  <p className="text-xs text-neutral-500 mt-1">你每单收入</p>
-                </div>
-              </div>
-              <p className="text-center text-sm text-neutral-500 mt-4">
-                兼职月入 ¥{earning.monthlyMin}~{earning.monthlyMax}（5~20单/月）
-              </p>
-            </div>
-          </div>
-        </section>
-
         {/* 你能得到什么 */}
         <section className="py-16 bg-neutral-50">
           <div className="max-w-5xl mx-auto px-4">
@@ -294,7 +200,7 @@ export default function PartnerPage() {
                     越做越高
                   </h3>
                   <p className="text-sm text-neutral-500">
-                    完成指定单数自动晋级，提成比例从{commission.base}%升到{commission.gold}%
+                    完成越多单，提成比例越高
                   </p>
                 </div>
               </div>

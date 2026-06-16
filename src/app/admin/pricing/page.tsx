@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Settings, Save, RotateCcw, CheckCircle, AlertCircle, Palette } from "lucide-react";
+import { Settings, Save, RotateCcw, CheckCircle, AlertCircle, Palette, Users } from "lucide-react";
 
 interface PlanConfig {
   price: string;
@@ -17,6 +17,16 @@ interface LogoPricingConfig {
   upgrade_standard: { price: string; name: string; desc: string; enabled: boolean };
 }
 
+interface CommissionConfig {
+  base: number;
+  silver: number;
+  gold: number;
+  upgradeOrders: {
+    silver: number;
+    gold: number;
+  };
+}
+
 type PricingConfig = Record<string, PlanConfig>;
 
 const DEFAULT_PRICING: PricingConfig = {
@@ -29,6 +39,13 @@ const DEFAULT_LOGO_PRICING: LogoPricingConfig = {
   standalone: { price: "49", name: "Logo单独购买", desc: "仅Logo方案，不含VI手册", enabled: true },
   upgrade_basic: { price: "400", name: "基础版补差价", desc: "从基础版升级到标准版", enabled: true },
   upgrade_standard: { price: "0", name: "标准版补差价", desc: "已有标准版，无需补差", enabled: true },
+};
+
+const DEFAULT_COMMISSION: CommissionConfig = {
+  base: 30,
+  silver: 40,
+  gold: 50,
+  upgradeOrders: { silver: 20, gold: 50 },
 };
 
 const PLAN_LABELS: Record<string, string> = {
@@ -58,6 +75,7 @@ const LOGO_LABELS: Record<string, string> = {
 export default function PricingPage() {
   const [pricing, setPricing] = useState<PricingConfig>(DEFAULT_PRICING);
   const [logoPricing, setLogoPricing] = useState<LogoPricingConfig>(DEFAULT_LOGO_PRICING);
+  const [commission, setCommission] = useState<CommissionConfig>(DEFAULT_COMMISSION);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
@@ -68,6 +86,7 @@ export default function PricingPage() {
       .then((d) => {
         if (d.pricing) setPricing({ ...DEFAULT_PRICING, ...d.pricing });
         if (d.logoPricing) setLogoPricing({ ...DEFAULT_LOGO_PRICING, ...d.logoPricing });
+        if (d.commission) setCommission({ ...DEFAULT_COMMISSION, ...d.commission, upgradeOrders: { ...DEFAULT_COMMISSION.upgradeOrders, ...d.commission.upgradeOrders } });
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -84,7 +103,7 @@ export default function PricingPage() {
       const res = await fetch("/api/config/pricing", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pricing, logoPricing }),
+        body: JSON.stringify({ pricing, logoPricing, commission }),
       });
       const data = await res.json();
       if (data.success) {
@@ -102,6 +121,7 @@ export default function PricingPage() {
   const handleReset = () => {
     setPricing(DEFAULT_PRICING);
     setLogoPricing(DEFAULT_LOGO_PRICING);
+    setCommission(DEFAULT_COMMISSION);
   };
 
   const updatePlan = (key: string, field: keyof PlanConfig, value: string | boolean) => {
@@ -336,6 +356,75 @@ export default function PricingPage() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* 合伙人分成方案 */}
+      <div>
+        <h2 className="text-sm font-bold text-neutral-700 mb-3 flex items-center gap-2">
+          <Users className="w-4 h-4 text-amber-500" />
+          合伙人分成方案
+        </h2>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-neutral-500 mb-1">新手合伙人（%）</label>
+              <input
+                type="number"
+                value={commission.base}
+                onChange={(e) => setCommission(prev => ({ ...prev, base: Number(e.target.value) }))}
+                className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-500 mb-1">银级合伙人（%）</label>
+              <input
+                type="number"
+                value={commission.silver}
+                onChange={(e) => setCommission(prev => ({ ...prev, silver: Number(e.target.value) }))}
+                className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-500 mb-1">金级合伙人（%）</label>
+              <input
+                type="number"
+                value={commission.gold}
+                onChange={(e) => setCommission(prev => ({ ...prev, gold: Number(e.target.value) }))}
+                className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-neutral-500 mb-1">晋升银级（单数）</label>
+              <input
+                type="number"
+                value={commission.upgradeOrders.silver}
+                onChange={(e) => setCommission(prev => ({ ...prev, upgradeOrders: { ...prev.upgradeOrders, silver: Number(e.target.value) } }))}
+                className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-500 mb-1">晋升金级（单数）</label>
+              <input
+                type="number"
+                value={commission.upgradeOrders.gold}
+                onChange={(e) => setCommission(prev => ({ ...prev, upgradeOrders: { ...prev.upgradeOrders, gold: Number(e.target.value) } }))}
+                className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+              />
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-neutral-100">
+            <p className="text-xs text-neutral-500 mb-2">当前方案预览</p>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="px-2 py-1 bg-neutral-100 rounded text-neutral-700">新手 {commission.base}%</span>
+              <span className="text-neutral-300">→</span>
+              <span className="px-2 py-1 bg-blue-50 rounded text-blue-700">银级 {commission.silver}%（{commission.upgradeOrders.silver}单起）</span>
+              <span className="text-neutral-300">→</span>
+              <span className="px-2 py-1 bg-amber-50 rounded text-amber-700">金级 {commission.gold}%（{commission.upgradeOrders.gold}单起）</span>
+            </div>
+          </div>
         </div>
       </div>
 

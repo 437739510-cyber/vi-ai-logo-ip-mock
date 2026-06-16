@@ -17,29 +17,40 @@ const DEFAULT_LOGO_PRICING = {
   upgrade_standard: { price: "0", name: "标准版补差价", desc: "已有标准版，无需补差", enabled: true },
 };
 
+const DEFAULT_COMMISSION = {
+  base: 30,
+  silver: 40,
+  gold: 50,
+  upgradeOrders: { silver: 20, gold: 50 },
+};
+
 export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from("site_config")
       .select("key, value")
-      .in("key", ["pricing", "logo_pricing"]);
+      .in("key", ["pricing", "logo_pricing", "commission"]);
 
     const pricingData = data?.find((d: any) => d.key === "pricing")?.value;
     const logoPricingData = data?.find((d: any) => d.key === "logo_pricing")?.value;
+    const commissionData = data?.find((d: any) => d.key === "commission")?.value;
 
     const pricing = pricingData ? { ...DEFAULT_PRICING, ...pricingData } : DEFAULT_PRICING;
     const logoPricing = logoPricingData ? { ...DEFAULT_LOGO_PRICING, ...logoPricingData } : DEFAULT_LOGO_PRICING;
+    const commission = commissionData
+      ? { ...DEFAULT_COMMISSION, ...commissionData, upgradeOrders: { ...DEFAULT_COMMISSION.upgradeOrders, ...commissionData.upgradeOrders } }
+      : DEFAULT_COMMISSION;
 
-    return NextResponse.json({ success: true, pricing, logoPricing });
+    return NextResponse.json({ success: true, pricing, logoPricing, commission });
   } catch {
-    return NextResponse.json({ success: true, pricing: DEFAULT_PRICING, logoPricing: DEFAULT_LOGO_PRICING });
+    return NextResponse.json({ success: true, pricing: DEFAULT_PRICING, logoPricing: DEFAULT_LOGO_PRICING, commission: DEFAULT_COMMISSION });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { pricing, logoPricing } = body;
+    const { pricing, logoPricing, commission } = body;
 
     const updates = [];
     if (pricing && typeof pricing === "object") {
@@ -54,6 +65,13 @@ export async function PUT(req: NextRequest) {
         supabaseAdmin
           .from("site_config")
           .upsert({ key: "logo_pricing", value: logoPricing, updated_at: new Date().toISOString() }, { onConflict: "key" })
+      );
+    }
+    if (commission && typeof commission === "object") {
+      updates.push(
+        supabaseAdmin
+          .from("site_config")
+          .upsert({ key: "commission", value: commission, updated_at: new Date().toISOString() }, { onConflict: "key" })
       );
     }
 
