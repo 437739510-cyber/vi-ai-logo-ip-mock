@@ -58,6 +58,7 @@ export default function DiscoveryPage() {
   const [brief, setBrief] = useState<any>(null);
   const [genBrief, setGenBrief] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<"basic"|"standard">("basic");
   const [welcome, setWelcome] = useState(true);
   const [checks, setChecks] = useState<FieldCheck[]>([]);
   const [evaluating, setEvaluating] = useState(false);
@@ -130,16 +131,16 @@ export default function DiscoveryPage() {
 
   const mkBrief = async () => {
     setGenBrief(true);
-    try { const r = await fetch("/api/discovery/brief", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ sessionId: sid }) }); const d = await r.json(); if (d.brief) setBrief(d.brief); } catch {}
+    try { const r = await fetch("/api/discovery/brief", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ sessionId: sid }) }); const d = await r.json(); if (d.brief) { setBrief(d.brief); setSelectedPlan(d.brief.package_recommendation?.price >= 99 ? "standard" : "basic"); } } catch {}
     finally { setGenBrief(false); }
   };
 
   const doSubmit = async () => {
     setSubmitting(true);
     try {
-      const r = await fetch("/api/discovery/submit", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ sessionId: sid, briefData: brief }) });
+      const r = await fetch("/api/discovery/submit", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ sessionId: sid, briefData: brief, selectedPlan }) });
       const d = await r.json();
-      if (d.success && d.projectId) router.push(`/confirm?projectId=${d.projectId}&viewPassword=${d.viewPassword}&plan=${d.plan}`);
+      if (d.success && d.projectId) router.push(`/confirm?projectId=${d.projectId}&viewPassword=${d.viewPassword}&plan=${selectedPlan}`);
       else alert(d.error || "提交失败");
     } catch { alert("提交失败"); }
     finally { setSubmitting(false); }
@@ -258,7 +259,28 @@ export default function DiscoveryPage() {
                 <div className="flex items-start gap-2"><span className="text-amber-600 font-medium min-w-[60px] sm:min-w-[70px] shrink-0">品牌精神：</span><span className="text-neutral-700">{brief.brand_story?.brand_spirit}</span></div>
                 <div className="flex items-start gap-2"><span className="text-amber-600 font-medium min-w-[60px] sm:min-w-[70px] shrink-0">视觉风格：</span><span className="text-neutral-700">{brief.visual_dna?.style}</span></div>
                 <div className="flex items-start gap-2"><span className="text-amber-600 font-medium min-w-[60px] sm:min-w-[70px] shrink-0">推荐口号：</span><span className="text-neutral-700">{brief.slogan_candidates?.[0]}</span></div>
-                <div className="flex items-start gap-2"><span className="text-amber-600 font-medium min-w-[60px] sm:min-w-[70px] shrink-0">推荐套餐：</span><span className="text-neutral-700">{brief.package_recommendation?.package}（¥{brief.package_recommendation?.price}）</span></div>
+                <div className="mt-1">
+                  <span className="text-amber-600 font-medium text-xs sm:text-sm">选择套餐：</span>
+                  <div className="flex gap-2 sm:gap-3 mt-2">
+                    <button onClick={() => setSelectedPlan("basic")} className={`flex-1 p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${selectedPlan === "basic" ? "border-primary bg-primary/5 shadow-md" : "border-neutral-200 bg-white hover:border-neutral-300"}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-sm sm:text-base text-neutral-900">基础版</span>
+                        <span className="text-lg sm:text-xl font-bold text-primary">¥49</span>
+                      </div>
+                      <p className="text-[10px] sm:text-xs text-neutral-500">Logo + 品牌色板 + 基础VI手册</p>
+                      {selectedPlan === "basic" && <div className="mt-1 text-[10px] sm:text-xs text-primary font-medium">✓ 已选择</div>}
+                    </button>
+                    <button onClick={() => setSelectedPlan("standard")} className={`flex-1 p-3 sm:p-4 rounded-xl border-2 text-left transition-all relative ${selectedPlan === "standard" ? "border-primary bg-primary/5 shadow-md" : "border-neutral-200 bg-white hover:border-neutral-300"}`}>
+                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-primary text-white text-[10px] rounded-full">推荐</div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-sm sm:text-base text-neutral-900">标准版</span>
+                        <span className="text-lg sm:text-xl font-bold text-primary">¥99</span>
+                      </div>
+                      <p className="text-[10px] sm:text-xs text-neutral-500">品牌故事 + Logo + IP + 完整VI</p>
+                      {selectedPlan === "standard" && <div className="mt-1 text-[10px] sm:text-xs text-primary font-medium">✓ 已选择</div>}
+                    </button>
+                  </div>
+                </div>
               </div>
               <button onClick={doSubmit} disabled={submitting} className="w-full mt-4 sm:mt-5 flex items-center justify-center gap-2 py-2.5 sm:py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl text-sm sm:text-base hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-60">
                 {submitting?<><Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin"/><span>正在提交...</span></>:<><span>开始生成VI手册</span><ArrowRight className="w-4 h-4 sm:w-5 sm:h-5"/></>}

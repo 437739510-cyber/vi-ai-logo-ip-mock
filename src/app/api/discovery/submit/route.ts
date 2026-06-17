@@ -50,10 +50,9 @@ export async function POST(req: NextRequest) {
     const coreValues = brief.brand_story?.brand_spirit || extractedData.brandSpiritCustom || "";
     const yearsInBusiness = extractedData.yearsInBusiness || null;
 
-    // 套餐推荐
-    const recommendedPlan = brief.package_recommendation?.package?.includes("99") || brief.package_recommendation?.price >= 99
-      ? "standard"
-      : "basic";
+    // 套餐：优先使用用户选择，否则根据AI推荐
+    const selectedPlan = body.selectedPlan || "basic";
+    const recommendedPlan = ["basic","standard"].includes(selectedPlan) ? selectedPlan : "basic";
 
     // 查看密码：4位相同数字，方便客人记忆
     const digit = String(Math.floor(Math.random() * 10));
