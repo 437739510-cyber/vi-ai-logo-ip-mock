@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { StatCard } from "@/components/admin/StatCard";
 import { RecentActivityList } from "@/components/admin/RecentActivityList";
 import { getProjects } from "@/lib/core/mock";
-import { FolderKanban, Clock, CheckCircle, AlertCircle, Wallet, RefreshCw, FileText, AlertTriangle } from "lucide-react";
+import { FolderKanban, Clock, CheckCircle, AlertCircle, Wallet, RefreshCw, FileText, AlertTriangle, ImageIcon } from "lucide-react";
 import type { Project } from "@/types";
 
 interface ApiBalance {
@@ -30,6 +30,15 @@ interface UsageLog {
   error_message: string | null;
 }
 
+interface ProviderSummary {
+  totalCost: number;
+  totalCalls: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  byRoute: Record<string, { cost: number; calls: number }>;
+  byModel: Record<string, { cost: number; calls: number }>;
+}
+
 interface TodaySummary {
   totalCost: number;
   totalCalls: number;
@@ -46,6 +55,8 @@ export default function DashboardPage() {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [usageLogs, setUsageLogs] = useState<UsageLog[]>([]);
   const [todaySummary, setTodaySummary] = useState<TodaySummary | null>(null);
+  const [todayDeepseekSummary, setTodayDeepseekSummary] = useState<ProviderSummary | null>(null);
+  const [todayDashscopeSummary, setTodayDashscopeSummary] = useState<ProviderSummary | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
 
   const fetchBalances = useCallback(async () => {
@@ -69,6 +80,8 @@ export default function DashboardPage() {
         const data = await res.json();
         setUsageLogs(data.logs || []);
         setTodaySummary(data.todaySummary || null);
+        setTodayDeepseekSummary(data.todayDeepseekSummary || null);
+        setTodayDashscopeSummary(data.todayDashscopeSummary || null);
       }
     } catch { /* ignore */ }
     setLogsLoading(false);
@@ -173,17 +186,18 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 今日 DeepSeek 调用统计 */}
-      {todaySummary && (
+      {/* 今日调用统计 - 双卡片 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* 今日 DeepSeek 调用 */}
         <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
+              <FileText className="w-4 h-4 text-blue-600" />
               <h3 className="text-sm font-bold text-neutral-900">今日 DeepSeek 调用</h3>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-neutral-400">
-                {todaySummary.totalCalls} 次 · ¥{todaySummary.totalCost.toFixed(4)}
+                {todayDeepseekSummary?.totalCalls || 0} 次 · ¥{(todayDeepseekSummary?.totalCost || 0).toFixed(4)}
               </span>
               <button
                 onClick={fetchUsageLogs}
@@ -191,7 +205,6 @@ export default function DashboardPage() {
                 className="flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600 transition-colors"
               >
                 <RefreshCw className={`w-3 h-3 ${logsLoading ? "animate-spin" : ""}`} />
-                刷新
               </button>
             </div>
           </div>
@@ -199,32 +212,79 @@ export default function DashboardPage() {
           <div className="mb-4">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-neutral-500">日预算 ¥5.00</span>
-              <span className={`text-xs font-medium ${todaySummary.totalCost > 3 ? 'text-red-500' : 'text-green-600'}`}>
-                ¥{todaySummary.totalCost.toFixed(4)} / ¥5.00
+              <span className={`text-xs font-medium ${(todayDeepseekSummary?.totalCost || 0) > 3 ? 'text-red-500' : 'text-green-600'}`}>
+                ¥{(todayDeepseekSummary?.totalCost || 0).toFixed(4)} / ¥5.00
               </span>
             </div>
             <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${
-                  todaySummary.totalCost > 4 ? 'bg-red-500' : todaySummary.totalCost > 3 ? 'bg-yellow-500' : 'bg-green-500'
+                  (todayDeepseekSummary?.totalCost || 0) > 4 ? 'bg-red-500' : (todayDeepseekSummary?.totalCost || 0) > 3 ? 'bg-yellow-500' : 'bg-green-500'
                 }`}
-                style={{ width: `${Math.min((todaySummary.totalCost / 5) * 100, 100)}%` }}
+                style={{ width: `${Math.min(((todayDeepseekSummary?.totalCost || 0) / 5) * 100, 100)}%` }}
               />
             </div>
           </div>
           {/* 按路由汇总 */}
-          {Object.keys(todaySummary.byRoute).length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-4">
-              {Object.entries(todaySummary.byRoute).map(([route, info]) => (
-                <div key={route} className="rounded-lg bg-neutral-50 p-2.5 border border-neutral-100">
+          {todayDeepseekSummary && Object.keys(todayDeepseekSummary.byRoute).length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(todayDeepseekSummary.byRoute).map(([route, info]) => (
+                <div key={route} className="rounded-lg bg-blue-50/50 p-2.5 border border-blue-100/50">
                   <p className="text-xs font-medium text-neutral-700 truncate" title={route}>{route}</p>
                   <p className="text-xs text-neutral-400">{info.calls}次 · ¥{info.cost.toFixed(4)}</p>
                 </div>
               ))}
             </div>
           )}
+          {!todayDeepseekSummary || todayDeepseekSummary.totalCalls === 0 ? (
+            <p className="text-xs text-neutral-400 text-center py-3">今日暂无调用</p>
+          ) : null}
         </div>
-      )}
+
+        {/* 今日通义万相调用 */}
+        <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-orange-600" />
+              <h3 className="text-sm font-bold text-neutral-900">今日通义万相调用</h3>
+            </div>
+            <span className="text-xs text-neutral-400">
+              {todayDashscopeSummary?.totalCalls || 0} 次 · ¥{(todayDashscopeSummary?.totalCost || 0).toFixed(4)}
+            </span>
+          </div>
+          {/* 按模型汇总 */}
+          {todayDashscopeSummary && Object.keys(todayDashscopeSummary.byModel).length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs font-medium text-neutral-500 mb-2">模型明细</p>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(todayDashscopeSummary.byModel).map(([model, info]) => (
+                  <div key={model} className="rounded-lg bg-orange-50/50 p-2.5 border border-orange-100/50">
+                    <p className="text-xs font-medium text-neutral-700 truncate" title={model}>{model}</p>
+                    <p className="text-xs text-neutral-400">{info.calls}次 · ¥{info.cost.toFixed(4)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* 按路由汇总 */}
+          {todayDashscopeSummary && Object.keys(todayDashscopeSummary.byRoute).length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-neutral-500 mb-2">路由明细</p>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(todayDashscopeSummary.byRoute).map(([route, info]) => (
+                  <div key={route} className="rounded-lg bg-neutral-50 p-2.5 border border-neutral-100">
+                    <p className="text-xs font-medium text-neutral-700 truncate" title={route}>{route}</p>
+                    <p className="text-xs text-neutral-400">{info.calls}次 · ¥{info.cost.toFixed(4)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {!todayDashscopeSummary || todayDashscopeSummary.totalCalls === 0 ? (
+            <p className="text-xs text-neutral-400 text-center py-3">今日暂无调用</p>
+          ) : null}
+        </div>
+      </div>
 
       {/* 调用日志明细 */}
       <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
@@ -233,7 +293,7 @@ export default function DashboardPage() {
           <span className="text-xs text-neutral-400">最近30条</span>
         </div>
         {usageLogs.length === 0 ? (
-          <p className="text-sm text-neutral-400 py-4 text-center">暂无调用记录（表尚未创建，请先在 Supabase 执行建表 SQL）</p>
+          <p className="text-sm text-neutral-400 py-4 text-center">暂无调用记录</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -241,6 +301,7 @@ export default function DashboardPage() {
                 <tr className="border-b border-neutral-100">
                   <th className="text-left py-2 px-2 text-neutral-400 font-medium">时间</th>
                   <th className="text-left py-2 px-2 text-neutral-400 font-medium">路由</th>
+                  <th className="text-left py-2 px-2 text-neutral-400 font-medium">模型</th>
                   <th className="text-right py-2 px-2 text-neutral-400 font-medium">输入</th>
                   <th className="text-right py-2 px-2 text-neutral-400 font-medium">输出</th>
                   <th className="text-right py-2 px-2 text-neutral-400 font-medium">费用</th>
@@ -256,6 +317,7 @@ export default function DashboardPage() {
                       {log.route.startsWith('[BLOCKED]') && <AlertTriangle className="w-3 h-3 text-red-500 inline mr-1" />}
                       {log.route.replace('[BLOCKED] ', '⛔ ')}
                     </td>
+                    <td className="py-1.5 px-2 text-neutral-500 max-w-[100px] truncate" title={log.model}>{log.model || '—'}</td>
                     <td className="py-1.5 px-2 text-right text-neutral-500">{log.input_tokens || '—'}</td>
                     <td className="py-1.5 px-2 text-right text-neutral-500">{log.output_tokens || '—'}</td>
                     <td className="py-1.5 px-2 text-right font-medium text-neutral-700">¥{(log.cost_cny || 0).toFixed(4)}</td>
