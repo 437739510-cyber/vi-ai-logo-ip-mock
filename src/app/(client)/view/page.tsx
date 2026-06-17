@@ -234,10 +234,10 @@ export default function ViewLogoPage() {
               </label>
               <input
                 type="text"
-                placeholder="4位查看密码"
+                placeholder="4位数字查看密码"
                 value={viewPassword}
-                onChange={(e) => setViewPassword(e.target.value.toUpperCase().slice(0, 6))}
-                maxLength={6}
+                onChange={(e) => setViewPassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                maxLength={4}
                 className="w-full px-3 py-2.5 border border-neutral-200 rounded-lg text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <p className="mt-1 text-xs text-neutral-400">
