@@ -227,6 +227,7 @@ export async function POST(req: NextRequest) {
         sceneImageSuggestions: profile.sceneImageSuggestions || [],
         logoDesignSuggestions: profile.logoDesignSuggestions || null,
         aiGeneratedFields: profile.aiGeneratedFields || {},
+        analysisStatus: "completed",
         analyzedAt: new Date().toISOString(),
       },
     };
