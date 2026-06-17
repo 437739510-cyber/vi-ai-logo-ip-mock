@@ -6,7 +6,7 @@
  * 收集未选中的Logo到素材库（客户选择Logo时自动调用）
  * 
  * API: DELETE /api/admin/logo-library
- * 清理最旧的Logo（存储满时自动触发）
+ * 支持单条删除（传id参数）或批量清理最旧（传free_mb参数）
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
@@ -239,12 +239,53 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE: 清理最旧的Logo
+// DELETE: 单条删除(id参数) 或 批量清理最旧(free_mb参数)
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const targetFreeMB = parseFloat(searchParams.get("free_mb") || "5");
+    
+    // 单条删除模式
+    const deleteId = searchParams.get("id");
+    if (deleteId) {
+      // 先获取记录（需要storage_path来删除文件）
+      const { data: logo, error: fetchErr } = await supabaseAdmin
+        .from("logo_library")
+        .select("id, storage_path, file_size")
+        .eq("id", deleteId)
+        .single();
 
+      if (fetchErr || !logo) {
+        return NextResponse.json({ error: "Logo不存在" }, { status: 404 });
+      }
+
+      // 删除Storage文件
+      if (logo.storage_path) {
+        await supabaseAdmin.storage
+          .from("brand-brain-generated")
+          .remove([logo.storage_path]);
+      }
+
+      // 删除数据库记录
+      const { error: delErr } = await supabaseAdmin
+        .from("logo_library")
+        .delete()
+        .eq("id", deleteId);
+
+      if (delErr) {
+        return NextResponse.json({ error: delErr.message }, { status: 500 });
+      }
+
+      const freedKB = Math.round((logo.file_size || 0) / 1024);
+      return NextResponse.json({ 
+        success: true, 
+        deleted: 1, 
+        freedKB,
+        message: `已删除，释放${freedKB}KB`
+      });
+    }
+
+    // 批量清理最旧模式
+    const targetFreeMB = parseFloat(searchParams.get("free_mb") || "5");
     const result = await cleanupOldest(targetFreeMB);
     return NextResponse.json(result);
   } catch (error: any) {

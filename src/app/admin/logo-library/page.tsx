@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   Palette, Filter, Trash2, HardDrive, RefreshCw,
-  ChevronLeft, ChevronRight, Store, Truck,
+  ChevronLeft, ChevronRight, X, Check,
 } from "lucide-react";
 
 interface LogoItem {
@@ -41,6 +41,10 @@ export default function LogoLibraryPage() {
   const [filterType, setFilterType] = useState("");
   const [selectedLogo, setSelectedLogo] = useState<LogoItem | null>(null);
   const [collecting, setCollecting] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchDeleting, setBatchDeleting] = useState(false);
 
   const fetchLogos = async () => {
     setLoading(true);
@@ -72,7 +76,6 @@ export default function LogoLibraryPage() {
   const handleCollect = async () => {
     setCollecting(true);
     try {
-      // 从所有已完成Logo选择的项目中收集未选中Logo
       const resp = await fetch("/api/admin/logo-library/collect-all", { method: "POST" });
       const data = await resp.json();
       alert(data.message || `收集完成: ${data.collected || 0}个Logo`);
@@ -82,6 +85,64 @@ export default function LogoLibraryPage() {
     } finally {
       setCollecting(false);
     }
+  };
+
+  // 单条删除
+  const handleDeleteOne = async (id: string) => {
+    setDeleting(id);
+    try {
+      const resp = await fetch(`/api/admin/logo-library?id=${id}`, { method: "DELETE" });
+      const data = await resp.json();
+      if (data.success) {
+        setLogos(prev => prev.filter(l => l.id !== id));
+        setTotal(prev => prev - 1);
+        // 更新存储信息
+        if (data.freedKB) {
+          setStorage(prev => ({
+            ...prev,
+            usedMB: Math.max(0, prev.usedMB - data.freedKB / 1024),
+            usedPercent: Math.max(0, prev.usedPercent - (data.freedKB / 1024 / prev.limitMB) * 100),
+          }));
+        }
+        setSelectedLogo(null);
+      } else {
+        alert(data.error || "删除失败");
+      }
+    } catch {
+      alert("删除失败");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`确定删除选中的${selectedIds.size}个Logo？此操作不可恢复。`)) return;
+    
+    setBatchDeleting(true);
+    let successCount = 0;
+    for (const id of selectedIds) {
+      try {
+        const resp = await fetch(`/api/admin/logo-library?id=${id}`, { method: "DELETE" });
+        const data = await resp.json();
+        if (data.success) successCount++;
+      } catch {}
+    }
+    alert(`已删除${successCount}个Logo`);
+    setSelectedIds(new Set());
+    setDeleteMode(false);
+    setBatchDeleting(false);
+    fetchLogos();
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const handleCleanup = async () => {
@@ -110,11 +171,33 @@ export default function LogoLibraryPage() {
           <p className="text-sm text-neutral-500 mt-1">客户未选中的Logo方案，按行业分类归档</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={handleCollect} disabled={collecting}
-            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
-            <RefreshCw className={`w-4 h-4 ${collecting ? "animate-spin" : ""}`} />
-            {collecting ? "收集中..." : "收集未选中Logo"}
+          <button
+            onClick={() => { setDeleteMode(!deleteMode); setSelectedIds(new Set()); }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              deleteMode
+                ? "bg-red-500 text-white hover:bg-red-600"
+                : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+            }`}
+          >
+            <Trash2 className="w-4 h-4" />
+            {deleteMode ? "取消选择" : "批量删除"}
           </button>
+          {!deleteMode && (
+            <button onClick={handleCollect} disabled={collecting}
+              className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${collecting ? "animate-spin" : ""}`} />
+              {collecting ? "收集中..." : "收集未选中Logo"}
+            </button>
+          )}
+          {deleteMode && selectedIds.size > 0 && (
+            <button onClick={handleBatchDelete} disabled={batchDeleting}
+              className="flex items-center gap-1.5 px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition-colors"
+            >
+              <Trash2 className={`w-4 h-4 ${batchDeleting ? "animate-spin" : ""}`} />
+              {batchDeleting ? "删除中..." : `删除(${selectedIds.size})`}
+            </button>
+          )}
         </div>
       </div>
 
@@ -143,7 +226,8 @@ export default function LogoLibraryPage() {
         </div>
         {storage.usedPercent > 80 && (
           <button onClick={handleCleanup}
-            className="mt-2 flex items-center gap-1 text-xs text-red-600 hover:text-red-700">
+            className="mt-2 flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
+          >
             <Trash2 className="w-3 h-3" /> 清理最旧素材释放空间
           </button>
         )}
@@ -151,7 +235,6 @@ export default function LogoLibraryPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {/* Industry Filter */}
         <div className="flex items-center gap-1.5">
           <Filter className="w-4 h-4 text-neutral-400" />
           <select
@@ -165,8 +248,6 @@ export default function LogoLibraryPage() {
             ))}
           </select>
         </div>
-
-        {/* Business Type Filter */}
         <div className="flex items-center gap-1.5">
           <select
             value={filterType}
@@ -181,7 +262,11 @@ export default function LogoLibraryPage() {
             ))}
           </select>
         </div>
-
+        {deleteMode && (
+          <span className="text-sm text-neutral-500 ml-2">
+            已选 {selectedIds.size} 项 · 点击图片选择
+          </span>
+        )}
         <span className="text-sm text-neutral-400 ml-auto">共 {total} 个Logo</span>
       </div>
 
@@ -202,9 +287,38 @@ export default function LogoLibraryPage() {
             {logos.map((logo) => (
               <div
                 key={logo.id}
-                onClick={() => setSelectedLogo(logo)}
-                className="group relative bg-white rounded-xl border border-neutral-200 overflow-hidden cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
+                onClick={() => deleteMode ? toggleSelect(logo.id) : setSelectedLogo(logo)}
+                className={`group relative bg-white rounded-xl border overflow-hidden cursor-pointer hover:shadow-md transition-all ${
+                  selectedIds.has(logo.id)
+                    ? "border-red-400 ring-2 ring-red-200"
+                    : "border-neutral-200 hover:border-primary/30"
+                }`}
               >
+                {/* 删除模式选择标记 */}
+                {deleteMode && (
+                  <div className={`absolute top-2 right-2 z-10 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                    selectedIds.has(logo.id)
+                      ? "bg-red-500 text-white"
+                      : "bg-white/80 border-2 border-neutral-300 text-transparent group-hover:border-neutral-400"
+                  }`}>
+                    <Check className="w-4 h-4" />
+                  </div>
+                )}
+                {/* 非删除模式hover显示删除按钮 */}
+                {!deleteMode && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteOne(logo.id); }}
+                    disabled={deleting === logo.id}
+                    className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-red-500/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
+                    title="删除此Logo"
+                  >
+                    {deleting === logo.id ? (
+                      <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
                 <div className="aspect-square relative bg-neutral-50">
                   <Image
                     src={logo.image_url}
@@ -264,7 +378,7 @@ export default function LogoLibraryPage() {
       )}
 
       {/* Detail Modal */}
-      {selectedLogo && (
+      {selectedLogo && !deleteMode && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
           onClick={() => setSelectedLogo(null)}>
           <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
@@ -316,6 +430,15 @@ export default function LogoLibraryPage() {
                     <p className="mt-1">{selectedLogo.prompt}</p>
                   </div>
                 )}
+                {/* 详情弹窗中的删除按钮 */}
+                <button
+                  onClick={() => handleDeleteOne(selectedLogo.id)}
+                  disabled={deleting === selectedLogo.id}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50 mt-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {deleting === selectedLogo.id ? "删除中..." : "删除此Logo"}
+                </button>
               </div>
             </div>
           </div>
