@@ -55,10 +55,15 @@ export async function GET(req: NextRequest) {
     const logs = await res.json();
     
     // Get today's summary - fetch all today's rows with model field
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // 使用Asia/Shanghai时区计算"今天"0点，避免UTC+8偏移导致凌晨时段算到昨天
+    const now = new Date();
+    const shanghaiOffset = 8 * 60; // UTC+8
+    const shanghaiMs = now.getTime() + (shanghaiOffset + now.getTimezoneOffset()) * 60000;
+    const shanghaiToday = new Date(shanghaiMs);
+    shanghaiToday.setHours(0, 0, 0, 0);
+    const todayStartISO = shanghaiToday.toISOString();
     const summaryRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/api_usage_log?select=route,model,cost_cny,input_tokens,output_tokens&created_at=gte.${todayStart.toISOString()}&route=not.like.[BLOCKED]%25`,
+      `${SUPABASE_URL}/rest/v1/api_usage_log?select=route,model,cost_cny,input_tokens,output_tokens&created_at=gte.${todayStartISO}&route=not.like.[BLOCKED]%25`,
       {
         headers: {
           'apikey': SUPABASE_SERVICE_KEY,
