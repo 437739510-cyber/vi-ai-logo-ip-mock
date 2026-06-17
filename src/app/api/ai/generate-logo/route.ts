@@ -246,6 +246,17 @@ export async function POST(req: NextRequest) {
             },
             updated_at: new Date().toISOString(),
           }).eq("id", projectId);
+          // V91: Logo图片成本写入api_usage_log
+          for (const r of logoResults.filter(r => r.imageUrl)) {
+            supabaseAdmin.from('api_usage_log').insert({
+              route: 'generate-logo',
+              model: 'wan2.6-t2i',
+              cost_cny: 0.20,
+              input_tokens: 0,
+              output_tokens: 0,
+              metadata: { type: 'logo', project_id: projectId },
+            }).then(() => {}, () => {});
+          }
         } else {
           await supabaseAdmin.from("projects").update({
             status: "submitted",

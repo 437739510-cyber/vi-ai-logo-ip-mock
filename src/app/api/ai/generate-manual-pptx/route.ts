@@ -12,7 +12,7 @@
  * - V27: 场景图方舟Ark Seedream图生图优先(Logo做参考) + DashScope降级
  */
 import { NextRequest, NextResponse } from "next/server";
-import { arkGenerateScene } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
+import { arkGenerateScene, getArkUnitCost } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
 import path from "path";
 import { readFile, mkdir, writeFile, readdir } from "fs/promises";
 import { planPages } from "@/lib/vi-manual/page-planner";
@@ -627,6 +627,20 @@ export async function POST(req: NextRequest) {
     const { sendProgress, sendComplete, sendError } = createDbProgressHelpers(projectId!, prev);
     const generationId = `gen-${Date.now()}`;
     const arkUsageLog: { model: string; type: string; cost: number; timestamp: string }[] = [];  // V32: 方舟用量追踪
+    // V91: 图片成本同步写入api_usage_log
+    const flushArkUsageToLog = (projectId: string) => {
+      for (const entry of arkUsageLog) {
+        supabaseAdmin.from('api_usage_log').insert({
+          route: 'generate-manual-pptx',
+          model: entry.model,
+          cost_cny: entry.cost,
+          input_tokens: 0,
+          output_tokens: 0,
+          metadata: { type: entry.type, project_id: projectId },
+          created_at: entry.timestamp,
+        }).then(() => {}, () => {});
+      }
+    };
     const generationFormat = body.format || 'pptx';
   try {
     // V30: 记录生成历史到viGenerationHistory
@@ -983,7 +997,7 @@ export async function POST(req: NextRequest) {
                 const imgBuf = Buffer.from(await imgResp.arrayBuffer());
                 console.log(`[generate-pptx] Ark Seedream fallback OK (${arkResult.model}) for ${def.key}`);
                 // V32: 记录方舟用量
-                arkUsageLog.push({ model: arkResult.model, type: 'scene', cost: 0.04, timestamp: new Date().toISOString() });
+                arkUsageLog.push({ model: arkResult.model, type: 'scene', cost: getArkUnitCost(arkResult.model), timestamp: new Date().toISOString() });
                 return { def, imgData: "data:image/png;base64," + imgBuf.toString("base64") };
               }
             } catch (e: any) {
@@ -1157,6 +1171,7 @@ export async function POST(req: NextRequest) {
             status: "completed",
             updated_at: new Date().toISOString(),
           }).eq("id", projectId!);
+        flushArkUsageToLog(projectId!);
         } catch (e: any) { console.warn("[generate-pptx] PDF final update error:", e.message); }
         return; // PDF path done, skip PPTX storage
       } catch (convertErr: any) {
@@ -1214,6 +1229,7 @@ export async function POST(req: NextRequest) {
         status: "completed",
         updated_at: new Date().toISOString(),
       }).eq("id", projectId!);
+    flushArkUsageToLog(projectId!);
     } catch (e: any) { console.warn("[generate-pptx] Final DB update error:", e.message); }
   } catch (error: any) {
     console.error("[generate-pptx] Error:", error);

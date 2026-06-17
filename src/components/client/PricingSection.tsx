@@ -23,12 +23,12 @@ type PricingData = Record<string, PlanConfig>;
 const FALLBACK_PLANS: PlanConfig[] = [
   {
     name: "基础版", price: "49", period: "一次性", desc: "品牌基建，适合新店起步", enabled: true,
-    features: ["AI 生成品牌 Logo", "品牌色板 + 字体规范", "基础 VI 手册（PDF）", "3 个工作日交付", "商用版权全归您"],
+    features: ["AI 生成品牌 Logo", "品牌色板 + 字体规范", "基础 VI 手册（10-12页）", "3 个工作日交付", "商用版权全归您"],
     cta: "提交设计需求", href: "/consultation?plan=basic", highlight: false,
   },
   {
     name: "标准版", price: "99", period: "一次性", desc: "全套打包，适合老店焕新", enabled: true,
-    features: ["品牌故事 + Logo + IP 公仔", "完整 VI 手册（15页）", "3 套社交内容模板", "1 次设计师精修", "PDF + PPTX 可编辑源文件", "5 个工作日交付", "商用版权全归您"],
+    features: ["品牌故事 + Logo + 场景延展", "完整 VI 手册（16-20页）", "宣传物料 + 社媒模板", "1 次设计师精修", "PDF + PPTX 可编辑源文件", "5 个工作日交付", "商用版权全归您"],
     cta: "提交设计需求", href: "/consultation?plan=standard", highlight: true,
   },
   {
@@ -41,11 +41,11 @@ const FALLBACK_PLANS: PlanConfig[] = [
 // key到features/cta/href的映射
 const PLAN_EXTRAS: Record<string, { features: string[]; cta: string; href: string; highlight: boolean }> = {
   basic: {
-    features: ["AI 生成品牌 Logo", "品牌色板 + 字体规范", "基础 VI 手册（PDF）", "3 个工作日交付", "商用版权全归您"],
+    features: ["AI 生成品牌 Logo", "品牌色板 + 字体规范", "基础 VI 手册（10-12页）", "3 个工作日交付", "商用版权全归您"],
     cta: "提交设计需求", href: "/consultation?plan=basic", highlight: false,
   },
   standard: {
-    features: ["品牌故事 + Logo + IP 公仔", "完整 VI 手册（15页）", "3 套社交内容模板", "1 次设计师精修", "PDF + PPTX 可编辑源文件", "5 个工作日交付", "商用版权全归您"],
+    features: ["品牌故事 + Logo + 场景延展", "完整 VI 手册（16-20页）", "宣传物料 + 社媒模板", "1 次设计师精修", "PDF + PPTX 可编辑源文件", "5 个工作日交付", "商用版权全归您"],
     cta: "提交设计需求", href: "/consultation?plan=standard", highlight: true,
   },
   manager: {
