@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
       const { error: subErr } = await supabaseAdmin.from("submissions").insert(supabaseSub);
       if (subErr) {
         console.warn("[SUBMIT] Supabase submission error:", subErr.message);
-        // V79: 如果是因为新列不存在导致的错误，去掉新列重试
+        // Fallback: 如果Supabase缺新列（如刚部署未执行SQL），去掉新列重试
         if (subErr.message.includes('does not exist') || subErr.code === '42703') {
           const { main_products, business_form, company_scale, scale_reason, store_photos, ...fallbackSub } = supabaseSub as any;
           const { error: retryErr } = await supabaseAdmin.from("submissions").insert(fallbackSub);

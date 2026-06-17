@@ -7,7 +7,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   consultationSchema,
   INDUSTRY_CATEGORIES,
-  BUDGET_OPTIONS,
   INDUSTRY_HIGHLIGHT_MAP,
   INDUSTRY_VISION_MAP,
   CUSTOMER_PROFILE_OPTIONS,
@@ -372,14 +371,7 @@ export function ConsultationForm() {
             </button>
           </div>
 
-          {/* 初期推广阶段暂不展示预算范围 */}
-          <div style={{display:"none"}}>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">预算范围 <span className="text-neutral-400 text-xs">（选填）</span></label>
-            <select {...register("budgetRange")} className={sc}>
-              <option value="">请选择预算</option>
-              {BUDGET_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-          </div>
+
         </section>
       )}
 
