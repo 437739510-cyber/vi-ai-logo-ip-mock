@@ -606,7 +606,7 @@ export async function POST(req: NextRequest) {
   void (async () => {
     const { sendProgress, sendComplete, sendError } = createDbProgressHelpers(projectId!, prev);
     const generationId = `gen-${Date.now()}`;
-    const arkUsageLog: { model: string; type: string; timestamp: string }[] = [];  // V32: 方舟用量追踪
+    const arkUsageLog: { model: string; type: string; cost: number; timestamp: string }[] = [];  // V32: 方舟用量追踪
     const generationFormat = body.format || 'pptx';
   try {
     // V30: 记录生成历史到viGenerationHistory
@@ -815,6 +815,7 @@ export async function POST(req: NextRequest) {
     let logoVisualDesc = "";
     if (logoData) {
       logoVisualDesc = await describeLogoForScene(logoData);
+      if (logoVisualDesc) arkUsageLog.push({ model: 'qwen-vl-max', type: 'vision', cost: 0.01, timestamp: new Date().toISOString() });
       console.log("[generate-pptx] Logo visual desc:", logoVisualDesc ? "OK" : "EMPTY");
     }
 
@@ -848,6 +849,7 @@ export async function POST(req: NextRequest) {
         }
         aiLogoData = await generateLogoImage(logoPrompt, realColors);
         if (aiLogoData) {
+          arkUsageLog.push({ model: 'wan2.6-t2i', type: 'logo', cost: 0.20, timestamp: new Date().toISOString() });
           console.log("[generate-pptx] AI logo via 通义万相 OK! base64 length:", aiLogoData.length);
         } else {
           console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
@@ -946,6 +948,7 @@ export async function POST(req: NextRequest) {
             const imgData = await generateSceneImage(def.rawPrompt);
             if (imgData) {
               console.log(`[generate-pptx] DashScope OK for ${def.key}`);
+              arkUsageLog.push({ model: 'wan2.6-t2i', type: 'scene', cost: 0.20, timestamp: new Date().toISOString() });
               return { def, imgData };
             }
           } catch (e: any) {
@@ -960,7 +963,7 @@ export async function POST(req: NextRequest) {
                 const imgBuf = Buffer.from(await imgResp.arrayBuffer());
                 console.log(`[generate-pptx] Ark Seedream fallback OK (${arkResult.model}) for ${def.key}`);
                 // V32: 记录方舟用量
-                arkUsageLog.push({ model: arkResult.model, type: 'scene', timestamp: new Date().toISOString() });
+                arkUsageLog.push({ model: arkResult.model, type: 'scene', cost: 0.04, timestamp: new Date().toISOString() });
                 return { def, imgData: "data:image/png;base64," + imgBuf.toString("base64") };
               }
             } catch (e: any) {
@@ -1112,13 +1115,20 @@ export async function POST(req: NextRequest) {
           }
         } catch (e: any) { console.warn("[generate-pptx] PDF Storage error:", e.message); }
 
-        // V85-fix: PDF路径也直接写入，避免sendComplete被后续覆盖
+        // V85-fix: PDF路径合并写入，包含history+arkUsageLog+pptxResult
         try {
           const { data: pdfInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
           const pdfPrev = (pdfInfo?.client_info as Record<string, any>) || {};
+          const pdfHistory = (pdfPrev.viGenerationHistory || []).map((h: any) =>
+            h.id === generationId
+              ? { ...h, status: 'completed', completedAt: new Date().toISOString(), fileName, fileSize: pdfBuffer.length, pageCount: blueprints.length, sceneImageCount: imgSuccess, downloadUrl: `/api/ai/download-pptx/${fileName}`, storageUrl: pdfStorageUrl }
+              : h
+          );
           await supabaseAdmin.from("projects").update({
             client_info: {
               ...pdfPrev,
+              viGenerationHistory: pdfHistory,
+              arkUsageLog: [...(pdfPrev.arkUsageLog || []), ...arkUsageLog],
               generationStatus: "completed",
               generationMessage: "生成完成！",
               generationPercent: 100,

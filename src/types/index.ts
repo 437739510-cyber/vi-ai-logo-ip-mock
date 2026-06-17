@@ -134,6 +134,8 @@ export interface Project {
   industry?: string;
   logoUrl?: string;
   description?: string;
+  /** Supabase client_info JSON (generationStatus, pptxResult, brandProfile etc.) */
+  client_info?: Record<string, any>;
 }
 
 export interface PlanPreviewUrls {

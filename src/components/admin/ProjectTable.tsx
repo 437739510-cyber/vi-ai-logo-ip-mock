@@ -67,34 +67,27 @@ export function ProjectTable({ projects, onDelete, deletingId }: ProjectTablePro
               <td className="py-3 px-2 text-neutral-400 text-xs">
                 {formatDate(project)}
               </td>
-              <td className="py-3 px-2">
-                {(() => {
-                  const ci = (project as any).client_info || {};
+              {(() => {
+                  const ci = project.client_info || {};
                   const gs = ci.generationStatus || "";
                   const pptx = ci.pptxResult;
-                  if (gs === "completed" && pptx) {
-                    return <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600"><FileText className="w-3 h-3" />已生成</span>;
-                  } else if (["brand_analyzing","logo_generating","scene_rendering","pptx_assembling"].includes(gs)) {
-                    return <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600"><Loader2 className="w-3 h-3 animate-spin" />生成中</span>;
-                  } else {
-                    return <span className="inline-flex items-center gap-1 text-xs text-neutral-400"><FileText className="w-3 h-3" />未生成</span>;
-                  }
+                  const generating = ["brand_analyzing","logo_generating","scene_rendering","pptx_assembling"].includes(gs);
+                  const done = gs === "completed" && pptx;
+                  return (<>
+                    <td className="py-3 px-2">
+                      {done ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600"><FileText className="w-3 h-3" />已生成</span>
+                        : generating ? <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600"><Loader2 className="w-3 h-3 animate-spin" />生成中</span>
+                        : <span className="inline-flex items-center gap-1 text-xs text-neutral-400"><FileText className="w-3 h-3" />未生成</span>}
+                    </td>
+                    <td className="py-3 px-2 text-center">
+                      {done && pptx.storageUrl ? (
+                        <a href={pptx.storageUrl} download className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                          <Download className="w-3 h-3" />下载
+                        </a>
+                      ) : <span className="text-xs text-neutral-300">-</span>}
+                    </td>
+                  </>);
                 })()}
-              </td>
-              <td className="py-3 px-2 text-center">
-                {(() => {
-                  const ci = (project as any).client_info || {};
-                  const pptx = ci.pptxResult;
-                  if (pptx && pptx.storageUrl) {
-                    return (
-                      <a href={pptx.storageUrl} download className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
-                        <Download className="w-3 h-3" />下载
-                      </a>
-                    );
-                  }
-                  return <span className="text-xs text-neutral-300">-</span>;
-                })()}
-              </td>
               <td className="py-3 px-2 text-right">
                 <div className="flex items-center justify-end gap-2">
                   <Link

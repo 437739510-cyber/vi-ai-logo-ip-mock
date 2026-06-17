@@ -795,7 +795,7 @@ export default function ProjectDetailPage({
 
       // Auto-trigger: Brand analysis → Logo generation
       try {
-        const ci = (project as any).client_info || {};
+        const ci = project.client_info || {};
         const bp = ci.brandProfile || {};
         const needsAnalysis = !bp.logoDesignSuggestions?.prompts || bp.logoDesignSuggestions.prompts.length === 0;
 
@@ -958,31 +958,31 @@ export default function ProjectDetailPage({
              project.status === "payment_uploaded" ? "📸 客户已上传付款截图，请确认" :
              "⏳ 等待客户付款"}
           </span>
-          {(project as any).client_info?.viewPassword && (
+          {project.client_info?.viewPassword && (
             <span className="text-neutral-400">
-              查看密码：<span className="font-mono font-medium text-neutral-600">{(project as any).client_info?.viewPassword}</span>
+              查看密码：<span className="font-mono font-medium text-neutral-600">{project.client_info?.viewPassword}</span>
             </span>
           )}
         </div>
         {/* 付款截图展示 */}
-        {(project as any).client_info?.paymentScreenshot && (
+        {project.client_info?.paymentScreenshot && (
           <div className="mt-4 p-3 bg-neutral-50 rounded-lg">
             <p className="text-xs text-neutral-500 mb-2">
               客户付款截图
-              {(project as any).client_info?.paymentUploadedAt && (
+              {project.client_info?.paymentUploadedAt && (
                 <span className="ml-2">
-                  ({new Date((project as any).client_info.paymentUploadedAt).toLocaleString("zh-CN")})
+                  ({new Date(project.client_info?.paymentUploadedAt).toLocaleString("zh-CN")})
                 </span>
               )}
             </p>
             <a
-              href={(project as any).client_info.paymentScreenshot}
+              href={project.client_info?.paymentScreenshot}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block"
             >
               <img
-                src={(project as any).client_info.paymentScreenshot}
+                src={project.client_info?.paymentScreenshot}
                 alt="付款截图"
                 className="max-h-48 rounded-lg border border-neutral-200 hover:opacity-80 transition-opacity"
               />
