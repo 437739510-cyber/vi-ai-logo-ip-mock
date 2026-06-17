@@ -1146,6 +1146,23 @@ export default function ProjectDetailPage({
                 </div>
               )}
 
+              {/* V85: 客户Logo意见 */}
+              {ci.regenerationFeedback && ci.regenerationFeedback.length > 0 && (
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs font-semibold text-amber-700 mb-2">💬 客户Logo意见</p>
+                  <div className="space-y-2">
+                    {ci.regenerationFeedback.map((fb: any, idx: number) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className="text-[10px] text-neutral-400 shrink-0 mt-0.5">
+                          {fb.at ? new Date(fb.at).toLocaleString("zh-CN") : `第${idx + 1}次`}
+                        </span>
+                        <p className="text-xs text-neutral-700">{fb.feedback}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Failed message */}
               {genStatus === "failed" && ci.generationMessage && (
                 <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
