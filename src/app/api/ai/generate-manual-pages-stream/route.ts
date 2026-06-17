@@ -4,7 +4,7 @@ import { writeFile, mkdir, readFile } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
 import { saveGenerationLog, type GenerationLogEntry } from "@/lib/core/generation-logger";
-import { arkGenerateScene } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
+import { arkGenerateScene, getArkUnitCost } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
 import { renderProfessionalPage } from "@/lib/pptx/vi-page-renderer";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
@@ -286,6 +286,14 @@ async function generateSinglePhoto(
         if (imgResp.ok) {
           const imgBuf = Buffer.from(await imgResp.arrayBuffer());
           console.log(`[V4-Photo] Ark Seedream OK (${result.durationMs}ms, model: ${result.model})`);
+          // V91: 图片成本追踪
+          supabaseAdmin.from('api_usage_log').insert({
+            route: 'generate-manual-pages-stream',
+            model: result.model,
+            cost_cny: getArkUnitCost(result.model),
+            input_tokens: 0, output_tokens: 0,
+            metadata: { type: 'scene-img2img' },
+          }).then(() => {}, () => {});
           return "data:image/png;base64," + imgBuf.toString("base64");
         }
       } catch (e) {
@@ -328,6 +336,14 @@ async function generateSinglePhoto(
     const imgResp = await fetch(imageUrl);
     if (!imgResp.ok) return null;
     const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+    // V91: 万相图片成本追踪 (wan2.7-image-pro ¥0.08/张)
+    supabaseAdmin.from('api_usage_log').insert({
+      route: 'generate-manual-pages-stream',
+      model: 'wan2.7-image-pro',
+      cost_cny: 0.08,
+      input_tokens: 0, output_tokens: 0,
+      metadata: { type: 'scene-img2img' },
+    }).then(() => {}, () => {});
     return "data:image/png;base64," + imgBuf.toString("base64");
   } catch (e) {
     console.warn(`[V4-Photo] Error:`, String(e));
