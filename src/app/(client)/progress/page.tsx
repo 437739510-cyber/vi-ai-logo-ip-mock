@@ -49,14 +49,32 @@ function ProgressPageContent() {
     setProject(null);
 
     try {
-      const res = await fetch("/api/view", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: phone.trim(),
-          viewPassword: viewPassword.trim(),
-        }),
-      });
+      // V84: 带重试的fetch，解决Zeabur冷启动超时问题
+      const fetchWithRetry = async (retries = 2): Promise<Response> => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        try {
+          const res = await fetch("/api/view", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: phone.trim(),
+              viewPassword: viewPassword.trim(),
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          return res;
+        } catch (e: any) {
+          clearTimeout(timeout);
+          if (retries > 0 && (e?.name === "AbortError" || e?.name === "TypeError")) {
+            await new Promise(r => setTimeout(r, 1000));
+            return fetchWithRetry(retries - 1);
+          }
+          throw e;
+        }
+      };
+      const res = await fetchWithRetry();
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "查询失败");
@@ -64,7 +82,7 @@ function ProgressPageContent() {
       }
       setProject(data.project);
     } catch {
-      setError("网络错误，请稍后重试");
+      setError("网络连接不稳定，请点击重试");
     } finally {
       setLoading(false);
     }
