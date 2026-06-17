@@ -92,7 +92,8 @@ export async function POST(req: NextRequest) {
     const brandProfile = clientInfo.brandProfile || {};
     const logoResults = brandProfile.logoGenerationResults || [];
     const selectedLogo = brandProfile.selectedLogo || null;
-    const generationStatus = clientInfo.generationStatus || project.status || "pending";
+    // V90: 如果项目已完成，generationStatus强制为completed（防止卡在pptx_assembling）
+    const generationStatus = (clientInfo.generationStatus === "completed" || project.status === "completed") ? "completed" : (clientInfo.generationStatus || project.status || "pending");
 
     // Get company name and industry from submission if available
     let companyName = clientInfo.companyName || "";

@@ -72,7 +72,8 @@ export function ProjectTable({ projects, onDelete, deletingId }: ProjectTablePro
                   const gs = ci.generationStatus || "";
                   const pptx = ci.pptxResult;
                   const generating = ["brand_analyzing","logo_generating","scene_rendering","pptx_assembling"].includes(gs);
-                  const done = gs === "completed" && pptx;
+                  // V90: 兜底逻辑——项目status=completed且pptxResult存在时，不管generationStatus是否卡住，都显示已生成
+                  const done = (gs === "completed" || project.status === "completed") && pptx;
                   return (<>
                     <td className="py-3 px-2">
                       {done ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600"><FileText className="w-3 h-3" />已生成</span>
@@ -80,8 +81,8 @@ export function ProjectTable({ projects, onDelete, deletingId }: ProjectTablePro
                         : <span className="inline-flex items-center gap-1 text-xs text-neutral-400"><FileText className="w-3 h-3" />未生成</span>}
                     </td>
                     <td className="py-3 px-2 text-center">
-                      {done && pptx.storageUrl ? (
-                        <a href={pptx.storageUrl} download className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                      {done && (pptx.storageUrl || pptx.url) ? (
+                        <a href={pptx.storageUrl || pptx.url} download className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
                           <Download className="w-3 h-3" />下载
                         </a>
                       ) : <span className="text-xs text-neutral-300">-</span>}

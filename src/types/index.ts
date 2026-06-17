@@ -8,7 +8,10 @@ export type ProjectStatus =
   | "ai_analysis"    // AI 分析中
   | "designing"      // 设计制作中
   | "reviewing"      // 审核中
-  | "delivered";     // 已交付
+  | "brand_analyzed"  // 品牌分析完成
+  | "logo_generated"  // Logo生成完成
+  | "completed"       // 全部完成（VI手册已生成）
+  | "delivered";      // 已交付
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   submitted: "已提交",
@@ -19,6 +22,9 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   designing: "设计制作中",
   reviewing: "审核中",
   delivered: "已交付",
+  brand_analyzed: "品牌分析完成",
+  logo_generated: "Logo生成完成",
+  completed: "已完成",
 };
 
 export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
@@ -30,6 +36,9 @@ export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
   designing: "bg-amber-100 text-amber-700",
   reviewing: "bg-orange-100 text-orange-700",
   delivered: "bg-green-100 text-green-700",
+  brand_analyzed: "bg-blue-100 text-blue-700",
+  logo_generated: "bg-amber-100 text-amber-700",
+  completed: "bg-green-100 text-green-700",
 };
 
 export type ReferenceMode = "strong" | "weak" | "none";

@@ -61,7 +61,8 @@ export async function GET(req: NextRequest) {
 
     // Get current status
     const clientInfo = (project.client_info as Record<string, any>) || {};
-    const currentStatus = (clientInfo.generationStatus as GenerationStatus) || "pending";
+    // V90: project已完成时强制返回completed
+    const currentStatus = (clientInfo.generationStatus === "completed" || project.status === "completed") ? "completed" as GenerationStatus : ((clientInfo.generationStatus as GenerationStatus) || "pending");
     const statusMessage = clientInfo.generationMessage || STATUS_LABELS[currentStatus];
     const progress = STATUS_PROGRESS[currentStatus];
 

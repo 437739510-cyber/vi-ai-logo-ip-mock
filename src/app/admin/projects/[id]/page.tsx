@@ -71,6 +71,8 @@ export default function ProjectDetailPage({
     if (!project) return;
     const ci = (project as any)?.client_info || {};
     const genStatus = ci.generationStatus || "";
+    // V90: project已完成时不再轮询
+    if (project.status === "completed") return;
     const isGenerating = ["brand_analyzing", "logo_generating", "scene_rendering", "pptx_assembling"].includes(genStatus);
     if (!isGenerating) return;
 
@@ -1036,7 +1038,7 @@ export default function ProjectDetailPage({
 
         {(() => {
           const ci = (project as any)?.client_info || {};
-          const genStatus = ci.generationStatus || "pending";
+          const genStatus = ci.generationStatus === "completed" || project.status === "completed" ? "completed" : (ci.generationStatus || "pending");
           const logoGenStatus = ci.logoGenerationStatus || {};
           const brandProfile = ci.brandProfile || {};
           const analysisStatus = brandProfile.analysisStatus || null;
