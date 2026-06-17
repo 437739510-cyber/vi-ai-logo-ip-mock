@@ -2,15 +2,37 @@
  * Discovery Submit API
  *
  * 将品牌访谈完成后的数据写入 Supabase，打通 Discovery → 主干流程的断点
+ * V83: 修复数据丢失 — 保存3张照片到Storage、补全storeHistory/familyStory等字段
  * POST /api/discovery/submit
  *
- * 输入：{ sessionId, briefData }
+ * 输入：{ sessionId, briefData, selectedPlan }
  * 输出：{ projectId, viewPassword, plan }
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { getSession } from "@/lib/core/discovery/session-store";
+
+/** base64 → Supabase Storage上传，返回公开URL */
+async function uploadPhoto(base64Data: string, projectId: string, filename: string): Promise<string | null> {
+  try {
+    const matches = base64Data.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!matches) return null;
+    const mime = matches[1];
+    const ext = mime.split('/')[1] || 'png';
+    const buf = Buffer.from(matches[2], 'base64');
+    const path = `${projectId}/discovery/${filename}.${ext}`;
+    const { error: upErr } = await supabaseAdmin.storage.from('manuals').upload(path, buf, {
+      contentType: mime, upsert: true,
+    });
+    if (upErr) { console.warn('[DISCOVERY/SUBMIT] Photo upload error:', upErr.message); return null; }
+    const { data } = supabaseAdmin.storage.from('manuals').getPublicUrl(path);
+    return data?.publicUrl || null;
+  } catch (e: any) {
+    console.warn('[DISCOVERY/SUBMIT] Photo upload failed:', e.message);
+    return null;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -58,8 +80,25 @@ export async function POST(req: NextRequest) {
     const digit = String(Math.floor(Math.random() * 10));
     const viewPassword = digit.repeat(4);
 
+    // V83: 上传3张照片到Supabase Storage
+    const discoveryPhotos: Record<string, string> = {};
+    const photoUploads: Promise<void>[] = [];
+    const photoFields: [string, string][] = [
+      ['signatureItemPhoto', 'signature-item'],
+      ['signboardPhoto', 'signboard'],
+      ['storefrontPhoto', 'storefront'],
+    ];
+    for (const [field, filename] of photoFields) {
+      const b64 = (extractedData as any)[field];
+      if (b64 && typeof b64 === 'string' && b64.startsWith('data:image')) {
+        photoUploads.push(
+          uploadPhoto(b64, projectId, filename).then(url => { if (url) discoveryPhotos[field] = url; })
+        );
+      }
+    }
+    await Promise.all(photoUploads);
+
     // 构建 brandProfile：将 briefData 映射为 brand-analysis 的输出格式
-    // 这样后续 brand-analysis 可直接复用，省一次 DeepSeek 调用
     const brandProfile = {
       industryInsight: brief.brand_analysis?.brandPositioning || "",
       geoEnvironment: "",
@@ -115,7 +154,10 @@ export async function POST(req: NextRequest) {
           `感人故事：${extractedData.touchingStory || extractedData.customerQuote || ""}`,
           `标志性物件：${extractedData.signatureItem || ""}`,
           `风格偏好：${extractedData.selectedStyle || ""}`,
-        ].filter((s) => !s.endsWith("：")).join("\n"),
+          // V83: 补全之前丢失的字段
+          extractedData.storeHistory ? `店铺历史：${extractedData.storeHistory}` : "",
+          extractedData.familyStory ? `家族传承：${extractedData.familyStory}` : "",
+        ].filter((s) => s && !s.endsWith("：")).join("\n"),
         logo_assets: [],
         mascot_assets: [],
         submitted_at: isoNow,
@@ -126,7 +168,7 @@ export async function POST(req: NextRequest) {
       console.warn("[DISCOVERY/SUBMIT] Supabase submission skipped:", e);
     }
 
-    // 写入 Supabase projects，含 brandProfile
+    // 写入 Supabase projects，含 brandProfile + V83完整数据
     try {
       const supabaseProj = {
         id: projectId,
@@ -136,10 +178,28 @@ export async function POST(req: NextRequest) {
         industry: industry,
         client_info: {
           viewPassword,
-          brandProfile, // 预填品牌分析结果，后续 brand-analysis 可复用
-          discoveryBrief: brief, // 保存完整访谈简报
+          brandProfile,
+          discoveryBrief: brief,
           mainProducts: "",
           businessForm: "",
+          // V83: 保存完整的discovery数据，不再丢失
+          discoveryData: {
+            founder: extractedData.founder || "",
+            yearsInBusiness: extractedData.yearsInBusiness || null,
+            isOldStore: extractedData.isOldStore || false,
+            storeHistory: extractedData.storeHistory || "",
+            familyStory: extractedData.familyStory || "",
+            customerReasons: extractedData.customerReasons || [],
+            proudMoment: extractedData.proudMoment || "",
+            touchingStory: extractedData.touchingStory || "",
+            customerQuote: extractedData.customerQuote || "",
+            brandSpirit: extractedData.brandSpirit || "",
+            brandSpiritCustom: extractedData.brandSpiritCustom || "",
+            signatureItem: extractedData.signatureItem || "",
+            selectedStyle: extractedData.selectedStyle || "",
+            styleNotes: extractedData.styleNotes || "",
+            discoveryPhotos,  // 照片URL
+          },
         },
         created_at: isoNow,
         updated_at: isoNow,
@@ -150,7 +210,7 @@ export async function POST(req: NextRequest) {
       console.warn("[DISCOVERY/SUBMIT] Supabase project skipped:", e);
     }
 
-    console.log(`[DISCOVERY/SUBMIT] Created project ${projectId} from discovery session ${sessionId}`);
+    console.log(`[DISCOVERY/SUBMIT] Created project ${projectId} from discovery session ${sessionId}, photos: ${Object.keys(discoveryPhotos).join(',')}`);
 
     return NextResponse.json({
       success: true,

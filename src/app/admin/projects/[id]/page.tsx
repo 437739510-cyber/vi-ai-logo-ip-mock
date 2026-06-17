@@ -52,6 +52,7 @@ export default function ProjectDetailPage({
   const [exportingPdf, setExportingPdf] = useState<string | null>(null);
   const [deletingManual, setDeletingManual] = useState<string | null>(null);
   const [generatingPptx, setGeneratingPptx] = useState(false);
+  const pptxProgressRef = useRef('');
   const [generationFormat, setGenerationFormat] = useState<'pdf'|'pptx'>('pdf');  // V32: 格式选择
   const [generationHistory, setGenerationHistory] = useState<any[]>([]);  // V32: 生成历史
   const [arkBalance, setArkBalance] = useState<any>(null);  // V32: 方舟余额
@@ -600,7 +601,7 @@ export default function ProjectDetailPage({
         throw new Error(`服务器错误: ${res.status}`);
       }
 
-      setPptxProgress("生成任务已启动，正在后台处理...");
+      setPptxProgress("生成任务已启动，正在后台处理..."); pptxProgressRef.current = "生成任务已启动";
 
       // Step 2: 轮询项目状态
       const pollInterval = setInterval(async () => {
@@ -609,7 +610,7 @@ export default function ProjectDetailPage({
           if (!statusRes.ok) return;
           const statusData = await statusRes.json();
 
-          if (statusData.statusMessage) setPptxProgress(statusData.statusMessage);
+          if (statusData.statusMessage) { setPptxProgress(statusData.statusMessage); pptxProgressRef.current = statusData.statusMessage; }
           if (statusData.progress) setPptxPercent(statusData.progress);
 
           if (statusData.status === 'completed') {
@@ -635,16 +636,65 @@ export default function ProjectDetailPage({
         } catch { /* polling error, retry next interval */ }
       }, 3000); // 每3秒轮询一次
 
-      // 安全超时：10分钟后自动停止
+      // V83: 安全超时20分钟 + 自动续传
+      let lastProgress = '';
+      let stallCount = 0;
+      const stallCheck = setInterval(() => {
+        const cur = pptxProgressRef.current;
+        if (cur === lastProgress) {
+          stallCount++;
+          if (stallCount >= 40) { // 2分钟无进展 → 自动续传
+            console.log('[PPTX] Progress stalled, auto-resuming...');
+            clearInterval(stallCheck);
+            clearInterval(pollInterval);
+            // 自动续传
+            fetch('/api/ai/generate-manual-pptx', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ projectId: project.id, step: 'resume' }),
+            }).then(r => {
+              if (r.status === 202) {
+                setPptxProgress('正在续传生成...');
+                // 重新开始轮询
+                const resumeInterval = setInterval(async () => {
+                  try {
+                    const sRes = await fetch(`/api/ai/get-project-status?projectId=${project.id}`);
+                    if (!sRes.ok) return;
+                    const sData = await sRes.json();
+                    if (sData.statusMessage) setPptxProgress(sData.statusMessage);
+                    if (sData.progress) setPptxPercent(sData.progress);
+                    if (sData.status === 'completed') {
+                      clearInterval(resumeInterval);
+                      setPptxProgress('完成！');
+                      setPptxPercent(100);
+                      setGeneratingPptx(false);
+                      loadGeneratedManuals(project.id);
+                    } else if (sData.status === 'failed') {
+                      clearInterval(resumeInterval);
+                      setPptxError(sData.statusMessage || '生成失败');
+                      setGeneratingPptx(false);
+                    }
+                  } catch {}
+                }, 3000);
+                setTimeout(() => { clearInterval(resumeInterval); setGeneratingPptx(false); setPptxError('续传超时，请刷新页面'); }, 600000);
+              }
+            }).catch(() => {});
+          }
+        } else {
+          lastProgress = cur;
+          stallCount = 0;
+        }
+      }, 3000);
       setTimeout(() => {
         clearInterval(pollInterval);
+        clearInterval(stallCheck);
         setGeneratingPptx((prev) => {
           if (prev) {
             setPptxError('生成超时，请刷新页面查看状态');
           }
           return false;
         });
-      }, 600000);
+      }, 1200000);
 
     } catch (e: any) {
       setPptxError('生成失败：' + (e.message || '网络错误'));

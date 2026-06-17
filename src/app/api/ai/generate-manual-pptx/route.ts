@@ -575,9 +575,12 @@ export async function POST(req: NextRequest) {
   let projectId: string | null = null;
   let body: any = {};
   let prev: Record<string, any> = {};  // cached client_info for reducing DB queries
+  let step = 'full';  // V83: 'full' = 全流程, 'resume' = 断点续传
   try {
     body = await req.json();
     projectId = body.projectId || null;
+    step = body.step || 'full';
+    if (!['full', 'resume'].includes(step)) step = 'full';
   } catch { /* ignore parse error */ }
 
   if (!projectId) {
@@ -588,10 +591,12 @@ export async function POST(req: NextRequest) {
   try {
     const { data: existingInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();
     prev = (existingInfo?.client_info as Record<string, any>) || {};
+    const isResume = step === 'resume';
+    const resumePercent = isResume ? (prev.generationPercent || 40) : 0;
     await supabaseAdmin.from("projects").update({
       status: "pptx_assembling",
       updated_at: new Date().toISOString(),
-      client_info: { ...prev, generationStatus: "pptx_assembling", generationMessage: "正在准备生成VI手册...", generationPercent: 0 },
+      client_info: { ...prev, generationStatus: "pptx_assembling", generationMessage: isResume ? "正在续传生成..." : "正在准备生成VI手册...", generationPercent: resumePercent },
     }).eq("id", projectId);
   } catch (e: any) {
     console.warn("[generate-pptx] Initial status update error:", e.message);
@@ -634,12 +639,14 @@ export async function POST(req: NextRequest) {
 
     sendProgress("extracting", "正在提取品牌数据...", 10);
     // ===== Step 2: 提取所有数据 =====
+    // V83: 从client_info.discoveryData补充数据，不再丢失
+    const dd = ((project?.client_info as Record<string, any>)?.discoveryData) as Record<string, any> || {};
     const companyName = body.clientInfo?.companyName || body.clientInfo?.clientName || submission?.company_name || submission?.companyName || project?.client_name || "品牌";
     const industry = body.clientInfo?.industry || submission?.industry || project?.industry || "";
-    const brandVision = body.clientInfo?.brandVision || submission?.brand_vision || submission?.brandVision || "";
-    const coreValues = body.clientInfo?.coreValues || submission?.core_values || submission?.coreValues || "";
+    const brandVision = body.clientInfo?.brandVision || submission?.brand_vision || dd.brandSpirit || "";
+    const coreValues = body.clientInfo?.coreValues || submission?.core_values || dd.brandSpiritCustom || "";
     const targetMarket = body.clientInfo?.targetMarket || submission?.target_market || submission?.targetMarket || "";
-    const logoPhilosophy = body.clientInfo?.logoPhilosophy || submission?.logo_philosophy || submission?.logoPhilosophy || "";
+    const logoPhilosophy = body.clientInfo?.logoPhilosophy || submission?.logo_philosophy || submission?.logoPhilosophy || dd.signatureItem || "";
     const mascotPhilosophy = body.clientInfo?.mascotPhilosophy || submission?.mascot_philosophy || submission?.mascotPhilosophy || "";
 
     const rawColors = body.brandColors || submission?.existing_brand_color || submission?.brand_colors || submission?.brandColors;
@@ -794,6 +801,16 @@ export async function POST(req: NextRequest) {
 
     console.log("[generate-pptx] Logo:", logoData ? "OK" : "null", "| Mascot:", mascotData ? "OK" : "null");
 
+    // V83: 保存checkpoint — 品牌分析+Logo加载完成，如果后续超时可从此续传
+    try {
+      const { data: ckInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
+      const ckPrev = (ckInfo?.client_info as Record<string, any>) || {};
+      await supabaseAdmin.from("projects").update({
+        client_info: { ...ckPrev, generationCheckpoint: 'assets_loaded', generationPercent: 45 },
+      }).eq("id", projectId!);
+      console.log("[generate-pptx] Checkpoint saved: assets_loaded");
+    } catch (e: any) { console.warn("[generate-pptx] Checkpoint save error:", e.message); }
+
     // V29: 用视觉AI读取Logo图片，生成英文描述用于场景图prompt
     let logoVisualDesc = "";
     if (logoData) {
@@ -841,6 +858,12 @@ export async function POST(req: NextRequest) {
     }
 
     // ===== Step 4: 生成 AI 写实场景图（5张，异步并行） =====
+    // V83: 声明场景图变量（resume逻辑需要先声明）
+    const sceneImages: Record<string, string> = {};
+    const sceneLabels: Record<string, string> = {};
+    let goto_rendering = false;
+    let imgSuccess = 0;
+
     // 动态场景图prompt（AI分析结果 > 硬编码fallback）
     let imgDefs = SCENE_IMG_DEFS[industryType] || SCENE_IMG_DEFS.general;
     if (dynamicScenePrompts && dynamicScenePrompts.length >= 5) {
@@ -854,25 +877,47 @@ export async function POST(req: NextRequest) {
       }));
     }
 
+    // V83: 如果checkpoint=scenes_done且有sceneStorageUrls，尝试从Storage恢复场景图
+    const existingSceneUrls = ((prev as any)?.sceneStorageUrls) as Record<string, string> | undefined;
+    if (existingSceneUrls && Object.keys(existingSceneUrls).length >= 3 && step === 'resume') {
+      console.log("[generate-pptx] Resuming: loading scene images from Storage...");
+      let restoredCount = 0;
+      for (const [key, url] of Object.entries(existingSceneUrls)) {
+        try {
+          const imgResp = await fetch(url);
+          if (imgResp.ok) {
+            const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+            sceneImages[key] = "data:image/png;base64," + imgBuf.toString("base64");
+            restoredCount++;
+          }
+        } catch {}
+      }
+      if (restoredCount >= 3) {
+        imgSuccess = restoredCount;
+        console.log(`[generate-pptx] Restored ${restoredCount} scene images from Storage, skipping generation`);
+        sendProgress("rendering", `场景图已恢复(${restoredCount}张)，正在渲染PPTX...`, 75);
+        // Skip to rendering
+        goto_rendering = true;
+      }
+    }
+
+    if (!goto_rendering) {
     sendProgress("images", "正在生成场景图...", 50);
     console.log("[generate-pptx] ===== AI IMAGE GENERATION =====");
     console.log("[generate-pptx] Industry:", industryType, "| Images:", imgDefs.length, "| Dynamic:", !!dynamicScenePrompts);
 
-    // V26.1: 全部DashScope并行生成（小云雀会话式API太慢，待接入方舟直连API后切换）
-    const sceneImages: Record<string, string> = {};
-    const sceneLabels: Record<string, string> = {};  // V9: AI动态标签
-    let imgSuccess = 0;
 
     // V29: 场景图用文生图（不是图生图），把Logo外观描述写进prompt
     // 旧版成功的原因：品牌分析AI把Logo外观详细写进sceneImageSuggestions prompt
     // 图生图(img2img)只是风格参考，不能精确还原Logo图案
     const arkKey = process.env.ARK_API_KEY;
 
+
     // V29: 把Logo视觉描述追加到场景图prompt，让AI文生图时精确画出Logo
     // 优先用视觉AI直接读Logo图生成的描述，比品牌分析AI的推测更准确
     const logoDesc = logoVisualDesc || (brandProfile as any)?.logoDesignSuggestions?.prompts?.[0] || "";
     const logoConcept = logoVisualDesc ? "" : ((brandProfile as any)?.logoDesignSuggestions?.concept || "");
-    if (logoDesc) {
+    if (logoDesc && !goto_rendering) {
       console.log(`[generate-pptx] Logo description available (source: ${logoVisualDesc ? "visual AI" : "brand analysis"}), injecting into scene prompts`);
       // V29c: 把"company logo"等模糊词替换为精确的Logo视觉描述
       const descSnippet = logoDesc.substring(0, 300);
@@ -940,8 +985,34 @@ export async function POST(req: NextRequest) {
         await new Promise(r => setTimeout(r, 1000));
       }
     }
+    } // end if (!goto_rendering) — V83: skip scene generation on resume
     console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success`);
+    // V83: 保存场景图到Supabase Storage，防止函数超时后丢失
+    const sceneStorageUrls: Record<string, string> = {};
+    if (imgSuccess > 0) {
+      const sceneSavePromises = Object.entries(sceneImages).map(async ([key, base64]) => {
+        try {
+          const matches = base64.match(/^data:(image\/\w+);base64,(.+)$/);
+          if (!matches) return;
+          const buf = Buffer.from(matches[2], 'base64');
+          const sp = `${projectId}/scenes/${key}.png`;
+          const { error: se } = await supabaseAdmin.storage.from('manuals').upload(sp, buf, { contentType: 'image/png', upsert: true });
+          if (!se) { const { data } = supabaseAdmin.storage.from('manuals').getPublicUrl(sp); if (data?.publicUrl) sceneStorageUrls[key] = data.publicUrl; }
+        } catch {}
+      });
+      await Promise.all(sceneSavePromises);
+    }
     sendProgress("rendering", `场景图生成完成(${imgSuccess}/${imgDefs.length})，正在渲染PPTX...`, 75);
+
+    // V83: 保存checkpoint — 场景图完成
+    try {
+      const { data: ckInfo2 } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
+      const ckPrev2 = (ckInfo2?.client_info as Record<string, any>) || {};
+      await supabaseAdmin.from("projects").update({
+        client_info: { ...ckPrev2, generationCheckpoint: 'scenes_done', generationPercent: 75, sceneStorageUrls },
+      }).eq("id", projectId!);
+      console.log("[generate-pptx] Checkpoint saved: scenes_done");
+    } catch (e: any) { console.warn("[generate-pptx] Checkpoint save error:", e.message); }
 
     // ===== Step 5: 生成蓝图 =====
     const blueprints = await planPages({
