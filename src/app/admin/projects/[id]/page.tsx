@@ -562,7 +562,7 @@ export default function ProjectDetailPage({
   const [pptxProgress, setPptxProgress] = useState("");
   const [pptxPercent, setPptxPercent] = useState(0);
 
-  const handleGeneratePptx = async () => {
+  const handleGeneratePptx = async (forceRegenerate = false) => {
     if (!project) return;
     setGeneratingPptx(true);
     setPptxError("");
@@ -594,8 +594,21 @@ export default function ProjectDetailPage({
           logoUrl: submission?.logoAssets?.[0]?.url || '',
           mascotUrl: submission?.mascotAssets?.[0]?.files?.[0]?.url || '',
           mascotFiles: submission?.mascotAssets?.flatMap((m: any) => m.files || []) || [],
+          force: forceRegenerate,
         }),
       });
+
+      // V88: 后端返回already_completed → 直接展示已有结果
+      if (res.status === 200) {
+        const data = await res.json();
+        if (data.status === "already_completed" && data.pptxResult) {
+          setPptxResult({ url: data.pptxResult.url, downloadUrl: data.pptxResult.downloadUrl || undefined, storageUrl: data.pptxResult.storageUrl || undefined, pageCount: data.pptxResult.pageCount, fileName: data.pptxResult.fileName });
+          setPptxProgress("已完成");
+          setPptxPercent(100);
+          setGeneratingPptx(false);
+          return;
+        }
+      }
 
       if (res.status !== 202 && !res.ok) {
         throw new Error(`服务器错误: ${res.status}`);
@@ -1443,12 +1456,21 @@ export default function ProjectDetailPage({
                 >PPTX</button>
               </div>
               <button
-                onClick={handleGeneratePptx}
+                onClick={() => {
+                  if (pptxResult) {
+                    if (!confirm("已有VI手册，重新生成将花费约¥2.00，确定？")) return;
+                    handleGeneratePptx(true);
+                  } else {
+                    handleGeneratePptx(false);
+                  }
+                }}
                 disabled={generatingPptx}
-                className="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50"
+                className={`flex-1 py-3 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 ${pptxResult ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20" : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"}`}
               >
                 {generatingPptx ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> {pptxProgress || "生成中..."} {pptxPercent > 0 && <span className="text-blue-200 text-xs">({pptxPercent}%)</span>}</>
+                ) : pptxResult ? (
+                  <><RefreshCw className="w-4 h-4" /> 重新生成(约¥2)</>
                 ) : (
                   <>✅ 生成VI手册({generationFormat.toUpperCase()})</>
                 )}

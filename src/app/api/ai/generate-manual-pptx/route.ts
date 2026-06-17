@@ -587,6 +587,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
 
+  // V88: 已有完成结果且非强制重新生成 → 直接返回，避免重复烧钱
+  const forceRegenerate = body.force === true;
+  if (!forceRegenerate && step === 'full') {
+    try {
+      const { data: existingProject } = await supabaseAdmin.from("projects").select("status, client_info").eq("id", projectId).single();
+      const existingCi = (existingProject?.client_info as Record<string, any>) || {};
+      const existingResult = existingCi.pptxResult;
+      if (existingProject?.status === 'completed' && existingResult?.url && existingResult?.storageUrl) {
+        console.log(`[generate-pptx] V88: Project ${projectId} already has completed result, skipping. Use force=true to override.`);
+        return NextResponse.json({
+          status: "already_completed",
+          message: "该项目已有完成的VI手册，无需重复生成",
+          pptxResult: existingResult,
+        }, { status: 200 });
+      }
+    } catch (e: any) {
+      console.warn("[generate-pptx] V88 guard check error:", e.message);
+    }
+  }
+
   // Set initial status in DB immediately
   try {
     const { data: existingInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId).single();

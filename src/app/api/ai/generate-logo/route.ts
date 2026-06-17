@@ -81,6 +81,18 @@ export async function POST(req: NextRequest) {
       if (analysisStatus === "analyzing") {
         errorMsg = "AI分析正在进行中，请稍等片刻再生成Logo";
       }
+
+    // V88: 已有Logo结果且非强制 → 直接返回，避免重复烧钱
+    const forceRegenerate = body.force === true;
+    const existingLogos = brandProfile.logoGenerationResults;
+    if (!forceRegenerate && existingLogos && existingLogos.length >= 4 && clientInfo.logoGenerationStatus?.completed >= 4) {
+      console.log(`[generate-logo] V88: Project ${projectId} already has ${existingLogos.length} logos, skipping. Use force=true to override.`);
+      return NextResponse.json({
+        status: "already_completed",
+        message: "已有4个Logo，无需重复生成",
+        logos: existingLogos,
+      }, { status: 200 });
+    }
       return NextResponse.json({
         error: errorMsg,
       }, { status: 400 });
@@ -218,6 +230,8 @@ export async function POST(req: NextRequest) {
                 })),
                 logoGeneratedAt: new Date().toISOString(),
               },
+              // V88: Logo生成成本追踪
+              arkUsageLog: [...(finalInfo.arkUsageLog || []), ...logoResults.filter(r => r.imageUrl).map(() => ({ model: "wan2.6-t2i", type: "logo", cost: 0.20, timestamp: new Date().toISOString() }))],
               logoGenerationStatus: {
                 total: prompts.length,
                 completed: prompts.length,
