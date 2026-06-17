@@ -199,6 +199,7 @@ function mapProjectFromDb(row: Record<string, unknown>): Project {
     clientName: (row.client_name as string) || undefined,
     studentName: (row.student_name as string) || undefined,
     studentId: (row.student_id as string) || undefined,
+    client_info: row.client_info as Record<string, any> || undefined,
   } as Project;
 }
 
