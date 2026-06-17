@@ -1112,14 +1112,22 @@ export async function POST(req: NextRequest) {
           }
         } catch (e: any) { console.warn("[generate-pptx] PDF Storage error:", e.message); }
 
-        sendComplete({
-          url: `/api/ai/download-pptx/${fileName}`,
-          storageUrl: pdfStorageUrl,
-          pageCount: blueprints.length,
-          imageCount: imgSuccess,
-          industryType,
-          fileName,
-        });
+        // V85-fix: PDF路径也直接写入，避免sendComplete被后续覆盖
+        try {
+          const { data: pdfInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
+          const pdfPrev = (pdfInfo?.client_info as Record<string, any>) || {};
+          await supabaseAdmin.from("projects").update({
+            client_info: {
+              ...pdfPrev,
+              generationStatus: "completed",
+              generationMessage: "生成完成！",
+              generationPercent: 100,
+              pptxResult: { url: `/api/ai/download-pptx/${fileName}`, storageUrl: pdfStorageUrl, pageCount: blueprints.length, fileName },
+            },
+            status: "completed",
+            updated_at: new Date().toISOString(),
+          }).eq("id", projectId!);
+        } catch (e: any) { console.warn("[generate-pptx] PDF final update error:", e.message); }
         return; // PDF path done, skip PPTX storage
       } catch (convertErr: any) {
         console.warn("[generate-pptx] PDF conversion failed, falling back to PPTX:", convertErr.message);
@@ -1152,7 +1160,8 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("[generate-pptx] ===== DONE =====", fileName, `(${imgSuccess} images, ${blueprints.length} pages)`);
-    // V30: 更新生成历史记录
+    // V85-fix: 合并所有DB更新为一次写入，避免竞态覆盖pptxResult
+    // 之前sendComplete写pptxResult → history更新用旧快照覆盖 → pptxResult丢失
     try {
       const { data: doneInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
       const donePrev = (doneInfo?.client_info as Record<string, any>) || {};
@@ -1161,23 +1170,21 @@ export async function POST(req: NextRequest) {
           ? { ...h, status: 'completed', completedAt: new Date().toISOString(), fileName, fileSize: buffer.length, pageCount: blueprints.length, sceneImageCount: imgSuccess, downloadUrl: `/api/ai/download-pptx/${fileName}`, storageUrl }
           : h
       );
-      await supabaseAdmin.from("projects").update({ client_info: { ...donePrev, viGenerationHistory: doneHistory, arkUsageLog: [...(donePrev.arkUsageLog || []), ...arkUsageLog] } }).eq("id", projectId!);
-    } catch (e: any) { console.warn("[generate-pptx] History update error:", e.message); }
-    // V12: 更新项目状态为"完成"
-    await supabaseAdmin.from("projects").update({
-      status: "completed",
-      updated_at: new Date().toISOString(),
-    }).eq("id", projectId);
-
-    sendProgress("done", "生成完成！", 100);
-    sendComplete({
-      url: `/api/ai/download-pptx/${fileName}`,
-      storageUrl,
-      pageCount: blueprints.length,
-      imageCount: imgSuccess,
-      industryType,
-      fileName,
-    });
+      // 一次性写入：pptxResult + history + status + arkUsageLog
+      await supabaseAdmin.from("projects").update({
+        client_info: {
+          ...donePrev,
+          viGenerationHistory: doneHistory,
+          arkUsageLog: [...(donePrev.arkUsageLog || []), ...arkUsageLog],
+          generationStatus: "completed",
+          generationMessage: "生成完成！",
+          generationPercent: 100,
+          pptxResult: { url: `/api/ai/download-pptx/${fileName}`, storageUrl, pageCount: blueprints.length, fileName },
+        },
+        status: "completed",
+        updated_at: new Date().toISOString(),
+      }).eq("id", projectId!);
+    } catch (e: any) { console.warn("[generate-pptx] Final DB update error:", e.message); }
   } catch (error: any) {
     console.error("[generate-pptx] Error:", error);
     // V30: 更新历史记录为失败
