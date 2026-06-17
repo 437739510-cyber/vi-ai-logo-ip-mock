@@ -40,13 +40,15 @@ export async function POST(req: NextRequest) {
     // Step 1: 识别照片内容
     const imageUrls: string[] = content.images || [];
     let photoDescriptions: string[] = [];
+    let vlCost = 0;  // V89: qwen-vl成本累计
 
     if (imageUrls.length > 0 && process.env.ALIYUN_API_KEY) {
       for (const url of imageUrls.slice(0, 6)) {
         if (url.startsWith("pending_")) continue;
         try {
-          const desc = await analyzeImage(url);
+          const { desc, cost } = await analyzeImage(url);
           if (desc) photoDescriptions.push(desc);
+          vlCost += cost;
         } catch (e) {
           console.error("[student-generate] Vision error for", url, e);
         }
@@ -80,6 +82,18 @@ export async function POST(req: NextRequest) {
       platform: platform,
     }).eq("id", contentId);
 
+    // V89: 写入qwen-vl成本到api_usage_log
+    if (vlCost > 0) {
+      supabaseAdmin.from("api_usage_log").insert({
+        route: "admin/student-generate",
+        method: "POST",
+        model: "qwen-vl-plus",
+        cost_cny: vlCost,
+        request_summary: `${photoDescriptions.length}张图片识别`,
+        response_status: 200,
+      }).then(() => {}, () => {});
+    }
+
     return NextResponse.json({
       success: true,
       caption: caption.text,
@@ -93,7 +107,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function analyzeImage(imageUrl: string): Promise<string> {
+async function analyzeImage(imageUrl: string): Promise<{desc: string; cost: number}> {
   const apiKey = process.env.ALIYUN_API_KEY;
   const res = await fetch(ALIYUN_API, {
     method: "POST",
@@ -115,7 +129,12 @@ async function analyzeImage(imageUrl: string): Promise<string> {
   });
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content || "";
+  // V89: qwen-vl-plus成本追踪 (输入¥0.003/1K + 输出¥0.006/1K)
+  const usage = data?.usage;
+  const inputCost = ((usage?.prompt_tokens || 300) / 1000) * 0.003;
+  const outputCost = ((usage?.completion_tokens || 80) / 1000) * 0.006;
+  const cost = parseFloat((inputCost + outputCost).toFixed(6));
+  return { desc: data.choices?.[0]?.message?.content || "", cost };
 }
 
 async function generateCaption(
