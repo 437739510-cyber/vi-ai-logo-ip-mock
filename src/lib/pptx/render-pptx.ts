@@ -39,6 +39,7 @@ export interface RenderPptxOptions {
   sceneLabels?: Record<string, string>;  // V9: AI返回的动态标签
   aiLogoData?: string;  // V14: AI生成的组合Logo图(base64)
   compressImages?: boolean;  // V30: 压缩图片减小体积
+  sceneSectionTitles?: Record<string, string> | null;  // V98: AI生成的场景页标题
 }
 
 // ========== 行业类型 ==========
@@ -107,7 +108,15 @@ function resolveBC(opts: RenderPptxOptions, blueprints: PageBlueprint[]): BC {
 // ========== 行业场景配置 ==========
 interface SceneConfig { title: string; desc: string; }
 
-function getSceneConfigs(industry: IndustryType): Record<string, SceneConfig> {
+function getSceneConfigs(industry: IndustryType, aiTitles?: Record<string, string> | null): Record<string, SceneConfig> {
+  // V98: 优先使用AI生成的场景页标题
+  if (aiTitles?.stationery) {
+    return {
+      stationery: { title: aiTitles.stationery, desc: "" },
+      packaging: { title: aiTitles.packaging || aiTitles.stationery, desc: "" },
+      marketing: { title: aiTitles.marketing || aiTitles.stationery, desc: "" },
+    };
+  }
   const configs: Record<IndustryType, Record<string, SceneConfig>> = {
     restaurant: {
       stationery: { title: "餐饮应用系统", desc: "品牌在餐饮场景中的标准化应用" },
@@ -941,7 +950,7 @@ function renderBasicSpec(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Render
 
 // ========== 场景页 — V6: AI写实图 + 降级色块 ==========
 function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, type: string, bc: BC, industry: IndustryType, sceneImages: Record<string, string>, logoForScene?: string | null): void {
-  const configs = getSceneConfigs(industry);
+  const configs = getSceneConfigs(industry, opts.sceneSectionTitles);
   const config = configs[type] || { title: type, desc: "" };
   addContentFrame(slide, config.title, bc);
   const cx = MARGIN + LEFT_BAR_W;

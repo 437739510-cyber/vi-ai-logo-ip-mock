@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
 - 适合该行业的色彩倾向，必须输出3个具体hex色值（主色、辅助色、强调色），如果客户已有品牌色则必须优先使用客户品牌色
 - 推荐的视觉风格（如极简、国潮、科技感等）
 - VI应用效果图建议（5个场景，必须是品牌Logo/视觉元素印在该行业真实使用的品牌物料上的效果图，场景品类根据客户行业动态决定，中英文对照）
+- sceneSectionTitles：3个场景页的中文标题，必须根据客户行业动态生成（如餐饮→"餐饮应用系统/餐饮包装系统/餐饮营销系统"，水果→"生鲜应用系统/生鲜包装系统/生鲜营销系统"，洗车→"洗车应用系统/洗车包装系统/洗车营销系统"）
 
 ### 7. Logo设计建议（为客户没有Logo的情况）
 - 根据品牌名称、行业特征、地域文化特色，设计4个不同方向的Logo方案
@@ -147,6 +148,11 @@ export async function POST(req: NextRequest) {
     {"zh": "【该行业物料4，如餐饮→桌牌、通用→店面招牌】", "en": "Professional product photography of a branded [行业物料] with company logo clearly printed, studio lighting, product fully visible"},
     {"zh": "【该行业物料5，如餐饮→员工围裙、通用→营销海报】", "en": "Professional product photography of a branded [行业物料] with company logo clearly printed, studio lighting, product fully visible"}
   ],
+  "sceneSectionTitles": {
+    "stationery": "【该行业应用系统标题，如餐饮→餐饮应用系统、水果→生鲜应用系统、洗车→洗车应用系统】",
+    "packaging": "【该行业包装系统标题，如餐饮→餐饮包装系统、水果→生鲜包装系统、洗车→洗车包装系统】",
+    "marketing": "【该行业营销系统标题，如餐饮→餐饮营销系统、水果→生鲜营销系统、洗车→洗车营销系统】"
+  },
   "logoDesignSuggestions": {
     "concept": "Logo设计核心概念，1-2句话",
     "style": "设计风格（如：传统书法、现代简约、国潮、手绘等）",
@@ -230,6 +236,7 @@ export async function POST(req: NextRequest) {
         brandToneKeywords: profile.brandToneKeywords || [],
         visualStyleSuggestion: profile.visualStyleSuggestion || "",
         sceneImageSuggestions: profile.sceneImageSuggestions || [],
+        sceneSectionTitles: profile.sceneSectionTitles || null,
         logoDesignSuggestions: profile.logoDesignSuggestions || null,
         aiGeneratedFields: profile.aiGeneratedFields || {},
         analysisStatus: "completed",

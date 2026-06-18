@@ -1194,6 +1194,7 @@ export async function POST(req: NextRequest) {
       sceneLabels,
       aiLogoData: aiLogoData || undefined,
       compressImages: true,  // V30: 压缩图片减小体积
+      sceneSectionTitles: brandProfile?.sceneSectionTitles,  // V98: AI场景页标题
     });
 
     sendProgress("saving", "正在保存文件...", 90);
