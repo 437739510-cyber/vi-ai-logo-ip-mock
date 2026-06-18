@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
         console.warn("[SUBMIT] Supabase submission error:", subErr.message);
         // Fallback: 如果Supabase缺新列（如刚部署未执行SQL），去掉新列重试
         if (subErr.message.includes('does not exist') || subErr.code === '42703') {
-          const { main_products, business_form, company_scale, scale_reason, store_photos, ...fallbackSub } = supabaseSub as any;
+          const { main_products, business_form, company_scale, scale_reason, store_photos, brand_personality, logo_usage, logo_style, avoid_elements, existing_signage_pain, competitor_reference, ...fallbackSub } = supabaseSub as any;
           const { error: retryErr } = await supabaseAdmin.from("submissions").insert(fallbackSub);
           if (retryErr) console.warn("[SUBMIT] Supabase fallback submission error:", retryErr.message);
         }
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
         submission_id: submissionId,
         status: "submitted",
         brand_colors: body.brandColors || null,
-        client_name: submission.clientName || submission.companyName || "",
+        client_name: submission.companyName || submission.clientName || "",  // V95: 品牌名优先于联系人
         industry: submission.industry || "",
         student_id: body.studentId || null,
         client_info: {
