@@ -76,6 +76,41 @@ const SCENE_IMG_DEFS: Record<IndustryType, SceneImgDef[]> = {
     { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of an education enrollment promotional poster, inspiring style, studio setting" },
     { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a campus event banner stand, brand color design, studio lighting" },
   ],
+  fresh_food: [
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a fruit price tag label with brand logo, clean design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a fruit sticker label on an apple, brand logo printed, studio lighting" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a fruit gift basket with branded ribbon and packaging, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a fruit shop promotional standee, fresh and vibrant style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a branded paper bag for fruit shop, standing upright, studio lighting" },
+  ],
+  floral: [
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a flower shop business card with pressed flower design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a flower bouquet wrapping paper with brand logo printed, studio lighting" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a flower gift box with branded ribbon, elegant design, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a flower shop promotional poster, romantic style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a branded flower pot label tag, clean design, studio lighting" },
+  ],
+  home: [
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a home decor brand business card, warm elegant design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a home product packaging box, modern minimalist design, studio lighting" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a branded shopping bag for home store, standing upright, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a home store promotional catalog, warm inviting style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a branded price tag for home product, clean design, studio lighting" },
+  ],
+  nail: [
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a nail salon color palette card with brand logo, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a nail polish bottle with branded label, elegant design, studio lighting" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a nail care product gift bag with brand logo, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a nail salon promotional poster, chic glamorous style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a nail salon appointment card with brand logo, studio lighting" },
+  ],
+  tea: [
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a tea brand business card, traditional elegant design, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a tea tin canister with branded label, premium design, studio lighting" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of a tea gift box set with branded packaging, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a tea house promotional poster, serene traditional style, studio setting" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a branded tea menu card, elegant typography, studio lighting" },
+  ],
   general: [
     { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a business card mockup, clean minimalist design, studio lighting, angled view" },
     { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a branded tote bag, standing upright, minimalist design, clean studio background" },
@@ -623,6 +658,17 @@ function createDbProgressHelpers(projectId: string, initialClientInfo: Record<st
 }
 
 // ========== 主流程（异步后台） ==========
+// V97: 根据场景物料中文名动态归类到PPTX页面分类
+function mapSceneToPage(zhLabel: string): "stationery" | "packaging" | "marketing" {
+  const label = zhLabel.toLowerCase();
+  // 包装类：袋、盒、贴纸、杯、瓶、外卖、果篮、筷子套、餐巾等
+  if (/包装|袋|盒|贴纸|杯套|杯|瓶|外卖|果篮|筷子套|餐巾/.test(label)) return "packaging";
+  // 文具/卡证类：名片、信封、卡、证、文件夹、课程表、色板、标签等
+  if (/名片|信封|信纸|文具|证|卡|文件夹|课程表|色板|标签/.test(label)) return "stationery";
+  // 默认归marketing：招牌、海报、展架、围裙、菜单、立牌等
+  return "marketing";
+}
+
 export async function POST(req: NextRequest) {
   // Parse request body first
   let projectId: string | null = null;
@@ -916,7 +962,7 @@ export async function POST(req: NextRequest) {
           beauty: "beauty salon / nail art", restaurant: "Chinese restaurant / noodle shop", fastfood: "fast food burger shop / snack stall", beverage: "bubble tea / coffee shop",
           fashion: "fashion boutique / clothing brand", mother_baby: "maternity & baby brand", wedding: "wedding planning / photography studio",
           fitness: "gym / fitness center", pharmacy: "pharmacy / wellness", pet: "pet care / pet shop",
-          retail: "retail shop", education: "education center", general: "lifestyle brand"
+          retail: "retail shop", education: "education center", fresh_food: "fruit and fresh produce shop", floral: "flower shop / florist", home: "home decor store", nail: "nail salon", tea: "tea house / tea brand", general: "lifestyle brand"
         };
         const industryEn = industryLabel[industryType] || "lifestyle brand";
         // 优先使用brand-analysis的logoDesignSuggestions
@@ -959,13 +1005,19 @@ export async function POST(req: NextRequest) {
       // V96: 恢复使用AI生成的sceneImageSuggestions.en作为rawPrompt
       // V95时因brand-analysis生成美食摄影而弃用，但V95已修复brand-analysis prompt为VI mockup
       // AI生成的prompt含品牌名、配色、具体产品细节，比硬编码通用prompt效果好得多
-      const promptPages = ["stationery", "packaging", "packaging", "marketing", "marketing"];
-      imgDefs = dynamicScenePrompts.map((suggestion: any, i: number) => ({
-        key: `${promptPages[i]}-${i === 0 ? 1 : i <= 2 ? i : i - 2}`,
-        page: promptPages[i],
-        rawPrompt: suggestion.en + ", the exact same brand logo from the reference image must be clearly printed/embossed on the product surface, professional product photography, studio lighting, product fully visible, no text, no Chinese characters",
-        label: suggestion.zh || "",  // V96: 恢复使用AI生成的中文标签
-      }));
+      // V97: 根据场景物料中文名动态归类到 stationery/packaging/marketing
+      const pageCounts: Record<string, number> = { stationery: 0, packaging: 0, marketing: 0 };
+      imgDefs = dynamicScenePrompts.map((suggestion: any, i: number) => {
+        const page = mapSceneToPage(suggestion.zh || "");
+        pageCounts[page] = (pageCounts[page] || 0) + 1;
+        const key = `${page}-${pageCounts[page]}`;
+        return {
+          key,
+          page,
+          rawPrompt: suggestion.en + ", the exact same brand logo from the reference image must be clearly printed/embossed on the product surface, professional product photography, studio lighting, product fully visible, no text, no Chinese characters",
+          label: suggestion.zh || "",
+        };
+      });
     }
 
     // V83: 如果checkpoint=scenes_done且有sceneStorageUrls，尝试从Storage恢复场景图
@@ -1499,7 +1551,7 @@ function buildBrandAnalysisPrompt(info: {
   parts.push("");
   parts.push("请基于以上信息进行深度品牌分析。");
   parts.push("");
-  parts.push("重要：sceneImageSuggestions必须是VI应用效果图（mockup），不是品牌故事场景或美食摄影！每个场景必须描述品牌Logo/视觉元素印在具体产品上的效果。5个场景固定为：1.办公文具(名片/信封/信纸) 2.手提袋 3.产品包装(包装盒/外卖袋) 4.店面招牌 5.营销物料(海报/展架/菜单)。每个场景的zh字段是产品名称（如\u2018名片\u2019、\u2018手提袋\u2019），en字段是英文生图prompt，必须以\u2018Professional product photography of a branded [产品] with company logo clearly printed\u2019开头。**严禁输出美食摄影、人物场景、品牌故事场景**——这是VI手册应用效果图，不是品牌故事绘本！");
+  parts.push("重要：sceneImageSuggestions必须是VI应用效果图（mockup），不是品牌故事场景或美食摄影！每个场景必须描述品牌Logo/视觉元素印在具体产品上的效果。5个场景必须根据客户行业动态决定物料类型。行业→物料映射示例：餐饮/快餐/茶餐厅→筷子套、餐巾纸包、外卖袋、菜单、员工围裙；水果/生鲜→水果贴纸、果篮包装、价格标签、手提袋、促销立牌；美甲/美业→色板卡、甲油瓶贴、预约卡、会员卡、店铺招牌；零售/百货→手提袋、价格标签、购物袋、店面招牌、促销海报；饮品/奶茶→外卖杯、杯套、手提袋、菜单灯箱、会员卡；教育/培训→课程表、学员证、文件夹、招生海报、书包挂件；通用/其他→名片、手提袋、产品包装、店面招牌、营销海报。请根据客户实际行业选择最贴合的5种物料，不要输出与行业无关的品类。每个场景的zh字段是产品名称（如\u2018名片\u2019、\u2018手提袋\u2019），en字段是英文生图prompt，必须以\u2018Professional product photography of a branded [产品] with company logo clearly printed\u2019开头。**严禁输出美食摄影、人物场景、品牌故事场景**——这是VI手册应用效果图，不是品牌故事绘本！");
   parts.push("");
   parts.push("重要：logoDesignSuggestions是为没有Logo的客户设计的。请根据品牌名称、行业特征、地域文化特色，设计4个不同方向的Logo方案。每个prompt需要是完整的英文AI生图指令，详细描述设计风格、核心图形元素、配色方案、排版布局。Logo需要简洁、辨识度高、适合各种尺寸应用（名片、招牌、包装等）。");
   return parts.join("\n");

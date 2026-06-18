@@ -5,7 +5,7 @@
  * 从 generate-manual-pptx/route.ts 提取，避免3处重复定义
  */
 
-export type IndustryType = "restaurant" | "fastfood" | "beverage" | "beauty" | "fashion" | "mother_baby" | "wedding" | "fitness" | "pharmacy" | "pet" | "retail" | "education" | "general";
+export type IndustryType = "restaurant" | "fastfood" | "beverage" | "beauty" | "fashion" | "mother_baby" | "wedding" | "fitness" | "pharmacy" | "pet" | "retail" | "education" | "fresh_food" | "floral" | "home" | "nail" | "tea" | "general";
 
 export function getIndustryType(industry?: string): IndustryType {
   if (!industry) return "general";
@@ -41,7 +41,8 @@ export function getIndustryType(industry?: string): IndustryType {
   
   // V14: 兼容旧版一级格式
   // 1. 美容/美发（在零售之前拦截）
-  if (/美容|美发|理发|美甲|spa|沙龙|造型|护肤|美体|美睫|剪发|烫发/.test(s)) return "beauty";
+  if (/美甲|美睫|美足|纹绣/.test(s)) return "nail";
+  if (/美容|美发|理发|spa|沙龙|造型|护肤|美体|剪发|烫发/.test(s)) return "beauty";
   // 2. 婚庆/摄影
   if (/婚|婚庆|婚纱|摄影|影楼|照相|写真|跟拍|司仪/.test(s)) return "wedding";
   // 3. 药店/诊所（含养生馆、中医馆）
@@ -68,6 +69,12 @@ export function getIndustryType(industry?: string): IndustryType {
   if (/零售|超市|便利|商店|杂货|数码/.test(s)) return "retail";
   // 14. 教育/培训
   if (/教育|培训|学|课|幼儿园|托管|辅导/.test(s)) return "education";
+  // V97: 新增行业识别
+  if (/水果|生鲜|菜场|菜市场|果蔬/.test(s)) return "fresh_food";
+  if (/花|花店|花艺|鲜花|花坊/.test(s)) return "floral";
+  if (/家居|装饰|装修|建材|家具|厨卫/.test(s)) return "home";
+  if (/美甲|美睫|美足|纹绣/.test(s)) return "nail";
+  if (/茶业|茶叶|茶馆|茶庄|茶室|茗茶/.test(s)) return "tea";
   return "general";
 }
 
@@ -86,6 +93,11 @@ export const INDUSTRY_DEFAULTS: Record<string, { primary: string; secondary: str
   pet:         { primary: "#FF8F00", secondary: "#5D4037", accent: "#FFE082" },
   retail:      { primary: "#1565C0", secondary: "#EF6C00", accent: "#78909C" },
   education:   { primary: "#283593", secondary: "#00897B", accent: "#FF8F00" },
+  fresh_food:  { primary: "#2E7D32", secondary: "#F9A825", accent: "#FFFFFF" },
+  floral:      { primary: "#C2185B", secondary: "#F48FB1", accent: "#FCE4EC" },
+  home:        { primary: "#5D4037", secondary: "#A1887F", accent: "#EFEBE9" },
+  nail:        { primary: "#E8576C", secondary: "#9B72CF", accent: "#F0D5A8" },
+  tea:         { primary: "#33691E", secondary: "#D4A574", accent: "#F5E6D3" },
   general:     { primary: "#37474F", secondary: "#00897B", accent: "#FFB300" },
 };
 

@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
 ### 6. 视觉方向建议
 - 适合该行业的色彩倾向，必须输出3个具体hex色值（主色、辅助色、强调色），如果客户已有品牌色则必须优先使用客户品牌色
 - 推荐的视觉风格（如极简、国潮、科技感等）
-- VI应用效果图建议（5个场景，必须是品牌Logo/视觉元素印在具体产品上的效果图，如名片、手提袋、包装盒、招牌、菜单等，中英文对照）
+- VI应用效果图建议（5个场景，必须是品牌Logo/视觉元素印在该行业真实使用的品牌物料上的效果图，场景品类根据客户行业动态决定，中英文对照）
 
 ### 7. Logo设计建议（为客户没有Logo的情况）
 - 根据品牌名称、行业特征、地域文化特色，设计4个不同方向的Logo方案
@@ -141,11 +141,11 @@ export async function POST(req: NextRequest) {
   "brandToneKeywords": ["关键词1", "关键词2", "关键词3"],
   "visualStyleSuggestion": "视觉风格建议，2-3句话",
   "sceneImageSuggestions": [
-    {"zh": "办公文具", "en": "Professional product photography of branded stationery items (business cards, envelopes, letterhead) with company logo clearly printed, arranged on wooden desk, studio lighting"},
-    {"zh": "手提袋", "en": "Professional product photography of a branded paper tote bag with company logo printed, standing upright, studio lighting, product fully visible"},
-    {"zh": "产品包装", "en": "Professional product photography of branded product packaging with company logo and label design, studio lighting, product fully visible"},
-    {"zh": "店面招牌", "en": "Professional product photography of a storefront sign or light box with company brand logo illuminated, eye-catching design, studio setting"},
-    {"zh": "营销物料", "en": "Professional product photography of branded marketing materials (poster, standee, menu card) with company logo design, studio lighting, product fully visible"}
+    {"zh": "【该行业物料1，如餐饮→筷子套、水果→水果贴纸、美甲→色板卡】", "en": "Professional product photography of a branded [行业物料] with company logo clearly printed, studio lighting, product fully visible"},
+    {"zh": "【该行业物料2，如餐饮→外卖袋、水果→果篮包装、零售→手提袋】", "en": "Professional product photography of a branded [行业物料] with company logo clearly printed, studio lighting, product fully visible"},
+    {"zh": "【该行业物料3，如餐饮→菜单、水果→价格标签、美甲→甲油瓶贴】", "en": "Professional product photography of a branded [行业物料] with company logo clearly printed, studio lighting, product fully visible"},
+    {"zh": "【该行业物料4，如餐饮→桌牌、通用→店面招牌】", "en": "Professional product photography of a branded [行业物料] with company logo clearly printed, studio lighting, product fully visible"},
+    {"zh": "【该行业物料5，如餐饮→员工围裙、通用→营销海报】", "en": "Professional product photography of a branded [行业物料] with company logo clearly printed, studio lighting, product fully visible"}
   ],
   "logoDesignSuggestions": {
     "concept": "Logo设计核心概念，1-2句话",

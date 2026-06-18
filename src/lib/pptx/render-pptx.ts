@@ -164,8 +164,38 @@ function getSceneConfigs(industry: IndustryType): Record<string, SceneConfig> {
       packaging: { title: "教育包装系统", desc: "课程资料与教具的品牌化呈现" },
       marketing: { title: "教育营销系统", desc: "招生宣传与校区展示物料" },
     },
+    fastfood: {
+      stationery: { title: "快餐应用系统", desc: "品牌在快餐场景中的标准化应用" },
+      packaging: { title: "快餐包装系统", desc: "外卖与打包物料的品牌化呈现" },
+      marketing: { title: "快餐营销系统", desc: "门店宣传与促销物料" },
+    },
+    fresh_food: {
+      stationery: { title: "生鲜应用系统", desc: "品牌在生鲜零售场景中的标准化应用" },
+      packaging: { title: "生鲜包装系统", desc: "水果贴纸与果篮包装的品牌化呈现" },
+      marketing: { title: "生鲜营销系统", desc: "价格标签与促销展示物料" },
+    },
+    floral: {
+      stationery: { title: "花艺应用系统", desc: "品牌在花艺场景中的标准化应用" },
+      packaging: { title: "花艺包装系统", desc: "花束包装与花篮的品牌化呈现" },
+      marketing: { title: "花艺营销系统", desc: "节日推广与门店展示物料" },
+    },
+    home: {
+      stationery: { title: "家居应用系统", desc: "品牌在家居场景中的标准化应用" },
+      packaging: { title: "家居包装系统", desc: "产品包装与物料的品牌化呈现" },
+      marketing: { title: "家居营销系统", desc: "展厅宣传与促销物料" },
+    },
+    nail: {
+      stationery: { title: "美甲应用系统", desc: "品牌在美甲服务场景中的标准化应用" },
+      packaging: { title: "美甲包装系统", desc: "甲油瓶贴与色板卡的品牌化呈现" },
+      marketing: { title: "美甲营销系统", desc: "预约卡与门店推广物料" },
+    },
+    tea: {
+      stationery: { title: "茶业应用系统", desc: "品牌在茶业场景中的标准化应用" },
+      packaging: { title: "茶业包装系统", desc: "茶叶罐与礼盒的品牌化呈现" },
+      marketing: { title: "茶业营销系统", desc: "品鉴推广与门店展示物料" },
+    },
     general: {
-      stationery: { title: "办公应用系统", desc: "品牌在商务场景中的标准化应用" },
+      stationery: { title: "品牌应用系统", desc: "品牌在商务场景中的标准化应用" },
       packaging: { title: "产品包装系统", desc: "品牌主色调贯穿包装设计" },
       marketing: { title: "营销展示系统", desc: "场景化品牌视觉应用" },
     },
