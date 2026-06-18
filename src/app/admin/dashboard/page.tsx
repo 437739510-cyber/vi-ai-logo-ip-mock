@@ -101,10 +101,12 @@ export default function DashboardPage() {
     });
   }, [fetchBalances, fetchUsageLogs]);
 
-  const pendingCount = projects.filter((p) => p.status === "submitted").length;
+  const pendingCount = projects.filter((p) => p.status === "submitted" || p.status === "paid").length;
   const inProgressCount = projects.filter(
-    (p) => p.status === "ai_analysis" || p.status === "designing"
+    (p) =>
+      p.status === "ai_analysis" || p.status === "brand_analyzed" || p.status === "logo_generated" || p.status === "designing"
   ).length;
+  const completedCount = projects.filter((p) => p.status === "completed").length;
   const deliveredCount = projects.filter((p) => p.status === "delivered").length;
   const totalCount = projects.length;
 
@@ -142,10 +144,10 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="待处理" value={pendingCount} description="新提交未分配" icon={<AlertCircle className="w-5 h-5" />} />
-        <StatCard title="进行中" value={inProgressCount} description="AI 分析 / 设计中" icon={<Clock className="w-5 h-5" />} />
-        <StatCard title="已交付" value={deliveredCount} icon={<CheckCircle className="w-5 h-5" />} />
-        <StatCard title="项目总数" value={totalCount} icon={<FolderKanban className="w-5 h-5" />} />
+        <StatCard title="待处理" value={pendingCount} description="新提交/已付款" icon={<AlertCircle className="w-5 h-5" />} />
+        <StatCard title="进行中" value={inProgressCount} description="分析/Logo/设计中" icon={<Clock className="w-5 h-5" />} />
+        <StatCard title="已完成" value={completedCount} description="VI手册已生成" icon={<CheckCircle className="w-5 h-5" />} />
+        <StatCard title="已交付" value={deliveredCount} icon={<FolderKanban className="w-5 h-5" />} />
       </div>
 
       {/* API 余额 */}

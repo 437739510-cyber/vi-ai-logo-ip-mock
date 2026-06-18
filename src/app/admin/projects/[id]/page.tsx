@@ -1565,7 +1565,7 @@ export default function ProjectDetailPage({
         <h3 className="text-sm font-semibold text-neutral-700 mb-4">项目时间线</h3>
         <div className="space-y-3">
           {(project.timeline || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((entry, i) => {
-            const labels: Record<string, string> = { submitted: "已提交", confirmed: "需求确认中", ai_analysis: "AI 分析中", designing: "设计制作中", reviewing: "审核中", delivered: "已交付" };
+            const labels: Record<string, string> = { submitted: "已提交", payment_uploaded: "待确认付款", paid: "已付款", confirmed: "需求确认中", ai_analysis: "AI 分析中", brand_analyzed: "品牌分析完成", logo_generated: "Logo生成完成", designing: "设计制作中", reviewing: "审核中", completed: "已完成", delivered: "已交付" };
             return (
               <div key={i} className="flex items-center gap-3 text-sm">
                 <div className="w-2 h-2 rounded-full bg-primary shrink-0" />

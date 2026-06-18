@@ -9,9 +9,12 @@ import type { ProjectFilters } from "@/types";
 const STATUS_TABS: { key: ProjectStatus | "all"; label: string }[] = [
   { key: "all", label: "全部" },
   { key: "submitted", label: "已提交" },
+  { key: "paid", label: "已付款" },
   { key: "ai_analysis", label: "AI 分析中" },
+  { key: "brand_analyzed", label: "分析完成" },
+  { key: "logo_generated", label: "Logo完成" },
   { key: "designing", label: "设计制作中" },
-  { key: "reviewing", label: "审核中" },
+  { key: "completed", label: "已完成" },
   { key: "delivered", label: "已交付" },
 ];
 
