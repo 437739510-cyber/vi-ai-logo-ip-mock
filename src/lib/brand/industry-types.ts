@@ -74,7 +74,7 @@ export function getIndustryType(industry?: string): IndustryType {
 // ========== 行业默认配色 ==========
 
 export const INDUSTRY_DEFAULTS: Record<string, { primary: string; secondary: string; accent: string }> = {
-  restaurant:  { primary: "#2E7D32", secondary: "#E65100", accent: "#F9A825" },
+  restaurant:  { primary: "#C62828", secondary: "#F9A825", accent: "#FFFFFF" },  // V95: 餐饮默认中国红+金
   fastfood:    { primary: "#D32F2F", secondary: "#F9A825", accent: "#FFFFFF" },
   beverage:    { primary: "#00695C", secondary: "#D84315", accent: "#FFB300" },
   beauty:      { primary: "#E8576C", secondary: "#9B72CF", accent: "#F0D5A8" },

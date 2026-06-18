@@ -127,9 +127,62 @@ const SCENE_IMG_DEFS: Record<IndustryType, SceneImgDef[]> = {
   ],
 };
 
+// V95: 中文颜色名→hex映射（客户输入"红色和金色"时能正确解析）
+const CN_COLOR_MAP: Record<string, string> = {
+  "红": "#D32F2F", "红色": "#D32F2F", "大红": "#D32F2F", "正红": "#D32F2F", "中国红": "#C62828",
+  "暗红": "#8B0000", "深红": "#8B0000", "酒红": "#722F37", "玫红": "#E91E63",
+  "金": "#F9A825", "金色": "#F9A825", "金黄": "#F9A825", "暗金": "#C9A96E",
+  "橙": "#E65100", "橙色": "#E65100", "橘色": "#E65100", "暖橙": "#EF6C00",
+  "黄": "#F9A825", "黄色": "#F9A825", "明黄": "#FFD600", "鹅黄": "#FFF9C4",
+  "绿": "#2E7D32", "绿色": "#2E7D32", "翠绿": "#00695C", "墨绿": "#1B5E20",
+  "蓝": "#1565C0", "蓝色": "#1565C0", "深蓝": "#0D47A1", "天蓝": "#42A5F5",
+  "紫": "#7B1FA2", "紫色": "#7B1FA2", "深紫": "#4A148C", "薰衣草": "#9C27B0",
+  "粉": "#E8576C", "粉色": "#E8576C", "粉红": "#E8576C", "桃粉": "#F48FB1",
+  "棕": "#5D4037", "棕色": "#5D4037", "咖啡": "#5D4037", "深棕": "#3E2723",
+  "黑": "#212121", "黑色": "#212121", "墨色": "#1A1A2E",
+  "白": "#FFFFFF", "白色": "#FFFFFF",
+  "灰": "#78909C", "灰色": "#78909C", "银灰": "#90A4AE", "银": "#90A4AE",
+};
+
+function parseChineseColors(text: string): string[] {
+  if (!text || typeof text !== 'string') return [];
+  // 清洗：去掉"色"重复、提取颜色词
+  const results: string[] = [];
+  // 先尝试提取hex色值
+  const hexMatches = text.match(/#[0-9a-fA-F]{6}/g);
+  if (hexMatches && hexMatches.length > 0) return hexMatches;
+  // 逐词匹配中文颜色名（从长到短匹配）
+  const sortedKeys = Object.keys(CN_COLOR_MAP).sort((a, b) => b.length - a.length);
+  let remaining = text;
+  for (const cn of sortedKeys) {
+    if (remaining.includes(cn)) {
+      results.push(CN_COLOR_MAP[cn]);
+      remaining = remaining.replace(cn, '');
+    }
+  }
+  return results;
+}
+
 function normalizeColors(colors: any, industry?: string): { primary: string; secondary: string; accent: string } {
   const defaults = getIndustryDefaults(industry);
   if (!colors) return defaults;
+  
+  // V95: 处理中文字符串如"红色和金色"
+  if (typeof colors === 'string') {
+    const parsed = parseChineseColors(colors);
+    if (parsed.length > 0) {
+      return {
+        primary: parsed[0] || defaults.primary,
+        secondary: parsed[1] || defaults.secondary,
+        accent: parsed[2] || defaults.accent,
+      };
+    }
+    // 不是颜色名，可能是纯hex
+    if (/^#[0-9a-fA-F]{6}$/.test(colors)) {
+      return { primary: colors, secondary: defaults.secondary, accent: defaults.accent };
+    }
+    return defaults;
+  }
   if (colors.primary?.hex) {
     return {
       primary: colors.primary.hex || defaults.primary,
@@ -675,7 +728,7 @@ export async function POST(req: NextRequest) {
     // ===== Step 2: 提取所有数据 =====
     // V83: 从client_info.discoveryData补充数据，不再丢失
     const dd = ((project?.client_info as Record<string, any>)?.discoveryData) as Record<string, any> || {};
-    const companyName = body.clientInfo?.companyName || body.clientInfo?.clientName || submission?.company_name || submission?.companyName || project?.client_name || "品牌";
+    const companyName = body.clientInfo?.companyName || submission?.company_name || submission?.companyName || project?.client_name || body.clientInfo?.clientName || "品牌";
     const industry = body.clientInfo?.industry || submission?.industry || project?.industry || "";
     const brandVision = body.clientInfo?.brandVision || submission?.brand_vision || dd.brandSpirit || "";
     const coreValues = body.clientInfo?.coreValues || submission?.core_values || dd.brandSpiritCustom || "";
@@ -903,13 +956,22 @@ export async function POST(req: NextRequest) {
     // 动态场景图prompt（AI分析结果 > 硬编码fallback）
     let imgDefs = SCENE_IMG_DEFS[industryType] || SCENE_IMG_DEFS.general;
     if (dynamicScenePrompts && dynamicScenePrompts.length >= 5) {
-      // V9: 用AI分析生成的行业定制prompt，动态标签替代硬编码
+      // V95: 不再用AI生成的品牌故事场景prompt（那是美食摄影/故事插图）
+      // 只使用zh标签作为渲染标签，en prompt保留硬编码SCENE_IMG_DEFS的产品mockup描述
+      const fallbackLabels = ["办公文具", "手提袋", "产品包装", "店面招牌", "营销物料"];
+      const fallbackPrompts = [
+        "Professional product photography of branded stationery items (business cards, envelopes, letterhead) with company logo clearly printed, arranged on wooden desk, studio lighting",
+        "Professional product photography of a branded paper tote bag with company logo printed, standing upright, studio lighting, product fully visible",
+        "Professional product photography of branded product packaging (box or container) with company logo and label design, studio lighting, product fully visible",
+        "Professional product photography of a storefront sign or light box with company brand logo, illuminated, eye-catching design, studio setting",
+        "Professional product photography of branded marketing materials (poster, standee, menu card) with company logo design, studio lighting, product fully visible",
+      ];
       const promptPages = ["stationery", "packaging", "packaging", "marketing", "marketing"];
       imgDefs = dynamicScenePrompts.map((suggestion: any, i: number) => ({
         key: `${promptPages[i]}-${i === 0 ? 1 : i <= 2 ? i : i - 2}`,
         page: promptPages[i],
-        rawPrompt: suggestion.en + ", the exact same brand logo from the reference image must be clearly printed/embossed on the product surface, professional product photography, studio lighting, product fully visible, no text, no Chinese characters",
-        label: suggestion.zh || "",  // V9: 保存中文标签用于渲染
+        rawPrompt: fallbackPrompts[i] + ", the exact same brand logo from the reference image must be clearly printed/embossed on the product surface, professional product photography, studio lighting, product fully visible, no text, no Chinese characters",
+        label: fallbackLabels[i] || suggestion.zh || "",  // V95: 用标准VI应用标签
       }));
     }
 
@@ -1444,7 +1506,7 @@ function buildBrandAnalysisPrompt(info: {
   parts.push("");
   parts.push("请基于以上信息进行深度品牌分析。");
   parts.push("");
-  parts.push("重要：sceneImageSuggestions必须根据具体行业和品牌定制。每个场景的zh字段是该图的中文标签（如\u2018名片\u2019、\u2018手提袋\u2019、\u2018产品瓶装\u2019），en字段是英文生图prompt。prompt必须明确描述产品上印有品牌标识(company logo printed/branded label)。**如果客户已有Logo或IP公仔，场景图prompt必须详细描述该Logo/IP的外观特征**（如形状、颜色、图案、动物形象等），确保AI文生图时能准确画出Logo/IP在产品上的样子。zh标签必须和en prompt描述的产品完全一致——如果prompt画的是手提袋，zh就必须是\u2018手提袋\u2019，不能写其他内容。");
+  parts.push("重要：sceneImageSuggestions必须是VI应用效果图（mockup），不是品牌故事场景或美食摄影！每个场景必须描述品牌Logo/视觉元素印在具体产品上的效果。5个场景固定为：1.办公文具(名片/信封/信纸) 2.手提袋 3.产品包装(包装盒/外卖袋) 4.店面招牌 5.营销物料(海报/展架/菜单)。每个场景的zh字段是产品名称（如\u2018名片\u2019、\u2018手提袋\u2019），en字段是英文生图prompt，必须以\u2018Professional product photography of a branded [产品] with company logo clearly printed\u2019开头。**严禁输出美食摄影、人物场景、品牌故事场景**——这是VI手册应用效果图，不是品牌故事绘本！");
   parts.push("");
   parts.push("重要：logoDesignSuggestions是为没有Logo的客户设计的。请根据品牌名称、行业特征、地域文化特色，设计4个不同方向的Logo方案。每个prompt需要是完整的英文AI生图指令，详细描述设计风格、核心图形元素、配色方案、排版布局。Logo需要简洁、辨识度高、适合各种尺寸应用（名片、招牌、包装等）。");
   return parts.join("\n");

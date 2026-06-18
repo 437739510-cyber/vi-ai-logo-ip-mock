@@ -45,7 +45,7 @@ export interface RenderPptxOptions {
 
 // 行业默认色（与route.ts保持一致）
 const INDUSTRY_BC: Record<IndustryType, { pri: string; sec: string; acc: string }> = {
-  restaurant: { pri: "2E7D32", sec: "E65100", acc: "F9A825" },
+  restaurant: { pri: "C62828", sec: "F9A825", acc: "FFFFFF" },  // V95: 餐饮默认色改为中国红+金
   fastfood:  { pri: "D32F2F", sec: "F9A825", acc: "FFFFFF" },
   beverage:   { pri: "00695C", sec: "D84315", acc: "FFB300" },
   beauty:     { pri: "E8576C", sec: "9B72CF", acc: "F0D5A8" },
