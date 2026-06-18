@@ -1085,8 +1085,8 @@ export async function POST(req: NextRequest) {
         batch.map(async (def) => {
           // V29b: DashScope文生图优先（旧版已验证能正确画出Logo）
           try {
-            // V29b: 不传参考图，走纯文生图（prompt里已有Logo视觉描述，文生图比图生图更能精确还原Logo）
-            const imgData = await generateSceneImage(def.rawPrompt);
+            // V99: 传Logo参考图给DashScope，提升场景图Logo一致性
+            const imgData = await generateSceneImage(def.rawPrompt, logoData || undefined);
             if (imgData) {
               console.log(`[generate-pptx] DashScope OK for ${def.key}`);
               arkUsageLog.push({ model: 'wan2.6-t2i', type: 'scene', cost: 0.20, timestamp: new Date().toISOString() });
@@ -1098,7 +1098,9 @@ export async function POST(req: NextRequest) {
           // 降级: Ark Seedream文生图
           if (arkKey) {
             try {
-              const arkResult = await arkGenerateScene({ prompt: def.rawPrompt });  // V32: 使用默认2048x2048，兼容4.5/5.0Lite
+              // V99: 传Logo公开URL给Ark Seedream做图生图参考
+              const logoPublicUrl = body.logoUrl || (project?.client_info ? ((project.client_info as Record<string, any>)?.brandProfile as Record<string, any>)?.selectedLogo?.imageUrl || "" : "");
+              const arkResult = await arkGenerateScene({ prompt: def.rawPrompt, refImageUrl: logoPublicUrl || undefined });
               const imgResp = await fetch(arkResult.imageUrl);
               if (imgResp.ok) {
                 const imgBuf = Buffer.from(await imgResp.arrayBuffer());

@@ -1002,6 +1002,15 @@ function renderSceneWithImages(
         sizing: { type: "cover", w: imgW, h: imgH },
         rounding: true,
       });
+      // V99: 在场景图右下角叠加Logo水印，确认Logo一致性
+      if (logoForScene) {
+        slide.addImage({
+          data: normImg(logoForScene),
+          x: imgX + imgW - 0.7, y: startY + imgH - 0.7, w: 0.55, h: 0.55,
+          sizing: { type: "contain", w: 0.55, h: 0.55 },
+          transparency: 40,
+        });
+      }
 
       // 品牌色底部条
       slide.addShape("rect", { x: imgX, y: startY + imgH - 0.08, w: imgW, h: 0.08, fill: { color: bc.pri, transparency: 30 } });
@@ -1037,6 +1046,15 @@ function renderSceneWithImages(
         sizing: { type: "cover", w: colW, h: imgH },
         rounding: true,
       });
+      // V99: 在场景图右下角叠加Logo水印
+      if (logoForScene) {
+        slide.addImage({
+          data: normImg(logoForScene),
+          x: imgX + colW - 0.65, y: imgY + imgH - 0.65, w: 0.5, h: 0.5,
+          sizing: { type: "contain", w: 0.5, h: 0.5 },
+          transparency: 40,
+        });
+      }
 
       // 品牌色底部条
       slide.addShape("rect", { x: imgX, y: imgY + imgH - 0.06, w: colW, h: 0.06, fill: { color: bc.pri, transparency: 30 } });
@@ -1462,7 +1480,7 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
   slide.addShape("rect", { x: cx, y: 2.15, w: 1.5, h: 0.04, fill: { color: bc.acc } });
 
   // 目录项
-  const tocItems = getTocItems(industry);
+  const tocItems = getTocItems(industry, opts.sceneSectionTitles);
   let yPos = 2.6;
   for (let i = 0; i < tocItems.length; i++) {
     const item = tocItems[i];
@@ -1482,7 +1500,7 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
   slide.addShape("rect", { x: cx, y: yPos + 0.5, w: 3.0, h: 0.08, fill: { color: bc.pri, transparency: 40 } });
 }
 
-function getTocItems(industry: IndustryType): { title: string }[] {
+function getTocItems(industry: IndustryType, aiTitles?: Record<string, string> | null): { title: string }[] {
   const baseItems = [
     { title: "品牌核心理念" },
     { title: "标识诠释" },
@@ -1493,24 +1511,17 @@ function getTocItems(industry: IndustryType): { title: string }[] {
     { title: "字体系统" },
     { title: "基础规范" },
   ];
-  const sceneItems: Record<IndustryType, { title: string }[]> = {
-    restaurant: [{ title: "餐饮应用系统" }, { title: "餐饮包装系统" }, { title: "餐饮营销系统" }],
-    beverage: [{ title: "饮品应用系统" }, { title: "饮品包装系统" }, { title: "饮品营销系统" }],
-    beauty: [{ title: "美容应用系统" }, { title: "美容包装系统" }, { title: "美容营销系统" }],
-    fashion: [{ title: "时尚应用系统" }, { title: "时尚包装系统" }, { title: "时尚营销系统" }],
-    mother_baby: [{ title: "母婴应用系统" }, { title: "母婴包装系统" }, { title: "母婴营销系统" }],
-    wedding: [{ title: "婚庆应用系统" }, { title: "婚庆包装系统" }, { title: "婚庆营销系统" }],
-    fitness: [{ title: "运动应用系统" }, { title: "运动包装系统" }, { title: "运动营销系统" }],
-    pharmacy: [{ title: "医药应用系统" }, { title: "医药包装系统" }, { title: "医药营销系统" }],
-    pet: [{ title: "宠物应用系统" }, { title: "宠物包装系统" }, { title: "宠物营销系统" }],
-    retail: [{ title: "零售应用系统" }, { title: "零售包装系统" }, { title: "零售营销系统" }],
-    education: [{ title: "教育应用系统" }, { title: "教育包装系统" }, { title: "教育营销系统" }],
-    general: [{ title: "办公应用系统" }, { title: "产品包装系统" }, { title: "营销展示系统" }],
-  };
+  // V99: 从getSceneConfigs动态获取标题，与场景页保持一致（支持V98 AI动态标题）
+  const configs = getSceneConfigs(industry, aiTitles);
+  const sceneItems = [
+    { title: configs.stationery.title },
+    { title: configs.packaging.title },
+    { title: configs.marketing.title },
+  ];
   const endItems = [
     { title: "总结" },
   ];
-  return [...baseItems, ...(sceneItems[industry] || sceneItems.general), ...endItems];
+  return [...baseItems, ...sceneItems, ...endItems];
 }
 
 // ========== Summary ==========
