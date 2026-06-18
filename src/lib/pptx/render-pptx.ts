@@ -44,22 +44,7 @@ export interface RenderPptxOptions {
 
 // ========== 行业类型 ==========
 
-// 行业默认色（与route.ts保持一致）
-const INDUSTRY_BC: Record<IndustryType, { pri: string; sec: string; acc: string }> = {
-  restaurant: { pri: "C62828", sec: "F9A825", acc: "FFFFFF" },  // V95: 餐饮默认色改为中国红+金
-  fastfood:  { pri: "D32F2F", sec: "F9A825", acc: "FFFFFF" },
-  beverage:   { pri: "00695C", sec: "D84315", acc: "FFB300" },
-  beauty:     { pri: "E8576C", sec: "9B72CF", acc: "F0D5A8" },
-  fashion:    { pri: "1A1A2E", sec: "C9A96E", acc: "E8D5B7" },
-  mother_baby:{ pri: "E8836B", sec: "5B9EA6", acc: "F5C6AA" },
-  wedding:    { pri: "8B6F4E", sec: "D4A574", acc: "F5E6D3" },
-  fitness:    { pri: "D32F2F", sec: "1B5E20", acc: "FFC107" },
-  pharmacy:   { pri: "1565C0", sec: "2E7D32", acc: "BBDEFB" },
-  pet:        { pri: "FF8F00", sec: "5D4037", acc: "FFE082" },
-  retail:     { pri: "1565C0", sec: "EF6C00", acc: "78909C" },
-  education:  { pri: "283593", sec: "00897B", acc: "FF8F00" },
-  general:    { pri: "37474F", sec: "00897B", acc: "FFB300" },
-};
+// V99: 行业默认色已统一到 getIndustryDefaults()，不再在此重复定义
 
 interface BC {
   pri: string; sec: string; acc: string;
@@ -95,13 +80,14 @@ function resolveBC(opts: RenderPptxOptions, blueprints: PageBlueprint[]): BC {
     };
   }
 
-  // V6: 按行业给默认色，不再用Google蓝！
+  // V99: 按行业给默认色，统一使用 getIndustryDefaults()
   const industry = getIndustryType(opts.industry);
-  const def = INDUSTRY_BC[industry];
-  console.log(`[resolveBC] Using industry defaults for ${industry}: ${def.pri}`);
+  const def = getIndustryDefaults(industry);
+  const pri = hx(def.primary);
+  console.log(`[resolveBC] Using industry defaults for ${industry}: ${pri}`);
   return {
-    pri: def.pri, sec: def.sec, acc: def.acc,
-    priDark: darken(def.pri), priLight: lighten(def.pri),
+    pri, sec: hx(def.secondary), acc: hx(def.accent),
+    priDark: darken(pri), priLight: lighten(pri),
   };
 }
 
