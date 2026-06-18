@@ -956,22 +956,15 @@ export async function POST(req: NextRequest) {
     // 动态场景图prompt（AI分析结果 > 硬编码fallback）
     let imgDefs = SCENE_IMG_DEFS[industryType] || SCENE_IMG_DEFS.general;
     if (dynamicScenePrompts && dynamicScenePrompts.length >= 5) {
-      // V95: 不再用AI生成的品牌故事场景prompt（那是美食摄影/故事插图）
-      // 只使用zh标签作为渲染标签，en prompt保留硬编码SCENE_IMG_DEFS的产品mockup描述
-      const fallbackLabels = ["办公文具", "手提袋", "产品包装", "店面招牌", "营销物料"];
-      const fallbackPrompts = [
-        "Professional product photography of branded stationery items (business cards, envelopes, letterhead) with company logo clearly printed, arranged on wooden desk, studio lighting",
-        "Professional product photography of a branded paper tote bag with company logo printed, standing upright, studio lighting, product fully visible",
-        "Professional product photography of branded product packaging (box or container) with company logo and label design, studio lighting, product fully visible",
-        "Professional product photography of a storefront sign or light box with company brand logo, illuminated, eye-catching design, studio setting",
-        "Professional product photography of branded marketing materials (poster, standee, menu card) with company logo design, studio lighting, product fully visible",
-      ];
+      // V96: 恢复使用AI生成的sceneImageSuggestions.en作为rawPrompt
+      // V95时因brand-analysis生成美食摄影而弃用，但V95已修复brand-analysis prompt为VI mockup
+      // AI生成的prompt含品牌名、配色、具体产品细节，比硬编码通用prompt效果好得多
       const promptPages = ["stationery", "packaging", "packaging", "marketing", "marketing"];
       imgDefs = dynamicScenePrompts.map((suggestion: any, i: number) => ({
         key: `${promptPages[i]}-${i === 0 ? 1 : i <= 2 ? i : i - 2}`,
         page: promptPages[i],
-        rawPrompt: fallbackPrompts[i] + ", the exact same brand logo from the reference image must be clearly printed/embossed on the product surface, professional product photography, studio lighting, product fully visible, no text, no Chinese characters",
-        label: fallbackLabels[i] || suggestion.zh || "",  // V95: 用标准VI应用标签
+        rawPrompt: suggestion.en + ", the exact same brand logo from the reference image must be clearly printed/embossed on the product surface, professional product photography, studio lighting, product fully visible, no text, no Chinese characters",
+        label: suggestion.zh || "",  // V96: 恢复使用AI生成的中文标签
       }));
     }
 
