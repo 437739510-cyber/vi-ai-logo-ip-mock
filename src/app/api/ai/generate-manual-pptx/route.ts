@@ -946,6 +946,57 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // V106: 品牌信息完整性检查——brandProfile为空时阻断生成，要求补充信息
+    // 根因：brandProfile为空 → 无sceneImageSuggestions → 走硬编码通用prompt → 实景图完全跑偏
+    const hasBrandProfile = brandProfile && brandProfile.brandToneKeywords?.length > 0;
+    const hasSceneSuggestions = brandProfile?.sceneImageSuggestions?.length >= 5;
+    if (!hasBrandProfile || !hasSceneSuggestions) {
+      // 收集缺失字段
+      const missingFields: string[] = [];
+      const fieldLabels: Record<string, string> = {
+        brandVision: "品牌愿景",
+        coreValues: "核心价值",
+        targetMarket: "目标客群",
+        industry: "行业类别",
+      };
+      if (!industry) missingFields.push("industry");
+      if (!brandVision && !effectiveBrandVision) missingFields.push("brandVision");
+      if (!coreValues && !effectiveCoreValues) missingFields.push("coreValues");
+      if (!targetMarket && !effectiveTargetMarket) missingFields.push("targetMarket");
+
+      // 如果没有缺失字段但brandProfile仍然为空，说明是AI分析失败
+      const analysisFailed = missingFields.length === 0 && !hasBrandProfile;
+
+      console.warn("[generate-pptx] V106: Brand info incomplete — brandProfile:", !!hasBrandProfile, "sceneSuggestions:", hasSceneSuggestions, "missingFields:", missingFields, "analysisFailed:", analysisFailed);
+
+      // 更新DB状态为failed，附带缺失信息
+      await supabaseAdmin.from("projects").update({
+        status: "failed",
+        updated_at: new Date().toISOString(),
+        client_info: {
+          ...prev,
+          generationStatus: "failed",
+          generationMessage: analysisFailed
+            ? "AI品牌分析失败，请重试或补充品牌信息"
+            : `还需补充${missingFields.length}项：${missingFields.map(k => fieldLabels[k] || k).join("、")}`,
+          generationPercent: 0,
+          infoIncomplete: {
+            missingFields,
+            analysisFailed,
+            fieldLabels: Object.fromEntries(missingFields.map(k => [k, fieldLabels[k]])),
+          },
+        },
+      }).eq("id", projectId!);
+
+      return NextResponse.json({
+        error: analysisFailed ? "AI品牌分析失败，请重试" : "品牌信息不完整",
+        status: "info_incomplete",
+        missingFields,
+        fieldLabels: Object.fromEntries(missingFields.map(k => [k, fieldLabels[k]])),
+        analysisFailed,
+      }, { status: 400 });
+    }
+
     // V103: 如果brandProfile有colorPalette，用它覆盖行业默认色
     if (brandProfile?.colorPalette && Array.isArray(brandProfile.colorPalette) && brandProfile.colorPalette.length >= 3) {
       const cp = brandProfile.colorPalette;
