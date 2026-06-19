@@ -817,14 +817,15 @@ export async function POST(req: NextRequest) {
     sendProgress("extracting", "正在提取品牌数据...", 10);
     // ===== Step 2: 提取所有数据 =====
     // V83: 从client_info.discoveryData补充数据，不再丢失
-    const dd = ((project?.client_info as Record<string, any>)?.discoveryData) as Record<string, any> || {};
-    // V100: companyName取值链 — 加discoveryData.storeName兜底
-    const companyName = body.clientInfo?.companyName || submission?.company_name || submission?.companyName || project?.client_name || body.clientInfo?.clientName || dd.storeName || "品牌";
+    const ci = (project?.client_info as Record<string, any>) || {};
+    const dd = (ci?.discoveryData) as Record<string, any> || {};
+    // V105: companyName取值链 — 加client_info.companyName兜底
+    const companyName = body.clientInfo?.companyName || submission?.company_name || submission?.companyName || project?.client_name || ci?.companyName || body.clientInfo?.clientName || dd.storeName || "品牌";
     const industry = body.clientInfo?.industry || submission?.industry || project?.industry || "";
     const brandVision = body.clientInfo?.brandVision || submission?.brand_vision || dd.brandSpirit || "";
     const coreValues = body.clientInfo?.coreValues || submission?.core_values || dd.brandSpiritCustom || "";
     const targetMarket = body.clientInfo?.targetMarket || submission?.target_market || submission?.targetMarket || "";
-    let logoPhilosophy = body.clientInfo?.logoPhilosophy || submission?.logo_philosophy || submission?.logoPhilosophy || dd.signatureItem || "";
+    let logoPhilosophy = body.clientInfo?.logoPhilosophy || submission?.logo_philosophy || submission?.logoPhilosophy || ci?.logoPhilosophy || dd.signatureItem || "";
     const mascotPhilosophy = body.clientInfo?.mascotPhilosophy || submission?.mascot_philosophy || submission?.mascotPhilosophy || "";
 
     const rawColors = body.brandColors || submission?.existing_brand_color || submission?.brand_colors || submission?.brandColors;
@@ -974,6 +975,14 @@ export async function POST(req: NextRequest) {
         if (savedProfile?.selectedLogo?.imageUrl) {
           console.log("[generate-pptx] Using customer-selected logo from brandProfile.selectedLogo");
           logoData = await loadImg(savedProfile.selectedLogo.imageUrl);
+        }
+        // V105: 客户未选Logo时，使用第一个生成的Logo
+        if (!logoData && savedProfile && savedProfile.logoGenerationResults && savedProfile.logoGenerationResults.length > 0) {
+          const firstLogoUrl = savedProfile.logoGenerationResults[0].imageUrl;
+          if (firstLogoUrl) {
+            console.log("[generate-pptx] No selectedLogo, using first generated logo");
+            logoData = await loadImg(firstLogoUrl);
+          }
         }
       } catch (e) {
         console.warn("[generate-pptx] Could not load selectedLogo:", e);
