@@ -363,6 +363,24 @@ function addIndustryIcon(slide: PptxGenJS.Slide, industry: IndustryType, cx: num
   }
 }
 
+// V110: 智能品牌名排版 — 优先一行，放不下则居中拆分(避免单字一行)
+function fitBrandText(text: string, fs: number, cs: number, availW: number): { text: string; fontSize: number; charSpacing: number } {
+  // 估算: 每个汉字 ≈ fontSize*1.35pt宽 + charSpacing
+  const charW = fs * 1.35 + cs;
+  const totalW = (text.length * charW) / 72;
+  if (totalW <= availW * 0.95) return { text, fontSize: fs, charSpacing: cs }; // 一行放得下
+  // 尝试去掉字距
+  const totalW2 = (text.length * fs * 1.35) / 72;
+  if (totalW2 <= availW * 0.95) return { text, fontSize: fs, charSpacing: 0 };
+  // 尝试缩小字号(不低于70%)
+  const maxFs = Math.floor((availW * 0.95 * 72) / (text.length * 1.35));
+  if (maxFs >= fs * 0.7) return { text, fontSize: maxFs, charSpacing: 0 };
+  // 拆成两行，居中拆分，避免第二行只剩1个字
+  const mid = Math.ceil(text.length / 2);
+  const splitAt = (text.length - mid <= 1) ? mid - 1 : mid;
+  return { text: text.slice(0, splitAt) + "\n" + text.slice(splitAt), fontSize: fs, charSpacing: cs };
+}
+
 function addComboLogo(slide: PptxGenJS.Slide, text: string, x: number, y: number, w: number, h: number, bc: BC, industry: IndustryType, opts: { fontSize?: number; color?: string; layout?: "vertical"|"horizontal"; showLine?: boolean; aiLogoData?: string } = {}): void {
   const fs = opts.fontSize || 36;
   const clr = opts.color || bc.pri;
@@ -386,15 +404,17 @@ function addComboLogo(slide: PptxGenJS.Slide, text: string, x: number, y: number
 
     const textY = iconTop + iconSize + 0.25;
     const textH = h - iconSize - 0.5;
-    slide.addText(text, {
+    // V110: 智能排版 — 优先一行，放不下合理拆分
+    const fitted = fitBrandText(text, fs, fs > 20 ? 10 : 4, w);
+    slide.addText(fitted.text, {
       x, y: textY, w, h: Math.max(textH, 0.5),
-      fontSize: fs,
+      fontSize: fitted.fontSize,
       bold: true,
       color: clr,
       align: "center",
       valign: "top",
       fontFace: "Microsoft YaHei",
-      charSpacing: fs > 20 ? 10 : 4,
+      charSpacing: fitted.charSpacing,
     });
     // 装饰线 — 品牌名字标下方
     if (showLine) {
