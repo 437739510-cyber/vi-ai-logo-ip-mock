@@ -735,7 +735,7 @@ export async function POST(req: NextRequest) {
           cost_cny: entry.cost,
           input_tokens: 0,
           output_tokens: 0,
-          metadata: { type: entry.type, project_id: projectId },
+          project_id: projectId, request_summary: entry.type,
           created_at: entry.timestamp,
         }).then(() => {}, () => {});
       }
