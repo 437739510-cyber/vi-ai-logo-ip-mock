@@ -40,6 +40,9 @@ export interface RenderPptxOptions {
   aiLogoData?: string;  // V14: AI生成的组合Logo图(base64)
   compressImages?: boolean;  // V30: 压缩图片减小体积
   sceneSectionTitles?: Record<string, string> | null;  // V98: AI生成的场景页标题
+  auxGraphicsIntro?: string;  // V103: 辅助图形品牌说明
+  colorMeaning?: string;  // V103: 色彩选择依据
+  colorPaletteMeanings?: { primary?: string; secondary?: string; accent?: string };  // V103: 各色彩含义
 }
 
 // ========== 行业类型 ==========
@@ -736,10 +739,11 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   addContentFrame(slide, bp.label || "辅助图形", bc);
   const cx = MARGIN + LEFT_BAR_W;
 
-  // Intro text
-  slide.addText("辅助图形是品牌视觉系统的重要组成部分，用于丰富视觉层次、强化品牌识别。", {
-    x: cx, y: 1.4, w: CONTENT_W, h: 0.4,
-    fontSize: 13, color: "666666",
+  // V103: 辅助图形说明加入品牌色依据
+  const auxIntro = opts.auxGraphicsIntro || `辅助图形提取自品牌主色(${bc.pri})与辅助色(${bc.sec})，用于丰富视觉层次、强化品牌识别。条纹组合呼应品牌节奏感，点阵组合传递精致秩序。`;
+  slide.addText(auxIntro, {
+    x: cx, y: 1.4, w: CONTENT_W, h: 0.6,
+    fontSize: 13, color: "666666", lineSpacingMultiple: 1.4,
   });
 
   const halfW = (CONTENT_W - 0.3) / 2;
@@ -850,8 +854,14 @@ function renderColors(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPpt
     }
   }
 
+  // V103: 色彩选择依据
+  const meaningY = startY + circleSize + 1.6;
+  slide.addText("色彩选择依据", { x: MARGIN + LEFT_BAR_W, y: meaningY, w: CONTENT_W, h: 0.4, fontSize: 15, bold: true, color: bc.pri });
+  const colorMeaningText = opts.colorMeaning || `品牌主色#${bc.pri}传递品牌核心调性，辅助色#${bc.sec}营造层次与和谐，强调色#${bc.acc}用于关键信息突出与视觉焦点引导。三色组合确保品牌视觉的专业性、一致性与识别度。`;
+  slide.addText(colorMeaningText, { x: MARGIN + LEFT_BAR_W, y: meaningY + 0.45, w: CONTENT_W, h: 0.6, fontSize: 12, color: "555555", lineSpacingMultiple: 1.5 });
+
   // 色彩组合
-  const comboY = startY + circleSize + 1.8;
+  const comboY = meaningY + 1.2;
   slide.addText("色彩组合示例", { x: MARGIN + LEFT_BAR_W, y: comboY, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
   const combos = [
     { colors: [bc.pri, bc.sec], label: "主色 + 辅助色" },
