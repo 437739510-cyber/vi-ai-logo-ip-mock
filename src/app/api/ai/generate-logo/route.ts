@@ -254,7 +254,7 @@ export async function POST(req: NextRequest) {
               cost_cny: 0.20,
               input_tokens: 0,
               output_tokens: 0,
-              project_id: projectId, request_summary: 'logo',
+              project_id: projectId, client_name: companyName, request_summary: 'logo',
             }).then(() => {}, () => {});
           }
         } else {

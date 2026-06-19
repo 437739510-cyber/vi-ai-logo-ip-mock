@@ -727,7 +727,7 @@ export async function POST(req: NextRequest) {
     const generationId = `gen-${Date.now()}`;
     const arkUsageLog: { model: string; type: string; cost: number; timestamp: string }[] = [];  // V32: 方舟用量追踪
     // V91: 图片成本同步写入api_usage_log
-    const flushArkUsageToLog = (projectId: string) => {
+    const flushArkUsageToLog = (projectId: string, clientName: string) => {
       for (const entry of arkUsageLog) {
         supabaseAdmin.from('api_usage_log').insert({
           route: 'generate-manual-pptx',
@@ -735,7 +735,7 @@ export async function POST(req: NextRequest) {
           cost_cny: entry.cost,
           input_tokens: 0,
           output_tokens: 0,
-          project_id: projectId, request_summary: entry.type,
+          project_id: projectId, client_name: clientName, request_summary: entry.type,
           created_at: entry.timestamp,
         }).then(() => {}, () => {});
       }
@@ -1280,7 +1280,7 @@ export async function POST(req: NextRequest) {
             status: "completed",
             updated_at: new Date().toISOString(),
           }).eq("id", projectId!);
-        flushArkUsageToLog(projectId!);
+        flushArkUsageToLog(projectId!, companyName);
         } catch (e: any) { console.warn("[generate-pptx] PDF final update error:", e.message); }
         return; // PDF path done, skip PPTX storage
       } catch (convertErr: any) {
@@ -1338,7 +1338,7 @@ export async function POST(req: NextRequest) {
         status: "completed",
         updated_at: new Date().toISOString(),
       }).eq("id", projectId!);
-    flushArkUsageToLog(projectId!);
+    flushArkUsageToLog(projectId!, companyName);
     } catch (e: any) { console.warn("[generate-pptx] Final DB update error:", e.message); }
   } catch (error: any) {
     console.error("[generate-pptx] Error:", error);

@@ -292,7 +292,7 @@ async function generateSinglePhoto(
             model: result.model,
             cost_cny: getArkUnitCost(result.model),
             input_tokens: 0, output_tokens: 0,
-            metadata: { type: 'scene-img2img' },
+            request_summary: 'scene-img2img',
           }).then(() => {}, () => {});
           return "data:image/png;base64," + imgBuf.toString("base64");
         }
@@ -342,7 +342,7 @@ async function generateSinglePhoto(
       model: 'wan2.7-image-pro',
       cost_cny: 0.08,
       input_tokens: 0, output_tokens: 0,
-      metadata: { type: 'scene-img2img' },
+      request_summary: 'scene-img2img',
     }).then(() => {}, () => {});
     return "data:image/png;base64," + imgBuf.toString("base64");
   } catch (e) {
@@ -531,7 +531,7 @@ async function assemblePage(
 // ===== POST 主流程 =====
 export async function POST(req: Request) {
   const { projectId, clientInfo, brandColors, logoUrl, mascotUrl, maxPages, refId, startPage } = await req.json();
-  const startIdx = startPage ?? 0;
+  const companyName = clientInfo?.companyName || '';  const startIdx = startPage ?? 0;
   const totalToGenerate = maxPages || PAGE_DEFS.length;
   if (!projectId) return new Response(JSON.stringify({ error: "projectId required" }), { status: 400 });  const aliyunKey = process.env.ALIYUN_API_KEY;
   if (!aliyunKey) return new Response(JSON.stringify({ error: "API keys not configured" }), { status: 500 });
