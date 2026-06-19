@@ -238,6 +238,7 @@ export async function POST(req: NextRequest) {
         sceneImageSuggestions: profile.sceneImageSuggestions || [],
         sceneSectionTitles: profile.sceneSectionTitles || null,
         logoDesignSuggestions: profile.logoDesignSuggestions || null,
+        colorPalette: profile.colorPalette || null,  // V103: 保存AI色彩方案
         aiGeneratedFields: profile.aiGeneratedFields || {},
         analysisStatus: "completed",
         analyzedAt: new Date().toISOString(),
