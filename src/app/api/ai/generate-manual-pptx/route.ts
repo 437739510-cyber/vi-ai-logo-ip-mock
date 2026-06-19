@@ -966,6 +966,10 @@ export async function POST(req: NextRequest) {
 
       // 如果没有缺失字段但brandProfile仍然为空，说明是AI分析失败
       const analysisFailed = missingFields.length === 0 && !hasBrandProfile;
+      
+      // analysisFailed时提供可选补充字段，帮助AI更好分析
+      const optionalFields = analysisFailed ? ["brandVision", "coreValues", "targetMarket", "logoPhilosophy"] : [];
+      const optionalLabels: Record<string, string> = { brandVision: "品牌愿景", coreValues: "核心价值", targetMarket: "目标客群", logoPhilosophy: "Logo理念" };
 
       console.warn("[generate-pptx] V106: Brand info incomplete — brandProfile:", !!hasBrandProfile, "sceneSuggestions:", hasSceneSuggestions, "missingFields:", missingFields, "analysisFailed:", analysisFailed);
 
@@ -994,6 +998,7 @@ export async function POST(req: NextRequest) {
         missingFields,
         fieldLabels: Object.fromEntries(missingFields.map(k => [k, fieldLabels[k]])),
         analysisFailed,
+        optionalFields: analysisFailed ? optionalFields.map(k => ({ key: k, label: optionalLabels[k] })) : [],
       }, { status: 400 });
     }
 
