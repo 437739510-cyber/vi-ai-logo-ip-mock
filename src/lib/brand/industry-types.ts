@@ -33,7 +33,10 @@ export function getIndustryType(industry?: string): IndustryType {
     }
     if (cat === "运动健身") return "fitness";
     if (cat === "教育培训") return "education";
-    if (cat === "医疗保健") return "pharmacy";
+    if (cat === "医疗保健") {
+      if (/养生/.test(sub)) return "beauty";
+      return "pharmacy";
+    }
     if (cat === "汽车服务") return "retail";
     if (cat === "公司企业") return "general";
     return "general";
@@ -42,11 +45,11 @@ export function getIndustryType(industry?: string): IndustryType {
   // V14: 兼容旧版一级格式
   // 1. 美容/美发（在零售之前拦截）
   if (/美甲|美睫|美足|纹绣/.test(s)) return "nail";
-  if (/美容|美发|理发|spa|沙龙|造型|护肤|美体|剪发|烫发/.test(s)) return "beauty";
+  if (/美容|美发|理发|spa|沙龙|造型|护肤|美体|剪发|烫发|养生/.test(s)) return "beauty";
   // 2. 婚庆/摄影
   if (/婚|婚庆|婚纱|摄影|影楼|照相|写真|跟拍|司仪/.test(s)) return "wedding";
-  // 3. 药店/诊所（含养生馆、中医馆）
-  if (/药|诊所|中医|牙科|骨科|推拿|针灸|理疗|药房|大药房|养生/.test(s)) return "pharmacy";
+  // 3. 药店/诊所（含中医馆）
+  if (/药|诊所|中医|牙科|骨科|推拿|针灸|理疗|药房|大药房/.test(s)) return "pharmacy";
   // 4. 宠物
   if (/宠物|猫咖|狗咖|水族/.test(s)) return "pet";
   // 5. 健身/运动
