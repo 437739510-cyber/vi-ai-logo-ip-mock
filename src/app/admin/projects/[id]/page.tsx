@@ -34,7 +34,7 @@ export default function ProjectDetailPage({
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [pptxLoading, setPptxLoading] = useState(false);
   const [pptxError, setPptxError] = useState("");
-  const [infoIncomplete, setInfoIncomplete] = useState<{missingFields: string[]; fieldLabels: Record<string,string>; analysisFailed: boolean} | null>(null);
+  const [infoIncomplete, setInfoIncomplete] = useState<{missingFields: string[]; fieldLabels: Record<string,string>; analysisFailed: boolean; optionalFields?: {key: string; label: string}[]} | null>(null);
   const [infoForm, setInfoForm] = useState<Record<string, string>>({});
   const [plans, setPlans] = useState<AiGenerationPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1523,22 +1523,46 @@ export default function ProjectDetailPage({
                 </div>
               </div>
 
-              <div className="space-y-3 mb-5">
-                {infoIncomplete.missingFields.map(field => (
-                  <div key={field}>
-                    <label className="block text-xs font-medium text-neutral-700 mb-1">
-                      {infoIncomplete.fieldLabels[field] || field}
-                    </label>
-                    <input
-                      type="text"
-                      value={infoForm[field] || ""}
-                      onChange={e => setInfoForm(prev => ({...prev, [field]: e.target.value}))}
-                      placeholder={`请输入${infoIncomplete.fieldLabels[field] || field}`}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+              {infoIncomplete.analysisFailed ? (
+                <div className="mb-5">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-3">
+                    <p className="text-xs text-amber-700">AI品牌分析未能成功，可补充以下信息帮助分析更准确</p>
                   </div>
-                ))}
-              </div>
+                  {infoIncomplete.optionalFields && infoIncomplete.optionalFields.length > 0 && (
+                    <div className="space-y-2">
+                      {infoIncomplete.optionalFields.map(f => (
+                        <div key={f.key}>
+                          <label className="block text-xs font-medium text-neutral-700 mb-1">{f.label}（选填）</label>
+                          <input
+                            type="text"
+                            value={infoForm[f.key] || ""}
+                            onChange={e => setInfoForm(prev => ({...prev, [f.key]: e.target.value}))}
+                            placeholder={`请输入${f.label}`}
+                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3 mb-5">
+                  {infoIncomplete.missingFields.map(field => (
+                    <div key={field}>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1">
+                        {infoIncomplete.fieldLabels[field] || field}
+                      </label>
+                      <input
+                        type="text"
+                        value={infoForm[field] || ""}
+                        onChange={e => setInfoForm(prev => ({...prev, [field]: e.target.value}))}
+                        placeholder={`请输入${infoIncomplete.fieldLabels[field] || field}`}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <button
@@ -1549,10 +1573,10 @@ export default function ProjectDetailPage({
                 </button>
                 <button
                   onClick={() => { setInfoIncomplete(null); handleGeneratePptx(false); }}
-                  disabled={infoIncomplete.missingFields.some(f => !infoForm[f]?.trim())}
+                  disabled={!infoIncomplete.analysisFailed && infoIncomplete.missingFields.some(f => !infoForm[f]?.trim())}
                   className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  补充并生成
+                  {infoIncomplete.analysisFailed ? "重试生成" : "补充并生成"}
                 </button>
               </div>
             </div>
