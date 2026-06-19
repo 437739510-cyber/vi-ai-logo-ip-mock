@@ -34,6 +34,8 @@ export default function ProjectDetailPage({
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [pptxLoading, setPptxLoading] = useState(false);
   const [pptxError, setPptxError] = useState("");
+  const [infoIncomplete, setInfoIncomplete] = useState<{missingFields: string[]; fieldLabels: Record<string,string>; analysisFailed: boolean} | null>(null);
+  const [infoForm, setInfoForm] = useState<Record<string, string>>({});
   const [plans, setPlans] = useState<AiGenerationPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -580,10 +582,10 @@ export default function ProjectDetailPage({
           projectId: project.id,
           clientInfo: {
             companyName: submission?.companyName || submission?.clientName || project.name || '',
-            brandVision: submission?.brandVision || '',
-            coreValues: submission?.coreValues || '',
-            targetMarket: submission?.targetMarket || '',
-            industry: submission?.industry || '',
+            brandVision: infoForm.brandVision || submission?.brandVision || '',
+            coreValues: infoForm.coreValues || submission?.coreValues || '',
+            targetMarket: infoForm.targetMarket || submission?.targetMarket || '',
+            industry: infoForm.industry || submission?.industry || '',
             logoPhilosophy: submission?.logoPhilosophy || '',
             mascotPhilosophy: submission?.mascotPhilosophy || '',
           },
@@ -610,6 +612,19 @@ export default function ProjectDetailPage({
           setGeneratingPptx(false);
           return;
         }
+      }
+
+      // V106: 捕获品牌信息不完整响应
+      if (res.status === 400) {
+        const data = await res.json();
+        if (data.status === "info_incomplete") {
+          setInfoIncomplete({ missingFields: data.missingFields, fieldLabels: data.fieldLabels, analysisFailed: data.analysisFailed });
+          setInfoForm(Object.fromEntries(data.missingFields.map((k: string) => [k, ""])));
+          setGeneratingPptx(false);
+          setPptxError("");
+          return;
+        }
+        throw new Error(data.error || `服务器错误: ${res.status}`);
       }
 
       if (res.status !== 202 && !res.ok) {
@@ -1484,6 +1499,62 @@ export default function ProjectDetailPage({
               >
                 返回
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* V106: 品牌信息不完整弹窗 */}
+        {infoIncomplete && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setInfoIncomplete(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-neutral-900">
+                    {infoIncomplete.analysisFailed ? "AI分析失败" : `还需补充${infoIncomplete.missingFields.length}项`}
+                  </h3>
+                  <p className="text-xs text-neutral-500">
+                    {infoIncomplete.analysisFailed
+                      ? "品牌分析未成功，请补充信息后重试"
+                      : "信息不足会导致实景图跑偏，请补充后继续"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-5">
+                {infoIncomplete.missingFields.map(field => (
+                  <div key={field}>
+                    <label className="block text-xs font-medium text-neutral-700 mb-1">
+                      {infoIncomplete.fieldLabels[field] || field}
+                    </label>
+                    <input
+                      type="text"
+                      value={infoForm[field] || ""}
+                      onChange={e => setInfoForm(prev => ({...prev, [field]: e.target.value}))}
+                      placeholder={`请输入${infoIncomplete.fieldLabels[field] || field}`}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setInfoIncomplete(null)}
+                  className="px-4 py-2.5 border border-neutral-300 text-neutral-600 text-sm font-medium rounded-xl hover:bg-neutral-50 transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => { setInfoIncomplete(null); handleGeneratePptx(false); }}
+                  disabled={infoIncomplete.missingFields.some(f => !infoForm[f]?.trim())}
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  补充并生成
+                </button>
+              </div>
             </div>
           </div>
         )}
