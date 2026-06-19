@@ -87,6 +87,9 @@ export async function GET(req: NextRequest) {
       } : null,
     };
 
+    // V106: 返回infoIncomplete信息，前端弹窗补充字段
+    const infoIncomplete = clientInfo.infoIncomplete as { missingFields: string[]; fieldLabels: Record<string,string>; analysisFailed: boolean; optionalFields?: {key: string; label: string}[] } | undefined;
+
     return NextResponse.json({
       projectId,
       status: currentStatus,
@@ -94,6 +97,7 @@ export async function GET(req: NextRequest) {
       statusMessage,
       progress,
       details,
+      infoIncomplete: infoIncomplete || null,
       updatedAt: project.updated_at,
       createdAt: project.created_at,
     });
