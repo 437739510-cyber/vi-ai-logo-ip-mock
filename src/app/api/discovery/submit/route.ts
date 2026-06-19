@@ -64,9 +64,8 @@ export async function POST(req: NextRequest) {
     const isoNow = now.toISOString();
 
     // 从访谈数据提取结构化字段
-    const companyName = extractedData.founder
-      ? `${extractedData.founder}的店`
-      : "品牌名称待确认";
+    // V100: 优先用storeName(品牌对话提取)，再用founder，不再加"的店"后缀
+    const companyName = extractedData.storeName || extractedData.founder || "品牌名称待确认";
     const industry = brief.brand_analysis?.industry || "传统商业";
     const brandVision = brief.brand_story?.core_value || extractedData.brandSpirit || "";
     const coreValues = brief.brand_story?.brand_spirit || extractedData.brandSpiritCustom || "";

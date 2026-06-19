@@ -946,11 +946,127 @@ function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
   const pageImages = Object.entries(sceneImages).filter(([k]) => k.startsWith(type));
 
   if (pageImages.length > 0) {
-    // ===== V6: 有AI写实图，展示图片 =====
-    renderSceneWithImages(slide, opts, bc, type, industry, pageImages, cx, logoForScene);
+    // ===== V100: 有AI场景图，混合布局（上氛围+下Logo规范）=====
+    renderMixedLayout(slide, opts, bc, type, industry, pageImages, cx, logoForScene);
   } else {
     // ===== 降级: 无AI图，回退到色块方案 =====
     renderSceneFallback(slide, opts, bc, type, industry, cx);
+  }
+}
+
+/** V100: 场景页混合布局 — 上AI氛围图 + 下Logo规范展示
+ *  上半部分：AI场景图（品牌应用场景演绎），标注"以上为品牌视觉氛围示意"
+ *  下半部分：PPTX原生mockup，贴真实Logo，展示Logo精确应用规范
+ */
+function renderMixedLayout(
+  slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC,
+  type: string, industry: IndustryType,
+  pageImages: [string, string][], cx: number, logoForScene?: string | null
+): void {
+  // ===== 上半部分：AI 场景图（品牌应用场景演绎）=====
+  const labels = getSceneLabels(industry, type);
+  const sceneLabels = (opts as any).sceneLabels || {};
+
+  // 上半区域：最多展示2张AI场景图，高度压缩到4.0英寸
+  const maxImgs = Math.min(pageImages.length, 2);
+  const imgW = (CONTENT_W - 0.3) / maxImgs;
+  const TOP_H = 4.0;
+  const TOP_Y = 1.8;
+
+  for (let i = 0; i < maxImgs; i++) {
+    const [key, imgData] = pageImages[i];
+    const imgX = cx + i * (imgW + 0.3);
+
+    // 图片背景框
+    slide.addShape("rect", {
+      x: imgX, y: TOP_Y, w: imgW, h: TOP_H,
+      fill: { color: "F8F8F8" }, rectRadius: 0.08,
+      shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.12 },
+    });
+
+    // 插入AI写实图
+    slide.addImage({
+      data: normImg(imgData),
+      x: imgX, y: TOP_Y, w: imgW, h: TOP_H,
+      sizing: { type: "cover", w: imgW, h: TOP_H },
+      rounding: true,
+    });
+
+    // V99: 右下角Logo水印
+    if (logoForScene) {
+      slide.addImage({
+        data: normImg(logoForScene),
+        x: imgX + imgW - 0.65, y: TOP_Y + TOP_H - 0.65, w: 0.5, h: 0.5,
+        sizing: { type: "contain", w: 0.5, h: 0.5 },
+        transparency: 40,
+      });
+    }
+
+    // 品牌色底部条
+    slide.addShape("rect", { x: imgX, y: TOP_Y + TOP_H - 0.08, w: imgW, h: 0.08, fill: { color: bc.pri, transparency: 30 } });
+
+    // 场景标注
+    const label = sceneLabels[key] || labels[i] || key;
+    slide.addText(label, { x: imgX, y: TOP_Y + TOP_H + 0.05, w: imgW, h: 0.25, fontSize: 11, bold: true, color: "333333", align: "center" });
+  }
+
+  // "品牌视觉氛围示意"标注
+  slide.addText("以上为品牌视觉氛围示意", {
+    x: cx, y: TOP_Y + TOP_H + 0.35, w: CONTENT_W, h: 0.22,
+    fontSize: 9, italic: true, color: "AAAAAA", align: "center",
+  });
+
+  // ===== 下半部分：Logo精确应用示范（PPTX原生mockup，真实Logo）=====
+  const BOT_Y = TOP_Y + TOP_H + 0.65;
+  renderLogoStandardDemo(slide, opts, bc, type, industry, cx, BOT_Y);
+}
+
+/** V100: Logo精确应用示范 — 用真实Logo图片贴到mockup上 */
+function renderLogoStandardDemo(
+  slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC,
+  type: string, industry: IndustryType, cx: number, startY: number
+): void {
+  const logoData = opts.logoData;
+  const cn = opts.companyName || "品牌";
+
+  // 分隔线 + 小标题
+  slide.addShape("rect", { x: cx, y: startY - 0.12, w: CONTENT_W, h: 0.02, fill: { color: bc.pri, transparency: 60 } });
+  slide.addText("Logo 应用规范", { x: cx, y: startY - 0.08, w: CONTENT_W, h: 0.25, fontSize: 10, bold: true, color: bc.pri, align: "right" });
+
+  const BOT_AREA_Y = startY + 0.25;
+
+  if (type === "stationery") {
+    // 文具/名片 — 展示名片正面
+    const nw = 4.0, nh = 2.2;
+    const nx = cx + (CONTENT_W - nw) / 2, ny = BOT_AREA_Y;
+    slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 4, offset: 2, color: "000000", opacity: 0.08 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: nx, y: ny, w: 0.10, h: nh, fill: { color: bc.pri } });
+    if (logoData) slide.addImage({ data: normImg(logoData), x: nx + 0.25, y: ny + 0.2, w: 1.3, h: 0.8, sizing: { type: "contain", w: 1.3, h: 0.8 } });
+    slide.addText(cn, { x: nx + 1.7, y: ny + 0.25, w: 2.0, h: 0.35, fontSize: 14, bold: true, color: "333333" });
+    slide.addShape("rect", { x: nx + 0.25, y: ny + nh - 0.35, w: nw - 0.5, h: 0.03, fill: { color: bc.acc } });
+    slide.addText("名片（正面）", { x: nx, y: ny + nh + 0.05, w: nw, h: 0.22, fontSize: 10, color: "999999", align: "center" });
+  } else if (type === "packaging") {
+    // 包装 — 展示手提袋
+    const bw = 2.8, bh = 3.4;
+    const bx = cx + (CONTENT_W - bw) / 2, by = BOT_AREA_Y;
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.12 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: 0.18, fill: { color: bc.priDark }, rectRadius: 0.05 });
+    // 提手
+    slide.addShape("line", { x: bx + 0.65, y: by - 0.22, w: 0, h: 0.26, line: { color: bc.priDark, width: 2 } });
+    slide.addShape("line", { x: bx + bw - 0.65, y: by - 0.22, w: 0, h: 0.26, line: { color: bc.priDark, width: 2 } });
+    if (logoData) slide.addImage({ data: normImg(logoData), x: bx + 0.35, y: by + 0.45, w: 2.1, h: 1.6, sizing: { type: "contain", w: 2.1, h: 1.6 } });
+    slide.addText(cn, { x: bx, y: by + 2.3, w: bw, h: 0.35, fontSize: 13, bold: true, color: "FFFFFF", align: "center" });
+    slide.addShape("rect", { x: bx + 0.35, y: by + 2.8, w: bw - 0.7, h: 0.03, fill: { color: bc.acc } });
+    slide.addText("手提袋", { x: bx, y: by + bh + 0.05, w: bw, h: 0.22, fontSize: 10, color: "999999", align: "center" });
+  } else {
+    // 营销 — 展示海报
+    const pw = 3.2, ph = 3.4;
+    const px = cx + (CONTENT_W - pw) / 2, py = BOT_AREA_Y;
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.1 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph * 0.4, fill: { color: bc.pri }, rectRadius: 0.04 });
+    if (logoData) slide.addImage({ data: normImg(logoData), x: px + pw/2 - 0.55, y: py + 0.25, w: 1.1, h: 0.85, sizing: { type: "contain", w: 1.1, h: 0.85 } });
+    slide.addShape("rect", { x: px + 0.4, y: py + ph * 0.4 + 0.6, w: pw - 0.8, h: 0.03, fill: { color: bc.acc } });
+    slide.addText("海报 / 宣传页", { x: px, y: py + ph + 0.05, w: pw, h: 0.22, fontSize: 10, color: "999999", align: "center" });
   }
 }
 

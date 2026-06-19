@@ -56,6 +56,7 @@ export interface ExtractedData {
   // Q1: 基本信息
   yearsInBusiness?: number;                // 开店年限
   founder?: string;                       // 创始人
+  storeName?: string;                      // 店铺/品牌名称
   isOldStore?: boolean;                   // 是否是老店(>=10年)
   
   // Q2: 店铺历史
@@ -189,7 +190,7 @@ const STATE_MACHINE_CONFIG: Record<DiscoveryState, Omit<StateNode, "state">> = {
     phase: "warmup",
     question: "您好！欢迎来到品牌发现之旅～\n\n我是您的品牌顾问，想和您聊聊天，了解一下您的店铺故事。\n\n咱们先从简单的开始：您的店开了多久啦？",
     answerType: "open",
-    extractionPrompt: "从用户回复中提取店铺开业的大致年限，用数字表示。如果用户说'十几年'则提取为15左右，'没多久'则提取为2-3左右。如果用户没有提到具体时间，根据语境合理估计一个数字。",
+    extractionPrompt: "从用户回复中提取：1) 店铺开业的大致年限（用数字表示，如'十几年'→15，'没多久'→2-3）；2) 店铺/品牌名称（如果用户提到的话）。如果用户没有提到具体时间，根据语境合理估计。",
     branchLogic: () => "PHASE1_Q1",
     progress: 5,
   },

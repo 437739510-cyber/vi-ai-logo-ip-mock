@@ -774,7 +774,8 @@ export async function POST(req: NextRequest) {
     // ===== Step 2: 提取所有数据 =====
     // V83: 从client_info.discoveryData补充数据，不再丢失
     const dd = ((project?.client_info as Record<string, any>)?.discoveryData) as Record<string, any> || {};
-    const companyName = body.clientInfo?.companyName || submission?.company_name || submission?.companyName || project?.client_name || body.clientInfo?.clientName || "品牌";
+    // V100: companyName取值链 — 加discoveryData.storeName兜底
+    const companyName = body.clientInfo?.companyName || submission?.company_name || submission?.companyName || project?.client_name || body.clientInfo?.clientName || dd.storeName || "品牌";
     const industry = body.clientInfo?.industry || submission?.industry || project?.industry || "";
     const brandVision = body.clientInfo?.brandVision || submission?.brand_vision || dd.brandSpirit || "";
     const coreValues = body.clientInfo?.coreValues || submission?.core_values || dd.brandSpiritCustom || "";
