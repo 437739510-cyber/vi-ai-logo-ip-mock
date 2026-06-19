@@ -854,6 +854,13 @@ export async function POST(req: NextRequest) {
       if (brandProfile.sceneImageSuggestions?.length >= 5) dynamicScenePrompts = brandProfile.sceneImageSuggestions;
       if (brandProfile.logoDesignSuggestions) {
         console.log("[generate-pptx] Reusing brand analysis, logo suggestions available:", brandProfile.logoDesignSuggestions.style);
+        // V103-fix2: 复用路径也需要logoPhilosophy fallback
+        if (!logoPhilosophy && brandProfile.logoDesignSuggestions.concept) {
+          const parts = [brandProfile.logoDesignSuggestions.concept];
+          if (brandProfile.logoDesignSuggestions.elements) parts.push(`核心元素：${brandProfile.logoDesignSuggestions.elements}`);
+          if (brandProfile.logoDesignSuggestions.style) parts.push(`风格：${brandProfile.logoDesignSuggestions.style}`);
+          logoPhilosophy = parts.join("。");
+        }
       }
       console.log("[generate-pptx] Reusing existing brand analysis — skipped DeepSeek call");
       sendProgress("analyzed", "品牌分析完成(复用)", 30);
