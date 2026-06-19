@@ -660,7 +660,15 @@ export default function ProjectDetailPage({
             setGeneratingPptx(false);
           } else if (statusData.status === 'failed') {
             clearInterval(pollInterval);
-            setPptxError(statusData.statusMessage || '生成失败');
+            // V106: 品牌信息不完整时弹窗，而非仅显示错误
+            if (statusData.infoIncomplete) {
+              const ii = statusData.infoIncomplete;
+              setInfoIncomplete({ missingFields: ii.missingFields || [], fieldLabels: ii.fieldLabels || {}, analysisFailed: ii.analysisFailed || false, optionalFields: ii.optionalFields });
+              setInfoForm(Object.fromEntries([...(ii.missingFields || []), ...(ii.optionalFields || []).map((f: any) => f.key)].map((k: string) => [k, ""])));
+              setPptxError("");
+            } else {
+              setPptxError(statusData.statusMessage || '生成失败');
+            }
             setGeneratingPptx(false);
           }
         } catch { /* polling error, retry next interval */ }
