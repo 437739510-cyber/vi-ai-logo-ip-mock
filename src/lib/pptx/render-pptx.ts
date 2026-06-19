@@ -16,6 +16,8 @@ import type { PageBlueprint } from "@/lib/vi-manual/page-planner";
 import { compressImage } from "./compress-image";
 import { type IndustryType, getIndustryType } from "@/lib/brand/industry-types";
 
+import { renderTypographyPng, renderColorSpecPng } from "./spec-page-renderer";
+
 const SW = 8.27;
 const SH = 11.69;
 const MARGIN = 0.7;
@@ -234,7 +236,7 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
 
   for (const bp of blueprints) {
     const slide = pptx.addSlide();
-    renderSlide(slide, bp, options, bc, industry, sceneImages);
+    await renderSlide(slide, bp, options, bc, industry, sceneImages);
   }
   return pptx;
 }
@@ -247,7 +249,7 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
 
 const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-misuse","auxiliary-graphics","brand-colors","typography","basic-spec","stationery","packaging","marketing","summary","closing"];
 
-function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>): void {
+async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>): Promise<void> {
   switch (bp.pageId) {
     case "cover": renderCover(slide, bp, opts, bc, industry); break;
     case "closing": renderClosing(slide, bp, opts, bc); break;
@@ -257,8 +259,8 @@ function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
     case "logo-variations": renderLogoVariations(slide, bp, opts, bc, industry); break;
     case "logo-misuse": renderLogoMisuse(slide, bp, opts, bc, industry); break;
     case "auxiliary-graphics": renderAuxiliaryGraphics(slide, bp, opts, bc); break;
-    case "brand-colors": renderColors(slide, bp, opts, bc); break;
-    case "typography": renderTypography(slide, bp, opts, bc); break;
+    case "brand-colors": await renderColors(slide, bp, opts, bc); break;
+    case "typography": await renderTypography(slide, bp, opts, bc); break;
     case "basic-spec": renderBasicSpec(slide, bp, opts, bc, industry); break;
     case "stationery": renderScene(slide, bp, opts, "stationery", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
     case "packaging": renderScene(slide, bp, opts, "packaging", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
@@ -812,103 +814,63 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
 }
 
 
-function renderColors(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
-  addContentFrame(slide, "标准色彩规范", bc);
-
-  const colors = [
-    { hex: bc.pri, label: "品牌主色", name: "Primary" },
-    { hex: bc.sec, label: "辅助色", name: "Secondary" },
-    { hex: bc.acc, label: "强调色", name: "Accent" },
-  ];
-  const blockW = 2.0, blockH = 2.4, gap = 0.3;
-  const totalW = blockW * 3 + gap * 2;
-  const startX = (SW - totalW) / 2;
-  const startY = 1.6;
-
-  // V12: 圆形色卡
-  const circleSize = 2.0;
-  const circleGap = 0.6;
-  const circleTotalW = circleSize * 3 + circleGap * 2;
-  const circleStartX = (SW - circleTotalW) / 2;
-
-  for (let i = 0; i < 3; i++) {
-    const c = colors[i];
-    const x = circleStartX + i * (circleSize + circleGap);
-    const isWhite = c.hex === "FFFFFF" || c.hex === "FFF";
-    slide.addShape("ellipse", {
-      x, y: startY, w: circleSize, h: circleSize,
-      fill: { color: c.hex },
-      line: isWhite ? { color: "CCCCCC", width: 1 } : undefined,
-      shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 },
-    });
-    const textColor = isLight(c.hex) ? "333333" : "FFFFFF";
-    // V12: 圆形色卡标签
-    slide.addText(c.name, { x, y: startY + 0.3, w: circleSize, h: 0.4, fontSize: 13, color: textColor, align: "center", transparency: 40 });
-    slide.addText(c.label, { x, y: startY + circleSize + 0.15, w: circleSize, h: 0.4, fontSize: 13, bold: true, color: "333333", align: "center" });
-    slide.addText(`#${c.hex}`, { x, y: startY + circleSize + 0.55, w: circleSize, h: 0.3, fontSize: 12, color: "555555", align: "center" });
-    const rgb = hex2rgb(c.hex);
-    if (rgb) {
-      slide.addText(`RGB: ${rgb.r}, ${rgb.g}, ${rgb.b}`, { x, y: startY + circleSize + 0.85, w: circleSize, h: 0.3, fontSize: 11, color: "777777", align: "center" });
-      const cmyk = rgb2cmyk(rgb);
-      if (cmyk) slide.addText(`CMYK: ${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}`, { x, y: startY + circleSize + 1.15, w: circleSize, h: 0.3, fontSize: 11, color: "777777", align: "center" });
-    }
-  }
-
-  // V103: 色彩选择依据
-  const meaningY = startY + circleSize + 1.6;
-  slide.addText("色彩选择依据", { x: MARGIN + LEFT_BAR_W, y: meaningY, w: CONTENT_W, h: 0.4, fontSize: 15, bold: true, color: bc.pri });
-  const colorMeaningText = opts.colorMeaning || `品牌主色#${bc.pri}传递品牌核心调性，辅助色#${bc.sec}营造层次与和谐，强调色#${bc.acc}用于关键信息突出与视觉焦点引导。三色组合确保品牌视觉的专业性、一致性与识别度。`;
-  slide.addText(colorMeaningText, { x: MARGIN + LEFT_BAR_W, y: meaningY + 0.45, w: CONTENT_W, h: 0.6, fontSize: 12, color: "555555", lineSpacingMultiple: 1.5 });
-
-  // 色彩组合
-  const comboY = meaningY + 1.2;
-  slide.addText("色彩组合示例", { x: MARGIN + LEFT_BAR_W, y: comboY, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
-  const combos = [
-    { colors: [bc.pri, bc.sec], label: "主色 + 辅助色" },
-    { colors: ["FFFFFF", bc.acc], label: "白底 + 强调色" },
-    { colors: [bc.priDark, "FFFFFF"], label: "深主色 + 白底" },
-  ];
-  const comboW = 2.0, comboH = 0.8;
-  for (let i = 0; i < combos.length; i++) {
-    const cx = startX + i * (comboW + gap);
-    const halfW = comboW / 2;
-    slide.addShape("rect", { x: cx, y: comboY + 0.6, w: halfW, h: comboH, fill: { color: combos[i].colors[0] }, line: combos[i].colors[0] === "FFFFFF" ? { color: "E0E0E0", width: 0.5 } : undefined });
-    slide.addShape("rect", { x: cx + halfW, y: comboY + 0.6, w: halfW, h: comboH, fill: { color: combos[i].colors[1] }, line: combos[i].colors[1] === "FFFFFF" ? { color: "E0E0E0", width: 0.5 } : undefined });
-    slide.addText(combos[i].label, { x: cx, y: comboY + 0.6 + comboH + 0.1, w: comboW, h: 0.3, fontSize: 11, color: "555555", align: "center" });
+// ========== Brand Colors — V108: 图片化规范页 ==========
+async function renderColors(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): Promise<void> {
+  try {
+    const imgData = await renderColorSpecPng({ bc, colorMeaning: opts.colorMeaning, companyName: opts.companyName });
+    slide.addImage({ data: imgData, x: 0, y: 0, w: SW, h: SH, sizing: { type: "cover", w: SW, h: SH } });
+  } catch (err) {
+    // 降级：satori渲染失败时回退到文字模式
+    console.warn("[render-pptx] V108 color spec image failed, fallback to text:", err);
+    addContentFrame(slide, "标准色彩规范", bc);
+    const cx = MARGIN + LEFT_BAR_W;
+    slide.addText("品牌主色", { x: cx, y: 1.8, w: 2, h: 0.4, fontSize: 13, bold: true, color: "333333", align: "center" });
+    slide.addText("#" + bc.pri, { x: cx, y: 2.2, w: 2, h: 0.3, fontSize: 12, color: "555555", align: "center" });
+    slide.addShape("ellipse", { x: cx + 0.3, y: 1.2, w: 1.4, h: 1.4, fill: { color: bc.pri } });
+    slide.addText("辅助色", { x: cx + 2.3, y: 1.8, w: 2, h: 0.4, fontSize: 13, bold: true, color: "333333", align: "center" });
+    slide.addText("#" + bc.sec, { x: cx + 2.3, y: 2.2, w: 2, h: 0.3, fontSize: 12, color: "555555", align: "center" });
+    slide.addShape("ellipse", { x: cx + 2.6, y: 1.2, w: 1.4, h: 1.4, fill: { color: bc.sec } });
+    slide.addText("强调色", { x: cx + 4.6, y: 1.8, w: 2, h: 0.4, fontSize: 13, bold: true, color: "333333", align: "center" });
+    slide.addText("#" + bc.acc, { x: cx + 4.6, y: 2.2, w: 2, h: 0.3, fontSize: 12, color: "555555", align: "center" });
+    slide.addShape("ellipse", { x: cx + 4.9, y: 1.2, w: 1.4, h: 1.4, fill: { color: bc.acc } });
   }
 }
 
+
 // ========== Typography ==========
-function renderTypography(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
-  addContentFrame(slide, "字体系统", bc);
-  const cx = MARGIN + LEFT_BAR_W;
-  let yPos = 1.6;
-
-  // 中文字体
-  slide.addShape("rect", { x: cx, y: yPos, w: 0.12, h: 1.5, fill: { color: bc.pri }, rectRadius: 0.03 });
-  slide.addText("中文字体", { x: cx + 0.3, y: yPos + 0.1, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
-  slide.addText("标题字体：思源黑体 / Noto Sans SC", { x: cx + 0.3, y: yPos + 0.6, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
-  slide.addText("正文字体：思源宋体 / Noto Serif SC", { x: cx + 0.3, y: yPos + 0.95, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
-  yPos += 2.0;
-
-  // 英文字体
-  slide.addShape("rect", { x: cx, y: yPos, w: 0.12, h: 1.5, fill: { color: bc.sec }, rectRadius: 0.03 });
-  slide.addText("英文字体", { x: cx + 0.3, y: yPos + 0.1, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.sec });
-  slide.addText("Brand Font: Montserrat", { x: cx + 0.3, y: yPos + 0.6, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
-  slide.addText("Body Font: Open Sans", { x: cx + 0.3, y: yPos + 0.95, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
-  yPos += 2.0;
-
-  // 字号层级
-  slide.addText("字号层级规范", { x: cx, y: yPos, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
-  const rows = [
-    [{ text: "层级", options: { fontSize: 11, bold: true, color: "FFFFFF" } }, { text: "字号", options: { fontSize: 11, bold: true, color: "FFFFFF" } }, { text: "应用场景", options: { fontSize: 11, bold: true, color: "FFFFFF" } }],
-    [{ text: "一级标题", options: { fontSize: 11, color: "333333" } }, { text: "36-40pt", options: { fontSize: 11, color: "333333" } }, { text: "封面标题", options: { fontSize: 11, color: "333333" } }],
-    [{ text: "二级标题", options: { fontSize: 11, color: "333333" } }, { text: "22-26pt", options: { fontSize: 11, color: "333333" } }, { text: "章节标题", options: { fontSize: 11, color: "333333" } }],
-    [{ text: "三级标题", options: { fontSize: 11, color: "333333" } }, { text: "16-18pt", options: { fontSize: 11, color: "333333" } }, { text: "小标题/栏目", options: { fontSize: 11, color: "333333" } }],
-    [{ text: "正文", options: { fontSize: 11, color: "333333" } }, { text: "13-14pt", options: { fontSize: 11, color: "333333" } }, { text: "正文说明", options: { fontSize: 11, color: "333333" } }],
-    [{ text: "辅助文字", options: { fontSize: 11, color: "333333" } }, { text: "11pt", options: { fontSize: 11, color: "333333" } }, { text: "注释/标注/页码", options: { fontSize: 11, color: "333333" } }],
-  ];
-  slide.addTable(rows, { x: cx, y: yPos + 0.55, w: CONTENT_W, colW: [2.0, 2.0, 3.07], border: { pt: 0.5, color: "E0E0E0" }, rowH: [0.4, 0.4, 0.4, 0.4, 0.4, 0.4], autoPage: false });
+// ========== Typography — V108: 图片化规范页 ==========
+async function renderTypography(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): Promise<void> {
+  try {
+    const imgData = await renderTypographyPng({ bc });
+    // 全页图片覆盖（去掉默认contentFrame，直接铺满）
+    slide.addImage({ data: imgData, x: 0, y: 0, w: SW, h: SH, sizing: { type: "cover", w: SW, h: SH } });
+  } catch (err) {
+    // 降级：satori渲染失败时回退到文字模式
+    console.warn("[render-pptx] V108 typography image failed, fallback to text:", err);
+    addContentFrame(slide, "字体系统", bc);
+    const cx = MARGIN + LEFT_BAR_W;
+    let yPos = 1.6;
+    slide.addShape("rect", { x: cx, y: yPos, w: 0.12, h: 1.5, fill: { color: bc.pri }, rectRadius: 0.03 });
+    slide.addText("中文字体", { x: cx + 0.3, y: yPos + 0.1, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
+    slide.addText("标题字体：思源黑体 / Noto Sans SC", { x: cx + 0.3, y: yPos + 0.6, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
+    slide.addText("正文字体：思源宋体 / Noto Serif SC", { x: cx + 0.3, y: yPos + 0.95, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
+    yPos += 2.0;
+    slide.addShape("rect", { x: cx, y: yPos, w: 0.12, h: 1.5, fill: { color: bc.sec }, rectRadius: 0.03 });
+    slide.addText("英文字体", { x: cx + 0.3, y: yPos + 0.1, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.sec });
+    slide.addText("Brand Font: Montserrat", { x: cx + 0.3, y: yPos + 0.6, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
+    slide.addText("Body Font: Open Sans", { x: cx + 0.3, y: yPos + 0.95, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
+    yPos += 2.0;
+    slide.addText("字号层级规范", { x: cx, y: yPos, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
+    const rows = [
+      [{ text: "层级", options: { fontSize: 11, bold: true, color: "FFFFFF" } }, { text: "字号", options: { fontSize: 11, bold: true, color: "FFFFFF" } }, { text: "应用场景", options: { fontSize: 11, bold: true, color: "FFFFFF" } }],
+      [{ text: "一级标题", options: { fontSize: 11, color: "333333" } }, { text: "36-40pt", options: { fontSize: 11, color: "333333" } }, { text: "封面标题", options: { fontSize: 11, color: "333333" } }],
+      [{ text: "二级标题", options: { fontSize: 11, color: "333333" } }, { text: "22-26pt", options: { fontSize: 11, color: "333333" } }, { text: "章节标题", options: { fontSize: 11, color: "333333" } }],
+      [{ text: "三级标题", options: { fontSize: 11, color: "333333" } }, { text: "16-18pt", options: { fontSize: 11, color: "333333" } }, { text: "小标题/栏目", options: { fontSize: 11, color: "333333" } }],
+      [{ text: "正文", options: { fontSize: 11, color: "333333" } }, { text: "13-14pt", options: { fontSize: 11, color: "333333" } }, { text: "正文说明", options: { fontSize: 11, color: "333333" } }],
+      [{ text: "辅助文字", options: { fontSize: 11, color: "333333" } }, { text: "11pt", options: { fontSize: 11, color: "333333" } }, { text: "注释/标注/页码", options: { fontSize: 11, color: "333333" } }],
+    ];
+    slide.addTable(rows, { x: cx, y: yPos + 0.55, w: CONTENT_W, colW: [2.0, 2.0, 3.07], border: { pt: 0.5, color: "E0E0E0" }, rowH: [0.4, 0.4, 0.4, 0.4, 0.4, 0.4], autoPage: false });
+  }
 }
 
 // ========== Basic Spec ==========
