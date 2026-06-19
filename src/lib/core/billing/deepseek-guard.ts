@@ -20,7 +20,7 @@ const PRICE_OUTPUT_PER_1K = 0.002;
 const PRICE_CACHED_PER_1K = 0.0001;
 
 // Default daily budget cap (CNY)
-const DEFAULT_DAILY_BUDGET = 5.00;
+const DEFAULT_DAILY_BUDGET = 20.00;
 
 interface GuardOptions {
   route: string;
