@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
 - 如果客户已填写，请优化润色，保留客户原意
 
 ### 6. 视觉方向建议
-- 适合该行业的色彩倾向，必须输出3个具体hex色值（主色、辅助色、强调色），如果客户已有品牌色则必须优先使用客户品牌色
+- 【必填】colorPalette必须输出3个具体hex色值（主色、辅助色、强调色），如果客户已有品牌色则必须优先使用客户品牌色。每个色的meaning必须说明该色与品牌定位/行业特征的关联（如"深墨绿呼应中医经络的专业与沉稳"），不可写泛泛的"温暖""活力"等空话
 - 推荐的视觉风格（如极简、国潮、科技感等）
 - VI应用效果图建议（5个场景，必须是品牌Logo/视觉元素印在该行业真实使用的品牌物料上的效果图，场景品类根据客户行业动态决定，中英文对照）
 - sceneSectionTitles：3个场景页的中文标题，必须根据客户行业动态生成（如餐饮→"餐饮应用系统/餐饮包装系统/餐饮营销系统"，水果→"生鲜应用系统/生鲜包装系统/生鲜营销系统"，洗车→"洗车应用系统/洗车包装系统/洗车营销系统"）
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
     "marketing": "【该行业营销系统标题，如餐饮→餐饮营销系统、水果→生鲜营销系统、洗车→洗车营销系统】"
   },
   "logoDesignSuggestions": {
-    "concept": "Logo设计核心概念，1-2句话",
+    "concept": "Logo设计理念详述：3-5句话，需说明（1）品牌名含义与视觉转化逻辑（2）核心图形元素的选择理由（3）造型与品牌调性的呼应关系（4）整体传达的情感与识别价值",
     "style": "设计风格（如：传统书法、现代简约、国潮、手绘等）",
     "elements": "建议包含的设计元素（图形、符号、字体风格）",
     "colorGuidance": "配色建议，需与品牌色协调",
@@ -166,9 +166,9 @@ export async function POST(req: NextRequest) {
     ]
   },
   "colorPalette": [
-    {"name": "品牌主色", "hex": "#RRGGBB", "oklch": "oklch值", "nameEn": "Primary", "meaning": "色彩含义"},
-    {"name": "辅助色", "hex": "#RRGGBB", "oklch": "oklch值", "nameEn": "Secondary", "meaning": "色彩含义"},
-    {"name": "强调色", "hex": "#RRGGBB", "oklch": "oklch值", "nameEn": "Accent", "meaning": "色彩含义"}
+    {"name": "品牌主色", "hex": "#RRGGBB", "oklch": "oklch值", "nameEn": "Primary", "meaning": "该色彩与品牌定位/行业特征的关联说明，1-2句话"},
+    {"name": "辅助色", "hex": "#RRGGBB", "oklch": "oklch值", "nameEn": "Secondary", "meaning": "该色彩与品牌定位/行业特征的关联说明，1-2句话"},
+    {"name": "强调色", "hex": "#RRGGBB", "oklch": "oklch值", "nameEn": "Accent", "meaning": "该色彩与品牌定位/行业特征的关联说明，1-2句话"}
   ],
   "aiGeneratedFields": {
     "brandVision": "如果客户没写，AI代写的品牌愿景；如果已写，留空",
