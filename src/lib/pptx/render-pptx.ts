@@ -964,24 +964,22 @@ function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
   }
 }
 
-/** V100: 场景页混合布局 — 上AI氛围图 + 下Logo规范展示
- *  上半部分：AI场景图（品牌应用场景演绎），标注"以上为品牌视觉氛围示意"
- *  下半部分：PPTX原生mockup，贴真实Logo，展示Logo精确应用规范
+/** V104: 场景页全页布局 — AI实景图占满页面，底部标注"以上为品牌视觉氛围示意"
+ *  去掉下半部分的Logo应用规范mockup，实景图全页展示更美观
  */
 function renderMixedLayout(
   slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC,
   type: string, industry: IndustryType,
   pageImages: [string, string][], cx: number, logoForScene?: string | null
 ): void {
-  // ===== 上半部分：AI 场景图（品牌应用场景演绎）=====
   const labels = getSceneLabels(industry, type);
   const sceneLabels = (opts as any).sceneLabels || {};
 
-  // 上半区域：最多展示2张AI场景图，高度压缩到4.0英寸
+  // 全页展示：最多2张AI场景图，高度占满页面
   const maxImgs = Math.min(pageImages.length, 2);
   const imgW = (CONTENT_W - 0.3) / maxImgs;
-  const TOP_H = 4.0;
-  const TOP_Y = 1.8;
+  const FULL_H = 5.2;
+  const IMG_Y = 1.8;
 
   for (let i = 0; i < maxImgs; i++) {
     const [key, imgData] = pageImages[i];
@@ -989,7 +987,7 @@ function renderMixedLayout(
 
     // 图片背景框
     slide.addShape("rect", {
-      x: imgX, y: TOP_Y, w: imgW, h: TOP_H,
+      x: imgX, y: IMG_Y, w: imgW, h: FULL_H,
       fill: { color: "F8F8F8" }, rectRadius: 0.08,
       shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.12 },
     });
@@ -997,38 +995,34 @@ function renderMixedLayout(
     // 插入AI写实图
     slide.addImage({
       data: normImg(imgData),
-      x: imgX, y: TOP_Y, w: imgW, h: TOP_H,
-      sizing: { type: "cover", w: imgW, h: TOP_H },
+      x: imgX, y: IMG_Y, w: imgW, h: FULL_H,
+      sizing: { type: "cover", w: imgW, h: FULL_H },
       rounding: true,
     });
 
-    // V99: 右下角Logo水印
+    // 右下角Logo水印
     if (logoForScene) {
       slide.addImage({
         data: normImg(logoForScene),
-        x: imgX + imgW - 0.65, y: TOP_Y + TOP_H - 0.65, w: 0.5, h: 0.5,
+        x: imgX + imgW - 0.65, y: IMG_Y + FULL_H - 0.65, w: 0.5, h: 0.5,
         sizing: { type: "contain", w: 0.5, h: 0.5 },
         transparency: 40,
       });
     }
 
     // 品牌色底部条
-    slide.addShape("rect", { x: imgX, y: TOP_Y + TOP_H - 0.08, w: imgW, h: 0.08, fill: { color: bc.pri, transparency: 30 } });
+    slide.addShape("rect", { x: imgX, y: IMG_Y + FULL_H - 0.08, w: imgW, h: 0.08, fill: { color: bc.pri, transparency: 30 } });
 
     // 场景标注
     const label = sceneLabels[key] || labels[i] || key;
-    slide.addText(label, { x: imgX, y: TOP_Y + TOP_H + 0.05, w: imgW, h: 0.25, fontSize: 11, bold: true, color: "333333", align: "center" });
+    slide.addText(label, { x: imgX, y: IMG_Y + FULL_H + 0.05, w: imgW, h: 0.25, fontSize: 11, bold: true, color: "333333", align: "center" });
   }
 
   // "品牌视觉氛围示意"标注
   slide.addText("以上为品牌视觉氛围示意", {
-    x: cx, y: TOP_Y + TOP_H + 0.35, w: CONTENT_W, h: 0.22,
+    x: cx, y: IMG_Y + FULL_H + 0.35, w: CONTENT_W, h: 0.22,
     fontSize: 9, italic: true, color: "AAAAAA", align: "center",
   });
-
-  // ===== 下半部分：Logo精确应用示范（PPTX原生mockup，真实Logo）=====
-  const BOT_Y = TOP_Y + TOP_H + 0.65;
-  renderLogoStandardDemo(slide, opts, bc, type, industry, cx, BOT_Y);
 }
 
 /** V100: Logo精确应用示范 — 用真实Logo图片贴到mockup上 */
