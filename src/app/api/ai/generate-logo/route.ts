@@ -1,3 +1,4 @@
+// V111: Merged with regenerate-logo — use `regenerate: true` + `logoId` to regenerate
 /**
  * API: POST /api/ai/generate-logo
  *
@@ -48,6 +49,8 @@ async function persistLogoImage(projectId: string, index: number, tempUrl: strin
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+  const { regenerate, logoId } = body;
+  const forceRegenerate = body.force === true || regenerate === true;
     const { projectId } = body;
 
     if (!projectId) {
@@ -83,7 +86,7 @@ export async function POST(req: NextRequest) {
       }
 
     // V88: 已有Logo结果且非强制 → 直接返回，避免重复烧钱
-    const forceRegenerate = body.force === true;
+    const forceRegenerate = body.force === true || body.regenerate === true;
     const existingLogos = brandProfile.logoGenerationResults;
     if (!forceRegenerate && existingLogos && existingLogos.length >= 4 && clientInfo.logoGenerationStatus?.completed >= 4) {
       console.log(`[generate-logo] V88: Project ${projectId} already has ${existingLogos.length} logos, skipping. Use force=true to override.`);
