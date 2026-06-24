@@ -32,7 +32,7 @@ export function BottomCtaSection() {
               href="/member/login"
               className="inline-flex items-center px-8 py-3.5 border border-primary text-primary text-base font-medium rounded-xl hover:bg-primary/5 transition-colors"
             >
-              开通品牌管家 ¥299/月
+              提交设计需求 ¥99起
             </Link>
             <Link
               href="/partner"
@@ -42,7 +42,7 @@ export function BottomCtaSection() {
             </Link>
           </div>
           <p className="text-sm text-neutral-400 mt-4">
-            品牌管家注册即享2条免费体验 · 无需绑定 · 停发即停费
+            注册即体验 · 无需绑定
           </p>
         </motion.div>
       </div>

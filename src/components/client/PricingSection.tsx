@@ -32,7 +32,7 @@ const FALLBACK_PLANS: PlanConfig[] = [
     cta: "提交设计需求", href: "/consultation?plan=standard", highlight: true,
   },
   {
-    name: "品牌管家", price: "299", period: "/月", desc: "持续运营，拍照我们搞定", enabled: true,
+    name: "品牌管家", price: "299", period: "/月", desc: "持续运营，拍照我们搞定", enabled: false,
     features: ["每月 12 条品牌化内容", "每条 3-6 张成品图 + 文案", "AI 套品牌模板自动生成", "大学生代发小红书/抖音", "内容日历 + 排期管理", "停发即停费，不绑定"],
     cta: "开通品牌管家", href: "/member/login", highlight: false,
   },

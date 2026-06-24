@@ -52,7 +52,7 @@ export function HeroSection() {
               href="/member/login"
               className="inline-flex items-center px-6 py-3 border border-primary text-primary text-base font-medium rounded-xl hover:bg-primary/5 transition-colors"
             >
-              开通品牌管家
+              提交设计需求
             </Link>
             <Link
               href="/partner"

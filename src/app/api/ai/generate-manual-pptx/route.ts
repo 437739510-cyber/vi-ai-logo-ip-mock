@@ -17,6 +17,7 @@ import path from "path";
 import { readFile, mkdir, writeFile, readdir } from "fs/promises";
 import { planPages } from "@/lib/vi-manual/page-planner";
 import { renderPptxToBuffer } from "@/lib/pptx/render-pptx";
+import { generateBrandStory, generateLogoNarrative, generateColorDescriptions, generateAuxGraphicsNarrative, generateSceneDescriptions } from "@/lib/pptx/generate-rich-text";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
 import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
@@ -1313,6 +1314,13 @@ export async function POST(req: NextRequest) {
     // ===== Step 6: 渲染 PPTX =====
     // V12: PPTX组装中
     await supabaseAdmin.from("projects").update({ status: "pptx_assembling", updated_at: new Date().toISOString() }).eq("id", projectId);
+    // V112: 生成富文本叙事
+    const richBrandStory = generateBrandStory(companyName, brandProfile || {});
+    const richLogoPhilosophy = generateLogoNarrative(companyName, brandProfile || {});
+    const richColorDescs = generateColorDescriptions(companyName, brandProfile || {});
+    const richAuxGraphics = generateAuxGraphicsNarrative(brandProfile || {});
+    const richSceneDescs = generateSceneDescriptions(companyName, brandProfile || {});
+
     const buffer = await renderPptxToBuffer(blueprints, {
       projectName: projectId,
       companyName,
@@ -1324,15 +1332,18 @@ export async function POST(req: NextRequest) {
       brandVision: effectiveBrandVision,
       coreValues: effectiveCoreValues,
       targetMarket: effectiveTargetMarket,
-      logoPhilosophy,
+      logoPhilosophy: richLogoPhilosophy || logoPhilosophy,
       mascotPhilosophy,
       sceneImages,
       sceneLabels,
       aiLogoData: aiLogoData || undefined,
       compressImages: true,  // V30: 压缩图片减小体积
       sceneSectionTitles: brandProfile?.sceneSectionTitles,  // V98: AI场景页标题
-      auxGraphicsIntro: buildAuxGraphicsIntro(brandProfile, realColors, industry),
-      colorMeaning: buildColorMeaning(brandProfile, realColors, industry),
+      auxGraphicsIntro: richAuxGraphics || buildAuxGraphicsIntro(brandProfile, realColors, industry),
+      colorMeaning: richColorDescs || buildColorMeaning(brandProfile, realColors, industry),
+      // V112: 富文本叙事
+      brandStory: richBrandStory,
+      sceneDescriptions: richSceneDescs,
     });
 
     sendProgress("saving", "正在保存文件...", 90);

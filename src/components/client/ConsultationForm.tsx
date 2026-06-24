@@ -86,7 +86,7 @@ export function ConsultationForm() {
   const [selectedProvince, setSelectedProvince] = useState("");
   const [cityOptions, setCityOptions] = useState<string[]>([]);
 
-  const { register, handleSubmit, formState: { errors }, setValue, trigger } = useForm<ConsultationFormData>({
+  const { register, handleSubmit, watch, formState: { errors }, setValue, trigger } = useForm<ConsultationFormData>({
     resolver: zodResolver(consultationSchema),
   });
 
@@ -169,9 +169,10 @@ export function ConsultationForm() {
   const onSubmit = async (data: ConsultationFormData) => {
     setIsSubmitting(true); setSubmitError(null);
     try {
-      // V79+: 店内照片（必填）校验
-      if (storePhotoList.length === 0) {
-        throw new Error("请上传店内照片（含门头），至少1张");
+      // V79+: 店内照片（必填）校验 — 流动摊1张，其他含门头5张
+      const minPhotos = data.businessForm === "路边摊/档口" ? 1 : 5;
+      if (storePhotoList.length < minPhotos) {
+        throw new Error(`请上传至少${minPhotos}张店内照片${minPhotos > 1 ? "（含门头）" : ""}`);
       }
       const [logoAssets, mascotAssetsList, refAssets, storeAssets] = await Promise.all([
         uploadFiles(logoFileList, "logo"),
@@ -334,10 +335,10 @@ export function ConsultationForm() {
               {errors.businessYears && <p className="mt-1 text-xs text-danger">{errors.businessYears.message}</p>}
             </div>
           </div>
-          {/* V79+: 店内照片（必填）含门头 — 供Hermes看图分析品牌色 */}
+          {/* V79+: 店内照片（必填）含门头 — 供Hermes看图分析品牌色。流动摊1张起步 */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">店内照片 <span className="text-danger">*</span> <span className="text-neutral-400 text-xs">（必填，建议含门头共5张）</span></label>
-            <p className="text-xs text-amber-600 mb-2">📸 请上传含门头在内的5张店内照片，AI将据此分析您的店铺风格和配色，确保品牌色与店内装修协调统一</p>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">店内照片 <span className="text-danger">*</span> <span className="text-neutral-400 text-xs">（必填）</span></label>
+            <p className="text-xs text-amber-600 mb-2">📸 {watch("businessForm") === "路边摊/档口" ? "请上传1张档口/摊位照片，AI将据此匹配配色风格" : "请上传含门头在内的5张店内照片，AI将据此分析您的店铺风格和配色，确保品牌色与店内装修协调统一"}</p>
             {storePhotoList.length > 0 && (
               <div className="mb-3 space-y-1.5">
                 {storePhotoList.map((f, i) => (
@@ -369,8 +370,8 @@ export function ConsultationForm() {
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-neutral-100 text-neutral-400 group-hover:bg-primary/10 group-hover:text-primary transition-all">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 </div>
-                <p className="text-sm font-medium text-neutral-700">点击上传店内照片（含门头）</p>
-                <p className="text-xs text-neutral-400">支持 JPG、PNG、HEIC，含门头共5张，每张最大20MB</p>
+                <p className="text-sm font-medium text-neutral-700">点击上传店内照片</p>
+                <p className="text-xs text-neutral-400">{watch("businessForm") === "路边摊/档口" ? "支持 JPG、PNG、HEIC，至少1张，每张最大20MB" : "支持 JPG、PNG、HEIC，含门头共5张，每张最大20MB"}</p>
               </div>
             </button>
           </div>

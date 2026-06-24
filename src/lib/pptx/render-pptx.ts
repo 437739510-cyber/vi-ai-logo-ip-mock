@@ -45,6 +45,10 @@ export interface RenderPptxOptions {
   auxGraphicsIntro?: string;  // V103: 辅助图形品牌说明
   colorMeaning?: string;  // V103: 色彩选择依据
   colorPaletteMeanings?: { primary?: string; secondary?: string; accent?: string };  // V103: 各色彩含义
+  // V112: 富文本叙事
+  brandStory?: string;
+  colorDescriptions?: string;
+  sceneDescriptions?: Record<string, string>;
 }
 
 // ========== 行业类型 ==========
@@ -283,7 +287,7 @@ function addContentFrame(slide: PptxGenJS.Slide, title: string, bc: BC): void {
   // 顶部品牌色细线
   slide.addShape("rect", { x: 0, y: 0, w: SW, h: 0.06, fill: { color: bc.pri } });
   // 标题
-  slide.addText(title, { x: MARGIN + LEFT_BAR_W, y: 0.5, w: CONTENT_W - LEFT_BAR_W, h: 0.7, fontSize: 24, bold: true, color: bc.priDark, fontFace: "Microsoft YaHei" });
+  slide.addText(title, { x: MARGIN + LEFT_BAR_W, y: 0.5, w: CONTENT_W - LEFT_BAR_W, h: 0.7, fontSize: 24, bold: true, color: bc.priDark, fontFace: "Noto Sans SC" });
   // 标题下装饰线
   slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: 1.25, w: 2.0, h: 0.05, fill: { color: bc.acc } });
   // 底部品牌色细线
@@ -413,7 +417,7 @@ function addComboLogo(slide: PptxGenJS.Slide, text: string, x: number, y: number
       color: clr,
       align: "center",
       valign: "top",
-      fontFace: "Microsoft YaHei",
+      fontFace: "Noto Sans SC",
       charSpacing: fitted.charSpacing,
     });
     // 装饰线 — 品牌名字标下方
@@ -436,7 +440,7 @@ function addComboLogo(slide: PptxGenJS.Slide, text: string, x: number, y: number
       color: clr,
       align: "left",
       valign: "middle",
-      fontFace: "Microsoft YaHei",
+      fontFace: "Noto Sans SC",
       charSpacing: fs > 20 ? 8 : 3,
     });
   }
@@ -453,7 +457,7 @@ function renderCover(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
   if (opts.logoData) {
     slide.addImage({ data: normImg(opts.logoData), x: (SW - 3.0) / 2, y: 1.0, w: 3.0, h: 3.0, sizing: { type: "contain", w: 3.0, h: 3.0 } });
     // 有Logo图时，下方仍显示品牌名
-    slide.addText(cn, { x: MARGIN, y: 4.2, w: CONTENT_W, h: 1.0, fontSize: 38, bold: true, color: "FFFFFF", align: "center", fontFace: "Microsoft YaHei" });
+    slide.addText(cn, { x: MARGIN, y: 4.2, w: CONTENT_W, h: 1.0, fontSize: 38, bold: true, color: "FFFFFF", align: "center", fontFace: "Noto Sans SC" });
   } else {
     // V13: 无Logo图时，组合Logo = 行业图标 + 品牌名字标
     addComboLogo(slide, cn, MARGIN, 0.8, CONTENT_W, 3.2, bc, industry, { fontSize: 44, color: "FFFFFF", layout: "vertical", aiLogoData: opts.aiLogoData });
@@ -503,9 +507,15 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
   let yPos = 1.8;
   for (const s of sections) {
     slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: yPos, w: 0.12, h: 2.0, fill: { color: bc.pri }, rectRadius: 0.03 });
-    slide.addText(s.label, { x: MARGIN + LEFT_BAR_W + 0.3, y: yPos + 0.1, w: CONTENT_W - 0.5, h: 0.5, fontSize: 17, bold: true, color: bc.pri, fontFace: "Microsoft YaHei" });
+    slide.addText(s.label, { x: MARGIN + LEFT_BAR_W + 0.3, y: yPos + 0.1, w: CONTENT_W - 0.5, h: 0.5, fontSize: 17, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
     slide.addText(s.content, { x: MARGIN + LEFT_BAR_W + 0.3, y: yPos + 0.7, w: CONTENT_W - 0.5, h: 1.0, fontSize: 13, color: "444444", lineSpacingMultiple: 1.6, valign: "top" });
     yPos += 2.4;
+  }
+
+  // V112: 品牌故事 — 如果有就展示
+  if (opts.brandStory) {
+    slide.addText("品牌故事", { x: MARGIN + LEFT_BAR_W, y: yPos, w: CONTENT_W, h: 0.4, fontSize: 14, bold: true, color: bc.pri });
+    slide.addText(opts.brandStory, { x: MARGIN + LEFT_BAR_W, y: yPos + 0.5, w: CONTENT_W - 0.3, h: 1.8, fontSize: 12, color: "555555", lineSpacingMultiple: 1.5, valign: "top" });
   }
 
   // IP公仔 — 右下角半透明装饰
@@ -548,11 +558,11 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
     addComboLogo(slide, opts.companyName || "品牌", (SW - 3.5) / 2, 1.2, 3.5, 3.8, bc, industry, { fontSize: 40, color: bc.pri, layout: "vertical", aiLogoData: opts.aiLogoData });
   }
 
-  // V12: 品牌故事叙事
+  // V112: 品牌故事叙事 — 支持长文本
   const philosophy = opts.logoPhilosophy || fta(bp, ["logo-philosophy","logo-meaning","logo-concept"]) || "Logo 凝练了品牌核心视觉要素，体现品牌独特识别性。";
-  slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: 5.6, w: 0.08, h: 1.8, fill: { color: bc.pri }, rectRadius: 0.03 });
-  slide.addText("设计理念", { x: MARGIN + LEFT_BAR_W + 0.25, y: 5.6, w: CONTENT_W - 0.3, h: 0.45, fontSize: 17, bold: true, color: bc.pri, fontFace: "Microsoft YaHei" });
-  slide.addText(philosophy, { x: MARGIN + LEFT_BAR_W + 0.25, y: 6.1, w: CONTENT_W - 0.3, h: 1.3, fontSize: 13, color: "444444", lineSpacingMultiple: 1.6 });
+  slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: 5.6, w: 0.08, h: 2.2, fill: { color: bc.pri }, rectRadius: 0.03 });
+  slide.addText("设计理念", { x: MARGIN + LEFT_BAR_W + 0.25, y: 5.6, w: CONTENT_W - 0.3, h: 0.45, fontSize: 17, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+  slide.addText(philosophy, { x: MARGIN + LEFT_BAR_W + 0.25, y: 6.1, w: CONTENT_W - 0.3, h: 1.8, fontSize: 12, color: "444444", lineSpacingMultiple: 1.5 });
   // 核心视觉要素
   const kwY = 7.5;
   slide.addText("核心视觉要素", { x: MARGIN + LEFT_BAR_W, y: kwY, w: CONTENT_W, h: 0.4, fontSize: 14, bold: true, color: bc.pri });
@@ -1564,7 +1574,7 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
   const cx = MARGIN + LEFT_BAR_W + 0.5;
 
   // 品牌名
-  slide.addText(cn, { x: cx, y: 1.6, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri, fontFace: "Microsoft YaHei" });
+  slide.addText(cn, { x: cx, y: 1.6, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
   slide.addShape("rect", { x: cx, y: 2.15, w: 1.5, h: 0.04, fill: { color: bc.acc } });
 
   // 目录项
@@ -1574,9 +1584,9 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
     const item = tocItems[i];
     const numStr = String(i + 1).padStart(2, "0");
     // 序号
-    slide.addText(numStr, { x: cx, y: yPos, w: 0.6, h: 0.5, fontSize: 13, bold: true, color: bc.pri, fontFace: "Microsoft YaHei" });
+    slide.addText(numStr, { x: cx, y: yPos, w: 0.6, h: 0.5, fontSize: 13, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
     // 标题
-    slide.addText(item.title, { x: cx + 0.7, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 13, color: "333333", fontFace: "Microsoft YaHei" });
+    slide.addText(item.title, { x: cx + 0.7, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 13, color: "333333", fontFace: "Noto Sans SC" });
     // 点线
     slide.addText("....................................................................................", { x: cx + 0.7, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 9, color: "CCCCCC", align: "right" });
     // 页码
