@@ -112,6 +112,7 @@ export function ConsultationForm() {
   useEffect(() => {
     // 预填功能已移除（旧版interview/discovery页面已删除）
     setPrefillLoading(false);
+  }, []);
 
   async function uploadFiles(files: File[], type: "logo" | "mascot" | "pdf"): Promise<{ fileName: string; url: string; size: number }[]> {
     if (files.length === 0) return [];
