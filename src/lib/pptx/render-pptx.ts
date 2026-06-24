@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 /**
  * PptxGenJS Renderer V6 — AI写实图+专业排版
  *
@@ -273,7 +273,7 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     default: renderGeneric(slide, bp, opts, bc);
   }
   // 页码（封面/封底/目录不加）
-  if (bp.pageId !== "cover" && bp.pageId !== "closing" && bp.pageId !== "toc" && bp.pageId !== "typography" && bp.pageId !== "brand-colors") {
+  if (bp.pageId !== "cover" && bp.pageId !== "closing" && bp.pageId !== "toc") {
     const idx = PAGE_ORDER.indexOf(bp.pageId);
     slide.addText(`${idx > 0 ? idx : ""}`, { x: SW - MARGIN - 0.5, y: SH - 0.55, w: 0.5, h: 0.3, fontSize: 9, color: "BBBBBB", align: "right" });
   }
