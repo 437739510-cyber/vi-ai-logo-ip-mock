@@ -17,7 +17,7 @@ import { supabaseAdmin } from "@/lib/core/supabase";
 import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
