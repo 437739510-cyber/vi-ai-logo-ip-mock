@@ -47,8 +47,8 @@ public/uploads/*.pdf
 # npmrc.npmrc
 
 # tracking docs
-Éý¼¶¼Æ»®Êé.md
-½ø¶È×·×Ù.md
+ï¿½ï¿½ï¿½ï¿½ï¿½Æ»ï¿½ï¿½ï¿½.md
+ï¿½ï¿½ï¿½ï¿½×·ï¿½ï¿½.md
 
 
 # Node.js standalone
@@ -87,3 +87,8 @@ backup-v*/
 *.bak.*
 route.ts.bak.*
 C:\\Users\\**
+
+# patrol script credentials (not committed)
+scripts/.patrol_config.json
+scripts/.admin_jar.txt
+scripts/.seen_orders.json
