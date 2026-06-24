@@ -7,6 +7,7 @@ import { PricingSection } from "@/components/client/PricingSection";
 import { DeliverableSection } from "@/components/client/DeliverableSection";
 import { TrustSection } from "@/components/client/TrustSection";
 import { BottomCtaSection } from "@/components/client/BottomCtaSection";
+import { ChatWidget } from "@/components/client/ChatWidget";
 
 export default function HomePage() {
   return (
@@ -20,6 +21,7 @@ export default function HomePage() {
       <CaseCarousel />
       <FaqSection />
       <BottomCtaSection />
+      <ChatWidget />
     </>
   );
 }
