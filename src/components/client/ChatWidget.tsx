@@ -140,7 +140,8 @@ export function ChatWidget() {
         setStep("ask_photos");
         setTimeout(() => {
           addBotMsg(isStall
-            ? "请点击下方按钮上传1张照片👇",
+            ? "请点击下方按钮上传1张照片👇"
+            : "请点击下方按钮上传5张店内照片👇",
             "upload");
         }, 500);}
         break;
