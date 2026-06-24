@@ -164,6 +164,10 @@ export default function ViewLogoPage() {
 
   const handleRegenerate = async () => {
     if (!projectData) return;
+    // 重新生成提示：告知客人旧Logo无法找回
+    if (!window.confirm("⚠️ 重新生成后，当前4个Logo方案将被替换，无法找回。\n\n确定要继续吗？")) {
+      return;
+    }
     setRegenerating(true);
     try {
       const res = await fetch("/api/ai/regenerate-logo", {
