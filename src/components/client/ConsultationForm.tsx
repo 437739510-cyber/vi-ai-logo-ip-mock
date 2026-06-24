@@ -169,11 +169,15 @@ export function ConsultationForm() {
   const onSubmit = async (data: ConsultationFormData) => {
     setIsSubmitting(true); setSubmitError(null);
     try {
+      // V79+: 店内照片（必填）校验
+      if (storePhotoList.length === 0) {
+        throw new Error("请上传店内照片（含门头），至少1张");
+      }
       const [logoAssets, mascotAssetsList, refAssets, storeAssets] = await Promise.all([
         uploadFiles(logoFileList, "logo"),
         uploadFiles(mascotFileList, "mascot"),
         referenceFileList.length > 0 ? uploadFiles(referenceFileList, "pdf") : Promise.resolve([]),
-        uploadFiles(storePhotoList, "logo"),  // 门头照复用logo bucket上传
+        uploadFiles(storePhotoList, "logo"),  // 店内照片
       ]);
       // V75: 过滤全白默认值，用户没选颜色时brandColors应为null，避免AI被误导
       const bc = data.brandColors;
@@ -330,10 +334,10 @@ export function ConsultationForm() {
               {errors.businessYears && <p className="mt-1 text-xs text-danger">{errors.businessYears.message}</p>}
             </div>
           </div>
-          {/* V79: 门头照/经营器具上传 - 提升AI辨识度+合成参考 */}
+          {/* V79+: 店内照片（必填）含门头 — 供Hermes看图分析品牌色 */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">门头照/经营器具 <span className="text-neutral-400 text-xs">（选填，帮助AI更准确理解您的店铺风格）</span></label>
-            <p className="text-xs text-neutral-400 mb-2">上传门头、店内环境或招牌器具照片，AI将据此辨识您的经营特色，生成时融入真实场景感</p>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">店内照片 <span className="text-danger">*</span> <span className="text-neutral-400 text-xs">（必填，建议含门头共5张）</span></label>
+            <p className="text-xs text-amber-600 mb-2">📸 请上传含门头在内的5张店内照片，AI将据此分析您的店铺风格和配色，确保品牌色与店内装修协调统一</p>
             {storePhotoList.length > 0 && (
               <div className="mb-3 space-y-1.5">
                 {storePhotoList.map((f, i) => (
@@ -365,8 +369,8 @@ export function ConsultationForm() {
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-neutral-100 text-neutral-400 group-hover:bg-primary/10 group-hover:text-primary transition-all">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 </div>
-                <p className="text-sm font-medium text-neutral-700">点击上传门头/器具照片</p>
-                <p className="text-xs text-neutral-400">支持 JPG、PNG、HEIC，最多5张，每张最大20MB</p>
+                <p className="text-sm font-medium text-neutral-700">点击上传店内照片（含门头）</p>
+                <p className="text-xs text-neutral-400">支持 JPG、PNG、HEIC，含门头共5张，每张最大20MB</p>
               </div>
             </button>
           </div>

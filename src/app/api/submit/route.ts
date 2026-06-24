@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       referenceManual: body.referenceFile
         ? { fileName: body.referenceFile.fileName, url: body.referenceFile.url, pageCount: 0, isReferenceEnabled: true, referenceMode: body.referenceEnabled ? "weak" : "none" }
         : null,
-      storePhotos: body.storePhotos || [],  // V79: 门头照/经营器具照片
+      storePhotos: body.storePhotos || [],  // V79+: 店内照片（必填）含门头，供Hermes看图分析
       submittedAt: isoNow,
       status: "submitted",
     };
