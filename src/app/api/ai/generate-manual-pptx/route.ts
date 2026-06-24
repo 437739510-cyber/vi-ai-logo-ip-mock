@@ -939,7 +939,8 @@ export async function POST(req: NextRequest) {
               console.warn("[generate-pptx] Brand analysis parse failed:", parseErr);
             }
           } else {
-            console.warn("[generate-pptx] Brand analysis API failed:", analysisResp.status);
+            const errBody = await analysisResp.text().catch(() => "no body");
+            console.warn("[generate-pptx] Brand analysis API failed:", analysisResp.status, errBody.substring(0, 500));
           }
         }
       } catch (analysisErr) {
