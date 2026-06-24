@@ -37,6 +37,10 @@
     "tsx": "^4.22.4",
     "typescript": "^5.8.0"
   },
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "^1.29.0",
+    "@esbuild/linux-x64": "^0.25.0"
+  },
   "engines": {
     "node": ">=20 <24"
   }
