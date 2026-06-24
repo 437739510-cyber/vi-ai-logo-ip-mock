@@ -189,7 +189,7 @@ export function ChatWidget() {
       addBotMsg(`✅ 照片够了！`);
       // 问品牌愿景（选填）
       if (step === "ask_photos") {
-        goTo("ask_logo", "您有没有现成的Logo想一起用？也可以之后上传，或者我们AI帮您生成😊\n\n（有的话点上传，没有点"跳过"）👇");
+        goTo("ask_logo", `您有没有现成的Logo想一起用？也可以之后上传，或者我们AI帮您生成😊\n\n（有的话点上传，没有点"跳过"）👇`);
       }
     } else {
       addBotMsg(`还差 ${maxPhotos - count} 张，继续上传👇`);
