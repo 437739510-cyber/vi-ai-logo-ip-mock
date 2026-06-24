@@ -161,6 +161,23 @@ export async function POST(req: NextRequest) {
             const result = await analysisResp.json();
             if (result.success) {
               console.log("[analyze-brand BG] brand-analysis OK, reused:", result.reused || false);
+              // 保存品牌分析结果到DB
+              if (result.profile) {
+                try {
+                  const { data: latestProj } = await supabaseAdmin
+                    .from("projects").select("client_info").eq("id", projectId).single();
+                  const existing = (latestProj?.client_info as Record<string, any>) || {};
+                  await supabaseAdmin.from("projects").update({
+                    client_info: {
+                      ...existing,
+                      brandProfile: { ...result.profile, analysisStatus: "completed", analyzedAt: new Date().toISOString() },
+                    }
+                  }).eq("id", projectId);
+                  console.log("[analyze-brand BG] Saved brand profile to DB");
+                } catch (saveErr) {
+                  console.warn("[analyze-brand BG] Save failed:", saveErr);
+                }
+              }
             } else {
               console.warn("[analyze-brand BG] brand-analysis error:", result.error);
               await markAnalysisFailed(projectId);
