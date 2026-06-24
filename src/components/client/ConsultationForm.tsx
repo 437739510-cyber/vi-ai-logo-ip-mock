@@ -110,44 +110,8 @@ export function ConsultationForm() {
   const goPrev = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   useEffect(() => {
-    const fromInterview = searchParams.get("from") === "interview";
-    const sid = searchParams.get("sid");
-    if (!fromInterview || !sid) return;
-    setPrefillLoading(true);
-    (async () => {
-      try {
-        const { data, error } = await supabase.from("submissions").select("*").eq("id", sid).single();
-        if (error || !data) return;
-        if (data.company_name) setValue("companyName", data.company_name);
-        if (data.industry) {
-          const normalized = normalizeIndustry(data.industry);
-          setValue("industry", normalized);
-          if (normalized.includes(":")) {
-            const [cat, sub] = normalized.split(":");
-            setSelectedIndustryCategory(cat); setSelectedIndustrySub(sub); setSelectedIndustry(normalized);
-            const hl = INDUSTRY_HIGHLIGHT_MAP[normalized]; if (hl) setHighlightTags(hl.tags);
-            const vn = INDUSTRY_VISION_MAP[normalized]; if (vn) setVisionTags(vn.tags);
-          } else { setSelectedIndustry(data.industry); }
-        }
-        if (data.brand_vision) setValue("brandVision", data.brand_vision);
-        if (data.core_values) setValue("coreValues", data.core_values);
-        if (data.target_market) setValue("targetMarket", data.target_market);
-        if (data.logo_philosophy) setValue("logoPhilosophy", data.logo_philosophy);
-        if (data.mascot_philosophy) setValue("mascotPhilosophy", data.mascot_philosophy);
-        if (data.description) setValue("description", data.description);
-        if (data.main_products) setValue("mainProducts", data.main_products);
-        if (data.province) { handleProvinceChange(data.province); if (data.city) setValue("city", data.city); }
-        if (data.brand_colors) {
-          try {
-            const bc = typeof data.brand_colors === "string" ? JSON.parse(data.brand_colors) : data.brand_colors;
-            if (bc.primary) setValue("brandColors.primary", bc.primary);
-            if (bc.secondary) setValue("brandColors.secondary", bc.secondary);
-            if (bc.accent) setValue("brandColors.accent", bc.accent);
-          } catch (e) {}
-        }
-      } catch (e) {} finally { setPrefillLoading(false); }
-    })();
-  }, [searchParams]);
+    // 预填功能已移除（旧版interview/discovery页面已删除）
+    setPrefillLoading(false);
 
   async function uploadFiles(files: File[], type: "logo" | "mascot" | "pdf"): Promise<{ fileName: string; url: string; size: number }[]> {
     if (files.length === 0) return [];
