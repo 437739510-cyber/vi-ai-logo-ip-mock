@@ -888,7 +888,7 @@ export async function POST(req: NextRequest) {
               ],
               temperature: 0.7,
               max_tokens: 4096,},
-      timeoutMs: 45000,
+      timeoutMs: 90000,
     });
 
           if (analysisResp.ok) {

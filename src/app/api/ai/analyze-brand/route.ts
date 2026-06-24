@@ -7,7 +7,7 @@ import { getIndustryType, type IndustryType, getIndustryDefaults } from "@/lib/b
 import { supabaseAdmin } from "@/lib/core/supabase";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 
 const SCENE_MATERIALS: Record<IndustryType, Record<string, { title: string; items: string[] }>> = {
