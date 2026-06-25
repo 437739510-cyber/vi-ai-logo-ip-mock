@@ -17,7 +17,6 @@ import path from "path";
 import { readFile, mkdir, writeFile, readdir } from "fs/promises";
 import { planPages } from "@/lib/vi-manual/page-planner";
 import { renderPptxToBuffer } from "@/lib/pptx/render-pptx";
-import { generateBrandStory, generateLogoNarrative, generateColorDescriptions, generateAuxGraphicsNarrative, generateSceneDescriptions } from "@/lib/pptx/generate-rich-text";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
 import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
@@ -845,6 +844,7 @@ export async function POST(req: NextRequest) {
     let effectiveBrandVision = brandVision;
     let effectiveCoreValues = coreValues;
     let effectiveTargetMarket = targetMarket;
+    let effectiveBrandStory = "";
     let dynamicScenePrompts: Array<{zh: string; en: string}> | null = null;
 
     if (existingBrandProfile?.brandToneKeywords?.length > 0) {
@@ -853,6 +853,7 @@ export async function POST(req: NextRequest) {
       if (brandProfile.refinedBrandVision) effectiveBrandVision = brandProfile.refinedBrandVision;
       if (brandProfile.refinedCoreValues) effectiveCoreValues = brandProfile.refinedCoreValues;
       if (brandProfile.refinedTargetMarket) effectiveTargetMarket = brandProfile.refinedTargetMarket;
+      if (brandProfile.brandStory) effectiveBrandStory = brandProfile.brandStory;
       if (brandProfile.sceneImageSuggestions?.length >= 5) dynamicScenePrompts = brandProfile.sceneImageSuggestions;
       if (brandProfile.logoDesignSuggestions) {
         console.log("[generate-pptx] Reusing brand analysis, logo suggestions available:", brandProfile.logoDesignSuggestions.style);
@@ -888,7 +889,7 @@ export async function POST(req: NextRequest) {
               ],
               temperature: 0.7,
               max_tokens: 4096,},
-      timeoutMs: 90000,
+      timeoutMs: 45000,
     });
 
           if (analysisResp.ok) {
@@ -903,6 +904,7 @@ export async function POST(req: NextRequest) {
               if (brandProfile.refinedBrandVision) effectiveBrandVision = brandProfile.refinedBrandVision;
               if (brandProfile.refinedCoreValues) effectiveCoreValues = brandProfile.refinedCoreValues;
               if (brandProfile.refinedTargetMarket) effectiveTargetMarket = brandProfile.refinedTargetMarket;
+              if (brandProfile.brandStory) effectiveBrandStory = brandProfile.brandStory;
               if (brandProfile.logoDesignSuggestions) {
                 console.log("[generate-pptx] Logo design suggestions available:", brandProfile.logoDesignSuggestions.style);
                 // V103: logoPhilosophy fallback到AI分析的concept+elements+style
@@ -939,8 +941,7 @@ export async function POST(req: NextRequest) {
               console.warn("[generate-pptx] Brand analysis parse failed:", parseErr);
             }
           } else {
-            const errBody = await analysisResp.text().catch(() => "no body");
-            console.warn("[generate-pptx] Brand analysis API failed:", analysisResp.status, errBody.substring(0, 500));
+            console.warn("[generate-pptx] Brand analysis API failed:", analysisResp.status);
           }
         }
       } catch (analysisErr) {
@@ -1315,13 +1316,6 @@ export async function POST(req: NextRequest) {
     // ===== Step 6: 渲染 PPTX =====
     // V12: PPTX组装中
     await supabaseAdmin.from("projects").update({ status: "pptx_assembling", updated_at: new Date().toISOString() }).eq("id", projectId);
-    // V112: 生成富文本叙事
-    const richBrandStory = generateBrandStory(companyName, brandProfile || {});
-    const richLogoPhilosophy = generateLogoNarrative(companyName, brandProfile || {});
-    const richColorDescs = generateColorDescriptions(companyName, brandProfile || {});
-    const richAuxGraphics = generateAuxGraphicsNarrative(brandProfile || {});
-    const richSceneDescs = generateSceneDescriptions(companyName, brandProfile || {});
-
     const buffer = await renderPptxToBuffer(blueprints, {
       projectName: projectId,
       companyName,
@@ -1333,18 +1327,16 @@ export async function POST(req: NextRequest) {
       brandVision: effectiveBrandVision,
       coreValues: effectiveCoreValues,
       targetMarket: effectiveTargetMarket,
-      logoPhilosophy: richLogoPhilosophy || logoPhilosophy,
+      logoPhilosophy,
       mascotPhilosophy,
       sceneImages,
       sceneLabels,
       aiLogoData: aiLogoData || undefined,
       compressImages: true,  // V30: 压缩图片减小体积
       sceneSectionTitles: brandProfile?.sceneSectionTitles,  // V98: AI场景页标题
-      auxGraphicsIntro: richAuxGraphics || buildAuxGraphicsIntro(brandProfile, realColors, industry),
-      colorMeaning: richColorDescs || buildColorMeaning(brandProfile, realColors, industry),
-      // V112: 富文本叙事
-      brandStory: richBrandStory,
-      sceneDescriptions: richSceneDescs,
+      auxGraphicsIntro: buildAuxGraphicsIntro(brandProfile, realColors, industry),
+      colorMeaning: buildColorMeaning(brandProfile, realColors, industry),
+      brandStory: effectiveBrandStory || composeBrandStory(companyName, industry, effectiveBrandVision, effectiveCoreValues, effectiveTargetMarket, brandProfile),
     });
 
     sendProgress("saving", "正在保存文件...", 90);
@@ -1647,6 +1639,7 @@ const BRAND_ANALYSIS_SYSTEM_PROMPT = `你是一位资深的品牌战略分析师
   "refinedBrandVision": "AI提炼/补充的品牌愿景",
   "refinedCoreValues": "AI提炼/补充的核心价值，逗号分隔",
   "refinedTargetMarket": "AI细化/补充的目标市场",
+  "brandStory": "品牌故事，3-5句话，融合品牌起源、核心价值和愿景，语言有感染力",
   "brandToneKeywords": ["关键词1", "关键词2", "关键词3"],
   "visualStyleSuggestion": "视觉风格建议",
   "sceneImageSuggestions": [
@@ -1675,6 +1668,26 @@ const BRAND_ANALYSIS_SYSTEM_PROMPT = `你是一位资深的品牌战略分析师
   }
 }`;
 
+
+// V12: 品牌故事合成 — AI未输出brandStory时从已有数据组合
+function composeBrandStory(
+  companyName: string, industry: string,
+  vision: string, values: string, market: string,
+  profile: any,
+): string {
+  if (!companyName || companyName === "品牌") return "";
+  const parts: string[] = [];
+  const insight = profile?.industryInsight || "";
+  const positioning = profile?.brandPositioning || "";
+  if (insight) parts.push(insight);
+  parts.push(`${companyName}扎根${industry || "本土"}行业`);
+  if (values) parts.push(`以"${values}"为核心价值`);
+  if (market) parts.push(`致力于为${market}提供优质服务`);
+  if (vision) parts.push(vision);
+  if (positioning) parts.push(positioning);
+  return parts.length > 1 ? parts.join("，") + "。" : "";
+}
+
 function buildBrandAnalysisPrompt(info: {
   companyName: string; industry: string;
   brandVision?: string; coreValues?: string; targetMarket?: string;
@@ -1702,7 +1715,7 @@ function buildBrandAnalysisPrompt(info: {
   parts.push("");
   parts.push("请基于以上信息进行深度品牌分析。");
   parts.push("");
-  parts.push("重要：sceneImageSuggestions必须是VI应用效果图（mockup），不是品牌故事场景或美食摄影！每个场景必须描述品牌Logo/视觉元素印在具体产品上的效果。5个场景必须根据客户行业动态决定物料类型。行业→物料映射示例：餐饮/快餐/茶餐厅→筷子套、餐巾纸包、外卖袋、菜单、员工围裙；水果/生鲜→水果贴纸、果篮包装、价格标签、手提袋、促销立牌；美甲/美业→色板卡、甲油瓶贴、预约卡、会员卡、店铺招牌；零售/百货→手提袋、价格标签、购物袋、店面招牌、促销海报；饮品/奶茶→外卖杯、杯套、手提袋、菜单灯箱、会员卡；教育/培训→课程表、学员证、文件夹、招生海报、书包挂件；汽车服务/洗车→洗车毛巾、香薰片、钥匙扣、价目牌、车身贴纸；宠物服务→宠物名片、牵引绳、宠物牌、店招、毛毯；通用/其他→名片、手提袋、产品包装、店面招牌、营销海报。请根据客户实际行业选择最贴合的5种物料，**不要输出与行业无关的品类**。**关键原则：物料必须与该行业的实际经营场景匹配。例如：洗车场不能推荐餐巾纸/餐具，餐厅不能推荐洗车毛巾/香薰片，美容院不能推荐菜单/筷套。**每个场景的zh字段是产品名称（如'名片'、'手提袋'），en字段是英文生图prompt，必须以'Professional product photography of a branded [产品] with company logo clearly printed'开头。**严禁输出美食摄影、人物场景、品牌故事场景**——这是VI手册应用效果图，不是品牌故事绘本！");
+  parts.push("重要：sceneImageSuggestions必须是VI应用效果图（mockup），不是品牌故事场景或美食摄影！每个场景必须描述品牌Logo/视觉元素印在具体产品上的效果。5个场景必须根据客户行业动态决定物料类型。行业→物料映射示例：餐饮/快餐/茶餐厅→筷子套、餐巾纸包、外卖袋、菜单、员工围裙；水果/生鲜→水果贴纸、果篮包装、价格标签、手提袋、促销立牌；美甲/美业→色板卡、甲油瓶贴、预约卡、会员卡、店铺招牌；零售/百货→手提袋、价格标签、购物袋、店面招牌、促销海报；饮品/奶茶→外卖杯、杯套、手提袋、菜单灯箱、会员卡；教育/培训→课程表、学员证、文件夹、招生海报、书包挂件；通用/其他→名片、手提袋、产品包装、店面招牌、营销海报。请根据客户实际行业选择最贴合的5种物料，不要输出与行业无关的品类。每个场景的zh字段是产品名称（如\u2018名片\u2019、\u2018手提袋\u2019），en字段是英文生图prompt，必须以\u2018Professional product photography of a branded [产品] with company logo clearly printed\u2019开头。**严禁输出美食摄影、人物场景、品牌故事场景**——这是VI手册应用效果图，不是品牌故事绘本！");
   parts.push("");
   parts.push("重要：logoDesignSuggestions是为没有Logo的客户设计的。请根据品牌名称、行业特征、地域文化特色，设计4个不同方向的Logo方案。每个prompt需要是完整的英文AI生图指令，详细描述设计风格、核心图形元素、配色方案、排版布局。Logo需要简洁、辨识度高、适合各种尺寸应用（名片、招牌、包装等）。");
   return parts.join("\n");
