@@ -156,61 +156,64 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
   const jsx = {
     type: 'div',
     props: {
-      style: { width: PAGE_W, height: PAGE_H, backgroundColor: '#FFFFFF', display: 'flex', flexDirection: 'column', padding: '40px 60px' },
+      style: { width: PAGE_W, height: PAGE_H, backgroundColor: '#FFFFFF', display: 'flex', flexDirection: 'column', padding: '40px 50px' },
       children: [
         // 标题
         { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }, children: [
           { type: 'div', props: { style: { fontSize: 28, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC' }, children: '标准色彩规范' } },
         ]}},
         // 装饰线
-        { type: 'div', props: { style: { width: '100%', height: 4, backgroundColor: '#F5E6D0', borderRadius: 2, marginBottom: 24 } } },
-        // 色卡
-        { type: 'div', props: { style: { display: 'flex', justifyContent: 'center', gap: 40, marginBottom: 20 }, children: colors.map((c: any) => {
+        { type: 'div', props: { style: { width: 80, height: 4, backgroundColor: `#${bc.acc}`, borderRadius: 2, marginBottom: 28 } } },
+        // 三栏色卡 — 每栏包含色圆+色值+组合示例
+        { type: 'div', props: { style: { display: 'flex', gap: 24, flex: 1 }, children: colors.map((c: any, idx: number) => {
           const rgb = hex2rgb(c.hex);
           const cmyk = rgb2cmyk(rgb.r, rgb.g, rgb.b);
           const light = isLight(c.hex);
+          const colW = Math.floor((PAGE_W - 100 - 48) / 3);
+          // 组合示例色对
+          const combos = [
+            { c1: bc.pri, c2: bc.sec, t: '主色+辅助色' },
+            { c1: 'FFFFFF', c2: bc.acc, t: '白底+强调色' },
+            { c1: bc.priDark || bc.pri, c2: 'FFFFFF', t: '深主色+白底' },
+          ];
           return {
             type: 'div',
             props: {
-              style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: 180 },
+              style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: colW, backgroundColor: '#FAFAFA', borderRadius: 12, padding: '24px 16px' },
               children: [
                 // 圆形色卡
-                { type: 'div', props: { style: { width: 120, height: 120, borderRadius: 60, backgroundColor: `#${c.hex}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: light ? '0 2px 8px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.2)', border: light ? '1px solid #CCCCCC' : 'none' }, children: [
-                  { type: 'div', props: { style: { fontSize: 13, color: light ? '#333333' : '#FFFFFF', fontFamily: 'Noto Sans SC', opacity: 0.6 }, children: c.name } }
+                { type: 'div', props: { style: { width: 100, height: 100, borderRadius: 50, backgroundColor: `#${c.hex}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: light ? '0 2px 8px rgba(0,0,0,0.08)' : '0 2px 8px rgba(0,0,0,0.2)', border: light ? '1px solid #DDDDDD' : 'none', flexShrink: 0 }, children: [
+                  { type: 'div', props: { style: { fontSize: 12, color: light ? '#333333' : '#FFFFFF', fontFamily: 'Noto Sans SC', opacity: 0.7 }, children: c.name } }
                 ]}},
-                // 标签
-                { type: 'div', props: { style: { fontSize: 14, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC', marginTop: 10 }, children: c.label } },
-                { type: 'div', props: { style: { fontSize: 12, color: '#555555', fontFamily: 'Noto Sans SC', marginTop: 4 }, children: `#${c.hex}` } },
-                { type: 'div', props: { style: { fontSize: 11, color: '#777777', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: `RGB: ${rgb.r}, ${rgb.g}, ${rgb.b}` } },
-                { type: 'div', props: { style: { fontSize: 11, color: '#777777', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: `CMYK: ${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}` } },
+                // 色名
+                { type: 'div', props: { style: { fontSize: 16, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC', marginTop: 14 }, children: c.label } },
+                // 色值
+                { type: 'div', props: { style: { fontSize: 14, color: `#${c.hex}`, fontFamily: 'Noto Sans SC', marginTop: 6, fontWeight: 600 }, children: `#${c.hex}` } },
+                { type: 'div', props: { style: { fontSize: 11, color: '#666666', fontFamily: 'Noto Sans SC', marginTop: 4 }, children: `RGB ${rgb.r}, ${rgb.g}, ${rgb.b}` } },
+                { type: 'div', props: { style: { fontSize: 11, color: '#666666', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: `CMYK ${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}` } },
+                // 分割线
+                { type: 'div', props: { style: { width: '80%', height: 1, backgroundColor: '#E0E0E0', marginTop: 16, marginBottom: 12 } } },
+                // 组合示例
+                { type: 'div', props: { style: { fontSize: 11, fontWeight: 700, color: '#888888', fontFamily: 'Noto Sans SC', marginBottom: 8 }, children: '色彩组合' } },
+                ...combos.map((cb: any) => ({
+                  type: 'div',
+                  props: {
+                    style: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
+                    children: [
+                      { type: 'div', props: { style: { display: 'flex', width: 60, height: 22, borderRadius: 3, overflow: 'hidden' }, children: [
+                        { type: 'div', props: { style: { width: 30, height: 22, backgroundColor: `#${cb.c1}`, border: cb.c1 === 'FFFFFF' ? '1px solid #E0E0E0' : 'none' } } },
+                        { type: 'div', props: { style: { width: 30, height: 22, backgroundColor: `#${cb.c2}`, border: cb.c2 === 'FFFFFF' ? '1px solid #E0E0E0' : 'none' } } },
+                      ]}},
+                      { type: 'div', props: { style: { fontSize: 9, color: '#999999', fontFamily: 'Noto Sans SC' }, children: cb.t } },
+                    ]
+                  }
+                })),
               ]
             }
           };
         })}},
-        // 色彩选择依据
-        { type: 'div', props: { style: { fontSize: 16, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC', marginTop: 12, marginBottom: 8 }, children: '色彩选择依据' } },
-        { type: 'div', props: { style: { fontSize: 12, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.6 }, children: colorMeaning || `品牌主色#${bc.pri}传递品牌核心调性，辅助色#${bc.sec}营造层次与和谐，强调色#${bc.acc}用于关键信息突出与视觉焦点引导。三色组合确保品牌视觉的专业性、一致性与识别度。` } },
-        // 色彩组合
-        { type: 'div', props: { style: { fontSize: 18, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC', marginTop: 20, marginBottom: 12 }, children: '色彩组合示例' } },
-        { type: 'div', props: { style: { display: 'flex', gap: 24 }, children: [
-          ...([
-            { colors: [bc.pri, bc.sec], label: '主色 + 辅助色' },
-            { colors: ['FFFFFF', bc.acc], label: '白底 + 强调色' },
-            { colors: [bc.priDark || bc.pri, 'FFFFFF'], label: '深主色 + 白底' },
-          ] as const).map((combo: any) => ({
-            type: 'div',
-            props: {
-              style: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
-              children: [
-                { type: 'div', props: { style: { display: 'flex', width: 180, height: 50, borderRadius: 4, overflow: 'hidden' }, children: [
-                  { type: 'div', props: { style: { width: 90, height: 50, backgroundColor: `#${combo.colors[0]}`, border: combo.colors[0] === 'FFFFFF' ? '1px solid #E0E0E0' : 'none' } } },
-                  { type: 'div', props: { style: { width: 90, height: 50, backgroundColor: `#${combo.colors[1]}`, border: combo.colors[1] === 'FFFFFF' ? '1px solid #E0E0E0' : 'none' } } },
-                ]}},
-                { type: 'div', props: { style: { fontSize: 11, color: '#555555', fontFamily: 'Noto Sans SC', marginTop: 6 }, children: combo.label } },
-              ]
-            }
-          })),
-        ]}},
+        // 底部色彩选择依据
+        { type: 'div', props: { style: { fontSize: 11, color: '#888888', fontFamily: 'Noto Sans SC', lineHeight: 1.6, marginTop: 16, padding: '0 8px' }, children: colorMeaning || `品牌主色#${bc.pri}传递品牌核心调性，辅助色#${bc.sec}营造层次与和谐，强调色#${bc.acc}用于关键信息突出与视觉焦点引导。三色组合确保品牌视觉的专业性、一致性与识别度。` } },
       ]
     }
   };
