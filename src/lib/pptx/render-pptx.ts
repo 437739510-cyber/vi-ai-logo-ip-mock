@@ -601,24 +601,7 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
   slide.addText("设计理念", { x: cx + 0.2, y: phiY, w: 2, h: 0.35, fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
   slide.addText(philosophy, { x: cx + 0.2, y: phiY + 0.45, w: CONTENT_W - 0.4, h: 1.5, fontSize: 12, color: "444444", lineSpacingMultiple: 1.5, fontFace: "Noto Sans SC" });
 
-  // 色彩逻辑 — 横向三列布局
-  const colorY = 7.0;
-  slide.addShape("rect", { x: cx, y: colorY, w: 0.06, h: 0.35, fill: { color: bc.acc }, rectRadius: 0.02 });
-  slide.addText("色彩逻辑", { x: cx + 0.2, y: colorY, w: 2, h: 0.35, fontSize: 15, bold: true, color: bc.acc, fontFace: "Noto Sans SC" });
-  // 三色横向排列
-  const colW = CONTENT_W / 3;
-  const dotR = 0.3;
-  const colorItems = [
-    { label: "品牌主色", hex: bc.pri },
-    { label: "辅助色", hex: bc.sec },
-    { label: "强调色", hex: bc.acc },
-  ];
-  for (let ci = 0; ci < 3; ci++) {
-    const colX = cx + ci * colW;
-    slide.addShape("ellipse", { x: colX + (colW - dotR) / 2, y: colorY + 0.55, w: dotR, h: dotR, fill: { color: colorItems[ci].hex } });
-    slide.addText(colorItems[ci].label, { x: colX, y: colorY + 1.0, w: colW, h: 0.3, fontSize: 12, bold: true, color: "333333", align: "center", fontFace: "Noto Sans SC" });
-    slide.addText("#" + colorItems[ci].hex, { x: colX, y: colorY + 1.3, w: colW, h: 0.25, fontSize: 11, color: "666666", align: "center", fontFace: "Noto Sans SC" });
-  }
+
 
   // IP公仔区域
   if (opts.mascotData) {
