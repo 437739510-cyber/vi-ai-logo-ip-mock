@@ -17,7 +17,7 @@ import { join } from 'path';
 
 // 页面尺寸 (英寸 → 像素，PPTX标准10x7.5英寸，用600x450渲染足够清晰)
 const PAGE_W = 1200;
-const PAGE_H = 900;
+const PAGE_H = 1697;  // A4 portrait: 8.27:11.69 ratio
 
 // 字体缓存
 let fontsCache: any = null;
@@ -142,9 +142,9 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
     const k = 1 - Math.max(r,g,b)/255;
     if (k === 1) return { c: 0, m: 0, y: 0, k: 100 };
     return {
-      c: Math.round((1-r/255)/(1-k)*100),
-      m: Math.round((1-g/255)/(1-k)*100),
-      y: Math.round((1-b/255)/(1-k)*100),
+      c: Math.round(((1-r/255)-k)/(1-k)*100),
+      m: Math.round(((1-g/255)-k)/(1-k)*100),
+      y: Math.round(((1-b/255)-k)/(1-k)*100),
       k: Math.round(k*100)
     };
   }
