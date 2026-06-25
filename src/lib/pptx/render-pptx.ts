@@ -497,25 +497,62 @@ function renderClosing(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPp
 function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, "品牌核心理念", bc);
 
-  // V6: 优先用opts直接传入的数据，不依赖blueprint元素匹配
+  // V6→V113: 横向三列布局（品牌愿景 | 核心价值 | 目标市场）+ 底部品牌故事通栏
   const sections = [
     { label: "品牌愿景", content: opts.brandVision || fta(bp, ["ph-vision-content","brand-vision-content","vision-content"]) || "待品牌方补充" },
     { label: "核心价值", content: opts.coreValues || fta(bp, ["ph-values-content","core-values-content","values-content"]) || "待品牌方补充" },
     { label: "目标市场", content: opts.targetMarket || fta(bp, ["ph-market-content","target-market-content","market-content"]) || "待品牌方补充" },
   ];
 
-  let yPos = 1.8;
-  for (const s of sections) {
-    slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: yPos, w: 0.12, h: 2.0, fill: { color: bc.pri }, rectRadius: 0.03 });
-    slide.addText(s.label, { x: MARGIN + LEFT_BAR_W + 0.3, y: yPos + 0.1, w: CONTENT_W - 0.5, h: 0.5, fontSize: 17, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
-    slide.addText(s.content, { x: MARGIN + LEFT_BAR_W + 0.3, y: yPos + 0.7, w: CONTENT_W - 0.5, h: 1.0, fontSize: 13, color: "444444", lineSpacingMultiple: 1.6, valign: "top" });
-    yPos += 2.4;
+  const cx = MARGIN + LEFT_BAR_W;
+  const colGap = 0.25;
+  const colW = (CONTENT_W - colGap * 2) / 3;
+  const colTopY = 1.8;
+  const cardH = 2.8;  // 三列卡片高度
+
+  for (let i = 0; i < sections.length; i++) {
+    const colX = cx + i * (colW + colGap);
+    const s = sections[i];
+
+    // 卡片背景
+    slide.addShape("rect", {
+      x: colX, y: colTopY, w: colW, h: cardH,
+      fill: { color: "F8F8F8" }, rectRadius: 0.08,
+    });
+    // 顶部品牌色装饰条
+    slide.addShape("rect", {
+      x: colX, y: colTopY, w: colW, h: 0.08,
+      fill: { color: bc.pri }, rectRadius: 0.04,
+    });
+    // 标签
+    slide.addText(s.label, {
+      x: colX + 0.2, y: colTopY + 0.3, w: colW - 0.4, h: 0.45,
+      fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC", align: "center",
+    });
+    // 内容
+    slide.addText(s.content, {
+      x: colX + 0.2, y: colTopY + 0.9, w: colW - 0.4, h: cardH - 1.2,
+      fontSize: 13, color: "444444", lineSpacingMultiple: 1.6, valign: "top", align: "center",
+    });
   }
 
-  // V112: 品牌故事 — 如果有就展示
+  // 品牌故事 — 通栏
+  const storyY = colTopY + cardH + 0.4;
+  const storyH = SH - storyY - 0.5;
   if (opts.brandStory) {
-    slide.addText("品牌故事", { x: MARGIN + LEFT_BAR_W, y: yPos, w: CONTENT_W, h: 0.4, fontSize: 14, bold: true, color: bc.pri });
-    slide.addText(opts.brandStory, { x: MARGIN + LEFT_BAR_W, y: yPos + 0.5, w: CONTENT_W - 0.3, h: 1.8, fontSize: 12, color: "555555", lineSpacingMultiple: 1.5, valign: "top" });
+    // 左侧装饰条
+    slide.addShape("rect", {
+      x: cx, y: storyY, w: 0.1, h: Math.min(storyH, 4.0),
+      fill: { color: bc.pri }, rectRadius: 0.03,
+    });
+    slide.addText("品牌故事", {
+      x: cx + 0.3, y: storyY, w: CONTENT_W - 0.3, h: 0.45,
+      fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC",
+    });
+    slide.addText(opts.brandStory, {
+      x: cx + 0.3, y: storyY + 0.5, w: CONTENT_W - 0.5, h: storyH - 0.6,
+      fontSize: 12, color: "555555", lineSpacingMultiple: 1.5, valign: "top",
+    });
   }
 
   // IP公仔 — 右下角半透明装饰
@@ -545,44 +582,37 @@ function extractKeywords(text: string): string[] {
 }
 function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType): void {
   addContentFrame(slide, "标识诠释", bc);
+  const cx = MARGIN + LEFT_BAR_W;
 
-  // Logo展示区 — 居中放大
-  const logoW = 3.5, logoH = 3.5;
+  // Logo展示区 — 居中，适度放大
+  const logoW = 2.8, logoH = 2.8;
   if (opts.logoData) {
-    slide.addShape("rect", { x: (SW - logoW - 0.6) / 2, y: 1.6, w: logoW + 0.6, h: logoH + 0.6, fill: { color: "F5F5F5" }, rectRadius: 0.1 });
-    slide.addImage({ data: normImg(opts.logoData), x: (SW - logoW) / 2, y: 1.9, w: logoW, h: logoH, sizing: { type: "contain", w: logoW, h: logoH } });
+    slide.addShape("rect", { x: (SW - logoW - 0.4) / 2, y: 1.5, w: logoW + 0.4, h: logoH + 0.4, fill: { color: "F5F5F5" }, rectRadius: 0.1 });
+    slide.addImage({ data: normImg(opts.logoData), x: (SW - logoW) / 2, y: 1.7, w: logoW, h: logoH, sizing: { type: "contain", w: logoW, h: logoH } });
   } else {
-    // V13: 无Logo图时渲染字标
-    slide.addShape("rect", { x: (SW - 3.5) / 2, y: 1.6, w: 3.5, h: 3.5, fill: { color: "F5F5F5" }, rectRadius: 0.1 });
-    // 组合Logo展示 = 行业图标 + 品牌名字标
-    addComboLogo(slide, opts.companyName || "品牌", (SW - 3.5) / 2, 1.2, 3.5, 3.8, bc, industry, { fontSize: 40, color: bc.pri, layout: "vertical", aiLogoData: opts.aiLogoData });
+    slide.addShape("rect", { x: (SW - 3.0) / 2, y: 1.5, w: 3.0, h: 3.0, fill: { color: "F5F5F5" }, rectRadius: 0.1 });
+    addComboLogo(slide, opts.companyName || "品牌", (SW - 3.0) / 2, 1.2, 3.0, 3.2, bc, industry, { fontSize: 36, color: bc.pri, layout: "vertical", aiLogoData: opts.aiLogoData });
   }
 
-  // V112: 品牌故事叙事 — 支持长文本
+  // 设计理念
   const philosophy = opts.logoPhilosophy || fta(bp, ["logo-philosophy","logo-meaning","logo-concept"]) || "Logo 凝练了品牌核心视觉要素，体现品牌独特识别性。";
-  slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: 5.6, w: 0.08, h: 2.2, fill: { color: bc.pri }, rectRadius: 0.03 });
-  slide.addText("设计理念", { x: MARGIN + LEFT_BAR_W + 0.25, y: 5.6, w: CONTENT_W - 0.3, h: 0.45, fontSize: 17, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
-  slide.addText(philosophy, { x: MARGIN + LEFT_BAR_W + 0.25, y: 6.1, w: CONTENT_W - 0.3, h: 1.8, fontSize: 12, color: "444444", lineSpacingMultiple: 1.5 });
-  // 核心视觉要素
-  const kwY = 7.5;
-  slide.addText("核心视觉要素", { x: MARGIN + LEFT_BAR_W, y: kwY, w: CONTENT_W, h: 0.4, fontSize: 14, bold: true, color: bc.pri });
-  const keywords = extractKeywords(philosophy);
-  const kwW = (CONTENT_W - 0.2) / 3;
-  for (let ki = 0; ki < Math.min(keywords.length, 3); ki++) {
-    const kx = MARGIN + LEFT_BAR_W + ki * (kwW + 0.1);
-    slide.addShape("ellipse", { x: kx, y: kwY + 0.5, w: 0.6, h: 0.6, fill: { color: bc.pri } });
-    slide.addText(String(ki + 1), { x: kx, y: kwY + 0.5, w: 0.6, h: 0.6, fontSize: 14, color: "FFFFFF", align: "center", valign: "middle", bold: true });
-    slide.addText(keywords[ki], { x: kx + 0.7, y: kwY + 0.5, w: kwW - 0.7, h: 0.6, fontSize: 12, color: "333333", valign: "middle" });
-  }
+  const phiY = 4.8;
+  slide.addShape("rect", { x: cx, y: phiY, w: 0.06, h: 0.35, fill: { color: bc.pri }, rectRadius: 0.02 });
+  slide.addText("设计理念", { x: cx + 0.2, y: phiY, w: 2, h: 0.35, fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+  slide.addText(philosophy, { x: cx + 0.2, y: phiY + 0.45, w: CONTENT_W - 0.4, h: 1.5, fontSize: 12, color: "444444", lineSpacingMultiple: 1.5, fontFace: "Noto Sans SC" });
+
+
 
   // IP公仔区域
   if (opts.mascotData) {
-    slide.addText("IP 角色介绍", { x: MARGIN + LEFT_BAR_W, y: 8.0, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
-    const ipW = 2.2, ipH = 2.6;
-    slide.addShape("rect", { x: (SW - ipW - 0.4) / 2, y: 8.5, w: ipW + 0.4, h: ipH + 0.2, fill: { color: "F5F5F5" }, rectRadius: 0.08 });
-    slide.addImage({ data: normImg(opts.mascotData), x: (SW - ipW) / 2, y: 8.6, w: ipW, h: ipH, sizing: { type: "contain", w: ipW, h: ipH } });
+    const ipY = 9.0;
+    slide.addShape("rect", { x: cx, y: ipY, w: 0.06, h: 0.35, fill: { color: bc.sec }, rectRadius: 0.02 });
+    slide.addText("IP 角色介绍", { x: cx + 0.2, y: ipY, w: CONTENT_W, h: 0.4, fontSize: 15, bold: true, color: bc.sec, fontFace: "Noto Sans SC" });
+    const ipW = 1.8, ipH = 2.2;
+    slide.addShape("rect", { x: (SW - ipW - 0.3) / 2, y: ipY + 0.5, w: ipW + 0.3, h: ipH + 0.2, fill: { color: "F5F5F5" }, rectRadius: 0.08 });
+    slide.addImage({ data: normImg(opts.mascotData), x: (SW - ipW) / 2, y: ipY + 0.6, w: ipW, h: ipH, sizing: { type: "contain", w: ipW, h: ipH } });
     const mascotDesc = opts.mascotPhilosophy || fta(bp, ["mascot-philosophy","mascot-meaning","ip-intro"]) || "品牌IP公仔，承载品牌个性与亲和力。";
-    slide.addText(mascotDesc, { x: MARGIN + LEFT_BAR_W, y: SH - 1.0, w: CONTENT_W, h: 0.5, fontSize: 11, color: "666666", align: "center", lineSpacingMultiple: 1.4 });
+    slide.addText(mascotDesc, { x: cx, y: SH - 0.8, w: CONTENT_W, h: 0.4, fontSize: 11, color: "666666", align: "center", lineSpacingMultiple: 1.4, fontFace: "Noto Sans SC" });
   }
 }
 
@@ -779,22 +809,22 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   });
 
   const halfW = (CONTENT_W - 0.3) / 2;
-  const patternH = 2.5;
+  const patternH = 1.8;
 
-  // Pattern 1: Stripes
+  // V11: Pattern 1: Stripes — moved down to y=3.6, transparency reduced for brand color visibility
   const p1x = cx;
-  const p1y = 2.0;
+  const p1y = 3.6;
   slide.addShape("rect", {
     x: p1x, y: p1y, w: halfW, h: patternH,
     fill: { color: "F5F5F5" }, rectRadius: 0.1,
   });
-  // Draw 5 diagonal stripes with brand colors
-  const stripeColors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec];
-  for (let s = 0; s < 5; s++) {
+  // Draw 7 stripes with brand colors (lower transparency for color clarity)
+  const stripeColors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec, bc.acc, bc.pri];
+  for (let s = 0; s < 7; s++) {
     slide.addShape("rect", {
-      x: p1x + s * (halfW / 5), y: p1y,
-      w: halfW / 8, h: patternH,
-      fill: { color: stripeColors[s], transparency: 60 },
+      x: p1x + s * (halfW / 7), y: p1y,
+      w: halfW / 10, h: patternH,
+      fill: { color: stripeColors[s], transparency: 30 },
       rectRadius: 0.02,
     });
   }
@@ -803,21 +833,21 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
     fontSize: 12, bold: true, color: "444444", align: "center",
   });
 
-  // Pattern 2: Dots
+  // V11: Pattern 2: Dots — moved down to y=3.6, transparency reduced
   const p2x = cx + halfW + 0.3;
-  const p2y = 2.0;
+  const p2y = 3.6;
   slide.addShape("rect", {
     x: p2x, y: p2y, w: halfW, h: patternH,
     fill: { color: "F5F5F5" }, rectRadius: 0.1,
   });
-  // Draw dot grid
-  const dotColors = [bc.sec, bc.pri, bc.acc];
+  // Draw dot grid with brand colors (lower transparency for color clarity)
+  const dotColors = [bc.pri, bc.sec, bc.acc];
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 6; c++) {
       slide.addShape("ellipse", {
-        x: p2x + 0.2 + c * 0.55, y: p2y + 0.2 + r * 0.55,
+        x: p2x + 0.2 + c * 0.55, y: p2y + 0.2 + r * 0.42,
         w: 0.25, h: 0.25,
-        fill: { color: dotColors[(r + c) % 3], transparency: 50 },
+        fill: { color: dotColors[(r + c) % 3], transparency: 20 },
       });
     }
   }
@@ -826,19 +856,19 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
     fontSize: 12, bold: true, color: "444444", align: "center",
   });
 
-  // Usage section
+  // Usage section — shifted down
   slide.addText("应用场景", {
-    x: cx, y: 5.3, w: CONTENT_W, h: 0.35,
+    x: cx, y: 6.0, w: CONTENT_W, h: 0.35,
     fontSize: 16, bold: true, color: bc.pri,
   });
 
   slide.addText("1. 文档/手册页眉装饰线\n2. 包装袋底部纹样\n3. 名片背面背景\n4. 社交媒体封面装饰\n5. 店铺墙面装饰纹样", {
-    x: cx + 0.2, y: 5.7, w: CONTENT_W - 0.4, h: 1.2,
-    fontSize: 12, color: "555555", lineSpacingMultiple: 1.6,
+    x: cx + 0.2, y: 6.35, w: CONTENT_W - 0.4, h: 0.9,
+    fontSize: 12, color: "555555", lineSpacingMultiple: 1.4,
   });
 
   slide.addText("辅助图形可按比例缩放，但不可改变比例关系或旋转角度。建议透明度使用10%-40%。", {
-    x: cx, y: 7.0, w: CONTENT_W, h: 0.3,
+    x: cx, y: 7.3, w: CONTENT_W, h: 0.3,
     fontSize: 11, color: "888888", align: "center",
   });
 }

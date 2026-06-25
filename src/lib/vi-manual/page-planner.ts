@@ -149,7 +149,7 @@ const PAGE_LABELS: Record<string, string> = {
   "brand-philosophy": "品牌核心理念",
   "logo-interpretation": "标识诠释",
   "logo-variations": "Logo组合规范",
-  "logo-misuse": "Logo误用规范",
+  "logo-misuse": "Logo使用规范",
   "auxiliary-graphics": "辅助图形",
   "brand-colors": "标准色彩规范",
   typography: "字体系统",
