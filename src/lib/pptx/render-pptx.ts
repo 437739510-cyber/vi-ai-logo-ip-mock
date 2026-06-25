@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 /**
  * PptxGenJS Renderer V6 — AI写实图+专业排版
  *
@@ -273,7 +273,7 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     default: renderGeneric(slide, bp, opts, bc);
   }
   // 页码（封面/封底/目录不加）
-  if (bp.pageId !== "cover" && bp.pageId !== "closing" && bp.pageId !== "toc" && bp.pageId !== "typography" && bp.pageId !== "brand-colors") {
+  if (bp.pageId !== "cover" && bp.pageId !== "closing" && bp.pageId !== "toc") {
     const idx = PAGE_ORDER.indexOf(bp.pageId);
     slide.addText(`${idx > 0 ? idx : ""}`, { x: SW - MARGIN - 0.5, y: SH - 0.55, w: 0.5, h: 0.3, fontSize: 9, color: "BBBBBB", align: "right" });
   }
@@ -497,25 +497,62 @@ function renderClosing(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPp
 function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, "品牌核心理念", bc);
 
-  // V6: 优先用opts直接传入的数据，不依赖blueprint元素匹配
+  // V6→V113: 横向三列布局（品牌愿景 | 核心价值 | 目标市场）+ 底部品牌故事通栏
   const sections = [
     { label: "品牌愿景", content: opts.brandVision || fta(bp, ["ph-vision-content","brand-vision-content","vision-content"]) || "待品牌方补充" },
     { label: "核心价值", content: opts.coreValues || fta(bp, ["ph-values-content","core-values-content","values-content"]) || "待品牌方补充" },
     { label: "目标市场", content: opts.targetMarket || fta(bp, ["ph-market-content","target-market-content","market-content"]) || "待品牌方补充" },
   ];
 
-  let yPos = 1.8;
-  for (const s of sections) {
-    slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: yPos, w: 0.12, h: 2.0, fill: { color: bc.pri }, rectRadius: 0.03 });
-    slide.addText(s.label, { x: MARGIN + LEFT_BAR_W + 0.3, y: yPos + 0.1, w: CONTENT_W - 0.5, h: 0.5, fontSize: 17, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
-    slide.addText(s.content, { x: MARGIN + LEFT_BAR_W + 0.3, y: yPos + 0.7, w: CONTENT_W - 0.5, h: 1.0, fontSize: 13, color: "444444", lineSpacingMultiple: 1.6, valign: "top" });
-    yPos += 2.4;
+  const cx = MARGIN + LEFT_BAR_W;
+  const colGap = 0.25;
+  const colW = (CONTENT_W - colGap * 2) / 3;
+  const colTopY = 1.8;
+  const cardH = 2.8;  // 三列卡片高度
+
+  for (let i = 0; i < sections.length; i++) {
+    const colX = cx + i * (colW + colGap);
+    const s = sections[i];
+
+    // 卡片背景
+    slide.addShape("rect", {
+      x: colX, y: colTopY, w: colW, h: cardH,
+      fill: { color: "F8F8F8" }, rectRadius: 0.08,
+    });
+    // 顶部品牌色装饰条
+    slide.addShape("rect", {
+      x: colX, y: colTopY, w: colW, h: 0.08,
+      fill: { color: bc.pri }, rectRadius: 0.04,
+    });
+    // 标签
+    slide.addText(s.label, {
+      x: colX + 0.2, y: colTopY + 0.3, w: colW - 0.4, h: 0.45,
+      fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC", align: "center",
+    });
+    // 内容
+    slide.addText(s.content, {
+      x: colX + 0.2, y: colTopY + 0.9, w: colW - 0.4, h: cardH - 1.2,
+      fontSize: 13, color: "444444", lineSpacingMultiple: 1.6, valign: "top", align: "center",
+    });
   }
 
-  // V112: 品牌故事 — 如果有就展示
+  // 品牌故事 — 通栏
+  const storyY = colTopY + cardH + 0.4;
+  const storyH = SH - storyY - 0.5;
   if (opts.brandStory) {
-    slide.addText("品牌故事", { x: MARGIN + LEFT_BAR_W, y: yPos, w: CONTENT_W, h: 0.4, fontSize: 14, bold: true, color: bc.pri });
-    slide.addText(opts.brandStory, { x: MARGIN + LEFT_BAR_W, y: yPos + 0.5, w: CONTENT_W - 0.3, h: 1.8, fontSize: 12, color: "555555", lineSpacingMultiple: 1.5, valign: "top" });
+    // 左侧装饰条
+    slide.addShape("rect", {
+      x: cx, y: storyY, w: 0.1, h: Math.min(storyH, 4.0),
+      fill: { color: bc.pri }, rectRadius: 0.03,
+    });
+    slide.addText("品牌故事", {
+      x: cx + 0.3, y: storyY, w: CONTENT_W - 0.3, h: 0.45,
+      fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC",
+    });
+    slide.addText(opts.brandStory, {
+      x: cx + 0.3, y: storyY + 0.5, w: CONTENT_W - 0.5, h: storyH - 0.6,
+      fontSize: 12, color: "555555", lineSpacingMultiple: 1.5, valign: "top",
+    });
   }
 
   // IP公仔 — 右下角半透明装饰
