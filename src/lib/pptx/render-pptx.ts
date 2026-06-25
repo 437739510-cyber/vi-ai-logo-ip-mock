@@ -809,22 +809,22 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   });
 
   const halfW = (CONTENT_W - 0.3) / 2;
-  const patternH = 2.2;
+  const patternH = 1.8;
 
-  // Pattern 1: Stripes — moved down to y=3.2 to avoid text overlap
+  // V11: Pattern 1: Stripes — moved down to y=3.6, transparency reduced for brand color visibility
   const p1x = cx;
-  const p1y = 3.2;
+  const p1y = 3.6;
   slide.addShape("rect", {
     x: p1x, y: p1y, w: halfW, h: patternH,
     fill: { color: "F5F5F5" }, rectRadius: 0.1,
   });
-  // Draw 5 diagonal stripes with brand colors
-  const stripeColors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec];
-  for (let s = 0; s < 5; s++) {
+  // Draw 7 stripes with brand colors (lower transparency for color clarity)
+  const stripeColors = [bc.pri, bc.sec, bc.acc, bc.pri, bc.sec, bc.acc, bc.pri];
+  for (let s = 0; s < 7; s++) {
     slide.addShape("rect", {
-      x: p1x + s * (halfW / 5), y: p1y,
-      w: halfW / 8, h: patternH,
-      fill: { color: stripeColors[s], transparency: 60 },
+      x: p1x + s * (halfW / 7), y: p1y,
+      w: halfW / 10, h: patternH,
+      fill: { color: stripeColors[s], transparency: 30 },
       rectRadius: 0.02,
     });
   }
@@ -833,21 +833,21 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
     fontSize: 12, bold: true, color: "444444", align: "center",
   });
 
-  // Pattern 2: Dots
+  // V11: Pattern 2: Dots — moved down to y=3.6, transparency reduced
   const p2x = cx + halfW + 0.3;
-  const p2y = 3.2;
+  const p2y = 3.6;
   slide.addShape("rect", {
     x: p2x, y: p2y, w: halfW, h: patternH,
     fill: { color: "F5F5F5" }, rectRadius: 0.1,
   });
-  // Draw dot grid
-  const dotColors = [bc.sec, bc.pri, bc.acc];
+  // Draw dot grid with brand colors (lower transparency for color clarity)
+  const dotColors = [bc.pri, bc.sec, bc.acc];
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 6; c++) {
       slide.addShape("ellipse", {
-        x: p2x + 0.2 + c * 0.55, y: p2y + 0.2 + r * 0.55,
+        x: p2x + 0.2 + c * 0.55, y: p2y + 0.2 + r * 0.42,
         w: 0.25, h: 0.25,
-        fill: { color: dotColors[(r + c) % 3], transparency: 50 },
+        fill: { color: dotColors[(r + c) % 3], transparency: 20 },
       });
     }
   }
@@ -856,19 +856,19 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
     fontSize: 12, bold: true, color: "444444", align: "center",
   });
 
-  // Usage section
+  // Usage section — shifted down
   slide.addText("应用场景", {
-    x: cx, y: 6.1, w: CONTENT_W, h: 0.35,
+    x: cx, y: 6.0, w: CONTENT_W, h: 0.35,
     fontSize: 16, bold: true, color: bc.pri,
   });
 
   slide.addText("1. 文档/手册页眉装饰线\n2. 包装袋底部纹样\n3. 名片背面背景\n4. 社交媒体封面装饰\n5. 店铺墙面装饰纹样", {
-    x: cx + 0.2, y: 6.5, w: CONTENT_W - 0.4, h: 1.2,
-    fontSize: 12, color: "555555", lineSpacingMultiple: 1.6,
+    x: cx + 0.2, y: 6.35, w: CONTENT_W - 0.4, h: 0.9,
+    fontSize: 12, color: "555555", lineSpacingMultiple: 1.4,
   });
 
   slide.addText("辅助图形可按比例缩放，但不可改变比例关系或旋转角度。建议透明度使用10%-40%。", {
-    x: cx, y: 7.8, w: CONTENT_W, h: 0.3,
+    x: cx, y: 7.3, w: CONTENT_W, h: 0.3,
     fontSize: 11, color: "888888", align: "center",
   });
 }
