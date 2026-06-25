@@ -601,19 +601,24 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
   slide.addText("设计理念", { x: cx + 0.2, y: phiY, w: 2, h: 0.35, fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
   slide.addText(philosophy, { x: cx + 0.2, y: phiY + 0.45, w: CONTENT_W - 0.4, h: 1.5, fontSize: 12, color: "444444", lineSpacingMultiple: 1.5, fontFace: "Noto Sans SC" });
 
-  // 色彩逻辑（从品牌色推导，不依赖philosophy关键词提取）
+  // 色彩逻辑 — 横向三列布局
   const colorY = 7.0;
   slide.addShape("rect", { x: cx, y: colorY, w: 0.06, h: 0.35, fill: { color: bc.acc }, rectRadius: 0.02 });
   slide.addText("色彩逻辑", { x: cx + 0.2, y: colorY, w: 2, h: 0.35, fontSize: 15, bold: true, color: bc.acc, fontFace: "Noto Sans SC" });
-  // 主色说明
-  slide.addShape("ellipse", { x: cx + 0.2, y: colorY + 0.5, w: 0.35, h: 0.35, fill: { color: bc.pri } });
-  slide.addText("品牌主色 #" + bc.pri, { x: cx + 0.7, y: colorY + 0.5, w: 2.5, h: 0.35, fontSize: 11, color: "333333", valign: "middle", fontFace: "Noto Sans SC" });
-  // 辅助色说明
-  slide.addShape("ellipse", { x: cx + 0.2, y: colorY + 1.0, w: 0.35, h: 0.35, fill: { color: bc.sec } });
-  slide.addText("辅助色 #" + bc.sec, { x: cx + 0.7, y: colorY + 1.0, w: 2.5, h: 0.35, fontSize: 11, color: "333333", valign: "middle", fontFace: "Noto Sans SC" });
-  // 强调色说明
-  slide.addShape("ellipse", { x: cx + 0.2, y: colorY + 1.5, w: 0.35, h: 0.35, fill: { color: bc.acc } });
-  slide.addText("强调色 #" + bc.acc, { x: cx + 0.7, y: colorY + 1.5, w: 2.5, h: 0.35, fontSize: 11, color: "333333", valign: "middle", fontFace: "Noto Sans SC" });
+  // 三色横向排列
+  const colW = CONTENT_W / 3;
+  const dotR = 0.3;
+  const colorItems = [
+    { label: "品牌主色", hex: bc.pri },
+    { label: "辅助色", hex: bc.sec },
+    { label: "强调色", hex: bc.acc },
+  ];
+  for (let ci = 0; ci < 3; ci++) {
+    const colX = cx + ci * colW;
+    slide.addShape("ellipse", { x: colX + (colW - dotR) / 2, y: colorY + 0.55, w: dotR, h: dotR, fill: { color: colorItems[ci].hex } });
+    slide.addText(colorItems[ci].label, { x: colX, y: colorY + 1.0, w: colW, h: 0.3, fontSize: 12, bold: true, color: "333333", align: "center", fontFace: "Noto Sans SC" });
+    slide.addText("#" + colorItems[ci].hex, { x: colX, y: colorY + 1.3, w: colW, h: 0.25, fontSize: 11, color: "666666", align: "center", fontFace: "Noto Sans SC" });
+  }
 
   // IP公仔区域
   if (opts.mascotData) {
@@ -821,11 +826,11 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   });
 
   const halfW = (CONTENT_W - 0.3) / 2;
-  const patternH = 2.5;
+  const patternH = 2.2;
 
-  // Pattern 1: Stripes
+  // Pattern 1: Stripes — moved down to y=3.2 to avoid text overlap
   const p1x = cx;
-  const p1y = 2.2;
+  const p1y = 3.2;
   slide.addShape("rect", {
     x: p1x, y: p1y, w: halfW, h: patternH,
     fill: { color: "F5F5F5" }, rectRadius: 0.1,
@@ -847,7 +852,7 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
 
   // Pattern 2: Dots
   const p2x = cx + halfW + 0.3;
-  const p2y = 2.2;
+  const p2y = 3.2;
   slide.addShape("rect", {
     x: p2x, y: p2y, w: halfW, h: patternH,
     fill: { color: "F5F5F5" }, rectRadius: 0.1,
@@ -870,17 +875,17 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
 
   // Usage section
   slide.addText("应用场景", {
-    x: cx, y: 5.3, w: CONTENT_W, h: 0.35,
+    x: cx, y: 6.1, w: CONTENT_W, h: 0.35,
     fontSize: 16, bold: true, color: bc.pri,
   });
 
   slide.addText("1. 文档/手册页眉装饰线\n2. 包装袋底部纹样\n3. 名片背面背景\n4. 社交媒体封面装饰\n5. 店铺墙面装饰纹样", {
-    x: cx + 0.2, y: 5.7, w: CONTENT_W - 0.4, h: 1.2,
+    x: cx + 0.2, y: 6.5, w: CONTENT_W - 0.4, h: 1.2,
     fontSize: 12, color: "555555", lineSpacingMultiple: 1.6,
   });
 
   slide.addText("辅助图形可按比例缩放，但不可改变比例关系或旋转角度。建议透明度使用10%-40%。", {
-    x: cx, y: 7.0, w: CONTENT_W, h: 0.3,
+    x: cx, y: 7.8, w: CONTENT_W, h: 0.3,
     fontSize: 11, color: "888888", align: "center",
   });
 }
