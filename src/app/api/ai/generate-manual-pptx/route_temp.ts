@@ -475,7 +475,6 @@ async function generateSceneImage(prompt: string, logoBase64?: string): Promise<
       if (!submitResp.ok) {
         const errText = await submitResp.text();
         console.error(`[generateImage] Submit attempt ${attempt}: ${submitResp.status} ${errText.substring(0, 200)}`);
-        if (submitResp.status === 401) break;
         continue;
       }
 
@@ -570,7 +569,6 @@ async function generateLogoImage(
       if (!submitResp.ok) {
         const errText = await submitResp.text();
         console.error(`[generateLogo] Submit attempt ${attempt}: ${submitResp.status} ${errText.substring(0, 200)}`);
-        if (submitResp.status === 401) break;
         continue;
       }
 
@@ -1736,4 +1734,3 @@ function buildBrandAnalysisPrompt(info: {
   parts.push("重要：logoDesignSuggestions是为没有Logo的客户设计的。请根据品牌名称、行业特征、地域文化特色，设计4个不同方向的Logo方案。每个prompt需要是完整的英文AI生图指令，详细描述设计风格、核心图形元素、配色方案、排版布局。Logo需要简洁、辨识度高、适合各种尺寸应用（名片、招牌、包装等）。");
   return parts.join("\n");
 }
-

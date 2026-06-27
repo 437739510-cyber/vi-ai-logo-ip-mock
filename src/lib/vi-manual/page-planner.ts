@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 /**
  * Page Planner — 设计决策引擎
  *
@@ -149,17 +149,20 @@ const PAGE_LABELS: Record<string, string> = {
   "brand-philosophy": "品牌核心理念",
   "logo-interpretation": "标识诠释",
   "logo-variations": "Logo组合规范",
+  "logo-grid": "LOGO网格制图规范",
   "logo-misuse": "Logo使用规范",
   "auxiliary-graphics": "辅助图形",
-  "logo-grid": "LOGO网格制图规范",
+  "aux-graphics-misuse": "辅助图形禁用规范",
   "font-copyright": "字体版权说明",
   "brand-colors": "标准色彩规范",
+  "color-taboos": "色彩使用规范",
   typography: "字体系统",
   "basic-spec": "基础规范",
   stationery: "办公应用系统",
   packaging: "产品包装系统",
   marketing: "营销展示系统",
   summary: "总结",
+  "material-priority": "VI物料落地清单",
   closing: "感谢观看",
 };
 
@@ -203,9 +206,11 @@ const INDUSTRY_SCENE_DESCS: Record<string, { stationery: string; packaging: stri
 export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[]> {
   const pageIds = input.pageIds || [
     "cover", "toc", "brand-philosophy", "logo-interpretation", "logo-variations",
-    "logo-misuse", "auxiliary-graphics", "brand-colors",
+    "logo-grid",
+    "logo-misuse", "auxiliary-graphics", "aux-graphics-misuse", "brand-colors",
+    "color-taboos",
     "typography", "font-copyright", "basic-spec", "stationery", "packaging",
-    "marketing", "summary", "closing",
+    "marketing", "summary", "material-priority", "closing",
   ];
 
   // 加载参考模板（如果有）
@@ -489,6 +494,7 @@ function buildElements(pageId: string, ctx: BuildContext): PageElement[] {
     case "marketing": return buildMarketingElements(ctx);
     case "font-copyright": return buildFontCopyrightElements(ctx);
     case "summary": return buildSummaryElements(ctx);
+    case "material-priority": return buildMaterialPriorityElements(ctx);
     case "closing": return buildClosingElements(ctx);
     default: return [];
   }

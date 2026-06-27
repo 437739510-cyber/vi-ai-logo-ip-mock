@@ -263,7 +263,7 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
   return Buffer.from(base64, "base64");
 }
 
-const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","logo-misuse","auxiliary-graphics","brand-colors","typography","font-copyright","basic-spec","stationery","packaging","marketing","summary","closing"];
+const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","logo-misuse","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","stationery","packaging","marketing","summary","material-priority","closing"];
 
 async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>): Promise<void> {
   switch (bp.pageId) {
@@ -276,7 +276,9 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "logo-grid": renderLogoGrid(slide, bp, opts, bc, industry); break;
     case "logo-misuse": renderLogoMisuse(slide, bp, opts, bc, industry); break;
     case "auxiliary-graphics": renderAuxiliaryGraphics(slide, bp, opts, bc); break;
+    case "aux-graphics-misuse": renderAuxGraphicsMisuse(slide, bp, opts, bc); break;
     case "brand-colors": await renderColors(slide, bp, opts, bc); break;
+    case "color-taboos": renderColorTaboos(slide, bp, opts, bc); break;
     case "typography": await renderTypography(slide, bp, opts, bc); break;
     case "font-copyright": renderFontCopyright(slide, bp, opts, bc); break;
     case "basic-spec": renderBasicSpec(slide, bp, opts, bc, industry); break;
@@ -284,6 +286,7 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "packaging": renderScene(slide, bp, opts, "packaging", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
     case "marketing": renderScene(slide, bp, opts, "marketing", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
     case "summary": renderSummary(slide, bp, opts, bc); break;
+    case "material-priority": renderMaterialPriority(slide, bp, opts, bc); break;
     default: renderGeneric(slide, bp, opts, bc);
   }
   // 页码（封面/封底/目录不加）
@@ -511,9 +514,9 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
 
   // V6→V113: 横向三列布局（品牌愿景 | 核心价值 | 目标市场）+ 底部品牌故事通栏
   const sections = [
-    { label: "品牌愿景", content: opts.brandVision || fta(bp, ["ph-vision-content","brand-vision-content","vision-content"]) || "待品牌方补充" },
-    { label: "核心价值", content: opts.coreValues || fta(bp, ["ph-values-content","core-values-content","values-content"]) || "待品牌方补充" },
-    { label: "目标市场", content: opts.targetMarket || fta(bp, ["ph-market-content","target-market-content","market-content"]) || "待品牌方补充" },
+    { label: "品牌愿景", content: sanitizeText(opts.brandVision || fta(bp, ["ph-vision-content","brand-vision-content","vision-content"]) || "待品牌方补充") },
+    { label: "核心价值", content: sanitizeText(opts.coreValues || fta(bp, ["ph-values-content","core-values-content","values-content"]) || "待品牌方补充") },
+    { label: "目标市场", content: sanitizeText(opts.targetMarket || fta(bp, ["ph-market-content","target-market-content","market-content"]) || "待品牌方补充") },
   ];
 
   const cx = MARGIN + LEFT_BAR_W;
@@ -815,7 +818,7 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   const cx = MARGIN + LEFT_BAR_W;
 
   // V103: 辅助图形说明加入品牌色依据
-  const auxIntro = (opts.auxGraphicsIntro || `辅助图形提取自品牌主色(${bc.pri})与辅助色(${bc.sec})，用于丰富视觉层次、强化品牌识别。条纹组合呼应品牌节奏感，点阵组合传递精致秩序。`).replace(/。。/g, '。');
+  const auxIntro = sanitizeText(opts.auxGraphicsIntro || `辅助图形提取自品牌主色(${bc.pri})与辅助色(${bc.sec})，用于丰富视觉层次、强化品牌识别。条纹组合呼应品牌节奏感，点阵组合传递精致秩序。`).replace(/。。/g, '。');
   slide.addText(auxIntro, {
     x: cx, y: 2.187, w: CONTENT_W, h: 0.6,
     fontSize: 14, color: "666666", lineSpacingMultiple: 1.4,
@@ -1667,7 +1670,7 @@ function renderSummary(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPp
   addContentFrame(slide, "总结", bc);
   const cx = MARGIN + LEFT_BAR_W;
 
-  const vision = opts.brandVision || fta(bp, ["ph-vision-content","brand-vision-content","vision-content"]);
+  const vision = sanitizeText(opts.brandVision || fta(bp, ["ph-vision-content","brand-vision-content","vision-content"]));
   if (vision && vision !== "待定") {
     slide.addShape("rect", { x: cx, y: 1.6, w: CONTENT_W, h: 1.4, fill: { color: bc.priLight }, rectRadius: 0.1 });
     slide.addText(`"${vision}"`, { x: cx + 0.3, y: 1.7, w: CONTENT_W - 0.6, h: 1.2, fontSize: 15, italic: true, color: bc.priDark, align: "center", lineSpacingMultiple: 1.5, valign: "middle" });
@@ -1788,6 +1791,120 @@ function renderFontCopyright(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Re
   slide.addShape("rect", { x: cx, y: y + 0.3, w: CONTENT_W, h: 0.8, fill: { color: "FFF3E0" }, rectRadius: 0.08 });
   slide.addText([{ text: "⚠ 重要提示：", options: { bold: true, color: "E65100", fontSize: 13 } }, { text: "禁止在商业物料中使用未经授权的商业字体（如微软雅黑、方正系列等），否则可能面临字体版权侵权诉讼。本VI手册所列字体均已确认为免费商用字体。", options: { color: "E65100", fontSize: 12 } }], { x: cx + 0.2, y: y + 0.4, w: CONTENT_W - 0.4, h: 0.6, fontSize: 12, color: "E65100" });
 }
+
+
+// ---- 辅助图形禁用案例 ----
+function renderAuxGraphicsMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  addContentFrame(slide, bp.label || "辅助图形禁用规范", bc);
+  const cx = MARGIN + LEFT_BAR_W;
+
+  const misuses = [
+    { title: "禁止拉伸变形", desc: "不得对辅助图形进行非等比缩放，纹样比例失真破坏品牌精致感" },
+    { title: "禁止局部裁切", desc: "不得单独裁切辅助图形的局部纹样，需保持完整图案结构" },
+    { title: "禁止随意换色", desc: "不得使用品牌色以外的颜色替换辅助图形，破坏色彩体系一致性" },
+    { title: "禁止多层杂乱叠加", desc: "辅助图形叠加不超过两层，避免视觉混乱降低品牌识别度" },
+    { title: "禁止旋转倾斜", desc: "条纹组合必须保持水平/垂直方向，点阵组合不得旋转" },
+    { title: "禁止扭曲特效", desc: "不得添加非规范的扭曲、模糊、3D等滤镜效果" },
+  ];
+
+  for (let i = 0; i < misuses.length; i++) {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    const x = cx + col * (CONTENT_W / 3 + 0.1);
+    const y = 1.5 + row * 2.6;
+    const w = CONTENT_W / 3 - 0.15;
+
+    slide.addShape("rect", { x, y, w, h: 2.2, fill: { color: "FFF5F5" }, line: { color: "E0C0C0", width: 0.5 }, rectRadius: 0.08 });
+    slide.addText([{ text: "✕ ", options: { color: "CC3333", fontSize: 16, bold: true } }, { text: misuses[i].title, options: { bold: true, fontSize: 13, color: "333333" } }], { x: x + 0.15, y: y + 0.15, w: w - 0.3, h: 0.4 });
+    slide.addText(misuses[i].desc, { x: x + 0.15, y: y + 0.7, w: w - 0.3, h: 1.2, fontSize: 11, color: "666666", lineSpacing: 18 });
+  }
+
+  slide.addText("辅助图形是品牌视觉的延伸，规范使用确保品牌调性统一。以上为常见的错误用法，门店及设计师应严格避免。", {
+    x: cx, y: 7.0, w: CONTENT_W, h: 0.3, fontSize: 11, color: "999999", align: "center",
+  });
+}
+
+// ---- 色彩使用禁忌 ----
+function renderColorTaboos(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  addContentFrame(slide, bp.label || "色彩使用规范", bc);
+  const cx = MARGIN + LEFT_BAR_W;
+  let y = 1.5;
+
+  const rules = [
+    { title: "主色禁用大面积铺满", desc: "玫瑰红 #" + bc.pri + " 仅作点缀色（LOGO、装饰线、强调文字），占画面比例不超过20%。大面积红色产生压迫感，与「温柔治愈」品牌调性冲突。", icon: "⚠" },
+    { title: "三色搭配比例", desc: "主色 10-20% / 辅助色 15-25% / 背景留白（米金+白色）55-75%。保持呼吸感，避免色彩拥挤。", icon: "📐" },
+    { title: "禁止搭配色", desc: "避免与高饱和度绿色、荧光色、纯黑 #000000 混搭，破坏品牌温柔轻奢质感。", icon: "🚫" },
+    { title: "单色印刷规范", desc: "黑白/单色印刷时使用灰度版本，保留品牌色明度阶梯。主色→70%灰、辅助色→50%灰、强调色→30%灰。", icon: "🖨" },
+  ];
+
+  for (let i = 0; i < rules.length; i++) {
+    slide.addShape("rect", { x: cx, y, w: 0.12, h: 1.5, fill: { color: bc.pri }, rectRadius: 0.03 });
+    slide.addText(rules[i].icon + " " + rules[i].title, { x: cx + 0.35, y: y + 0.05, w: CONTENT_W - 0.5, h: 0.45, fontSize: 15, bold: true, color: "333333" });
+    slide.addText(rules[i].desc, { x: cx + 0.35, y: y + 0.5, w: CONTENT_W - 0.5, h: 0.8, fontSize: 12, color: "555555", lineSpacing: 18 });
+    y += 1.7;
+  }
+
+  slide.addShape("rect", { x: cx, y: 7.5, w: CONTENT_W, h: 0.6, fill: { color: "FFF3E0" }, rectRadius: 0.06 });
+  slide.addText("色彩规范的核心原则：温柔不刺眼，精致不廉价。如有特殊场景色彩需求，须向品牌总部提交审核。", {
+    x: cx + 0.2, y: 7.58, w: CONTENT_W - 0.4, h: 0.45, fontSize: 11, color: "E65100",
+  });
+}
+
+// ---- VI物料落地优先级清单 ----
+function renderMaterialPriority(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  addContentFrame(slide, bp.label || "VI物料落地清单", bc);
+  const cx = MARGIN + LEFT_BAR_W;
+
+  const items = [
+    { priority: "必做", category: "门店招牌", desc: "门头招牌+侧招灯箱，品牌线下第一视觉触点", color: "C62828" },
+    { priority: "必做", category: "员工工服", desc: "美容师围裙/制服+名牌，直接影响客户信任感", color: "C62828" },
+    { priority: "必做", category: "产品包装", desc: "护肤品瓶身标签+包装盒，产品即品牌载体", color: "C62828" },
+    { priority: "必做", category: "会员卡", desc: "VIP卡片设计，客户留存与复购核心触点", color: "C62828" },
+    { priority: "建议", category: "价目表/预约单", desc: "前台标准物料，提升门店专业度", color: "E67E22" },
+    { priority: "建议", category: "手提袋/礼盒", desc: "伴手礼包装，社交传播重要载体", color: "E67E22" },
+    { priority: "建议", category: "线上配图模板", desc: "小红书/大众点评视觉统一，影响线上获客转化", color: "E67E22" },
+    { priority: "可选", category: "活动海报/展架", desc: "开业/促销按需制作，非日常必备", color: "2E7D32" },
+    { priority: "可选", category: "门店软装", desc: "窗帘/墙面/前台摆件，品牌氛围营造", color: "2E7D32" },
+    { priority: "可选", category: "导视系统", desc: "门牌/房号牌/指引立牌，连锁扩张时统一制作", color: "2E7D32" },
+  ];
+
+  // 图例
+  slide.addShape("rect", { x: cx, y: 1.4, w: 0.25, h: 0.25, fill: { color: "C62828" }, rectRadius: 0.04 });
+  slide.addText("必做", { x: cx + 0.35, y: 1.4, w: 0.6, h: 0.25, fontSize: 10, bold: true, color: "333333" });
+  slide.addShape("rect", { x: cx + 1.2, y: 1.4, w: 0.25, h: 0.25, fill: { color: "E67E22" }, rectRadius: 0.04 });
+  slide.addText("建议", { x: cx + 1.55, y: 1.4, w: 0.6, h: 0.25, fontSize: 10, bold: true, color: "333333" });
+  slide.addShape("rect", { x: cx + 2.4, y: 1.4, w: 0.25, h: 0.25, fill: { color: "2E7D32" }, rectRadius: 0.04 });
+  slide.addText("可选", { x: cx + 2.75, y: 1.4, w: 0.6, h: 0.25, fontSize: 10, bold: true, color: "333333" });
+
+  // 表格头
+  const colW = [0.8, 1.6, 4.67];
+  const headers = ["优先级", "物料", "说明"];
+  slide.addShape("rect", { x: cx, y: 1.75, w: CONTENT_W, h: 0.4, fill: { color: bc.pri } });
+  let hx = cx;
+  for (let i = 0; i < headers.length; i++) {
+    slide.addText(headers[i], { x: hx, y: 1.75, w: colW[i], h: 0.4, fontSize: 11, bold: true, color: "FFFFFF", align: "center" });
+    hx += colW[i];
+  }
+
+  // 数据行
+  for (let i = 0; i < items.length; i++) {
+    const rowY = 2.15 + i * 0.5;
+    const bgColor = i % 2 === 0 ? "FAFAFA" : "FFFFFF";
+    slide.addShape("rect", { x: cx, y: rowY, w: CONTENT_W, h: 0.5, fill: { color: bgColor }, line: { color: "EEEEEE", width: 0.3 } });
+
+    // Priority badge
+    slide.addShape("rect", { x: cx + 0.1, y: rowY + 0.08, w: 0.6, h: 0.34, fill: { color: items[i].color }, rectRadius: 0.06 });
+    slide.addText(items[i].priority, { x: cx + 0.1, y: rowY + 0.08, w: 0.6, h: 0.34, fontSize: 9, bold: true, color: "FFFFFF", align: "center" });
+
+    slide.addText(items[i].category, { x: cx + 0.85, y: rowY + 0.08, w: 1.5, h: 0.34, fontSize: 11, bold: true, color: "333333" });
+    slide.addText(items[i].desc, { x: cx + 2.45, y: rowY + 0.08, w: 4.5, h: 0.34, fontSize: 10, color: "666666" });
+  }
+
+  slide.addText("门店分批落地建议：首批完成4项必做物料（招牌+工服+包装+会员卡），第二批补齐建议物料，第三批按需扩展可选物料。", {
+    x: cx, y: 7.35, w: CONTENT_W, h: 0.3, fontSize: 11, color: "999999", align: "center",
+  });
+}
+
 
 // ========== 工具函数 ==========
 function hx(c: string): string { return c.replace("#", "").toUpperCase(); }
