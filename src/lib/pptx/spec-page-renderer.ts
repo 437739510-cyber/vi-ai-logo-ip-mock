@@ -59,7 +59,7 @@ export async function renderTypographyPng(opts: SpecPageOptions): Promise<string
       children: [
         // 标题
         { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }, children: [
-          { type: 'div', props: { style: { fontSize: 28, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC' }, children: '字体系统' } },
+          { type: 'div', props: { style: { fontSize: 44, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC' }, children: '字体系统' } },
         ]}},
         // 装饰线
         { type: 'div', props: { style: { width: '100%', height: 4, backgroundColor: '#F5E6D0', borderRadius: 2, marginBottom: 30 } } },
@@ -69,26 +69,26 @@ export async function renderTypographyPng(opts: SpecPageOptions): Promise<string
           { type: 'div', props: { style: { width: 8, height: 120, backgroundColor: `#${bc.pri}`, borderRadius: 4, marginRight: 20, flexShrink: 0 } } },
           // 右侧内容
           { type: 'div', props: { style: { display: 'flex', flexDirection: 'column' }, children: [
-            { type: 'div', props: { style: { fontSize: 20, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC', marginBottom: 12 }, children: '中文字体' } },
-            { type: 'div', props: { style: { fontSize: 16, color: '#444444', fontFamily: 'Noto Sans SC', marginBottom: 6 }, children: '标题字体：思源黑体 / Noto Sans SC' } },
-            { type: 'div', props: { style: { fontSize: 16, color: '#444444', fontFamily: 'Noto Serif SC' }, children: '正文字体：思源宋体 / Noto Serif SC' } },
+            { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC', marginBottom: 12 }, children: '中文字体' } },
+            { type: 'div', props: { style: { fontSize: 24, color: '#444444', fontFamily: 'Noto Sans SC', marginBottom: 6 }, children: '标题字体：思源黑体 / Noto Sans SC' } },
+            { type: 'div', props: { style: { fontSize: 24, color: '#444444', fontFamily: 'Noto Serif SC' }, children: '正文字体：思源宋体 / Noto Serif SC' } },
           ]}},
         ]}},
         // 英文字体区
         { type: 'div', props: { style: { display: 'flex', marginBottom: 30 }, children: [
           { type: 'div', props: { style: { width: 8, height: 120, backgroundColor: `#${bc.sec}`, borderRadius: 4, marginRight: 20, flexShrink: 0 } } },
           { type: 'div', props: { style: { display: 'flex', flexDirection: 'column' }, children: [
-            { type: 'div', props: { style: { fontSize: 20, fontWeight: 700, color: `#${bc.sec}`, fontFamily: 'Noto Sans SC', marginBottom: 12 }, children: '英文字体' } },
-            { type: 'div', props: { style: { fontSize: 16, color: '#444444', fontFamily: 'Noto Sans SC', marginBottom: 6 }, children: 'Brand Font: Montserrat' } },
-            { type: 'div', props: { style: { fontSize: 16, color: '#444444', fontFamily: 'Noto Sans SC' }, children: 'Body Font: Open Sans' } },
+            { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: `#${bc.sec}`, fontFamily: 'Noto Sans SC', marginBottom: 12 }, children: '英文字体' } },
+            { type: 'div', props: { style: { fontSize: 24, color: '#444444', fontFamily: 'Noto Sans SC', marginBottom: 6 }, children: 'Brand Font: Montserrat' } },
+            { type: 'div', props: { style: { fontSize: 24, color: '#444444', fontFamily: 'Noto Sans SC' }, children: 'Body Font: Open Sans' } },
           ]}},
         ]}},
         // 字号层级
-        { type: 'div', props: { style: { fontSize: 18, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC', marginBottom: 12 }, children: '字号层级规范' } },
+        { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC', marginBottom: 12 }, children: '字号层级规范' } },
         // 表格
         { type: 'div', props: { style: { display: 'flex', flexDirection: 'column', border: '1px solid #E0E0E0', borderRadius: 4, overflow: 'hidden' }, children: [
           // 表头
-          { type: 'div', props: { style: { display: 'flex', backgroundColor: `#${bc.pri}`, color: '#FFFFFF', fontSize: 14, fontWeight: 700, fontFamily: 'Noto Sans SC' }, children: [
+          { type: 'div', props: { style: { display: 'flex', backgroundColor: `#${bc.pri}`, color: '#FFFFFF', fontSize: 24, fontWeight: 700, fontFamily: 'Noto Sans SC' }, children: [
             { type: 'div', props: { style: { width: 200, padding: '8px 12px' }, children: '层级' } },
             { type: 'div', props: { style: { width: 200, padding: '8px 12px' }, children: '字号' } },
             { type: 'div', props: { style: { width: 360, padding: '8px 12px' }, children: '应用场景' } },
@@ -97,9 +97,9 @@ export async function renderTypographyPng(opts: SpecPageOptions): Promise<string
           ...([
             ['一级标题', '36-40pt', '封面标题'],
             ['二级标题', '22-26pt', '章节标题'],
-            ['三级标题', '16-18pt', '小标题/栏目'],
-            ['正文', '13-14pt', '正文说明'],
-            ['辅助文字', '11pt', '注释/标注/页码'],
+            ['三级标题', '18pt', '小标题/栏目'],
+            ['正文', '14pt', '正文说明'],
+            ['辅助文字', '12pt', '注释/标注/页码'],
           ] as const).map(([level, size, usage], i) => ({
             type: 'div',
             props: {
@@ -153,72 +153,51 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
     return (r*299+g*587+b*114)/1000 > 150;
   }
 
-  const jsx = {
+        const jsx = {
     type: 'div',
     props: {
       style: { width: PAGE_W, height: PAGE_H, backgroundColor: '#FFFFFF', display: 'flex', flexDirection: 'column', padding: '40px 50px' },
       children: [
-        // 标题
-        { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }, children: [
-          { type: 'div', props: { style: { fontSize: 28, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC' }, children: '标准色彩规范' } },
+        { type: 'div', props: { style: { fontSize: 54, fontWeight: 700, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC', marginBottom: 6 }, children: '品牌色板' } },
+        { type: 'div', props: { style: { width: 60, height: 3, backgroundColor: '#E0E0E0', borderRadius: 2, marginBottom: 20 } } },
+        // 三色卡
+        { type: 'div', props: { style: { display: 'flex', gap: 20, marginBottom: 12 }, children: [
+          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, padding: '20px 16px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }, children: [
+            { type: 'div', props: { style: { width: '100%', height: 160, borderRadius: 8, backgroundColor: `#${bc.pri}`, marginBottom: 10 } } },
+            { type: 'div', props: { style: { fontSize: 34, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '品牌主色' } },
+            { type: 'div', props: { style: { fontSize: 30, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC', marginTop: 2, fontWeight: 600 }, children: `#${bc.pri}` } },
+          ]}},
+          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, padding: '20px 16px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }, children: [
+            { type: 'div', props: { style: { width: '100%', height: 160, borderRadius: 8, backgroundColor: `#${bc.sec}`, marginBottom: 10 } } },
+            { type: 'div', props: { style: { fontSize: 34, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '辅助色' } },
+            { type: 'div', props: { style: { fontSize: 30, color: `#${bc.sec}`, fontFamily: 'Noto Sans SC', marginTop: 2, fontWeight: 600 }, children: `#${bc.sec}` } },
+          ]}},
+          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, padding: '20px 16px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }, children: [
+            { type: 'div', props: { style: { width: '100%', height: 160, borderRadius: 8, backgroundColor: `#${bc.acc}`, marginBottom: 10 } } },
+            { type: 'div', props: { style: { fontSize: 34, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '强调色' } },
+            { type: 'div', props: { style: { fontSize: 30, color: `#${bc.acc}`, fontFamily: 'Noto Sans SC', marginTop: 2, fontWeight: 600 }, children: `#${bc.acc}` } },
+          ]}},
         ]}},
-        // 装饰线
-        { type: 'div', props: { style: { width: 80, height: 4, backgroundColor: `#${bc.acc}`, borderRadius: 2, marginBottom: 28 } } },
-        // 三栏色卡 — 每栏包含色圆+色值+组合示例
-        { type: 'div', props: { style: { display: 'flex', gap: 24, flex: 1 }, children: colors.map((c: any, idx: number) => {
-          const rgb = hex2rgb(c.hex);
-          const cmyk = rgb2cmyk(rgb.r, rgb.g, rgb.b);
-          const light = isLight(c.hex);
-          const colW = Math.floor((PAGE_W - 100 - 48) / 3);
-          // 组合示例色对
-          const combos = [
-            { c1: bc.pri, c2: bc.sec, t: '主色+辅助色' },
-            { c1: 'FFFFFF', c2: bc.acc, t: '白底+强调色' },
-            { c1: bc.priDark || bc.pri, c2: 'FFFFFF', t: '深主色+白底' },
-          ];
-          return {
-            type: 'div',
-            props: {
-              style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: colW, backgroundColor: '#FAFAFA', borderRadius: 12, padding: '24px 16px' },
-              children: [
-                // 圆形色卡
-                { type: 'div', props: { style: { width: 100, height: 100, borderRadius: 50, backgroundColor: `#${c.hex}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: light ? '0 2px 8px rgba(0,0,0,0.08)' : '0 2px 8px rgba(0,0,0,0.2)', border: light ? '1px solid #DDDDDD' : 'none', flexShrink: 0 }, children: [
-                  { type: 'div', props: { style: { fontSize: 12, color: light ? '#333333' : '#FFFFFF', fontFamily: 'Noto Sans SC', opacity: 0.7 }, children: c.name } }
-                ]}},
-                // 色名
-                { type: 'div', props: { style: { fontSize: 16, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC', marginTop: 14 }, children: c.label } },
-                // 色值
-                { type: 'div', props: { style: { fontSize: 14, color: `#${c.hex}`, fontFamily: 'Noto Sans SC', marginTop: 6, fontWeight: 600 }, children: `#${c.hex}` } },
-                { type: 'div', props: { style: { fontSize: 11, color: '#666666', fontFamily: 'Noto Sans SC', marginTop: 4 }, children: `RGB ${rgb.r}, ${rgb.g}, ${rgb.b}` } },
-                { type: 'div', props: { style: { fontSize: 11, color: '#666666', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: `CMYK ${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}` } },
-                // 分割线
-                { type: 'div', props: { style: { width: '80%', height: 1, backgroundColor: '#E0E0E0', marginTop: 16, marginBottom: 12 } } },
-                // 组合示例
-                { type: 'div', props: { style: { fontSize: 11, fontWeight: 700, color: '#888888', fontFamily: 'Noto Sans SC', marginBottom: 8 }, children: '色彩组合' } },
-                ...combos.map((cb: any) => ({
-                  type: 'div',
-                  props: {
-                    style: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
-                    children: [
-                      { type: 'div', props: { style: { display: 'flex', width: 60, height: 22, borderRadius: 3, overflow: 'hidden' }, children: [
-                        { type: 'div', props: { style: { width: 30, height: 22, backgroundColor: `#${cb.c1}`, border: cb.c1 === 'FFFFFF' ? '1px solid #E0E0E0' : 'none' } } },
-                        { type: 'div', props: { style: { width: 30, height: 22, backgroundColor: `#${cb.c2}`, border: cb.c2 === 'FFFFFF' ? '1px solid #E0E0E0' : 'none' } } },
-                      ]}},
-                      { type: 'div', props: { style: { fontSize: 9, color: '#999999', fontFamily: 'Noto Sans SC' }, children: cb.t } },
-                    ]
-                  }
-                })),
-              ]
-            }
-          };
-        })}},
-        // 底部色彩选择依据
-        { type: 'div', props: { style: { fontSize: 11, color: '#888888', fontFamily: 'Noto Sans SC', lineHeight: 1.6, marginTop: 16, padding: '0 8px' }, children: colorMeaning || `品牌主色#${bc.pri}传递品牌核心调性，辅助色#${bc.sec}营造层次与和谐，强调色#${bc.acc}用于关键信息突出与视觉焦点引导。三色组合确保品牌视觉的专业性、一致性与识别度。` } },
+        // 三色说明框（与色卡一一对应）
+        { type: 'div', props: { style: { display: 'flex', gap: 20, marginBottom: 12 }, children: [
+          { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50 }, children: [
+            { type: 'div', props: { style: { fontSize: 34, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `品牌主色#${bc.pri}传递品牌核心调性，` } },
+          ]}},
+          { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50 }, children: [
+            { type: 'div', props: { style: { fontSize: 34, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `辅助色#${bc.sec}营造层次与和谐，` } },
+          ]}},
+          { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50 }, children: [
+            { type: 'div', props: { style: { fontSize: 34, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `强调色#${bc.acc}用于关键信息突出与视觉焦点引导。` } },
+          ]}},
+        ]}},
+        // 底部总说明（三栏宽，居中，20mm高≈57px）
+        { type: 'div', props: { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F5F5', borderRadius: 6, padding: '12px 20px', minHeight: 100, width: '100%' }, children: [
+          { type: 'div', props: { style: { fontSize: 34, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: '三色组合确保品牌视觉的专业性、一致性与识别度。' } },
+        ]}},
       ]
     }
   };
-
-  const svg = await satori(jsx as any, { width: PAGE_W, height: PAGE_H, fonts });
+const svg = await satori(jsx as any, { width: PAGE_W, height: PAGE_H, fonts });
   const png = await sharp(Buffer.from(svg)).png().toBuffer();
   return `data:image/png;base64,${png.toString('base64')}`;
 }

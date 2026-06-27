@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "id": "VI-20260625-OCEM",
+    "submissionId": "SBM-20260625-6526",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "3333",
+    "mainProducts": "",
+    "businessForm": "",
+    "createdAt": "2026-06-25T23:21:26.526Z",
+    "updatedAt": "2026-06-25T23:21:26.526Z",
+    "created_at": "2026-06-25T23:21:26.526Z",
+    "updated_at": "2026-06-25T23:21:26.526Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-06-25T23:21:26.526Z"
+      }
+    ]
+  }
+]

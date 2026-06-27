@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API: Generate VI Manual PPTX via PptxGenJS Engine V7
  *
  * V7 核心改动（在V6基础上）：
@@ -864,6 +864,10 @@ export async function POST(req: NextRequest) {
           if (brandProfile.logoDesignSuggestions.style) parts.push(`风格：${brandProfile.logoDesignSuggestions.style}`);
           logoPhilosophy = parts.join("。");
         }
+        // V115: designPhilosophy补充
+        if (logoPhilosophy && logoPhilosophy.length < 30 && brandProfile?.designPhilosophy) {
+          logoPhilosophy = brandProfile.designPhilosophy;
+        }
       }
       console.log("[generate-pptx] Reusing existing brand analysis — skipped DeepSeek call");
       sendProgress("analyzed", "品牌分析完成(复用)", 30);
@@ -913,6 +917,10 @@ export async function POST(req: NextRequest) {
                   if (brandProfile.logoDesignSuggestions.elements) parts.push(`核心元素：${brandProfile.logoDesignSuggestions.elements}`);
                   if (brandProfile.logoDesignSuggestions.style) parts.push(`风格：${brandProfile.logoDesignSuggestions.style}`);
                   logoPhilosophy = parts.join("。");
+                }
+                // V115: designPhilosophy补充
+                if (logoPhilosophy && logoPhilosophy.length < 30 && brandProfile?.designPhilosophy) {
+                  logoPhilosophy = brandProfile.designPhilosophy;
                 }
               }
               if (brandProfile.sceneImageSuggestions?.length >= 5) {

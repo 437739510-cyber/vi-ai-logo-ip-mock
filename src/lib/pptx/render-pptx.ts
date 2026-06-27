@@ -275,7 +275,7 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
   // 页码（封面/封底/目录不加）
   if (bp.pageId !== "cover" && bp.pageId !== "closing" && bp.pageId !== "toc") {
     const idx = PAGE_ORDER.indexOf(bp.pageId);
-    slide.addText(`${idx > 0 ? idx : ""}`, { x: SW - MARGIN - 0.5, y: SH - 0.55, w: 0.5, h: 0.3, fontSize: 9, color: "BBBBBB", align: "right" });
+    slide.addText(`${idx > 0 ? idx : ""}`, { x: SW - MARGIN - 0.5, y: SH - 0.55, w: 0.5, h: 0.3, fontSize: 12, color: "BBBBBB", align: "right" });
   }
 }
 
@@ -369,20 +369,17 @@ function addIndustryIcon(slide: PptxGenJS.Slide, industry: IndustryType, cx: num
 
 // V110: 智能品牌名排版 — 优先一行，放不下则居中拆分(避免单字一行)
 function fitBrandText(text: string, fs: number, cs: number, availW: number): { text: string; fontSize: number; charSpacing: number } {
-  // 估算: 每个汉字 ≈ fontSize*1.35pt宽 + charSpacing
   const charW = fs * 1.35 + cs;
   const totalW = (text.length * charW) / 72;
-  if (totalW <= availW * 0.95) return { text, fontSize: fs, charSpacing: cs }; // 一行放得下
-  // 尝试去掉字距
+  if (totalW <= availW * 0.95) return { text, fontSize: fs, charSpacing: cs };
   const totalW2 = (text.length * fs * 1.35) / 72;
   if (totalW2 <= availW * 0.95) return { text, fontSize: fs, charSpacing: 0 };
-  // 尝试缩小字号(不低于70%)
+  // V115: 永远不换行 — 自动缩小字号直到一行
+  const minFs = Math.ceil(fs * 0.3);
   const maxFs = Math.floor((availW * 0.95 * 72) / (text.length * 1.35));
-  if (maxFs >= fs * 0.7) return { text, fontSize: maxFs, charSpacing: 0 };
-  // 拆成两行，居中拆分，避免第二行只剩1个字
-  const mid = Math.ceil(text.length / 2);
-  const splitAt = (text.length - mid <= 1) ? mid - 1 : mid;
-  return { text: text.slice(0, splitAt) + "\n" + text.slice(splitAt), fontSize: fs, charSpacing: cs };
+  const finalFs = Math.max(minFs, maxFs);
+  console.log("[fitBrandText] \"" + text + "\" at " + fs + "pt -> reduced to " + finalFs + "pt");
+  return { text, fontSize: finalFs, charSpacing: 0 };
 }
 
 function addComboLogo(slide: PptxGenJS.Slide, text: string, x: number, y: number, w: number, h: number, bc: BC, industry: IndustryType, opts: { fontSize?: number; color?: string; layout?: "vertical"|"horizontal"; showLine?: boolean; aiLogoData?: string } = {}): void {
@@ -433,9 +430,10 @@ function addComboLogo(slide: PptxGenJS.Slide, text: string, x: number, y: number
     } else {
       addIndustryIcon(slide, industry, x + iconSize / 2, y + h / 2, iconSize, bc);
     }
-    slide.addText(text, {
+    const hFitted = fitBrandText(text, fs, 2, w - iconSize - 0.15);
+    slide.addText(hFitted.text, {
       x: x + iconSize + 0.15, y, w: w - iconSize - 0.15, h,
-      fontSize: fs,
+      fontSize: hFitted.fontSize,
       bold: true,
       color: clr,
       align: "left",
@@ -457,7 +455,7 @@ function renderCover(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
   if (opts.logoData) {
     slide.addImage({ data: normImg(opts.logoData), x: (SW - 3.0) / 2, y: 1.0, w: 3.0, h: 3.0, sizing: { type: "contain", w: 3.0, h: 3.0 } });
     // 有Logo图时，下方仍显示品牌名
-    slide.addText(cn, { x: MARGIN, y: 4.2, w: CONTENT_W, h: 1.0, fontSize: 38, bold: true, color: "FFFFFF", align: "center", fontFace: "Noto Sans SC" });
+    const fc = fitBrandText(cn, 38, 0, CONTENT_W); slide.addText(fc.text, { x: MARGIN, y: 4.2, w: CONTENT_W, h: 1.0, fontSize: fc.fontSize, bold: true, color: "FFFFFF", align: "center", fontFace: "Noto Sans SC" });
   } else {
     // V13: 无Logo图时，组合Logo = 行业图标 + 品牌名字标
     addComboLogo(slide, cn, MARGIN, 0.8, CONTENT_W, 3.2, bc, industry, { fontSize: 44, color: "FFFFFF", layout: "vertical", aiLogoData: opts.aiLogoData });
@@ -527,12 +525,12 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     // 标签
     slide.addText(s.label, {
       x: colX + 0.2, y: colTopY + 0.3, w: colW - 0.4, h: 0.45,
-      fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC", align: "center",
+      fontSize: 18, bold: true, color: bc.pri, fontFace: "Noto Sans SC", align: "center",
     });
     // 内容
     slide.addText(s.content, {
       x: colX + 0.2, y: colTopY + 0.9, w: colW - 0.4, h: cardH - 1.2,
-      fontSize: 13, color: "444444", lineSpacingMultiple: 1.6, valign: "top", align: "center",
+      fontSize: 14, color: "444444", lineSpacingMultiple: 1.5, valign: "top", align: "center",
     });
   }
 
@@ -547,11 +545,11 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     });
     slide.addText("品牌故事", {
       x: cx + 0.3, y: storyY, w: CONTENT_W - 0.3, h: 0.45,
-      fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC",
+      fontSize: 18, bold: true, color: bc.pri, fontFace: "Noto Sans SC",
     });
     slide.addText(opts.brandStory, {
       x: cx + 0.3, y: storyY + 0.5, w: CONTENT_W - 0.5, h: storyH - 0.6,
-      fontSize: 12, color: "555555", lineSpacingMultiple: 1.5, valign: "top",
+      fontSize: 14, color: "555555", lineSpacingMultiple: 1.5, valign: "top",
     });
   }
 
@@ -598,8 +596,8 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
   const philosophy = opts.logoPhilosophy || fta(bp, ["logo-philosophy","logo-meaning","logo-concept"]) || "Logo 凝练了品牌核心视觉要素，体现品牌独特识别性。";
   const phiY = 4.8;
   slide.addShape("rect", { x: cx, y: phiY, w: 0.06, h: 0.35, fill: { color: bc.pri }, rectRadius: 0.02 });
-  slide.addText("设计理念", { x: cx + 0.2, y: phiY, w: 2, h: 0.35, fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
-  slide.addText(philosophy, { x: cx + 0.2, y: phiY + 0.45, w: CONTENT_W - 0.4, h: 1.5, fontSize: 12, color: "444444", lineSpacingMultiple: 1.5, fontFace: "Noto Sans SC" });
+  slide.addText("设计理念", { x: cx + 0.2, y: phiY, w: 2, h: 0.35, fontSize: 18, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+  slide.addText(philosophy, { x: cx + 0.2, y: phiY + 0.45, w: CONTENT_W - 0.4, h: 1.5, fontSize: 14, color: "444444", lineSpacingMultiple: 1.5, fontFace: "Noto Sans SC" });
 
 
 
@@ -607,14 +605,15 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
   if (opts.mascotData) {
     const ipY = 9.0;
     slide.addShape("rect", { x: cx, y: ipY, w: 0.06, h: 0.35, fill: { color: bc.sec }, rectRadius: 0.02 });
-    slide.addText("IP 角色介绍", { x: cx + 0.2, y: ipY, w: CONTENT_W, h: 0.4, fontSize: 15, bold: true, color: bc.sec, fontFace: "Noto Sans SC" });
+    slide.addText("IP 角色介绍", { x: cx + 0.2, y: ipY, w: CONTENT_W, h: 0.4, fontSize: 18, bold: true, color: bc.sec, fontFace: "Noto Sans SC" });
     const ipW = 1.8, ipH = 2.2;
     slide.addShape("rect", { x: (SW - ipW - 0.3) / 2, y: ipY + 0.5, w: ipW + 0.3, h: ipH + 0.2, fill: { color: "F5F5F5" }, rectRadius: 0.08 });
     slide.addImage({ data: normImg(opts.mascotData), x: (SW - ipW) / 2, y: ipY + 0.6, w: ipW, h: ipH, sizing: { type: "contain", w: ipW, h: ipH } });
     const mascotDesc = opts.mascotPhilosophy || fta(bp, ["mascot-philosophy","mascot-meaning","ip-intro"]) || "品牌IP公仔，承载品牌个性与亲和力。";
-    slide.addText(mascotDesc, { x: cx, y: SH - 0.8, w: CONTENT_W, h: 0.4, fontSize: 11, color: "666666", align: "center", lineSpacingMultiple: 1.4, fontFace: "Noto Sans SC" });
+    slide.addText(mascotDesc, { x: cx, y: SH - 0.8, w: CONTENT_W, h: 0.4, fontSize: 14, color: "666666", align: "center", lineSpacingMultiple: 1.4, fontFace: "Noto Sans SC" });
   }
 }
+
 
 // ========== Brand Colors ==========
 // ---- Logo组合规范 ----
@@ -672,7 +671,7 @@ function renderLogoVariations(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: R
   // Bottom note
   slide.addText("Logo在不同背景和应用场景下应选用合适的组合形式，确保识别性与美观性。", {
     x: cx, y: 7.2, w: CONTENT_W, h: 0.3,
-    fontSize: 11, color: "888888", align: "center",
+    fontSize: 12, color: "888888", align: "center",
   });
 }
 
@@ -696,9 +695,9 @@ function renderLogoMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     const col = i % 3;
     const row = Math.floor(i / 3);
     const x = cx + col * (CONTENT_W / 3 + 0.1);
-    const y = 1.5 + row * 2.6;
+    const y = 1.5 + row * 2.8;
     const w = CONTENT_W / 3 - 0.15;
-    const h = 2.1;
+    const h = 2.4;
 
     // Red-tinted box
     slide.addShape("rect", {
@@ -760,7 +759,7 @@ function renderLogoMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
       if (misuses[i].distortion === "font") {
         slide.addText(companyName, {
           x: logoX, y: logoY + logoH * 0.3, w: logoW, h: logoH * 0.5,
-          fontSize: 11, italic: true, color: "FF6600", align: "center", fontFace: "Comic Sans MS",
+          fontSize: 12, italic: true, color: "FF6600", align: "center", fontFace: "Comic Sans MS",
         });
       }
     } else {
@@ -784,8 +783,8 @@ function renderLogoMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
 
     // Description
     slide.addText(misuses[i].desc, {
-      x: x + 0.1, y: y + h - 0.35, w: w - 0.2, h: 0.35,
-      fontSize: 10, color: "888888", align: "center", lineSpacingMultiple: 1.2,
+      x: x + 0.1, y: y + h - 0.5, w: w - 0.2, h: 0.5,
+      fontSize: 12, color: "888888", align: "center", lineSpacingMultiple: 1.2,
     });
   }
 
@@ -802,10 +801,10 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   const cx = MARGIN + LEFT_BAR_W;
 
   // V103: 辅助图形说明加入品牌色依据
-  const auxIntro = opts.auxGraphicsIntro || `辅助图形提取自品牌主色(${bc.pri})与辅助色(${bc.sec})，用于丰富视觉层次、强化品牌识别。条纹组合呼应品牌节奏感，点阵组合传递精致秩序。`;
+  const auxIntro = (opts.auxGraphicsIntro || `辅助图形提取自品牌主色(${bc.pri})与辅助色(${bc.sec})，用于丰富视觉层次、强化品牌识别。条纹组合呼应品牌节奏感，点阵组合传递精致秩序。`).replace(/。。/g, '。');
   slide.addText(auxIntro, {
-    x: cx, y: 1.4, w: CONTENT_W, h: 0.6,
-    fontSize: 13, color: "666666", lineSpacingMultiple: 1.4,
+    x: cx, y: 2.187, w: CONTENT_W, h: 0.6,
+    fontSize: 14, color: "666666", lineSpacingMultiple: 1.4,
   });
 
   const halfW = (CONTENT_W - 0.3) / 2;
@@ -813,7 +812,7 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
 
   // V11: Pattern 1: Stripes — moved down to y=3.6, transparency reduced for brand color visibility
   const p1x = cx;
-  const p1y = 3.6;
+  const p1y = 4.387;
   slide.addShape("rect", {
     x: p1x, y: p1y, w: halfW, h: patternH,
     fill: { color: "F5F5F5" }, rectRadius: 0.1,
@@ -835,7 +834,7 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
 
   // V11: Pattern 2: Dots — moved down to y=3.6, transparency reduced
   const p2x = cx + halfW + 0.3;
-  const p2y = 3.6;
+  const p2y = 4.387;
   slide.addShape("rect", {
     x: p2x, y: p2y, w: halfW, h: patternH,
     fill: { color: "F5F5F5" }, rectRadius: 0.1,
@@ -858,21 +857,18 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
 
   // Usage section — shifted down
   slide.addText("应用场景", {
-    x: cx, y: 6.0, w: CONTENT_W, h: 0.35,
-    fontSize: 16, bold: true, color: bc.pri,
+    x: cx, y: 6.787, w: CONTENT_W, h: 0.35,
+    fontSize: 18, bold: true, color: bc.pri,
   });
-
   slide.addText("1. 文档/手册页眉装饰线\n2. 包装袋底部纹样\n3. 名片背面背景\n4. 社交媒体封面装饰\n5. 店铺墙面装饰纹样", {
-    x: cx + 0.2, y: 6.35, w: CONTENT_W - 0.4, h: 0.9,
-    fontSize: 12, color: "555555", lineSpacingMultiple: 1.4,
+    x: cx + 0.2, y: 7.924, w: CONTENT_W - 0.4, h: 0.9,
+    fontSize: 14, color: "555555", lineSpacingMultiple: 1.4,
   });
-
   slide.addText("辅助图形可按比例缩放，但不可改变比例关系或旋转角度。建议透明度使用10%-40%。", {
-    x: cx, y: 7.3, w: CONTENT_W, h: 0.3,
-    fontSize: 11, color: "888888", align: "center",
+    x: cx, y: 9.611, w: CONTENT_W, h: 0.3,
+    fontSize: 14, color: "555555", align: "center",
   });
 }
-
 
 // ========== Brand Colors — V108: 图片化规范页 ==========
 async function renderColors(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): Promise<void> {
@@ -911,23 +907,23 @@ async function renderTypography(slide: PptxGenJS.Slide, bp: PageBlueprint, opts:
     const cx = MARGIN + LEFT_BAR_W;
     let yPos = 1.6;
     slide.addShape("rect", { x: cx, y: yPos, w: 0.12, h: 1.5, fill: { color: bc.pri }, rectRadius: 0.03 });
-    slide.addText("中文字体", { x: cx + 0.3, y: yPos + 0.1, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
-    slide.addText("标题字体：思源黑体 / Noto Sans SC", { x: cx + 0.3, y: yPos + 0.6, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
-    slide.addText("正文字体：思源宋体 / Noto Serif SC", { x: cx + 0.3, y: yPos + 0.95, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
+    slide.addText("中文字体", { x: cx + 0.3, y: yPos + 0.1, w: CONTENT_W, h: 0.5, fontSize: 18, bold: true, color: bc.pri });
+    slide.addText("标题字体：思源黑体 / Noto Sans SC", { x: cx + 0.3, y: yPos + 0.6, w: CONTENT_W, h: 0.35, fontSize: 14, color: "444444" });
+    slide.addText("正文字体：思源宋体 / Noto Serif SC", { x: cx + 0.3, y: yPos + 0.95, w: CONTENT_W, h: 0.35, fontSize: 14, color: "444444" });
     yPos += 2.0;
     slide.addShape("rect", { x: cx, y: yPos, w: 0.12, h: 1.5, fill: { color: bc.sec }, rectRadius: 0.03 });
-    slide.addText("英文字体", { x: cx + 0.3, y: yPos + 0.1, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.sec });
-    slide.addText("Brand Font: Montserrat", { x: cx + 0.3, y: yPos + 0.6, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
-    slide.addText("Body Font: Open Sans", { x: cx + 0.3, y: yPos + 0.95, w: CONTENT_W, h: 0.35, fontSize: 13, color: "444444" });
+    slide.addText("英文字体", { x: cx + 0.3, y: yPos + 0.1, w: CONTENT_W, h: 0.5, fontSize: 18, bold: true, color: bc.sec });
+    slide.addText("Brand Font: Montserrat", { x: cx + 0.3, y: yPos + 0.6, w: CONTENT_W, h: 0.35, fontSize: 14, color: "444444" });
+    slide.addText("Body Font: Open Sans", { x: cx + 0.3, y: yPos + 0.95, w: CONTENT_W, h: 0.35, fontSize: 14, color: "444444" });
     yPos += 2.0;
-    slide.addText("字号层级规范", { x: cx, y: yPos, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
+    slide.addText("字号层级规范", { x: cx, y: yPos, w: CONTENT_W, h: 0.5, fontSize: 18, bold: true, color: bc.pri });
     const rows = [
-      [{ text: "层级", options: { fontSize: 11, bold: true, color: "FFFFFF" } }, { text: "字号", options: { fontSize: 11, bold: true, color: "FFFFFF" } }, { text: "应用场景", options: { fontSize: 11, bold: true, color: "FFFFFF" } }],
-      [{ text: "一级标题", options: { fontSize: 11, color: "333333" } }, { text: "36-40pt", options: { fontSize: 11, color: "333333" } }, { text: "封面标题", options: { fontSize: 11, color: "333333" } }],
-      [{ text: "二级标题", options: { fontSize: 11, color: "333333" } }, { text: "22-26pt", options: { fontSize: 11, color: "333333" } }, { text: "章节标题", options: { fontSize: 11, color: "333333" } }],
-      [{ text: "三级标题", options: { fontSize: 11, color: "333333" } }, { text: "16-18pt", options: { fontSize: 11, color: "333333" } }, { text: "小标题/栏目", options: { fontSize: 11, color: "333333" } }],
-      [{ text: "正文", options: { fontSize: 11, color: "333333" } }, { text: "13-14pt", options: { fontSize: 11, color: "333333" } }, { text: "正文说明", options: { fontSize: 11, color: "333333" } }],
-      [{ text: "辅助文字", options: { fontSize: 11, color: "333333" } }, { text: "11pt", options: { fontSize: 11, color: "333333" } }, { text: "注释/标注/页码", options: { fontSize: 11, color: "333333" } }],
+      [{ text: "层级", options: { fontSize: 12, bold: true, color: "FFFFFF" } }, { text: "字号", options: { fontSize: 12, bold: true, color: "FFFFFF" } }, { text: "应用场景", options: { fontSize: 12, bold: true, color: "FFFFFF" } }],
+      [{ text: "一级标题", options: { fontSize: 12, color: "333333" } }, { text: "36-40pt", options: { fontSize: 12, color: "333333" } }, { text: "封面标题", options: { fontSize: 12, color: "333333" } }],
+      [{ text: "二级标题", options: { fontSize: 12, color: "333333" } }, { text: "22-26pt", options: { fontSize: 12, color: "333333" } }, { text: "章节标题", options: { fontSize: 12, color: "333333" } }],
+      [{ text: "三级标题", options: { fontSize: 12, color: "333333" } }, { text: "16-18pt", options: { fontSize: 12, color: "333333" } }, { text: "小标题/栏目", options: { fontSize: 12, color: "333333" } }],
+      [{ text: "正文", options: { fontSize: 12, color: "333333" } }, { text: "13-14pt", options: { fontSize: 12, color: "333333" } }, { text: "正文说明", options: { fontSize: 12, color: "333333" } }],
+      [{ text: "辅助文字", options: { fontSize: 12, color: "333333" } }, { text: "11pt", options: { fontSize: 12, color: "333333" } }, { text: "注释/标注/页码", options: { fontSize: 12, color: "333333" } }],
     ];
     slide.addTable(rows, { x: cx, y: yPos + 0.55, w: CONTENT_W, colW: [2.0, 2.0, 3.07], border: { pt: 0.5, color: "E0E0E0" }, rowH: [0.4, 0.4, 0.4, 0.4, 0.4, 0.4], autoPage: false });
   }
@@ -939,8 +935,8 @@ function renderBasicSpec(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Render
   const cx = MARGIN + LEFT_BAR_W;
 
   // Logo保护空间
-  slide.addText("LOGO 保护空间", { x: cx, y: 1.6, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
-  slide.addText("LOGO 四周保留至少 15% 保护空间，不可被任何元素遮挡或裁切", { x: cx, y: 2.1, w: CONTENT_W, h: 0.4, fontSize: 13, color: "555555" });
+  slide.addText("LOGO 保护空间", { x: cx, y: 1.6, w: CONTENT_W, h: 0.5, fontSize: 18, bold: true, color: bc.pri });
+  slide.addText("LOGO 四周保留至少 15% 保护空间，不可被任何元素遮挡或裁切", { x: cx, y: 2.1, w: CONTENT_W, h: 0.4, fontSize: 14, color: "555555" });
 
   const demoSize = 2.8;
   const demoX = (SW - demoSize) / 2;
@@ -953,15 +949,15 @@ function renderBasicSpec(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Render
     // 组合Logo在保护空间展示
     addComboLogo(slide, opts.companyName || "品牌", demoX, demoY, demoSize, demoSize, bc, industry, { fontSize: 22, color: bc.pri, layout: "vertical", showLine: true, aiLogoData: opts.aiLogoData });
   }
-  slide.addText("15% 保护空间", { x: demoX - 0.35, y: demoY + demoSize + 0.15, w: demoSize + 0.7, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+  slide.addText("15% 保护空间", { x: demoX - 0.35, y: demoY + demoSize + 0.15, w: demoSize + 0.7, h: 0.3, fontSize: 12, color: "999999", align: "center" });
 
   // 最小尺寸
-  slide.addText("最小尺寸规范", { x: cx, y: 6.5, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri });
+  slide.addText("最小尺寸规范", { x: cx, y: 6.5, w: CONTENT_W, h: 0.5, fontSize: 18, bold: true, color: bc.pri });
   const rows = [
-    [{ text: "应用场景", options: { fontSize: 11, bold: true, color: "FFFFFF" } }, { text: "最小宽度", options: { fontSize: 11, bold: true, color: "FFFFFF" } }, { text: "说明", options: { fontSize: 11, bold: true, color: "FFFFFF" } }],
-    [{ text: "印刷品", options: { fontSize: 11, color: "333333" } }, { text: "30mm", options: { fontSize: 11, color: "333333" } }, { text: "名片/信封等印刷物料", options: { fontSize: 11, color: "333333" } }],
-    [{ text: "数字媒体", options: { fontSize: 11, color: "333333" } }, { text: "80px", options: { fontSize: 11, color: "333333" } }, { text: "网站/App 等数字媒介", options: { fontSize: 11, color: "333333" } }],
-    [{ text: "户外广告", options: { fontSize: 11, color: "333333" } }, { text: "200mm", options: { fontSize: 11, color: "333333" } }, { text: "广告牌/展架等大尺寸场景", options: { fontSize: 11, color: "333333" } }],
+    [{ text: "应用场景", options: { fontSize: 12, bold: true, color: "FFFFFF" } }, { text: "最小宽度", options: { fontSize: 12, bold: true, color: "FFFFFF" } }, { text: "说明", options: { fontSize: 12, bold: true, color: "FFFFFF" } }],
+    [{ text: "印刷品", options: { fontSize: 12, color: "333333" } }, { text: "30mm", options: { fontSize: 12, color: "333333" } }, { text: "名片/信封等印刷物料", options: { fontSize: 12, color: "333333" } }],
+    [{ text: "数字媒体", options: { fontSize: 12, color: "333333" } }, { text: "80px", options: { fontSize: 12, color: "333333" } }, { text: "网站/App 等数字媒介", options: { fontSize: 12, color: "333333" } }],
+    [{ text: "户外广告", options: { fontSize: 12, color: "333333" } }, { text: "200mm", options: { fontSize: 12, color: "333333" } }, { text: "广告牌/展架等大尺寸场景", options: { fontSize: 12, color: "333333" } }],
   ];
   slide.addTable(rows, { x: cx, y: 7.1, w: CONTENT_W, colW: [2.0, 2.0, 3.07], border: { pt: 0.5, color: "E0E0E0" }, rowH: [0.4, 0.4, 0.4, 0.4], autoPage: false });
 }
@@ -972,7 +968,7 @@ function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
   const config = configs[type] || { title: type, desc: "" };
   addContentFrame(slide, config.title, bc);
   const cx = MARGIN + LEFT_BAR_W;
-  slide.addText(config.desc, { x: cx, y: 1.4, w: CONTENT_W, h: 0.4, fontSize: 13, color: "666666" });
+  slide.addText(config.desc, { x: cx, y: 1.4, w: CONTENT_W, h: 0.4, fontSize: 14, color: "666666" });
 
   // 获取该场景类型的AI图片
   const pageImages = Object.entries(sceneImages).filter(([k]) => k.startsWith(type));
@@ -1037,13 +1033,13 @@ function renderMixedLayout(
 
     // 场景标注
     const label = sceneLabels[key] || labels[i] || key;
-    slide.addText(label, { x: imgX, y: IMG_Y + FULL_H + 0.05, w: imgW, h: 0.25, fontSize: 11, bold: true, color: "333333", align: "center" });
+    slide.addText(label, { x: imgX, y: IMG_Y + FULL_H + 0.15, w: imgW, h: 0.35, fontSize: 12, bold: true, color: "333333", align: "center", lineSpacingMultiple: 1.3 });
   }
 
   // "品牌视觉氛围示意"标注
   slide.addText("以上为品牌视觉氛围示意", {
-    x: cx, y: IMG_Y + FULL_H + 0.35, w: CONTENT_W, h: 0.22,
-    fontSize: 9, italic: true, color: "AAAAAA", align: "center",
+    x: cx, y: IMG_Y + FULL_H + 0.65, w: CONTENT_W, h: 0.3,
+    fontSize: 12, bold: true, color: "#" + bc.acc, align: "center",
   });
 }
 
@@ -1057,7 +1053,7 @@ function renderLogoStandardDemo(
 
   // 分隔线 + 小标题
   slide.addShape("rect", { x: cx, y: startY - 0.12, w: CONTENT_W, h: 0.02, fill: { color: bc.pri, transparency: 60 } });
-  slide.addText("Logo 应用规范", { x: cx, y: startY - 0.08, w: CONTENT_W, h: 0.25, fontSize: 10, bold: true, color: bc.pri, align: "right" });
+  slide.addText("Logo 应用规范", { x: cx, y: startY - 0.08, w: CONTENT_W, h: 0.25, fontSize: 18, bold: true, color: bc.pri, align: "right" });
 
   const BOT_AREA_Y = startY + 0.25;
 
@@ -1070,7 +1066,7 @@ function renderLogoStandardDemo(
     if (logoData) slide.addImage({ data: normImg(logoData), x: nx + 0.25, y: ny + 0.2, w: 0.8, h: 0.8, sizing: { type: "contain", w: 0.8, h: 0.8 } });
     slide.addText(cn, { x: nx + 1.7, y: ny + 0.25, w: 2.0, h: 0.35, fontSize: 14, bold: true, color: "333333" });
     slide.addShape("rect", { x: nx + 0.25, y: ny + nh - 0.35, w: nw - 0.5, h: 0.03, fill: { color: bc.acc } });
-    slide.addText("名片（正面）", { x: nx, y: ny + nh + 0.05, w: nw, h: 0.22, fontSize: 10, color: "999999", align: "center" });
+    slide.addText("名片（正面）", { x: nx, y: ny + nh + 0.05, w: nw, h: 0.22, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     // 包装 — 展示手提袋
     const bw = 2.8, bh = 3.4;
@@ -1083,7 +1079,7 @@ function renderLogoStandardDemo(
     if (logoData) slide.addImage({ data: normImg(logoData), x: bx + 0.6, y: by + 0.45, w: 1.6, h: 1.6, sizing: { type: "contain", w: 1.6, h: 1.6 } });
     slide.addText(cn, { x: bx, y: by + 2.3, w: bw, h: 0.35, fontSize: 13, bold: true, color: "FFFFFF", align: "center" });
     slide.addShape("rect", { x: bx + 0.35, y: by + 2.8, w: bw - 0.7, h: 0.03, fill: { color: bc.acc } });
-    slide.addText("手提袋", { x: bx, y: by + bh + 0.05, w: bw, h: 0.22, fontSize: 10, color: "999999", align: "center" });
+    slide.addText("手提袋", { x: bx, y: by + bh + 0.05, w: bw, h: 0.22, fontSize: 12, color: "999999", align: "center" });
   } else {
     // 营销 — 展示海报
     const pw = 3.2, ph = 3.4;
@@ -1092,7 +1088,7 @@ function renderLogoStandardDemo(
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph * 0.4, fill: { color: bc.pri }, rectRadius: 0.04 });
     if (logoData) slide.addImage({ data: normImg(logoData), x: px + pw/2 - 0.425, y: py + 0.25, w: 0.85, h: 0.85, sizing: { type: "contain", w: 0.85, h: 0.85 } });
     slide.addShape("rect", { x: px + 0.4, y: py + ph * 0.4 + 0.6, w: pw - 0.8, h: 0.03, fill: { color: bc.acc } });
-    slide.addText("海报 / 宣传页", { x: px, y: py + ph + 0.05, w: pw, h: 0.22, fontSize: 10, color: "999999", align: "center" });
+    slide.addText("海报 / 宣传页", { x: px, y: py + ph + 0.05, w: pw, h: 0.22, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1146,7 +1142,7 @@ function renderSceneWithImages(
 
       // 标注文字
       const label = sceneLabels[key] || labels[i] || key;
-      slide.addText(label, { x: imgX, y: startY + imgH + 0.1, w: imgW, h: 0.35, fontSize: 13, bold: true, color: "333333", align: "center" });
+      slide.addText(label, { x: imgX, y: startY + imgH + 0.1, w: imgW, h: 0.35, fontSize: 14, bold: true, color: "333333", align: "center" });
     }
   } else {
     // 3+张图：网格布局（2列）— V7: 图片放大
@@ -1189,7 +1185,7 @@ function renderSceneWithImages(
 
       // 标注
       const label = sceneLabels[key] || labels[i] || key;
-      slide.addText(label, { x: imgX, y: imgY + imgH + 0.08, w: colW, h: 0.3, fontSize: 11, color: "555555", align: "center" });
+      slide.addText(label, { x: imgX, y: imgY + imgH + 0.08, w: colW, h: 0.3, fontSize: 12, color: "555555", align: "center" });
 
       col++;
       if (col >= 2) { col = 0; row++; }
@@ -1291,9 +1287,9 @@ function renderRestaurantFallback(slide: PptxGenJS.Slide, opts: RenderPptxOption
     slide.addShape("rect", { x: nx, y: ny, w: 0.12, h: nh, fill: { color: bc.priDark } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (nx + 0.3) + 0.250, y: ny + 0.2, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
     slide.addText(opts.companyName || "品牌", { x: nx + 1.8, y: ny + 0.2, w: 2.2, h: 0.5, fontSize: 17, bold: true, color: "333333" });
-    slide.addText("优质餐巾纸 · 用心服务", { x: nx + 1.8, y: ny + 0.8, w: 2.2, h: 0.35, fontSize: 11, color: "888888" });
+    slide.addText("优质餐巾纸 · 用心服务", { x: nx + 1.8, y: ny + 0.8, w: 2.2, h: 0.35, fontSize: 12, color: "888888" });
     slide.addShape("rect", { x: nx + 0.3, y: ny + nh - 0.35, w: nw - 0.6, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("餐巾纸套", { x: nx, y: ny + nh + 0.1, w: nw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("餐巾纸套", { x: nx, y: ny + nh + 0.1, w: nw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     // 外卖袋
     const bw = 3.5, bh = 4.2, bx = (SW - bw) / 2, by = 2.2;
@@ -1304,7 +1300,7 @@ function renderRestaurantFallback(slide: PptxGenJS.Slide, opts: RenderPptxOption
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.250, y: by + 0.6, w: 2.00, h: 2.00, sizing: { type: "contain", w: 2.00, h: 2.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.8, w: bw, h: 0.5, fontSize: 17, bold: true, color: "FFFFFF", align: "center" });
     slide.addShape("rect", { x: bx + 0.5, y: by + 3.5, w: bw - 1.0, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("外卖袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("外卖袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     // 促销海报
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.2;
@@ -1314,7 +1310,7 @@ function renderRestaurantFallback(slide: PptxGenJS.Slide, opts: RenderPptxOption
     slide.addText("限时特惠", { x: px + 0.5, y: py + ph * 0.45 + 0.3, w: pw - 1.0, h: 0.6, fontSize: 22, bold: true, color: "333333" });
     slide.addText("会员专享优惠活动", { x: px + 0.5, y: py + ph * 0.45 + 1.0, w: pw - 1.0, h: 0.4, fontSize: 13, color: "888888" });
     slide.addShape("rect", { x: px + 0.5, y: py + ph * 0.45 + 1.6, w: 1.5, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("促销海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("促销海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1328,7 +1324,7 @@ function renderBeverageFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: cX + cw / 2 - 0.5, y: cy + 0.5, w: 1.0, h: 1.0, sizing: { type: "contain", w: 1.0, h: 1.0 } });
     slide.addText(opts.companyName || "品牌", { x: cX, y: cy + 2.0, w: cw, h: 0.4, fontSize: 17, bold: true, color: "333333", align: "center" });
     slide.addShape("rect", { x: cX + 0.5, y: cy + 2.6, w: cw - 1.0, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("外带杯 / 杯套", { x: cX, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("外带杯 / 杯套", { x: cX, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.0, bx = (SW - bw) / 2, by = 2.2;
     slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
@@ -1336,7 +1332,7 @@ function renderBeverageFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.250, y: by + 0.6, w: 2.00, h: 2.00, sizing: { type: "contain", w: 2.00, h: 2.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.8, w: bw, h: 0.5, fontSize: 17, bold: true, color: "FFFFFF", align: "center" });
     slide.addShape("rect", { x: bx + 0.5, y: by + 3.5, w: bw - 1.0, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("手提袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("手提袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.0, ph = 5.5, px = (SW - pw) / 2, py = 2.2;
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
@@ -1344,7 +1340,7 @@ function renderBeverageFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
     slide.addShape("rect", { x: px + 0.5, y: py + 1.3, w: pw - 1.0, h: 0.04, fill: { color: bc.acc } });
     slide.addText("第二杯半价", { x: px, y: py + 1.6, w: pw, h: 0.4, fontSize: 17, color: "FFFFFF", align: "center" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 0.6) + 0.400, y: py + 2.5, w: 1.00, h: 1.00, sizing: { type: "contain", w: 1.00, h: 1.00 }, transparency: 10 });
-    slide.addText("促销卡", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("促销卡", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1356,20 +1352,20 @@ function renderBeautyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, b
     slide.addShape("rect", { x: ax, y: ay, w: aw, h: 0.08, fill: { color: bc.pri } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (ax + 0.3) + 0.200, y: ay + 0.2, w: 0.60, h: 0.60, sizing: { type: "contain", w: 0.60, h: 0.60 } });
     slide.addText("预约卡", { x: ax + 1.5, y: ay + 0.2, w: 2.0, h: 0.4, fontSize: 17, bold: true, color: bc.pri });
-    slide.addText("预约日期：____年____月____日\n预约项目：________________\n预约技师：________________", { x: ax + 0.3, y: ay + 1.0, w: aw - 0.6, h: 1.0, fontSize: 11, color: "666666", lineSpacingMultiple: 1.6 });
-    slide.addText("预约卡", { x: ax, y: ay + ah + 0.1, w: aw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("预约日期：____年____月____日\n预约项目：________________\n预约技师：________________", { x: ax + 0.3, y: ay + 1.0, w: aw - 0.6, h: 1.0, fontSize: 12, color: "666666", lineSpacingMultiple: 1.6 });
+    slide.addText("预约卡", { x: ax, y: ay + ah + 0.1, w: aw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const gw = 3.2, gh = 4.0, gx = (SW - gw) / 2, gy = 2.0;
     slide.addShape("rect", { x: gx, y: gy, w: gw, h: gh, fill: { color: bc.priLight }, rectRadius: 0.08, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: bc.pri, width: 1 } });
     slide.addShape("rect", { x: gx, y: gy, w: gw, h: 0.2, fill: { color: bc.pri } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (gx + 0.5) + 0.350, y: gy + 0.6, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 }, transparency: 5 });
-    slide.addText("礼品袋", { x: gx, y: gy + gh + 0.1, w: gw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("礼品袋", { x: gx, y: gy + gh + 0.1, w: gw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 3.5, ph = 5.5, px = 0.8, py = 2.0;
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.12 }, line: { color: "E0E0E0", width: 0.3 } });
     slide.addShape("rect", { x: px, y: py, w: pw, h: 1.0, fill: { color: bc.pri }, rectRadius: 0.06 });
     slide.addText("服务价目表", { x: px, y: py + 0.2, w: pw, h: 0.5, fontSize: 20, bold: true, color: "FFFFFF", align: "center" });
-    slide.addText("促销海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("促销海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1380,7 +1376,7 @@ function renderRetailFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, b
     slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.1 }, line: { color: "E8E8E8", width: 0.3 } });
     slide.addShape("rect", { x: nx, y: ny, w: 0.12, h: nh, fill: { color: bc.pri } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (nx + 0.3) + 0.250, y: ny + 0.2, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
-    slide.addText("名片", { x: nx, y: ny + nh + 0.1, w: nw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("名片", { x: nx, y: ny + nh + 0.1, w: nw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.0, bx = (SW - bw) / 2, by = 2.2;
     slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
@@ -1388,14 +1384,14 @@ function renderRetailFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, b
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.350, y: by + 0.6, w: 1.80, h: 1.80, sizing: { type: "contain", w: 1.80, h: 1.80 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.6, w: bw, h: 0.5, fontSize: 17, bold: true, color: "FFFFFF", align: "center" });
     slide.addShape("rect", { x: bx + 0.5, y: by + 3.2, w: bw - 1.0, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("购物袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("购物袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.0;
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 }, line: { color: "E0E0E0", width: 0.3 } });
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph * 0.45, fill: { color: bc.pri }, rectRadius: 0.05 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.2) + 0.250, y: py + 0.5, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
     slide.addText("限时特惠", { x: px + 0.5, y: py + ph * 0.45 + 0.3, w: pw - 1.0, h: 0.6, fontSize: 22, bold: true, color: "333333" });
-    slide.addText("促销海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("促销海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1410,7 +1406,7 @@ function renderFashionFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (tx + 0.4) + 0.250, y: ty + 0.6, w: 1.20, h: 1.20, sizing: { type: "contain", w: 1.20, h: 1.20 } });
     slide.addText(opts.companyName || "品牌", { x: tx, y: ty + 2.0, w: tw, h: 0.4, fontSize: 15, bold: true, color: "333333", align: "center" });
     slide.addShape("rect", { x: tx + 0.4, y: ty + 2.5, w: tw - 0.8, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("服装吊牌", { x: tx, y: ty + th + 0.1, w: tw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("服装吊牌", { x: tx, y: ty + th + 0.1, w: tw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.2, bx = (SW - bw) / 2, by = 2.0;
     slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
@@ -1420,7 +1416,7 @@ function renderFashionFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.6) + 0.250, y: by + 0.8, w: 1.80, h: 1.80, sizing: { type: "contain", w: 1.80, h: 1.80 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.8, w: bw, h: 0.5, fontSize: 17, bold: true, color: "FFFFFF", align: "center" });
     slide.addShape("rect", { x: bx + 0.5, y: by + 3.5, w: bw - 1.0, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("购物袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("购物袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.2;
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 }, line: { color: "E0E0E0", width: 0.3 } });
@@ -1428,7 +1424,7 @@ function renderFashionFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     slide.addText("NEW ARRIVAL", { x: px + 0.5, y: py + 0.5, w: 3.0, h: 0.6, fontSize: 22, bold: true, color: bc.sec });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.5) + 0.350, y: py + 1.5, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 }, transparency: 10 });
     slide.addText("新品上市", { x: px + 0.5, y: py + ph * 0.5 + 0.4, w: pw - 1.0, h: 0.6, fontSize: 20, bold: true, color: "333333" });
-    slide.addText("新品海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("新品海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1440,22 +1436,22 @@ function renderMotherBabyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOption
     slide.addShape("rect", { x: sx, y: sy, w: sw, h: 0.08, fill: { color: bc.pri }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (sx + 0.3) + 0.200, y: sy + 0.3, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
     slide.addText(opts.companyName || "品牌", { x: sx + 1.6, y: sy + 0.3, w: 2.0, h: 0.4, fontSize: 15, bold: true, color: bc.pri });
-    slide.addText("安全认证", { x: sx + 0.3, y: sy + 1.2, w: sw - 0.6, h: 0.3, fontSize: 11, color: "666666" });
-    slide.addText("安全认证贴", { x: sx, y: sy + sh + 0.1, w: sw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("安全认证", { x: sx + 0.3, y: sy + 1.2, w: sw - 0.6, h: 0.3, fontSize: 12, color: "666666" });
+    slide.addText("安全认证贴", { x: sx, y: sy + sh + 0.1, w: sw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.0, bx = (SW - bw) / 2, by = 2.0;
     slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.1, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.12 } });
     slide.addShape("rect", { x: bx + 0.2, y: by + 0.2, w: bw - 0.4, h: 0.3, fill: { color: bc.acc }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.250, y: by + 0.8, w: 2.00, h: 2.00, sizing: { type: "contain", w: 2.00, h: 2.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 3.0, w: bw, h: 0.4, fontSize: 15, bold: true, color: "FFFFFF", align: "center" });
-    slide.addText("母婴礼盒", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("母婴礼盒", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 3.5, ph = 5.0, px = (SW - pw) / 2, py = 2.0;
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.1, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: bc.pri, width: 1 } });
     slide.addShape("rect", { x: px, y: py, w: pw, h: 1.2, fill: { color: bc.pri }, rectRadius: 0.06 });
     slide.addText("妈妈推荐", { x: px, y: py + 0.3, w: pw, h: 0.5, fontSize: 20, bold: true, color: "FFFFFF", align: "center" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 0.6) + 0.400, y: py + 1.6, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
-    slide.addText("推荐卡", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("推荐卡", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1468,21 +1464,21 @@ function renderWeddingFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (cx2 + 1.5) + 0.350, y: cy + 0.4, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
     slide.addText("婚礼邀请", { x: cx2, y: cy + 1.4, w: cw, h: 0.5, fontSize: 22, bold: true, color: bc.pri, align: "center" });
     slide.addShape("rect", { x: cx2 + 1.0, y: cy + 2.1, w: cw - 2.0, h: 0.04, fill: { color: bc.sec } });
-    slide.addText("请柬", { x: cx2, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("请柬", { x: cx2, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.0, bh = 3.5, bx = (SW - bw) / 2, by = 2.0;
     slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.priLight }, rectRadius: 0.1, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: bc.sec, width: 1 } });
     slide.addShape("rect", { x: bx + 0.15, y: by + 0.15, w: bw - 0.3, h: 0.6, fill: { color: bc.pri }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.400, y: by + 1.0, w: 1.20, h: 1.20, sizing: { type: "contain", w: 1.20, h: 1.20 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.4, w: bw, h: 0.4, fontSize: 14, bold: true, color: bc.pri, align: "center" });
-    slide.addText("喜糖盒", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("喜糖盒", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 3.5, ph = 5.5, px = (SW - pw) / 2, py = 2.0;
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 }, line: { color: bc.pri, width: 0.5 } });
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph * 0.4, fill: { color: bc.priLight }, rectRadius: 0.05 });
     slide.addText("婚礼策划", { x: px + 0.3, y: py + 0.5, w: pw - 0.6, h: 0.5, fontSize: 20, bold: true, color: bc.pri, align: "center" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 0.5) + 0.500, y: py + 2.6, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
-    slide.addText("展架", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("展架", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1493,16 +1489,16 @@ function renderFitnessFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     slide.addShape("rect", { x: cx2, y: cy, w: cw, h: ch, fill: { color: bc.pri }, rectRadius: 0.1, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.15 } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (cx2 + 0.3) + 0.200, y: cy + 0.2, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
     slide.addText("MEMBERSHIP", { x: cx2 + 1.6, y: cy + 0.2, w: 2.5, h: 0.4, fontSize: 13, bold: true, color: bc.acc });
-    slide.addText(opts.companyName || "品牌", { x: cx2 + 1.6, y: cy + 0.6, w: 2.5, h: 0.3, fontSize: 11, color: "FFFFFF" });
+    slide.addText(opts.companyName || "品牌", { x: cx2 + 1.6, y: cy + 0.6, w: 2.5, h: 0.3, fontSize: 12, color: "FFFFFF" });
     slide.addShape("rect", { x: cx2 + 0.3, y: cy + 1.4, w: cw - 0.6, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("会员卡", { x: cx2, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("会员卡", { x: cx2, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.0, bh = 4.5, bx = (SW - bw) / 2, by = 2.0;
     slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: "FFFFFF" }, rectRadius: 0.15, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: "E0E0E0", width: 0.3 } });
     slide.addShape("rect", { x: bx, y: by, w: bw, h: 1.5, fill: { color: bc.pri }, rectRadius: 0.08 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.500, y: by + 0.2, w: 1.00, h: 1.00, sizing: { type: "contain", w: 1.00, h: 1.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 1.8, w: bw, h: 0.4, fontSize: 15, bold: true, color: "333333", align: "center" });
-    slide.addText("运动水杯", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("运动水杯", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.0;
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
@@ -1510,7 +1506,7 @@ function renderFitnessFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     slide.addShape("rect", { x: px + 0.5, y: py + 1.5, w: pw - 1.0, h: 0.04, fill: { color: bc.acc } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.0) + 0.500, y: py + 2.0, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 }, transparency: 10 });
     slide.addText("新会员限时特惠", { x: px + 0.5, y: py + 4.0, w: pw - 1.0, h: 0.4, fontSize: 15, color: bc.acc });
-    slide.addText("健身海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("健身海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1522,16 +1518,16 @@ function renderPharmacyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
     slide.addShape("rect", { x: px, y: py, w: pw, h: 0.5, fill: { color: bc.pri }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: px + 0.2, y: py + 0.08, w: 0.35, h: 0.35, sizing: { type: "contain", w: 0.35, h: 0.35 } });
     slide.addText("处方笺", { x: px + 0.6, y: py + 0.08, w: 2.0, h: 0.35, fontSize: 16, bold: true, color: "FFFFFF" });
-    slide.addText("姓名：______ 诊断：______", { x: px + 0.3, y: py + 0.8, w: pw - 0.6, h: 0.8, fontSize: 11, color: "666666", lineSpacingMultiple: 1.6 });
-    slide.addText("处方笺", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("姓名：______ 诊断：______", { x: px + 0.3, y: py + 0.8, w: pw - 0.6, h: 0.8, fontSize: 12, color: "666666", lineSpacingMultiple: 1.6 });
+    slide.addText("处方笺", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.0, bh = 4.0, bx = (SW - bw) / 2, by = 2.0;
     slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.1 }, line: { color: bc.pri, width: 1 } });
     slide.addShape("rect", { x: bx, y: by, w: bw, h: 0.8, fill: { color: bc.priLight }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: bx + 0.3, y: by + 0.1, w: 0.6, h: 0.6, sizing: { type: "contain", w: 0.6, h: 0.6 } });
     slide.addText(opts.companyName || "品牌", { x: bx + 1.0, y: by + 0.15, w: 1.8, h: 0.3, fontSize: 13, bold: true, color: bc.pri });
-    slide.addText("用法用量：____________", { x: bx + 0.3, y: by + 1.2, w: bw - 0.6, h: 0.8, fontSize: 10, color: "666666", lineSpacingMultiple: 1.6 });
-    slide.addText("药袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("用法用量：____________", { x: bx + 0.3, y: by + 1.2, w: bw - 0.6, h: 0.8, fontSize: 12, color: "666666", lineSpacingMultiple: 1.6 });
+    slide.addText("药袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.0;
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: "E0E0E0", width: 0.3 } });
@@ -1539,7 +1535,7 @@ function renderPharmacyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
     slide.addText("健康资讯", { x: px + 0.5, y: py + 0.3, w: pw - 1.0, h: 0.6, fontSize: 22, bold: true, color: "FFFFFF", align: "center" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.2) + 0.250, y: py + 1.8, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
     slide.addText("专业值得信赖", { x: px + 0.5, y: py + 3.8, w: pw - 1.0, h: 0.4, fontSize: 15, color: bc.pri, align: "center" });
-    slide.addText("宣传单", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("宣传单", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1551,8 +1547,8 @@ function renderPetFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: 
     slide.addShape("rect", { x: cx2, y: cy, w: cw, h: 0.6, fill: { color: bc.pri }, rectRadius: 0.06 });
     slide.addText("疫苗记录卡", { x: cx2 + 0.3, y: cy + 0.1, w: 3.0, h: 0.4, fontSize: 15, bold: true, color: "FFFFFF" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: cx2 + cw - 1.0, y: cy + 0.1, w: 0.4, h: 0.4, sizing: { type: "contain", w: 0.4, h: 0.4 } });
-    slide.addText("宠物名：______ 品种：______", { x: cx2 + 0.3, y: cy + 0.9, w: cw - 0.6, h: 0.8, fontSize: 10, color: "666666", lineSpacingMultiple: 1.6 });
-    slide.addText("疫苗卡", { x: cx2, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("宠物名：______ 品种：______", { x: cx2 + 0.3, y: cy + 0.9, w: cw - 0.6, h: 0.8, fontSize: 12, color: "666666", lineSpacingMultiple: 1.6 });
+    slide.addText("疫苗卡", { x: cx2, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.5, bx = (SW - bw) / 2, by = 2.0;
     slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.12 } });
@@ -1560,7 +1556,7 @@ function renderPetFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: 
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.250, y: by + 0.6, w: 2.00, h: 2.00, sizing: { type: "contain", w: 2.00, h: 2.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.8, w: bw, h: 0.5, fontSize: 17, bold: true, color: "FFFFFF", align: "center" });
     slide.addShape("rect", { x: bx + 0.5, y: by + 3.5, w: bw - 1.0, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("宠物食品袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("宠物食品袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.0, ph = 5.5, px = (SW - pw) / 2, py = 2.0;
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: bc.priLight }, rectRadius: 0.1, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: bc.pri, width: 0.5 } });
@@ -1568,7 +1564,7 @@ function renderPetFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: 
     slide.addText("服务价目", { x: px, y: py + 0.15, w: pw, h: 0.5, fontSize: 20, bold: true, color: "FFFFFF", align: "center" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.0) + 0.250, y: py + 1.2, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
     slide.addText("洗澡 · 寄养 · 美容 · 疫苗", { x: px + 0.3, y: py + 3.2, w: pw - 0.6, h: 0.3, fontSize: 12, color: "666666", align: "center" });
-    slide.addText("服务价目表", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("服务价目表", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1579,21 +1575,21 @@ function renderGeneralFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.12 }, line: { color: "E8E8E8", width: 0.3 } });
     slide.addShape("rect", { x: nx, y: ny, w: 0.12, h: nh, fill: { color: bc.pri }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (nx + 0.3) + 0.350, y: ny + 0.25, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
-    slide.addText("名片", { x: nx, y: ny + nh + 0.1, w: nw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("名片", { x: nx, y: ny + nh + 0.1, w: nw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.0, bx = (SW - bw) / 2, by = 2.2;
     slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.250, y: by + 0.6, w: 2.00, h: 2.00, sizing: { type: "contain", w: 2.00, h: 2.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.8, w: bw, h: 0.5, fontSize: 17, bold: true, color: "FFFFFF", align: "center" });
     slide.addShape("rect", { x: bx + 0.5, y: by + 3.5, w: bw - 1.0, h: 0.04, fill: { color: bc.acc } });
-    slide.addText("手提袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("手提袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.2;
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 }, line: { color: "E0E0E0", width: 0.3 } });
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph * 0.45, fill: { color: bc.pri }, rectRadius: 0.05 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.2) + 0.250, y: py + 0.5, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
     slide.addText("品牌宣传", { x: px + 0.5, y: py + ph * 0.45 + 0.3, w: pw - 1.0, h: 0.6, fontSize: 22, bold: true, color: "333333" });
-    slide.addText("海报 / 宣传页", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 11, color: "999999", align: "center" });
+    slide.addText("海报 / 宣传页", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   }
 }
 
@@ -1616,7 +1612,7 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
     // 序号
     slide.addText(numStr, { x: cx, y: yPos, w: 0.6, h: 0.5, fontSize: 13, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
     // 标题
-    slide.addText(item.title, { x: cx + 0.7, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 13, color: "333333", fontFace: "Noto Sans SC" });
+    slide.addText(item.title, { x: cx + 0.7, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 14, color: "333333", fontFace: "Noto Sans SC" });
     // 点线
     slide.addText("....................................................................................", { x: cx + 0.7, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 9, color: "CCCCCC", align: "right" });
     // 页码
@@ -1674,7 +1670,7 @@ function renderSummary(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPp
     slide.addShape("roundRect", { x: cx + 0.2, y: yPos, w: 0.5, h: 0.5, fill: { color: bc.pri }, rectRadius: 0.25 });
     slide.addText(`${i + 1}`, { x: cx + 0.2, y: yPos, w: 0.5, h: 0.5, fontSize: 14, bold: true, color: "FFFFFF", align: "center", valign: "middle" });
     slide.addText(p.label, { x: cx + 0.9, y: yPos, w: 2.5, h: 0.45, fontSize: 17, bold: true, color: bc.pri });
-    slide.addText(p.desc, { x: cx + 0.9, y: yPos + 0.5, w: CONTENT_W - 1.1, h: 0.7, fontSize: 13, color: "555555", lineSpacingMultiple: 1.5 });
+    slide.addText(p.desc, { x: cx + 0.9, y: yPos + 0.5, w: CONTENT_W - 1.1, h: 0.7, fontSize: 14, color: "555555", lineSpacingMultiple: 1.5 });
     yPos += 1.6;
   }
 }
