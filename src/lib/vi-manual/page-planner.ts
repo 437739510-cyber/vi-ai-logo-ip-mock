@@ -151,6 +151,8 @@ const PAGE_LABELS: Record<string, string> = {
   "logo-variations": "Logo组合规范",
   "logo-misuse": "Logo使用规范",
   "auxiliary-graphics": "辅助图形",
+  "logo-grid": "LOGO网格制图规范",
+  "font-copyright": "字体版权说明",
   "brand-colors": "标准色彩规范",
   typography: "字体系统",
   "basic-spec": "基础规范",
@@ -202,7 +204,7 @@ export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[
   const pageIds = input.pageIds || [
     "cover", "toc", "brand-philosophy", "logo-interpretation", "logo-variations",
     "logo-misuse", "auxiliary-graphics", "brand-colors",
-    "typography", "basic-spec", "stationery", "packaging",
+    "typography", "font-copyright", "basic-spec", "stationery", "packaging",
     "marketing", "summary", "closing",
   ];
 
@@ -477,6 +479,7 @@ function buildElements(pageId: string, ctx: BuildContext): PageElement[] {
     case "logo-interpretation": return buildLogoInterpElements(ctx);
     case "logo-variations": return buildLogoVariationsElements(ctx);
     case "logo-misuse": return buildLogoMisuseElements(ctx);
+    case "logo-grid": return buildLogoGridElements(ctx);
     case "auxiliary-graphics": return buildAuxiliaryGraphicsElements(ctx);
     case "brand-colors": return buildColorElements(ctx);
     case "typography": return buildTypographyElements(ctx);
@@ -484,6 +487,7 @@ function buildElements(pageId: string, ctx: BuildContext): PageElement[] {
     case "stationery": return buildStationeryElements(ctx);
     case "packaging": return buildPackagingElements(ctx);
     case "marketing": return buildMarketingElements(ctx);
+    case "font-copyright": return buildFontCopyrightElements(ctx);
     case "summary": return buildSummaryElements(ctx);
     case "closing": return buildClosingElements(ctx);
     default: return [];
@@ -1270,6 +1274,26 @@ function buildClosingElements(ctx: BuildContext): PageElement[] {
     });
   }
 
+  return elements;
+}
+
+function buildLogoGridElements(ctx: BuilderContext): PageElement[] {
+  const elements: PageElement[] = [];
+  elements.push({ type: "text", id: "lg-title", content: PAGE_LABELS["logo-grid"], style: { fontSize: 24, bold: true, color: ctx.bc.pri } });
+  elements.push({ type: "divider", id: "lg-divider" });
+  elements.push({ type: "custom", id: "logo-grid-content", content: "LOGO网格制图" });
+  return elements;
+}
+
+function buildFontCopyrightElements(ctx: BuilderContext): PageElement[] {
+  const elements: PageElement[] = [];
+  elements.push({ type: "text", id: "fc-title", content: PAGE_LABELS["font-copyright"], style: { fontSize: 24, bold: true, color: ctx.bc.pri } });
+  elements.push({ type: "divider", id: "fc-divider" });
+  elements.push({ type: "text", id: "fc-noto-sans", content: "思源黑体 Noto Sans SC — SIL开源免费商用", style: { fontSize: 14 } });
+  elements.push({ type: "text", id: "fc-noto-serif", content: "思源宋体 Noto Serif SC — SIL开源免费商用", style: { fontSize: 14 } });
+  elements.push({ type: "text", id: "fc-montserrat", content: "Montserrat — SIL开源免费商用", style: { fontSize: 14 } });
+  elements.push({ type: "text", id: "fc-opensans", content: "Open Sans — Apache 2.0免费商用", style: { fontSize: 14 } });
+  elements.push({ type: "warning", id: "fc-warning", content: "禁止使用微软雅黑、方正等未授权商业字体，避免侵权诉讼", style: { fontSize: 12, color: "#FF6600" } });
   return elements;
 }
 

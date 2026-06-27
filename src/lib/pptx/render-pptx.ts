@@ -263,7 +263,7 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
   return Buffer.from(base64, "base64");
 }
 
-const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-misuse","auxiliary-graphics","brand-colors","typography","basic-spec","stationery","packaging","marketing","summary","closing"];
+const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","logo-misuse","auxiliary-graphics","brand-colors","typography","font-copyright","basic-spec","stationery","packaging","marketing","summary","closing"];
 
 async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>): Promise<void> {
   switch (bp.pageId) {
@@ -273,10 +273,12 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "brand-philosophy": renderPhilosophy(slide, bp, opts, bc); break;
     case "logo-interpretation": renderLogoPage(slide, bp, opts, bc, industry); break;
     case "logo-variations": renderLogoVariations(slide, bp, opts, bc, industry); break;
+    case "logo-grid": renderLogoGrid(slide, bp, opts, bc, industry); break;
     case "logo-misuse": renderLogoMisuse(slide, bp, opts, bc, industry); break;
     case "auxiliary-graphics": renderAuxiliaryGraphics(slide, bp, opts, bc); break;
     case "brand-colors": await renderColors(slide, bp, opts, bc); break;
     case "typography": await renderTypography(slide, bp, opts, bc); break;
+    case "font-copyright": renderFontCopyright(slide, bp, opts, bc); break;
     case "basic-spec": renderBasicSpec(slide, bp, opts, bc, industry); break;
     case "stationery": renderScene(slide, bp, opts, "stationery", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
     case "packaging": renderScene(slide, bp, opts, "packaging", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
@@ -1698,6 +1700,93 @@ function renderGeneric(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPp
       yPos += 0.6;
     }
   }
+}
+
+
+// ---- LOGO网格制图规范 ----
+function renderLogoGrid(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType): void {
+  addContentFrame(slide, bp.label || "LOGO网格制图规范", bc);
+  const cx = MARGIN + LEFT_BAR_W;
+  const companyName = opts.companyName || "品牌";
+  const aiLogo = opts.aiLogoData || (opts.logoData ? normImg(opts.logoData) : undefined);
+
+  // 网格区域
+  const gridX = cx + 0.8;
+  const gridY = 1.5;
+  const gridW = 5.0;
+  const gridH = 5.8;
+  const step = gridW / 10;  // 10x10 grid
+
+  // 绘制网格线
+  for (let i = 0; i <= 10; i++) {
+    const pos = gridX + i * step;
+    // 竖线
+    slide.addShape("rect", { x: pos, y: gridY, w: 0.005, h: gridH, fill: { color: i === 5 ? bc.pri : "DDDDDD" } });
+    // 横线
+    slide.addShape("rect", { x: gridX, y: gridY + i * step, w: gridW, h: 0.005, fill: { color: i === 5 ? bc.pri : "DDDDDD" } });
+    // 刻度标注（上下左右）
+    if (i % 2 === 0) {
+      const labelX = (i * 10).toString();
+      slide.addText(labelX, { x: pos - 0.15, y: gridY + gridH + 0.05, w: 0.3, h: 0.25, fontSize: 7, color: "999999", align: "center" });
+      slide.addText(labelX, { x: gridX - 0.4, y: gridY + i * step - 0.12, w: 0.35, h: 0.25, fontSize: 7, color: "999999", align: "right" });
+    }
+  }
+
+  // 网格单位标注
+  slide.addText("X", { x: gridX + gridW / 2 - 0.15, y: gridY + gridH + 0.35, w: 0.3, h: 0.25, fontSize: 9, color: bc.pri, bold: true, align: "center" });
+  slide.addText("Y", { x: gridX - 0.5, y: gridY + gridH / 2 - 0.12, w: 0.3, h: 0.25, fontSize: 9, color: bc.pri, bold: true, align: "center" });
+
+  // LOGO居中放置
+  if (aiLogo) {
+    const logoW = 2.0;
+    const logoH = 1.5;
+    slide.addImage({
+      data: aiLogo,
+      x: gridX + (gridW - logoW) / 2,
+      y: gridY + (gridH - logoH) / 2,
+      w: logoW,
+      h: logoH,
+      sizing: { type: "contain", w: logoW, h: logoH },
+    });
+  }
+
+  // 比例标注
+  slide.addText("Logo标准网格为10x10单位，LOGO居中对齐网格中心点。", {
+    x: gridX, y: gridY + gridH + 0.65, w: gridW, h: 0.3,
+    fontSize: 11, color: "777777", align: "center",
+  });
+  slide.addText("网格制图确保LOGO在不同尺寸缩放时比例一致，笔画粗细统一。", {
+    x: gridX, y: gridY + gridH + 0.95, w: gridW, h: 0.3,
+    fontSize: 11, color: "777777", align: "center",
+  });
+}
+
+
+// ---- 字体版权说明 ----
+function renderFontCopyright(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  addContentFrame(slide, bp.label || "字体版权说明", bc);
+  const cx = MARGIN + LEFT_BAR_W;
+  let y = 1.6;
+
+  const fonts = [
+    { name: "思源黑体 / Noto Sans SC", license: "SIL Open Font License 1.1", usage: "免费商用", desc: "由Google与Adobe联合发布的开源字体，无需额外授权" },
+    { name: "思源宋体 / Noto Serif SC", license: "SIL Open Font License 1.1", usage: "免费商用", desc: "由Google与Adobe联合发布的开源字体，无需额外授权" },
+    { name: "Montserrat", license: "SIL Open Font License 1.1", usage: "免费商用", desc: "经典几何无衬线英文字体，Google Fonts开源项目" },
+    { name: "Open Sans", license: "Apache License 2.0", usage: "免费商用", desc: "高可读性人文主义英文字体，适用于正文排版" },
+  ];
+
+  for (const f of fonts) {
+    slide.addShape("rect", { x: cx, y, w: 0.12, h: 1.6, fill: { color: bc.pri }, rectRadius: 0.03 });
+    slide.addText(f.name, { x: cx + 0.3, y: y + 0.05, w: CONTENT_W - 0.4, h: 0.45, fontSize: 18, bold: true, color: bc.pri });
+    slide.addText([{ text: "许可协议：", options: { bold: true } }, { text: f.license }], { x: cx + 0.3, y: y + 0.5, w: CONTENT_W - 0.4, h: 0.35, fontSize: 13, color: "555555" });
+    slide.addText([{ text: "商用状态：", options: { bold: true, color: "2E7D32" } }, { text: f.usage + " — " + f.desc, options: { color: "2E7D32" } }], { x: cx + 0.3, y: y + 0.85, w: CONTENT_W - 0.4, h: 0.35, fontSize: 13, color: "2E7D32" });
+    slide.addText([{ text: "结论：以上字体均可免费商用，无需额外授权。", options: { bold: true, color: "1565C0" } }], { x: cx + 0.3, y: y + 1.2, w: CONTENT_W - 0.4, h: 0.3, fontSize: 12 });
+    y += 2.3;
+  }
+
+  // 底部警告
+  slide.addShape("rect", { x: cx, y: y + 0.3, w: CONTENT_W, h: 0.8, fill: { color: "FFF3E0" }, rectRadius: 0.08 });
+  slide.addText([{ text: "⚠ 重要提示：", options: { bold: true, color: "E65100", fontSize: 13 } }, { text: "禁止在商业物料中使用未经授权的商业字体（如微软雅黑、方正系列等），否则可能面临字体版权侵权诉讼。本VI手册所列字体均已确认为免费商用字体。", options: { color: "E65100", fontSize: 12 } }], { x: cx + 0.2, y: y + 0.4, w: CONTENT_W - 0.4, h: 0.6, fontSize: 12, color: "E65100" });
 }
 
 // ========== 工具函数 ==========

@@ -165,17 +165,23 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
           { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, padding: '20px 16px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }, children: [
             { type: 'div', props: { style: { width: '100%', height: 160, borderRadius: 8, backgroundColor: `#${bc.pri}`, marginBottom: 10 } } },
             { type: 'div', props: { style: { fontSize: 34, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '品牌主色' } },
-            { type: 'div', props: { style: { fontSize: 30, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC', marginTop: 2, fontWeight: 600 }, children: `#${bc.pri}` } },
+            { type: 'div', props: { style: { fontSize: 28, color: `#${bc.pri}`, fontFamily: 'Noto Sans SC', marginTop: 2, fontWeight: 600 }, children: `HEX: #${bc.pri}` } },
+            { type: 'div', props: { style: { fontSize: 24, color: '#666666', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: (() => { const rgb = hex2rgb(`#${bc.pri}`); return `RGB: ${rgb.r}, ${rgb.g}, ${rgb.b}`; })() } },
+            { type: 'div', props: { style: { fontSize: 22, color: '#888888', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: (() => { const rgb = hex2rgb(`#${bc.pri}`); const cmyk = rgb2cmyk(rgb.r, rgb.g, rgb.b); return `CMYK: ${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}`; })() } },
           ]}},
           { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, padding: '20px 16px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }, children: [
             { type: 'div', props: { style: { width: '100%', height: 160, borderRadius: 8, backgroundColor: `#${bc.sec}`, marginBottom: 10 } } },
             { type: 'div', props: { style: { fontSize: 34, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '辅助色' } },
-            { type: 'div', props: { style: { fontSize: 30, color: `#${bc.sec}`, fontFamily: 'Noto Sans SC', marginTop: 2, fontWeight: 600 }, children: `#${bc.sec}` } },
+            { type: 'div', props: { style: { fontSize: 28, color: `#${bc.sec}`, fontFamily: 'Noto Sans SC', marginTop: 2, fontWeight: 600 }, children: `HEX: #${bc.sec}` } },
+            { type: 'div', props: { style: { fontSize: 24, color: '#666666', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: (() => { const rgb = hex2rgb(`#${bc.sec}`); return `RGB: ${rgb.r}, ${rgb.g}, ${rgb.b}`; })() } },
+            { type: 'div', props: { style: { fontSize: 22, color: '#888888', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: (() => { const rgb = hex2rgb(`#${bc.sec}`); const cmyk = rgb2cmyk(rgb.r, rgb.g, rgb.b); return `CMYK: ${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}`; })() } },
           ]}},
           { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, padding: '20px 16px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }, children: [
             { type: 'div', props: { style: { width: '100%', height: 160, borderRadius: 8, backgroundColor: `#${bc.acc}`, marginBottom: 10 } } },
             { type: 'div', props: { style: { fontSize: 34, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '强调色' } },
-            { type: 'div', props: { style: { fontSize: 30, color: `#${bc.acc}`, fontFamily: 'Noto Sans SC', marginTop: 2, fontWeight: 600 }, children: `#${bc.acc}` } },
+            { type: 'div', props: { style: { fontSize: 28, color: `#${bc.acc}`, fontFamily: 'Noto Sans SC', marginTop: 2, fontWeight: 600 }, children: `HEX: #${bc.acc}` } },
+            { type: 'div', props: { style: { fontSize: 24, color: '#666666', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: (() => { const rgb = hex2rgb(`#${bc.acc}`); return `RGB: ${rgb.r}, ${rgb.g}, ${rgb.b}`; })() } },
+            { type: 'div', props: { style: { fontSize: 22, color: '#888888', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: (() => { const rgb = hex2rgb(`#${bc.acc}`); const cmyk = rgb2cmyk(rgb.r, rgb.g, rgb.b); return `CMYK: ${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}`; })() } },
           ]}},
         ]}},
         // 三色说明框（与色卡一一对应）
