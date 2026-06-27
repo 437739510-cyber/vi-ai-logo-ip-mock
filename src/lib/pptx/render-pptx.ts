@@ -21,6 +21,18 @@ import { renderTypographyPng, renderColorSpecPng } from "./spec-page-renderer";
 const SW = 8.27;
 const SH = 11.69;
 const MARGIN = 0.7;
+
+// 豆包评审修复: 清洗AI生成文本的常见错误
+function sanitizeText(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/Fower Time/gi, "Flower Time")
+    .replace(/Flover Time/gi, "Flower Time")
+    .replace(/Montserra(?![a-z])/g, "Montserrat")
+    .replace(/#FOD5A8/gi, "#F0D5A8")
+    .replace(/。。/g, "。");
+}
+
 const CONTENT_W = SW - MARGIN * 2;
 const LEFT_BAR_W = 0.12;  // 左侧装饰条宽度
 
@@ -547,7 +559,7 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
       x: cx + 0.3, y: storyY, w: CONTENT_W - 0.3, h: 0.45,
       fontSize: 18, bold: true, color: bc.pri, fontFace: "Noto Sans SC",
     });
-    slide.addText(opts.brandStory, {
+    slide.addText(sanitizeText(opts.brandStory), {
       x: cx + 0.3, y: storyY + 0.5, w: CONTENT_W - 0.5, h: storyH - 0.6,
       fontSize: 14, color: "555555", lineSpacingMultiple: 1.5, valign: "top",
     });
@@ -1142,7 +1154,7 @@ function renderSceneWithImages(
 
       // 标注文字
       const label = sceneLabels[key] || labels[i] || key;
-      slide.addText(label, { x: imgX, y: startY + imgH + 0.1, w: imgW, h: 0.35, fontSize: 14, bold: true, color: "333333", align: "center" });
+      slide.addText(sanitizeText(label), { x: imgX, y: startY + imgH + 0.1, w: imgW, h: 0.35, fontSize: 14, bold: true, color: "333333", align: "center" });
     }
   } else {
     // 3+张图：网格布局（2列）— V7: 图片放大

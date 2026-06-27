@@ -1687,13 +1687,19 @@ function composeBrandStory(
   const parts: string[] = [];
   const insight = profile?.industryInsight || "";
   const positioning = profile?.brandPositioning || "";
-  if (insight) parts.push(insight);
+  // 清洗每段末尾标点，避免拼接出双句号
+  function clean(s: string): string {
+    return s.replace(/[。，,]+$/, "").replace(/。。/g, "。");
+  }
+  if (insight) parts.push(clean(insight));
   parts.push(`${companyName}扎根${industry || "本土"}行业`);
   if (values) parts.push(`以"${values}"为核心价值`);
   if (market) parts.push(`致力于为${market}提供优质服务`);
-  if (vision) parts.push(vision);
-  if (positioning) parts.push(positioning);
-  return parts.length > 1 ? parts.join("，") + "。" : "";
+  if (vision) parts.push(clean(vision));
+  if (positioning) parts.push(clean(positioning));
+  let result = parts.join("，");
+  result = result.replace(/。。/g, "。");
+  return result + "。";
 }
 
 function buildBrandAnalysisPrompt(info: {
