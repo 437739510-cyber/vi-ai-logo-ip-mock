@@ -1,5 +1,5 @@
-﻿/**
- * IP Image Provider Layer 鈥?Central Exports
+/**
+ * IP Image Provider Layer �?Central Exports
  */
 
 export type {
@@ -17,8 +17,7 @@ export {
 } from "./provider";
 
 export { MockProvider } from "./mock-provider";
-export { WanxiangProvider } from "./wanxiang-provider";
-export { ArkSeedreamProvider, ArkSeedreamError, arkGenerateLogo, arkGenerateScene, estimateArkCost, getArkUnitCost } from "./ark-seedream-provider";
+export { ComfyUIProvider, ComfyUIError, comfyGenerateImage, comfyGenerateLogo, comfyGenerateScene, comfyuiGenerateLogo, comfyuiGenerateScene, isComfyUIAvailable } from "./comfyui-provider";
 
 export {
   MetricsProvider,
@@ -29,3 +28,4 @@ export {
   resetMetrics,
   getAggregatedMetrics,
 } from "./metrics-provider";
+

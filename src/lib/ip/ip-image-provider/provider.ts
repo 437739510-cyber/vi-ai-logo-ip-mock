@@ -1,8 +1,8 @@
-ï»¿/**
- * IP Image Provider Layer éˆ¥?Provider Registry
+/**
+ * IP Image Provider Layer â€?Provider Registry
  *
  * Manages available image providers and selects the best one.
- * Fallback chain: Wanxiang éˆ«?Flux éˆ«?Midjourney éˆ«?Mock (guaranteed)
+ * Fallback chain: ComfyUI (local) ¡ú Mock (guaranteed)
  *
  * All registered providers are automatically wrapped with
  * MetricsProvider for transparent call statistics.
@@ -10,8 +10,7 @@
 
 import type { ImageProvider, ProviderMetrics, ProviderCallLog } from "./types";
 import { MockProvider } from "./mock-provider";
-import { WanxiangProvider } from "./wanxiang-provider";
-import { ArkSeedreamProvider } from "./ark-seedream-provider";
+import { ComfyUIProvider } from "./comfyui-provider";
 import {
   MetricsProvider,
   getProviderMetrics,
@@ -123,11 +122,9 @@ export function getDefaultRegistry(): ProviderRegistry {
   if (!_defaultRegistry) {
     _defaultRegistry = new ProviderRegistry();
     _defaultRegistry.register(new MockProvider(), 0);
-    // Register WanxiangProvider with higher priority
+    // ComfyUI is the primary local image provider (free):
     // If WANXIANG_API_KEY is configured, it will be selected over Mock
-    _defaultRegistry.register(new WanxiangProvider(), 10);
-    // Ark Seedream: higher priority, free quota first
-    _defaultRegistry.register(new ArkSeedreamProvider(), 20);
+    _defaultRegistry.register(new ComfyUIProvider(), 10);
   }
   return _defaultRegistry;
 }
@@ -138,3 +135,4 @@ export function getDefaultRegistry(): ProviderRegistry {
 export function resetDefaultRegistry(): void {
   _defaultRegistry = null;
 }
+

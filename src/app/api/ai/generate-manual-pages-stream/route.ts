@@ -5,6 +5,7 @@ import path from "path";
 import sharp from "sharp";
 import { saveGenerationLog, type GenerationLogEntry } from "@/lib/core/generation-logger";
 import { arkGenerateScene, getArkUnitCost } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
+import { comfyuiGenerateScene, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
 import { renderProfessionalPage } from "@/lib/pptx/vi-page-renderer";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';

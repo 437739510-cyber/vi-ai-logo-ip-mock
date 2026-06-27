@@ -1,33 +1,28 @@
 /**
- * Billing System V2 - Cost Estimator (修正版)
- * 基于真实API成本计算，不是虚高定价
- * DeepSeek: ~0.01元/次品牌分析调用
- * 通义万相: ~0.04元/张图
- * iSlide下载: 9.9元/次（仅下载时收费）
- */
+ * Billing System V2 - Cost Estimator (修正�?
+ * 基于真实API成本计算，不是虚高定�? * DeepSeek: ~0.01�?次品牌分析调�? * 通义万相: ~0.04�?张图
+ * iSlide下载: 9.9�?次（仅下载时收费�? */
 import type { CostEstimate, CostEstimateItem, UsageAction } from "./types";
 
 /**
  * 真实API单价（单位：元）
- * V1的注释写"分"但实际被当成"元"显示，导致费用虚高
- * V2直接用真实API成本（元）
- */
+ * V1的注释写"�?但实际被当成"�?显示，导致费用虚�? * V2直接用真实API成本（元�? */
 const REAL_API_PRICES: Record<UsageAction, number> = {
   brand_analyze: 0.01,
   industry_search: 0.005,
   mascot_strategy: 0.01,
-  vi_generate: 0.04,
-  vi_generate_batch: 0.03,
-  future_ip_generate: 0.08,
+  vi_generate: 0,        // ����ComfyUI���
+  vi_generate_batch: 0,  // ����ComfyUI���
+  future_ip_generate: 0,  // ����ComfyUI���
 };
 
 const ACTION_LABELS: Record<UsageAction, string> = {
   brand_analyze: "品牌分析",
   industry_search: "行业搜索",
   mascot_strategy: "IP策略分析",
-  vi_generate: "AI出图",
-  vi_generate_batch: "批量出图",
-  future_ip_generate: "IP图片生成",
+  vi_generate: "AI��ͼ(����)",
+  vi_generate_batch: "������ͼ(����)",
+  future_ip_generate: "IPͼƬ����(����)",
 };
 
 export function getUnitPrices(): Record<UsageAction, number> {

@@ -484,9 +484,11 @@ function buildElements(pageId: string, ctx: BuildContext): PageElement[] {
     case "logo-interpretation": return buildLogoInterpElements(ctx);
     case "logo-variations": return buildLogoVariationsElements(ctx);
     case "logo-misuse": return buildLogoMisuseElements(ctx);
+    case "aux-graphics-misuse": return buildAuxGraphicsMisuseElements(ctx);
     case "logo-grid": return buildLogoGridElements(ctx);
     case "auxiliary-graphics": return buildAuxiliaryGraphicsElements(ctx);
     case "brand-colors": return buildColorElements(ctx);
+    case "color-taboos": return buildColorTaboosElements(ctx);
     case "typography": return buildTypographyElements(ctx);
     case "basic-spec": return buildBasicSpecElements(ctx);
     case "stationery": return buildStationeryElements(ctx);
@@ -1246,6 +1248,18 @@ function buildSummaryElements(ctx: BuildContext): PageElement[] {
 
 // ---- 感谢观看 ----
 
+
+function buildAuxGraphicsMisuseElements(ctx: BuildContext): PageElement[] {
+  return [{ type: "text", id: "agm-title", content: "辅助图形禁用规范", style: { fontSize: 24, bold: true, color: ctx.pri.hex } }];
+}
+
+function buildColorTaboosElements(ctx: BuildContext): PageElement[] {
+  return [{ type: "text", id: "ct-title", content: "色彩使用规范", style: { fontSize: 24, bold: true, color: ctx.pri.hex } }];
+}
+
+function buildMaterialPriorityElements(ctx: BuildContext): PageElement[] {
+  return [{ type: "text", id: "mp-title", content: "VI物料落地清单", style: { fontSize: 24, bold: true, color: ctx.pri.hex } }];
+}
 function buildClosingElements(ctx: BuildContext): PageElement[] {
   const { pri, acc, companyName, hasMascot } = ctx;
   const elements: PageElement[] = [];
@@ -1283,17 +1297,17 @@ function buildClosingElements(ctx: BuildContext): PageElement[] {
   return elements;
 }
 
-function buildLogoGridElements(ctx: BuilderContext): PageElement[] {
+function buildLogoGridElements(ctx: BuildContext): PageElement[] {
   const elements: PageElement[] = [];
-  elements.push({ type: "text", id: "lg-title", content: PAGE_LABELS["logo-grid"], style: { fontSize: 24, bold: true, color: ctx.bc.pri } });
+  elements.push({ type: "text", id: "lg-title", content: PAGE_LABELS["logo-grid"], style: { fontSize: 24, bold: true, color: ctx.pri.hex } });
   elements.push({ type: "divider", id: "lg-divider" });
   elements.push({ type: "custom", id: "logo-grid-content", content: "LOGO网格制图" });
   return elements;
 }
 
-function buildFontCopyrightElements(ctx: BuilderContext): PageElement[] {
+function buildFontCopyrightElements(ctx: BuildContext): PageElement[] {
   const elements: PageElement[] = [];
-  elements.push({ type: "text", id: "fc-title", content: PAGE_LABELS["font-copyright"], style: { fontSize: 24, bold: true, color: ctx.bc.pri } });
+  elements.push({ type: "text", id: "fc-title", content: PAGE_LABELS["font-copyright"], style: { fontSize: 24, bold: true, color: ctx.pri.hex } });
   elements.push({ type: "divider", id: "fc-divider" });
   elements.push({ type: "text", id: "fc-noto-sans", content: "思源黑体 Noto Sans SC — SIL开源免费商用", style: { fontSize: 14 } });
   elements.push({ type: "text", id: "fc-noto-serif", content: "思源宋体 Noto Serif SC — SIL开源免费商用", style: { fontSize: 14 } });
