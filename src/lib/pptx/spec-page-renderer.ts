@@ -1,4 +1,4 @@
-/**
+﻿/**
  * V108: 规范页图片化渲染器
  * 
  * 将"字体系统"和"色彩规范"等规范页用satori+sharp渲染为PNG图片
@@ -153,7 +153,7 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
     return (r*299+g*587+b*114)/1000 > 150;
   }
 
-        const jsx = {
+  const jsx = {
     type: 'div',
     props: {
       style: { width: PAGE_W, height: PAGE_H, backgroundColor: '#FFFFFF', display: 'flex', flexDirection: 'column', padding: '40px 50px' },
@@ -187,23 +187,147 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
         // 三色说明框（与色卡一一对应）
         { type: 'div', props: { style: { display: 'flex', gap: 20, marginBottom: 12 }, children: [
           { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50 }, children: [
-            { type: 'div', props: { style: { fontSize: 34, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `品牌主色#${bc.pri}传递品牌核心调性，` } },
+            { type: 'div', props: { style: { fontSize: 30, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `品牌主色#${bc.pri}传递品牌核心调性` } },
           ]}},
           { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50 }, children: [
-            { type: 'div', props: { style: { fontSize: 34, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `辅助色#${bc.sec}营造层次与和谐，` } },
+            { type: 'div', props: { style: { fontSize: 30, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `辅助色#${bc.sec}营造层次与和谐` } },
           ]}},
           { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50 }, children: [
-            { type: 'div', props: { style: { fontSize: 34, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `强调色#${bc.acc}用于关键信息突出与视觉焦点引导。` } },
+            { type: 'div', props: { style: { fontSize: 30, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `强调色#${bc.acc}用于关键信息突出` } },
           ]}},
         ]}},
-        // 底部总说明（三栏宽，居中，20mm高≈57px）
-        { type: 'div', props: { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F5F5', borderRadius: 6, padding: '12px 20px', minHeight: 100, width: '100%' }, children: [
-          { type: 'div', props: { style: { fontSize: 34, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: '三色组合确保品牌视觉的专业性、一致性与识别度。' } },
+        // 底部总说明
+        { type: 'div', props: { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F5F5', borderRadius: 6, padding: '12px 20px', minHeight: 60, width: '100%' }, children: [
+          { type: 'div', props: { style: { fontSize: 26, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: '三色组合确保品牌视觉的专业性、一致性与识别度。' } },
+        ]}},
+
+        // ───── 色彩使用说明 ─────
+        { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 28, marginBottom: 14 }, children: [
+          { type: 'div', props: { style: { width: 6, height: 26, backgroundColor: `#${bc.pri}`, borderRadius: 3, flexShrink: 0 } } },
+          { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '色彩使用说明' } },
+        ]}},
+        { type: 'div', props: { style: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }, children: [
+          { type: 'div', props: { style: { display: 'flex', alignItems: 'flex-start', backgroundColor: '#F8F8F8', borderRadius: 6, padding: '12px 16px', borderLeft: `5px solid #${bc.pri}` }, children: [
+            { type: 'div', props: { style: { fontSize: 24, color: '#333333', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: [
+              { type: 'span', props: { style: { fontWeight: 700, color: `#${bc.pri}` }, children: '品牌主色' } },
+              { type: 'span', props: { style: {}, children: ` #${bc.pri} — 用于LOGO、标题、品牌核心视觉元素，传达品牌基调与识别度。` } },
+            ]}},
+          ]}},
+          { type: 'div', props: { style: { display: 'flex', alignItems: 'flex-start', backgroundColor: '#F8F8F8', borderRadius: 6, padding: '12px 16px', borderLeft: `5px solid #${bc.sec}` }, children: [
+            { type: 'div', props: { style: { fontSize: 24, color: '#333333', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: [
+              { type: 'span', props: { style: { fontWeight: 700, color: `#${bc.sec}` }, children: '辅助色' } },
+              { type: 'span', props: { style: {}, children: ` #${bc.sec} — 用于背景、卡片、次要元素、分割线，营造视觉层次与和谐。` } },
+            ]}},
+          ]}},
+          { type: 'div', props: { style: { display: 'flex', alignItems: 'flex-start', backgroundColor: '#F8F8F8', borderRadius: 6, padding: '12px 16px', borderLeft: `5px solid #${bc.acc}` }, children: [
+            { type: 'div', props: { style: { fontSize: 24, color: '#333333', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: [
+              { type: 'span', props: { style: { fontWeight: 700, color: `#${bc.acc}` }, children: '强调色' } },
+              { type: 'span', props: { style: {}, children: ` #${bc.acc} — 用于CTA按钮、链接、关键数据高亮、优惠标签，吸引注意力。` } },
+            ]}},
+          ]}},
+        ]}},
+
+        // ───── 渐变展示 ─────
+        { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }, children: [
+          { type: 'div', props: { style: { width: 6, height: 26, backgroundColor: `#${bc.pri}`, borderRadius: 3, flexShrink: 0 } } },
+          { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '渐变过渡' } },
+          { type: 'div', props: { style: { fontSize: 22, color: '#999999', fontFamily: 'Noto Sans SC', marginLeft: 6 }, children: '（主色 → 辅助色 → 强调色）' } },
+        ]}},
+        { type: 'div', props: { style: { display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', height: 36, width: '100%', marginBottom: 28 }, children: (() => {
+          const steps = 30;
+          const bars: any[] = [];
+          const rgb1 = hex2rgb(`#${bc.pri}`);
+          const rgb2 = hex2rgb(`#${bc.sec}`);
+          const rgb3 = hex2rgb(`#${bc.acc}`);
+          const half = Math.floor(steps / 2);
+          for (let i = 0; i < steps; i++) {
+            let r: number, g: number, b: number;
+            if (i < half) {
+              const t = i / half;
+              r = Math.round(rgb1.r + (rgb2.r - rgb1.r) * t);
+              g = Math.round(rgb1.g + (rgb2.g - rgb1.g) * t);
+              b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * t);
+            } else {
+              const t = (i - half) / (steps - half);
+              r = Math.round(rgb2.r + (rgb3.r - rgb2.r) * t);
+              g = Math.round(rgb2.g + (rgb3.g - rgb2.g) * t);
+              b = Math.round(rgb2.b + (rgb3.b - rgb2.b) * t);
+            }
+            bars.push({ type: 'div', props: { style: { flex: 1, backgroundColor: `rgb(${r},${g},${b})` } } });
+          }
+          return bars;
+        })()}},
+
+        // ───── 色彩应用建议 ─────
+        { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }, children: [
+          { type: 'div', props: { style: { width: 6, height: 26, backgroundColor: `#${bc.pri}`, borderRadius: 3, flexShrink: 0 } } },
+          { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '色彩应用建议' } },
+        ]}},
+        { type: 'div', props: { style: { display: 'flex', gap: 16, marginBottom: 28 }, children: [
+          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FAFAFA', borderRadius: 8, padding: '14px 14px', border: '1px solid #EEEEEE' }, children: [
+            { type: 'div', props: { style: { width: 28, height: 28, borderRadius: 6, backgroundColor: `#${bc.pri}`, marginBottom: 8 } } },
+            { type: 'div', props: { style: { fontSize: 26, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC', marginBottom: 4 }, children: '品牌识别' } },
+            { type: 'div', props: { style: { fontSize: 20, color: '#666666', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '主色覆盖≥60%品牌触点，\n确保视觉统一性' } },
+          ]}},
+          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FAFAFA', borderRadius: 8, padding: '14px 14px', border: '1px solid #EEEEEE' }, children: [
+            { type: 'div', props: { style: { width: 28, height: 28, borderRadius: 6, backgroundColor: `#${bc.sec}`, marginBottom: 8 } } },
+            { type: 'div', props: { style: { fontSize: 26, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC', marginBottom: 4 }, children: '层次构建' } },
+            { type: 'div', props: { style: { fontSize: 20, color: '#666666', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '辅助色占25-30%版面，\n营造舒适阅读体验' } },
+          ]}},
+          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FAFAFA', borderRadius: 8, padding: '14px 14px', border: '1px solid #EEEEEE' }, children: [
+            { type: 'div', props: { style: { width: 28, height: 28, borderRadius: 6, backgroundColor: `#${bc.acc}`, marginBottom: 8 } } },
+            { type: 'div', props: { style: { fontSize: 26, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC', marginBottom: 4 }, children: '行动引导' } },
+            { type: 'div', props: { style: { fontSize: 20, color: '#666666', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '强调色用于10-15%关键\n交互与转化元素' } },
+          ]}},
+        ]}},
+
+        // ───── 色彩搭配方案 ─────
+        { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }, children: [
+          { type: 'div', props: { style: { width: 6, height: 26, backgroundColor: `#${bc.pri}`, borderRadius: 3, flexShrink: 0 } } },
+          { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '色彩搭配方案' } },
+        ]}},
+        { type: 'div', props: { style: { display: 'flex', gap: 16 }, children: [
+          // 方案一：主色为主
+          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', borderRadius: 8, border: '1px solid #E8E8E8', overflow: 'hidden' }, children: [
+            { type: 'div', props: { style: { display: 'flex', height: 50 }, children: [
+              { type: 'div', props: { style: { flex: 3, backgroundColor: `#${bc.pri}` } } },
+              { type: 'div', props: { style: { flex: 2, backgroundColor: `#${bc.sec}` } } },
+              { type: 'div', props: { style: { flex: 1, backgroundColor: `#${bc.acc}` } } },
+            ]}},
+            { type: 'div', props: { style: { padding: '8px 10px' }, children: [
+              { type: 'div', props: { style: { fontSize: 22, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC' }, children: '标准方案' } },
+              { type: 'div', props: { style: { fontSize: 18, color: '#999999', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: '3:2:1 比例' } },
+            ]}},
+          ]}},
+          // 方案二：主色+强调色突出
+          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', borderRadius: 8, border: '1px solid #E8E8E8', overflow: 'hidden' }, children: [
+            { type: 'div', props: { style: { display: 'flex', height: 50 }, children: [
+              { type: 'div', props: { style: { flex: 4, backgroundColor: `#${bc.pri}` } } },
+              { type: 'div', props: { style: { flex: 1, backgroundColor: `#${bc.acc}` } } },
+              { type: 'div', props: { style: { flex: 1, backgroundColor: '#F5F5F5' } } },
+            ]}},
+            { type: 'div', props: { style: { padding: '8px 10px' }, children: [
+              { type: 'div', props: { style: { fontSize: 22, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC' }, children: '强调方案' } },
+              { type: 'div', props: { style: { fontSize: 18, color: '#999999', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: '高对比冲击' } },
+            ]}},
+          ]}},
+          // 方案三：辅助色为主（柔和）
+          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', borderRadius: 8, border: '1px solid #E8E8E8', overflow: 'hidden' }, children: [
+            { type: 'div', props: { style: { display: 'flex', height: 50 }, children: [
+              { type: 'div', props: { style: { flex: 3, backgroundColor: `#${bc.sec}` } } },
+              { type: 'div', props: { style: { flex: 2, backgroundColor: `#${bc.pri}` } } },
+              { type: 'div', props: { style: { flex: 1, backgroundColor: '#FFFFFF' } } },
+            ]}},
+            { type: 'div', props: { style: { padding: '8px 10px' }, children: [
+              { type: 'div', props: { style: { fontSize: 22, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC' }, children: '柔和方案' } },
+              { type: 'div', props: { style: { fontSize: 18, color: '#999999', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: '优雅低调' } },
+            ]}},
+          ]}},
         ]}},
       ]
     }
   };
-const svg = await satori(jsx as any, { width: PAGE_W, height: PAGE_H, fonts });
+  const svg = await satori(jsx as any, { width: PAGE_W, height: PAGE_H, fonts });
   const png = await sharp(Buffer.from(svg)).png().toBuffer();
   return `data:image/png;base64,${png.toString('base64')}`;
 }

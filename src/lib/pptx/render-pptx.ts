@@ -61,6 +61,14 @@ export interface RenderPptxOptions {
   brandStory?: string;
   colorDescriptions?: string;
   sceneDescriptions?: Record<string, string>;
+  // V114: 豆包评审整改 — content_patch字段
+  fontCopyrightNotice?: string;
+  logoOutputSpec?: string;
+  modificationAuthority?: string;
+  materialPriorityList?: Array<{priority: string; category: string; description: string}>;
+  closingCustomerPerception?: string;
+  fullBrandName?: string;
+  englishName?: string;
 }
 
 // ========== 行业类型 ==========
@@ -263,7 +271,7 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
   return Buffer.from(base64, "base64");
 }
 
-const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","logo-misuse","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","stationery","packaging","marketing","summary","material-priority","closing"];
+const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","logo-misuse","logo-backgrounds","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","stationery","packaging","marketing","summary","material-priority","wayfinding","logo-output","modification-authority","closing"];
 
 async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>): Promise<void> {
   switch (bp.pageId) {
@@ -275,6 +283,7 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "logo-variations": renderLogoVariations(slide, bp, opts, bc, industry); break;
     case "logo-grid": renderLogoGrid(slide, bp, opts, bc, industry); break;
     case "logo-misuse": renderLogoMisuse(slide, bp, opts, bc, industry); break;
+    case "logo-backgrounds": renderLogoBackgrounds(slide, bp, opts, bc, industry); break;
     case "auxiliary-graphics": renderAuxiliaryGraphics(slide, bp, opts, bc); break;
     case "aux-graphics-misuse": renderAuxGraphicsMisuse(slide, bp, opts, bc); break;
     case "brand-colors": await renderColors(slide, bp, opts, bc); break;
@@ -287,6 +296,9 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "marketing": renderScene(slide, bp, opts, "marketing", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
     case "summary": renderSummary(slide, bp, opts, bc); break;
     case "material-priority": renderMaterialPriority(slide, bp, opts, bc); break;
+    case "wayfinding": renderWayfinding(slide, bp, opts, bc); break;
+    case "logo-output": renderLogoOutput(slide, bp, opts, bc); break;
+    case "modification-authority": renderModificationAuthority(slide, bp, opts, bc); break;
     default: renderGeneric(slide, bp, opts, bc);
   }
   // 页码（封面/封底/目录不加）
@@ -810,6 +822,111 @@ function renderLogoMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     x: cx, y: 7.0, w: CONTENT_W, h: 0.4,
     fontSize: 12, bold: true, color: bc.pri, align: "center",
   });
+// ---- 多底色适配 ----
+function renderLogoBackgrounds(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType): void {
+  addContentFrame(slide, bp.label || "多底色适配", bc);
+  const cx = MARGIN + LEFT_BAR_W;
+  const companyName = opts.companyName || "品牌";
+  const aiLogo = opts.aiLogoData || (opts.logoData ? normImg(opts.logoData) : undefined);
+  const logoForScene = opts.aiLogoData || opts.logoData;
+
+  // 2列2行布局，4种底色
+  const colW = (CONTENT_W - 0.3) / 2;
+  const rowH = 3.2;
+  const startY = 1.6;
+  const gap = 0.2;
+
+  const scenarios = [
+    { bg: "FFFFFF", label: "白色背景", desc: "正常彩色Logo", textColor: "333333", logoType: "normal" },
+    { bg: bc.priDark, label: "深色背景", desc: "反白Logo", textColor: "FFFFFF", logoType: "reversed" },
+    { bg: "gradient", label: "渐变色背景", desc: "带白色底框的Logo", textColor: "333333", logoType: "boxed" },
+    { bg: "pattern", label: "杂色/图片背景", desc: "带白色底框或阴影的Logo", textColor: "333333", logoType: "shadowed" },
+  ];
+
+  for (let i = 0; i < scenarios.length; i++) {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = cx + col * (colW + gap);
+    const y = startY + row * (rowH + 0.15);
+    const sc = scenarios[i];
+
+    // 容器背景框
+    if (sc.bg === "gradient") {
+      // 模拟渐变：叠加两个半宽色块
+      const gradColors = [bc.pri, bc.sec];
+      slide.addShape("rect", { x, y, w: colW / 2, h: rowH, fill: { color: gradColors[0] }, rectRadius: 0.08 });
+      slide.addShape("rect", { x: x + colW / 2, y, w: colW / 2, h: rowH, fill: { color: gradColors[1] }, rectRadius: 0.08 });
+    } else if (sc.bg === "pattern") {
+      // 模拟杂色：浅色底+波点
+      slide.addShape("rect", { x, y, w: colW, h: rowH, fill: { color: "F5F0EB" }, rectRadius: 0.08 });
+      // 添加一些装饰点
+      const dotColors = [bc.pri, bc.sec, bc.acc];
+      for (let d = 0; d < 12; d++) {
+        const dx = x + 0.15 + (d % 4) * (colW / 4.5);
+        const dy = y + 0.15 + Math.floor(d / 4) * (rowH / 4.5);
+        slide.addShape("ellipse", { x: dx, y: dy, w: 0.18, h: 0.18, fill: { color: dotColors[d % 3], transparency: 30 } });
+      }
+    } else {
+      slide.addShape("rect", { x, y, w: colW, h: rowH, fill: { color: sc.bg }, rectRadius: 0.08, line: { color: "E0E0E0", width: 0.3 } });
+    }
+
+    // Logo展示区
+    const logoW = 1.4, logoH = 1.4;
+    const logoX = x + (colW - logoW) / 2;
+    const logoY = y + 0.25;
+
+    if (sc.logoType === "normal") {
+      // 白色背景 - 正常彩色Logo
+      if (aiLogo) {
+        slide.addImage({ data: aiLogo, x: logoX, y: logoY, w: logoW, h: logoH, sizing: { type: "contain", w: logoW, h: logoH } });
+      } else {
+        addComboLogo(slide, companyName, x + 0.2, y + 0.15, colW - 0.4, 1.2, bc, industry, { fontSize: 12, color: bc.pri, layout: "vertical", showLine: false, aiLogoData: opts.aiLogoData });
+      }
+    } else if (sc.logoType === "reversed") {
+      // 深色背景 - 反白Logo
+      if (aiLogo) {
+        slide.addImage({ data: aiLogo, x: logoX, y: logoY, w: logoW, h: logoH, sizing: { type: "contain", w: logoW, h: logoH } });
+      } else {
+        addComboLogo(slide, companyName, x + 0.2, y + 0.15, colW - 0.4, 1.2, bc, industry, { fontSize: 12, color: "FFFFFF", layout: "vertical", showLine: false });
+      }
+    } else if (sc.logoType === "boxed") {
+      // 渐变色背景 - 白色底框
+      const pad = 0.15;
+      slide.addShape("rect", { x: logoX - pad, y: logoY - pad, w: logoW + pad * 2, h: logoH + pad * 2, fill: { color: "FFFFFF" }, rectRadius: 0.06 });
+      if (aiLogo) {
+        slide.addImage({ data: aiLogo, x: logoX, y: logoY, w: logoW, h: logoH, sizing: { type: "contain", w: logoW, h: logoH } });
+      } else {
+        addComboLogo(slide, companyName, x + 0.2, y + 0.15, colW - 0.4, 1.2, bc, industry, { fontSize: 12, color: bc.pri, layout: "vertical", showLine: false });
+      }
+    } else if (sc.logoType === "shadowed") {
+      // 杂色背景 - 带阴影的白色底框
+      const pad = 0.15;
+      slide.addShape("rect", { x: logoX - pad, y: logoY - pad, w: logoW + pad * 2, h: logoH + pad * 2, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 8, offset: 4, color: "000000", opacity: 0.2 } });
+      if (aiLogo) {
+        slide.addImage({ data: aiLogo, x: logoX, y: logoY, w: logoW, h: logoH, sizing: { type: "contain", w: logoW, h: logoH } });
+      } else {
+        addComboLogo(slide, companyName, x + 0.2, y + 0.15, colW - 0.4, 1.2, bc, industry, { fontSize: 12, color: bc.pri, layout: "vertical", showLine: false });
+      }
+    }
+
+    // 标签说明
+    slide.addText(sc.label, {
+      x, y: y + rowH - 0.9, w: colW, h: 0.3,
+      fontSize: 13, bold: true, color: sc.bg === bc.priDark ? "FFFFFF" : bc.pri, align: "center",
+    });
+    slide.addText(sc.desc, {
+      x: x + 0.1, y: y + rowH - 0.55, w: colW - 0.2, h: 0.4,
+      fontSize: 11, color: sc.bg === bc.priDark ? "CCCCCC" : "777777", align: "center",
+    });
+  }
+
+  // 底部说明
+  slide.addText("LOGO在不同背景下应使用对应的配色方案，确保识别清晰度与品牌一致性。", {
+    x: cx, y: startY + 2 * (rowH + 0.15) + 0.15, w: CONTENT_W, h: 0.3,
+    fontSize: 12, color: "888888", align: "center",
+  });
+}
+
 }
 
 // ---- 辅助图形 ----
@@ -878,7 +995,7 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
     fontSize: 18, bold: true, color: bc.pri,
   });
   slide.addText("1. 文档/手册页眉装饰线\n2. 包装袋底部纹样\n3. 名片背面背景\n4. 社交媒体封面装饰\n5. 店铺墙面装饰纹样", {
-    x: cx + 0.2, y: 7.924, w: CONTENT_W - 0.4, h: 0.9,
+    x: cx + 0.2, y: 7.924, w: CONTENT_W - 0.4, h: 1.5,
     fontSize: 14, color: "555555", lineSpacingMultiple: 1.4,
   });
   slide.addText("辅助图形可按比例缩放，但不可改变比例关系或旋转角度。建议透明度使用10%-40%。", {
@@ -1633,7 +1750,8 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
     // 点线
     slide.addText("....................................................................................", { x: cx + 0.7, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 9, color: "CCCCCC", align: "right" });
     // 页码
-    slide.addText(`${i + 2}`, { x: cx + CONTENT_W - 0.6, y: yPos, w: 0.6, h: 0.5, fontSize: 13, color: "999999", align: "right" });
+    const realPageNum = PAGE_ORDER.indexOf(item.pageId);
+    slide.addText(realPageNum > 0 ? `${realPageNum}` : "", { x: cx + CONTENT_W - 0.6, y: yPos, w: 0.6, h: 0.5, fontSize: 13, color: "999999", align: "right" });
     yPos += 0.6;
   }
 
@@ -1641,26 +1759,27 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
   slide.addShape("rect", { x: cx, y: yPos + 0.5, w: 3.0, h: 0.08, fill: { color: bc.pri, transparency: 40 } });
 }
 
-function getTocItems(industry: IndustryType, aiTitles?: Record<string, string> | null): { title: string }[] {
-  const baseItems = [
-    { title: "品牌核心理念" },
-    { title: "标识诠释" },
-    { title: "Logo组合规范" },
-    { title: "Logo误用规范" },
-    { title: "辅助图形" },
-    { title: "标准色彩规范" },
-    { title: "字体系统" },
-    { title: "基础规范" },
+function getTocItems(industry: IndustryType, aiTitles?: Record<string, string> | null): { title: string; pageId: string }[] {
+  const baseItems: { title: string; pageId: string }[] = [
+    { title: "品牌核心理念", pageId: "brand-philosophy" },
+    { title: "标识诠释", pageId: "logo-interpretation" },
+    { title: "Logo组合规范", pageId: "logo-variations" },
+    { title: "Logo误用规范", pageId: "logo-misuse" },
+    { title: "辅助图形", pageId: "auxiliary-graphics" },
+    { title: "标准色彩规范", pageId: "brand-colors" },
+    { title: "字体系统", pageId: "typography" },
+    { title: "基础规范", pageId: "basic-spec" },
   ];
   // V99: 从getSceneConfigs动态获取标题，与场景页保持一致（支持V98 AI动态标题）
   const configs = getSceneConfigs(industry, aiTitles);
   const sceneItems = [
-    { title: configs.stationery.title },
-    { title: configs.packaging.title },
-    { title: configs.marketing.title },
+    { title: configs.stationery.title, pageId: "stationery" },
+    { title: configs.packaging.title, pageId: "packaging" },
+    { title: configs.marketing.title, pageId: "marketing" },
   ];
-  const endItems = [
-    { title: "总结" },
+  const endItems: { title: string; pageId: string }[] = [
+    { title: "导视系统", pageId: "wayfinding" },
+    { title: "总结", pageId: "summary" },
   ];
   return [...baseItems, ...sceneItems, ...endItems];
 }
@@ -1779,12 +1898,12 @@ function renderFontCopyright(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Re
   ];
 
   for (const f of fonts) {
-    slide.addShape("rect", { x: cx, y, w: 0.12, h: 1.6, fill: { color: bc.pri }, rectRadius: 0.03 });
+    slide.addShape("rect", { x: cx, y, w: 0.12, h: 1.4, fill: { color: bc.pri }, rectRadius: 0.03 });
     slide.addText(f.name, { x: cx + 0.3, y: y + 0.05, w: CONTENT_W - 0.4, h: 0.45, fontSize: 18, bold: true, color: bc.pri });
     slide.addText([{ text: "许可协议：", options: { bold: true } }, { text: f.license }], { x: cx + 0.3, y: y + 0.5, w: CONTENT_W - 0.4, h: 0.35, fontSize: 13, color: "555555" });
     slide.addText([{ text: "商用状态：", options: { bold: true, color: "2E7D32" } }, { text: f.usage + " — " + f.desc, options: { color: "2E7D32" } }], { x: cx + 0.3, y: y + 0.85, w: CONTENT_W - 0.4, h: 0.35, fontSize: 13, color: "2E7D32" });
     slide.addText([{ text: "结论：以上字体均可免费商用，无需额外授权。", options: { bold: true, color: "1565C0" } }], { x: cx + 0.3, y: y + 1.2, w: CONTENT_W - 0.4, h: 0.3, fontSize: 12 });
-    y += 2.3;
+    y += 2.0;
   }
 
   // 底部警告
@@ -1844,9 +1963,9 @@ function renderColorTaboos(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     y += 1.7;
   }
 
-  slide.addShape("rect", { x: cx, y: 7.5, w: CONTENT_W, h: 0.6, fill: { color: "FFF3E0" }, rectRadius: 0.06 });
+  slide.addShape("rect", { x: cx, y: 8.0, w: CONTENT_W, h: 0.6, fill: { color: "FFF3E0" }, rectRadius: 0.06 });
   slide.addText("色彩规范的核心原则：温柔不刺眼，精致不廉价。如有特殊场景色彩需求，须向品牌总部提交审核。", {
-    x: cx + 0.2, y: 7.58, w: CONTENT_W - 0.4, h: 0.45, fontSize: 11, color: "E65100",
+    x: cx + 0.2, y: 8.1, w: CONTENT_W - 0.4, h: 0.45, fontSize: 11, color: "E65100",
   });
 }
 
@@ -1906,6 +2025,115 @@ function renderMaterialPriority(slide: PptxGenJS.Slide, bp: PageBlueprint, opts:
 }
 
 
+// ---- 导视系统 ----
+function renderWayfinding(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  addContentFrame(slide, bp.label || "导视系统", bc);
+  const cx = MARGIN + LEFT_BAR_W;
+  const companyName = opts.companyName || "品牌";
+  const logoForScene = opts.aiLogoData || opts.logoData;
+
+  // 三列布局：门头招牌 | 室内指示牌 | 收银台标识
+  const colW = (CONTENT_W - 0.4) / 3;
+  const colH = 5.5;
+  const startY = 1.6;
+
+  const items = [
+    {
+      title: "门头招牌",
+      icon: "🏪",
+      specs: [
+        "位置：门店正上方居中",
+        "尺寸：宽高比建议 3:1 至 5:1",
+        "材质：亚克力发光字 / 金属字",
+        "配色：品牌主色底+白色字",
+        "照明：内置LED灯带，色温3000K",
+        "Logo置于招牌左上角",
+      ],
+    },
+    {
+      title: "室内指示牌",
+      icon: "🧭",
+      specs: [
+        "楼层牌：电梯口上方30cm",
+        "房间号：门右侧墙面，高度1.5m",
+        "尺寸：楼层牌 30×15cm",
+        "房间牌 20×10cm",
+        "材质：亚克力/拉丝金属",
+        "字体：思源黑体 Bold",
+      ],
+    },
+    {
+      title: "收银台标识",
+      icon: "💳",
+      specs: [
+        "位置：收银台正前方或上方",
+        "尺寸：40×15cm 横式",
+        "内容：品牌名 + 收银/服务台",
+        "材质：亚克力UV印刷",
+        "配色：主色底+白色字",
+        "可增加品牌辅助图形底纹",
+      ],
+    },
+  ];
+
+  for (let i = 0; i < items.length; i++) {
+    const x = cx + i * (colW + 0.2);
+    const y = startY;
+    const item = items[i];
+
+    // 卡片背景
+    slide.addShape("rect", {
+      x, y, w: colW, h: colH,
+      fill: { color: "FAFAFA" },
+      line: { color: "E8E8E8", width: 0.5 },
+      rectRadius: 0.1,
+    });
+
+    // 顶部品牌色装饰
+    slide.addShape("rect", {
+      x, y, w: colW, h: 0.08,
+      fill: { color: bc.pri }, rectRadius: 0.04,
+    });
+
+    // 标题区域
+    slide.addText(item.icon + " " + item.title, {
+      x: x + 0.15, y: y + 0.2, w: colW - 0.3, h: 0.5,
+      fontSize: 18, bold: true, color: bc.pri, fontFace: "Noto Sans SC",
+    });
+
+    // 分隔线
+    slide.addShape("rect", {
+      x: x + 0.15, y: y + 0.75, w: colW - 0.3, h: 0.03,
+      fill: { color: bc.acc },
+    });
+
+    // Logo示意 (卡片内左上角小Logo)
+    if (logoForScene) {
+      slide.addImage({
+        data: normImg(logoForScene),
+        x: x + 0.15, y: y + 0.9, w: 0.6, h: 0.6,
+        sizing: { type: "contain", w: 0.6, h: 0.6 },
+        transparency: 15,
+      });
+    }
+
+    // 规格说明列表
+    const specText = item.specs.map(s => "• " + s).join("\n");
+    slide.addText(specText, {
+      x: x + 0.15, y: y + 1.65, w: colW - 0.3, h: 3.5,
+      fontSize: 12, color: "444444", lineSpacingMultiple: 1.5, valign: "top",
+      fontFace: "Noto Sans SC",
+    });
+  }
+
+  // 底部说明
+  slide.addText("导视系统是品牌在物理空间中的重要触点，统一规范的导视设计提升门店专业度与客户体验。", {
+    x: cx, y: startY + colH + 0.25, w: CONTENT_W, h: 0.3,
+    fontSize: 12, color: "888888", align: "center",
+  });
+}
+
+
 // ========== 工具函数 ==========
 function hx(c: string): string { return c.replace("#", "").toUpperCase(); }
 function normImg(d: string): string { return d.startsWith("data:") ? d : `data:image/png;base64,${d}`; }
@@ -1944,4 +2172,102 @@ function fta(bp: PageBlueprint, ids: string[]): string {
   for (const id of ids) { const el = bp.elements.find(e => e.id === id); if (el?.content) return el.content; }
   for (const id of ids) { const el = bp.elements.find(e => e.id?.includes(id)); if (el?.content) return el.content; }
   return "";
+  slide.addShape("rect", { x: 0, y: SH - 0.1, w: SW, h: 0.1, fill: { color: bc.acc } });
 }
+
+// ---- LOGO文件输出规范 ----
+function renderLogoOutput(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  addContentFrame(slide, bp.label || "LOGO文件输出规范", bc);
+  const cx = MARGIN + LEFT_BAR_W;
+  let y = 1.6;
+
+  if (opts.logoOutputSpec) {
+    // 渲染 content_patch 的 LOGO 输出规范
+    const text = sanitizeText(opts.logoOutputSpec);
+    slide.addText(text, {
+      x: cx + 0.1, y, w: CONTENT_W - 0.2, h: 8.0,
+      fontSize: 12, color: "444444", lineSpacingMultiple: 1.5, valign: "top",
+    });
+    return;
+  }
+
+  // 默认表格（data only, no content_patch）
+  slide.addText("LOGO文件交付格式", { x: cx, y: 1.5, w: CONTENT_W, h: 0.4, fontSize: 18, bold: true, color: bc.pri });
+  y = 2.1;
+  const specItems = [
+    { format: "AI矢量文件", use: "印刷品/喷绘/修改", name: "Logo_品牌名.ai" },
+    { format: "透明底PNG", use: "线上宣传/PPT/网页", name: "Logo_品牌名_透明底.png" },
+    { format: "白色底JPG", use: "快速预览/社交配图", name: "Logo_品牌名.jpg" },
+    { format: "单色稿(黑)", use: "黑白印刷/传真/票据", name: "Logo_品牌名_单色黑.png" },
+    { format: "反白稿(白)", use: "深色背景应用", name: "Logo_品牌名_反白.png" },
+  ];
+  const colWs = [1.5, 2.5, 3.0];
+  const headers = ["文件格式", "适用场景", "文件命名"];
+  slide.addShape("rect", { x: cx, y, w: CONTENT_W, h: 0.35, fill: { color: bc.pri } });
+  let hx = cx;
+  for (let i = 0; i < headers.length; i++) {
+    slide.addText(headers[i], { x: hx, y, w: colWs[i], h: 0.35, fontSize: 11, bold: true, color: "FFFFFF", align: "center" });
+    hx += colWs[i];
+  }
+  y += 0.35;
+  for (let i = 0; i < specItems.length; i++) {
+    const bgColor = i % 2 === 0 ? "FAFAFA" : "FFFFFF";
+    slide.addShape("rect", { x: cx, y, w: CONTENT_W, h: 0.35, fill: { color: bgColor }, line: { color: "EEEEEE", width: 0.3 } });
+    hx = cx;
+    const vals = [specItems[i].format, specItems[i].use, specItems[i].name];
+    for (let j = 0; j < vals.length; j++) {
+      slide.addText(vals[j], { x: hx, y, w: colWs[j], h: 0.35, fontSize: 10, color: "444444", align: "center" });
+      hx += colWs[j];
+    }
+    y += 0.35;
+  }
+  slide.addText("注意：AI源文件由品牌总部保管，门店及合作方仅使用交付的PNG/JPG成品文件。", {
+    x: cx, y: y + 0.2, w: CONTENT_W, h: 0.3, fontSize: 10, color: "999999", align: "center",
+  });
+}function renderModificationAuthority(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  addContentFrame(slide, bp.label || "VI修改权限说明", bc);
+  const cx = MARGIN + LEFT_BAR_W;
+  let y = 1.6;
+
+  if (opts.modificationAuthority) {
+    // 渲染 content_patch 的修改权限说明
+    const text = sanitizeText(opts.modificationAuthority);
+    slide.addText(text, {
+      x: cx + 0.1, y, w: CONTENT_W - 0.2, h: 8.0,
+      fontSize: 13, color: "444444", lineSpacingMultiple: 1.6, valign: "top",
+    });
+    // 底部提示
+    slide.addShape("rect", { x: cx, y: 8.5, w: CONTENT_W, h: 0.6, fill: { color: "FFF3E0" }, rectRadius: 0.06 });
+    slide.addText("严格遵守VI规范是品牌建设的基石。统一=专业，随意修改=品牌稀释。", {
+      x: cx + 0.2, y: 8.55, w: CONTENT_W - 0.4, h: 0.5, fontSize: 11, color: "E65100", align: "center",
+    });
+    return;
+  }
+
+  // 默认内容
+  slide.addText("VI修改权限说明", { x: cx, y: 1.5, w: CONTENT_W, h: 0.4, fontSize: 18, bold: true, color: bc.pri });
+  y = 2.2;
+  const rules = [
+    "1. 仅品牌总部有权调整VI规范，包括LOGO、色彩、字体、辅助图形等。",
+    "2. 各门店严格按照本手册执行，不得自行修改LOGO颜色/比例。",
+    "3. 特殊场景需适配的，须向品牌总部提交申请，由总部出具适配方案。",
+    "4. 违规修改造成的品牌形象损失由门店自行承担。",
+  ];
+  for (const r of rules) {
+    slide.addShape("rect", { x: cx, y, w: 0.12, h: 0.6, fill: { color: bc.pri }, rectRadius: 0.03 });
+    slide.addText(r, { x: cx + 0.3, y, w: CONTENT_W - 0.4, h: 0.6, fontSize: 13, color: "444444" });
+    y += 0.8;
+  }
+  slide.addShape("rect", { x: cx, y: y + 0.3, w: CONTENT_W, h: 0.6, fill: { color: "FFF3E0" }, rectRadius: 0.06 });
+  slide.addText("严格遵守VI规范是品牌建设的基石。统一=专业，随意修改=品牌稀释。", {
+    x: cx + 0.2, y: y + 0.35, w: CONTENT_W - 0.4, h: 0.5, fontSize: 11, color: "E65100", align: "center",
+  });
+}
+
+
+
+
+
+
+
+

@@ -34,12 +34,13 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "tailwindcss": "^4.1.0",
+    "tsconfig-paths": "^4.2.0",
     "tsx": "^4.22.4",
     "typescript": "^5.8.0"
   },
   "optionalDependencies": {
-    "lightningcss-linux-x64-gnu": "^1.29.0",
-    "@esbuild/linux-x64": "^0.25.0"
+    "@esbuild/linux-x64": "^0.25.0",
+    "lightningcss-linux-x64-gnu": "^1.29.0"
   },
   "engines": {
     "node": ">=20 <24"

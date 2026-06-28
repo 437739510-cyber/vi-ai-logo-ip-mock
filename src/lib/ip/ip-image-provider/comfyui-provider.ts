@@ -1,10 +1,10 @@
-/**
- * IP Image Provider Layer — ComfyUI Provider (本地)
+﻿/**
+ * IP Image Provider Layer 鈥?ComfyUI Provider (鏈湴)
  *
  * Local image generation via ComfyUI REST API (http://127.0.0.1:8188).
  * Uses Z-Image Turbo model with UNETLoader + DualCLIPLoader workflow.
  *
- * Cloud APIs are all dead (ARK, DashScope, 通义), so this is the only
+ * Cloud APIs are all dead (ARK, DashScope, 閫氫箟), so this is the only
  * working option for image generation.
  */
 
@@ -23,7 +23,49 @@ const PROMPT_URL = `${COMFYUI_BASE}/api/prompt`;
 const HISTORY_URL = `${COMFYUI_BASE}/api/history`;
 const TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 1_000;
-const COMFYUI_OUTPUT_DIR = "D:\\disk\\ComfyUI\\output";
+const COMFYUI_OUTPUT_DIR = "E:\ComfyUI\output";
+
+
+// DreamShaperXL (SDXL) workflow - primary option
+function buildSDXLWorkflow(
+  prompt, negativePrompt, width, height, seed
+) {
+  return {
+    "3": {
+      class_type: "KSampler",
+      inputs: {
+        seed, steps: 20, cfg: 3.5,
+        sampler_name: "euler", scheduler: "normal", denoise: 1,
+        model: ["4", 0], positive: ["6", 0],
+        negative: ["7", 0], latent_image: ["5", 0],
+      },
+    },
+    "4": {
+      class_type: "CheckpointLoaderSimple",
+      inputs: { ckpt_name: "dreamshaperXL10_alpha2Xl10.safetensors" },
+    },
+    "5": {
+      class_type: "EmptyLatentImage",
+      inputs: { width: roundTo8(width), height: roundTo8(height), batch_size: 1 },
+    },
+    "6": {
+      class_type: "CLIPTextEncode",
+      inputs: { text: prompt, clip: ["4", 1] },
+    },
+    "7": {
+      class_type: "CLIPTextEncode",
+      inputs: { text: negativePrompt || "blurry, low quality, distorted", clip: ["4", 1] },
+    },
+    "8": {
+      class_type: "VAEDecode",
+      inputs: { samples: ["3", 0], vae: ["4", 2] },
+    },
+    "9": {
+      class_type: "SaveImage",
+      inputs: { filename_prefix: "comfyui_sdxl", images: ["8", 0] },
+    },
+  };
+}
 
 // ========== Base Workflow Template (Z-Image Turbo) ==========
 
@@ -221,10 +263,24 @@ export class ComfyUIProvider implements ImageProvider {
     const width = params.output.width || 1024;
     const height = params.output.height || 1024;
 
+    // Try DreamShaperXL (SDXL) first, fall back to Z-Image Turbo
+    try {
+      const sdxlWorkflow = buildSDXLWorkflow(params.prompt, params.negativePrompt, width, height, seed);
+      const sdxlStart = Date.now();
+      const sdxlResult = await comfyGenerateSync(sdxlWorkflow);
+      const sdxlImage = readImageAsBase64(sdxlResult.filename);
+      return {
+        imageUrl: sdxlImage, actualCost: 0, durationMs: sdxlResult.durationMs,
+        assetId: `comfyui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        providerName: "comfyui",
+        providerMeta: { model: "dreamshaperXL10", width, height, seed, steps: 20 },
+      };
+    } catch (sdxlErr) {
+      console.warn("[comfyui-provider] SDXL failed, trying Z-Image Turbo:", sdxlErr.message);
+    }
     const workflow = buildWorkflow(params.prompt, params.negativePrompt, width, height, seed);
     const { filename, durationMs } = await comfyGenerateSync(workflow);
     const imageUrl = readImageAsBase64(filename);
-
     return {
       imageUrl, actualCost: 0, durationMs,
       assetId: `comfyui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -270,7 +326,7 @@ export async function comfyGenerateLogo(options: {
     prompt: options.prompt, negativePrompt: options.negativePrompt,
     width: size.width, height: size.height,
   });
-  return { imageUrl, durationMs, model: "z_image_turbo" };
+  return { imageUrl, durationMs, model: "dreamshaperXL10" };
 }
 
 export async function comfyGenerateScene(options: {
@@ -284,7 +340,7 @@ export async function comfyGenerateScene(options: {
     prompt: options.prompt, negativePrompt: options.negativePrompt,
     width: size.width, height: size.height,
   });
-  return { imageUrl, durationMs, model: "z_image_turbo" };
+  return { imageUrl, durationMs, model: "dreamshaperXL10" };
 }
 
 // ========== Aliases for Route Compatibility ==========

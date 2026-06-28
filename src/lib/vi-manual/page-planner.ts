@@ -164,6 +164,9 @@ const PAGE_LABELS: Record<string, string> = {
   summary: "总结",
   "material-priority": "VI物料落地清单",
   closing: "感谢观看",
+  "wayfinding": "导视系统",
+  "logo-output": "LOGO文件输出规范",
+  "modification-authority": "VI修改权限说明",
 };
 
 // 行业类型映射
@@ -210,7 +213,7 @@ export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[
     "logo-misuse", "auxiliary-graphics", "aux-graphics-misuse", "brand-colors",
     "color-taboos",
     "typography", "font-copyright", "basic-spec", "stationery", "packaging",
-    "marketing", "summary", "material-priority", "closing",
+    "marketing", "summary", "material-priority", "logo-output", "modification-authority", "closing",
   ];
 
   // 加载参考模板（如果有）
@@ -497,6 +500,14 @@ function buildElements(pageId: string, ctx: BuildContext): PageElement[] {
     case "font-copyright": return buildFontCopyrightElements(ctx);
     case "summary": return buildSummaryElements(ctx);
     case "material-priority": return buildMaterialPriorityElements(ctx);
+    case "logo-output": return [{
+      type: "custom" as const, id: "logo-output-placeholder",
+      content: PAGE_LABELS["logo-output"]
+    }];
+    case "modification-authority": return [{
+      type: "custom" as const, id: "mod-auth-placeholder",
+      content: PAGE_LABELS["modification-authority"]
+    }];
     case "closing": return buildClosingElements(ctx);
     default: return [];
   }
@@ -1359,3 +1370,8 @@ export function validateBlueprint(bp: PageBlueprint): { valid: boolean; issues: 
     issues,
   };
 }
+
+
+
+
+
