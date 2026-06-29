@@ -41,111 +41,6 @@ export interface PlanLayoutResult {
   error?: string;
 }
 
-// Industry-specific design guidance for DeepSeek
-function getIndustryGuidance(industry?: string): string {
-  if (!industry) return "";
-  const s = industry.toLowerCase();
-
-  if (/鞋|布鞋|鞋店|鞋履|运动鞋/.test(s)) {
-    return `## 行业设计指引（鞋履零售）
-- 典型视觉风格：传统中式、手工质感、温暖怀旧
-- 常用设计元素：祥云纹、千层底纹理、布艺质感、书法字体
-- 适合字体：宋体/楷体（传统）、黑体/无衬线（现代）
-- 该行业典型物料：鞋盒包装、价签吊牌、店铺招牌、手提袋、陈列道具
-- 色彩偏向：大地色系、暖色调，搭配品牌色突出传统匠心底蕴
-- 封面推荐方向：突出手工感，Logo搭配传统纹样装饰，温暖稳重`;
-  }
-
-  if (/餐|食|面|火锅|烧烤|烘焙|饺子|包子|炒菜|饭店|小吃|饭馆|海鲜|川菜|粤菜|湘菜/.test(s)) {
-    return `## 行业设计指引（餐饮/火锅）
-- 典型视觉风格：热烈烟火气、食欲感、中式/地方特色
-- 常用设计元素：火焰纹、食材剪影、蒸汽线条、传统窗花
-- 适合字体：粗黑体/书法体（标题），细黑体（正文）
-- 该行业典型物料：菜单、餐垫纸、外卖袋、围裙、招牌灯箱、优惠券
-- 色彩偏向：高饱和度暖色（红/橙/金），对比强烈激发食欲
-- 封面推荐方向：突出食材或用餐氛围，Logo搭配热力动感元素`;
-  }
-
-  if (/美容|美发|美甲|spa|沙龙|护肤|美体|美睫|养生/.test(s)) {
-    return `## 行业设计指引（美容/美业）
-- 典型视觉风格：优雅高级、柔美精致、简约轻奢
-- 常用设计元素：花瓣弧线、水波纹、光影渐变、金色线条
-- 适合字体：纤细衬线/手写体（标题），细无衬线（正文）
-- 该行业典型物料：预约卡、会员卡、产品包装、价目表、手提袋、店内招牌
-- 色彩偏向：低饱和度暖色（粉/金/白/香槟），柔和通透的高级感
-- 封面推荐方向：留白充足，Logo搭配优雅弧线装饰，轻奢质感`;
-  }
-
-  if (/零售|超市|便利|商店|杂货|服装|饰品|母婴|数码/.test(s)) {
-    return `## 行业设计指引（零售）
-- 典型视觉风格：现代简洁、商业高效、货架感
-- 常用设计元素：几何图形、价格标签线条、货架陈列暗示
-- 适合字体：无衬线商务字体，清晰易读
-- 该行业典型物料：价签、促销海报、会员卡、购物袋、陈列指引
-- 色彩偏向：品牌色+高亮强调色，清晰的功能分区
-- 封面推荐方向：Logo居中，简洁商务，搭配几何装饰纹样`;
-  }
-
-  if (/教育|培训|学|课|幼儿园|托管|辅导/.test(s)) {
-    return `## 行业设计指引（教育）
-- 典型视觉风格：亲和有活力、积极向上、知识感
-- 常用设计元素：书本线条、讲台、星星/奖杯、孩子笑脸
-- 适合字体：圆体/手写体（亲和），无衬线（正文）
-- 该行业典型物料：课程表、学生证、宣传单页、证书模板、书包/文具
-- 色彩偏向：明亮活泼，高饱和度+柔和辅色平衡
-- 封面推荐方向：活泼明亮，Logo搭配知识元素装饰`;
-  }
-
-  // Default: general
-  return `## 行业设计指引
-- 请根据品牌名称、愿景和调性，自主判断适合的视觉风格
-- 思考该行业VI手册应该包含哪些典型物料和应用场景
-- 封面设计依据品牌定位决定：传统行业偏稳重，现代行业偏简洁`;
-}
-
-// Page purpose context for industry-aware layout
-function getPagePurpose(pageId: string, industry?: string): string {
-  if (!industry) return "";
-  const s = industry.toLowerCase();
-
-  const industryPages: Record<string, Record<string, string>> = {
-    "cover": {
-      default: "品牌VI手册封面，建立第一印象",
-      shoe: "鞋履品牌第一印象，传统匠心底蕴，Logo+品牌名+传统纹样",
-      restaurant: "餐饮品牌第一印象，热烈食欲感，Logo+品牌名+暖色调背景",
-      beauty: "美容品牌第一印象，优雅高级感，Logo+品牌名+留白",
-    },
-    "brand-philosophy": {
-      default: "品牌核心理念页，展示愿景/价值观",
-      shoe: "突出'脚踏实地'的匠心传承和舒适哲学",
-      restaurant: "突出食材品质和烹饪热情，传递烟火气",
-      beauty: "突出'让美更简单'的服务理念和精致态度",
-    },
-    "logo-interpretation": {
-      default: "Logo设计元素拆解与含义说明",
-      shoe: "展示鞋履符号在Logo中的设计巧思和传统意象",
-      restaurant: "展示餐饮符号在Logo中的设计巧思",
-      beauty: "展示美学符号在Logo中的设计巧思",
-    },
-    "summary": {
-      default: "总结品牌定位与核心原则",
-      shoe: "回顾'每一步都踏实'的品牌承诺和品质坚守",
-      restaurant: "回顾'每一口都是享受'的品牌承诺",
-      beauty: "回顾'每一刻都美丽'的品牌承诺",
-    },
-  };
-
-  const pageMap = industryPages[pageId];
-  if (!pageMap) return "";
-  if (/鞋|布鞋/.test(s)) return pageMap.shoe || pageMap.default;
-  if (/餐|食|火锅|饭店/.test(s)) return pageMap.restaurant || pageMap.default;
-  if (/美容|spa|美业/.test(s)) return pageMap.beauty || pageMap.default;
-  return pageMap.default;
-}
-
-/**
- * 使用 DeepSeek 规划页面布局（核心引擎）
- */
 export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLayoutResult> {
   const priHex = params.brandColors?.primary?.hex || "#1A73E8";
   const secHex = params.brandColors?.secondary?.hex || "#34A853";
@@ -157,8 +52,6 @@ export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLa
   });
 
   const industry = params.industry || "";
-  const industryGuidance = getIndustryGuidance(industry);
-  const pagePurpose = getPagePurpose(params.pageId, industry);
 
   try {
     const resp = await guardedDeepSeekCall({
@@ -176,7 +69,13 @@ export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLa
 品牌辅助色: ${secHex}
 品牌强调色: ${accHex}
 
-${industryGuidance}
+## 行业设计指引
+请根据品牌行业自行推理适合的视觉风格、设计元素和字体选择。
+- 这个行业VI手册应该传递什么样的视觉语言？
+- 哪些设计元素最能代表该行业（传统纹样/几何图形/自然形态/抽象线条等）？
+- 适合的字体风格？
+- 该行业典型物料和应用场景？
+- 封面如何体现行业属性与品牌调性？
 
 ## 设计规则（必须遵守）
 - 品牌色在页面中占主导地位
@@ -213,7 +112,7 @@ ${industryGuidance}
           },
           {
             role: "user",
-            content: `请为 "${params.pageId}" 页设计布局。\n\n${pageContext}${pagePurpose ? `\n\n此页在本行业中的作用：${pagePurpose}` : ""}`,
+            content: `请为 "${params.pageId}" 页设计布局。\n\n${pageContext}`,
           },
         ],
         temperature: 0.7,
