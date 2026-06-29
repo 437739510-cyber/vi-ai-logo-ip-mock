@@ -1,21 +1,18 @@
-/**
+﻿/**
  * AI Layout Planner
  *
- * 用 DeepSeek AI 动态生成页面布局。
- * 当 AI 调用失败或格式不对时，自动回退到硬编码布局。
- *
- * 调用流程：
- *   planLayoutWithAI(pageId, context)
- *     → 调用 plan-layout-engine（直接调用，不走 HTTP）
- *     → 成功 → 验证 JSON 格式 → 返回 PageElement[]
- *     → 失败 → 返回 null（调用方走 fallback 硬编码）
+ * 鐢?DeepSeek AI 鍔ㄦ€佺敓鎴愰〉闈㈠竷灞€銆? * 褰?AI 璋冪敤澶辫触鎴栨牸寮忎笉瀵规椂锛岃嚜鍔ㄥ洖閫€鍒扮‖缂栫爜甯冨眬銆? *
+ * 璋冪敤娴佺▼锛? *   planLayoutWithAI(pageId, context)
+ *     鈫?璋冪敤 plan-layout-engine锛堢洿鎺ヨ皟鐢紝涓嶈蛋 HTTP锛? *     鈫?鎴愬姛 鈫?楠岃瘉 JSON 鏍煎紡 鈫?杩斿洖 PageElement[]
+ *     鈫?澶辫触 鈫?杩斿洖 null锛堣皟鐢ㄦ柟璧?fallback 纭紪鐮侊級
  */
 import type { PageElement } from "./page-planner";
 import { planLayoutEngine } from "./plan-layout-engine";
 
-/** AI 布局规划的输入上下文 */
+/** AI 甯冨眬瑙勫垝鐨勮緭鍏ヤ笂涓嬫枃 */
 export interface AILayoutContext {
   companyName: string;
+  industry?: string;
   brandVision?: string;
   coreValues?: string;
   targetMarket?: string;
@@ -35,9 +32,8 @@ export interface AILayoutContext {
 }
 
 /**
- * 使用 AI 规划页面布局
- * @returns PageElement[] 或 null（失败时走 fallback）
- */
+ * 浣跨敤 AI 瑙勫垝椤甸潰甯冨眬
+ * @returns PageElement[] 鎴?null锛堝け璐ユ椂璧?fallback锛? */
 export async function planLayoutWithAI(
   pageId: string,
   ctx: AILayoutContext
@@ -65,7 +61,7 @@ export async function planLayoutWithAI(
       return null;
     }
 
-    // 验证每个元素
+    // 楠岃瘉姣忎釜鍏冪礌
     const validTypes = new Set(["logo", "text", "ip-mascot", "color-swatch", "decoration", "divider", "image"]);
     const validPositions = new Set(["top-center", "center", "bottom-center", "bottom-right", "left", "right"]);
 

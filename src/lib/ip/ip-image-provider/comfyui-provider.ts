@@ -28,7 +28,7 @@ const COMFYUI_OUTPUT_DIR = "E:\ComfyUI\output";
 
 // DreamShaperXL (SDXL) workflow - primary option
 function buildSDXLWorkflow(
-  prompt, negativePrompt, width, height, seed
+  prompt: string, negativePrompt: string, width: number, height: number, seed: number
 ) {
   return {
     "3": {
@@ -276,7 +276,7 @@ export class ComfyUIProvider implements ImageProvider {
         providerMeta: { model: "dreamshaperXL10", width, height, seed, steps: 20 },
       };
     } catch (sdxlErr) {
-      console.warn("[comfyui-provider] SDXL failed, trying Z-Image Turbo:", sdxlErr.message);
+      console.warn("[comfyui-provider] SDXL failed, trying Z-Image Turbo:", (sdxlErr as Error).message);
     }
     const workflow = buildWorkflow(params.prompt, params.negativePrompt, width, height, seed);
     const { filename, durationMs } = await comfyGenerateSync(workflow);

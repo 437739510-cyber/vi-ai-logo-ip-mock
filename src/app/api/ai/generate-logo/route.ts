@@ -1,19 +1,19 @@
-// V111: Merged with regenerate-logo �?use `regenerate: true` + `logoId` to regenerate
+// V111: Merged with regenerate-logo — use `regenerate: true` + `logoId` to regenerate
 /**
  * API: POST /api/ai/generate-logo
  *
- * V10 Logo生成模块 �?异步版本
+ * V10 Logo生成模块 — 异步版本
  * 
- * 流程�?
+ * 流程：
  * 1. API立即返回202（Logo生成已启动）
- * 2. 后台逐个生成4张Logo方案图（串行避免429�?
- * 3. 进度实时写入DB（client_info.logoGenerationStatus�?
+ * 2. 后台逐个生成4张Logo方案图（串行避免429）
+ * 3. 进度实时写入DB（client_info.logoGenerationStatus）
  * 4. 前端轮询 get-project-status 获取进度
- * 5. 全部完成后状态变�?logo_generated
+ * 5. 全部完成后状态变为 logo_generated
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { comfyuiGenerateLogo, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
+import { arkGenerateLogo } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
 
 export const maxDuration = 180;
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation";
 const DASHSCOPE_TASK = "https://dashscope.aliyuncs.com/api/v1/tasks";
 
-// V72: 下载临时图片并转存到Supabase Storage（解决URL 24小时过期问题�?
+// V72: 下载临时图片并转存到Supabase Storage（解决URL 24小时过期问题）
 async function persistLogoImage(projectId: string, index: number, tempUrl: string): Promise<string | null> {
   try {
     const res = await fetch(tempUrl, { signal: AbortSignal.timeout(30000) });
@@ -36,7 +36,7 @@ async function persistLogoImage(projectId: string, index: number, tempUrl: strin
       return null;
     }
     const { data } = supabaseAdmin.storage.from("brand-brain-generated").getPublicUrl(fileName);
-    console.log(`[persistLogo] Persisted logo ${index} �?${data.publicUrl}`);
+    console.log(`[persistLogo] Persisted logo ${index} → ${data.publicUrl}`);
     return data.publicUrl;
   } catch (e) {
     console.error(`[persistLogo] Error persisting logo ${index}:`, e);
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "ALIYUN_API_KEY not configured" }, { status: 500 });
     }
 
-    // Step 1: �?Supabase 读取品牌档案
+    // Step 1: 从 Supabase 读取品牌档案
     const { data: project, error: projErr } = await supabaseAdmin
       .from("projects")
       .select("id, client_info")
@@ -80,12 +80,12 @@ export async function POST(req: NextRequest) {
     if (!logoSuggestions?.prompts || logoSuggestions.prompts.length === 0) {
       // Check if analysis is still running in background
       const analysisStatus = brandProfile.analysisStatus;
-      let errorMsg = "请先完成品牌分析（点击🧠开始AI分析�?;
+      let errorMsg = "请先完成品牌分析（点击🧠开始AI分析）";
       if (analysisStatus === "analyzing") {
         errorMsg = "AI分析正在进行中，请稍等片刻再生成Logo";
       }
 
-    // V88: 已有Logo结果且非强制 �?直接返回，避免重复烧�?
+    // V88: 已有Logo结果且非强制 → 直接返回，避免重复烧钱
     const forceRegenerate = body.force === true || body.regenerate === true;
     const existingLogos = brandProfile.logoGenerationResults;
     if (!forceRegenerate && existingLogos && existingLogos.length >= 4 && clientInfo.logoGenerationStatus?.completed >= 4) {
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     if (currentStatus === "logo_generating") {
       return NextResponse.json({ 
         success: true, 
-        message: "Logo生成已在进行�?,
+        message: "Logo生成已在进行中",
         status: "logo_generating"
       }, { status: 202 });
     }
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
     const companyName = clientInfo.companyName || "品牌";
     const prompts: string[] = logoSuggestions.prompts;
 
-    // Step 2: 写入初始状�?+ 启动后台生成
+    // Step 2: 写入初始状态 + 启动后台生成
     await supabaseAdmin.from("projects").update({
       status: "logo_generating",
       client_info: {
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // Update progress in DB �?use in-memory clientInfo cache, skip redundant select
+        // Update progress in DB — use in-memory clientInfo cache, skip redundant select
         const completedCount = logoResults.filter(r => r.imageUrl).length;
         try {
           const cachedInfo = { ...clientInfo };
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
           console.error(`[generate-logo] Background: Progress update failed:`, updateErr);
         }
 
-        // 间隔2秒避免限�?
+        // 间隔2秒避免限频
         if (i < prompts.length - 1) {
           await new Promise(r => setTimeout(r, 2000));
         }
@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
     // Immediately return 202
     return NextResponse.json({
       success: true,
-      message: "Logo生成已启动，请稍�?,
+      message: "Logo生成已启动，请稍候",
       projectId,
       companyName,
       totalLogos: prompts.length,
@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ========== 方舟Seedream文生�?免费额度优先) + 通义万相fallback ==========
+// ========== 方舟Seedream文生图(免费额度优先) + 通义万相fallback ==========
 async function generateImage(prompt: string, apiKey: string): Promise<string | null> {
   // 优先使用方舟Seedream(免费额度), 失败降级通义万相
   const arkKey = process.env.ARK_API_KEY;

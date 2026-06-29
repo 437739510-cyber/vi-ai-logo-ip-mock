@@ -1,5 +1,5 @@
 /**
- * IP Image Provider Layer â€?Central Exports
+ * IP Image Provider Layer ?Central Exports
  */
 
 export type {
@@ -28,4 +28,4 @@ export {
   resetMetrics,
   getAggregatedMetrics,
 } from "./metrics-provider";
-
+

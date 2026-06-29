@@ -1,20 +1,17 @@
-/**
- * DeepSeek API 调用守卫 (V55: 复用supabaseAdmin单例，修复env变量命名)
- * - 记录每次调用的路由、token用量、费用、时间戳到 api_usage_log
- * - 每日预算上限（默认5元），超出自动拦截
- * - 所有 DeepSeek 调用必须通过此模块
- * 
- * V55变更：移除本地Supabase客户端创建，改为复用 supabaseAdmin 单例
- * - 修复：原代码用 process.env.SUPABASE_SERVICE_KEY 直接创建客户端，
- *   该env在Zeabur中可能未配置（实际变量名为SUPABASE_SERVICE_ROLE_KEY），
- *   导致guard功能静默降级为anon key（权限不足写不了api_usage_log）
- * - 现在统一使用 supabaseAdmin，确保始终有service_role权限
+﻿/**
+ * DeepSeek API 璋冪敤瀹堝崼 (V55: 澶嶇敤supabaseAdmin鍗曚緥锛屼慨澶峞nv鍙橀噺鍛藉悕)
+ * - 璁板綍姣忔璋冪敤鐨勮矾鐢便€乼oken鐢ㄩ噺銆佽垂鐢ㄣ€佹椂闂存埑鍒?api_usage_log
+ * - 姣忔棩棰勭畻涓婇檺锛堥粯璁?鍏冿級锛岃秴鍑鸿嚜鍔ㄦ嫤鎴? * - 鎵€鏈?DeepSeek 璋冪敤蹇呴』閫氳繃姝ゆā鍧? * 
+ * V55鍙樻洿锛氱Щ闄ゆ湰鍦癝upabase瀹㈡埛绔垱寤猴紝鏀逛负澶嶇敤 supabaseAdmin 鍗曚緥
+ * - 淇锛氬師浠ｇ爜鐢?process.env.SUPABASE_SERVICE_KEY 鐩存帴鍒涘缓瀹㈡埛绔紝
+ *   璇nv鍦╖eabur涓彲鑳芥湭閰嶇疆锛堝疄闄呭彉閲忓悕涓篠UPABASE_SERVICE_ROLE_KEY锛夛紝
+ *   瀵艰嚧guard鍔熻兘闈欓粯闄嶇骇涓篴non key锛堟潈闄愪笉瓒冲啓涓嶄簡api_usage_log锛? * - 鐜板湪缁熶竴浣跨敤 supabaseAdmin锛岀‘淇濆缁堟湁service_role鏉冮檺
  */
 
 import { supabaseAdmin } from "@/lib/core/supabase";
 
 // DeepSeek deepseek-v4-flash pricing (CNY per 1K tokens)
-// Input: ¥0.001/1K, Output: ¥0.002/1K, Cached input: ¥0.0001/1K
+// Input: 楼0.001/1K, Output: 楼0.002/1K, Cached input: 楼0.0001/1K
 const PRICE_INPUT_PER_1K = 0.001;
 const PRICE_OUTPUT_PER_1K = 0.002;
 const PRICE_CACHED_PER_1K = 0.0001;
@@ -51,7 +48,7 @@ export async function deepseekPreCheck(options: GuardOptions): Promise<{
   const {
     route,
     method = 'POST',
-    model = 'deepseek-v4-flash',
+    model = 'deepseek-chat',
     projectId,
     requestSummary,
     dailyBudgetCny = DEFAULT_DAILY_BUDGET,
@@ -81,14 +78,14 @@ export async function deepseekPreCheck(options: GuardOptions): Promise<{
         model,
         cost_cny: 0,
         project_id: projectId || null,
-        request_summary: `预算超限: ¥${todayTotal.toFixed(2)} / ¥${dailyBudgetCny.toFixed(2)}`,
+        request_summary: `棰勭畻瓒呴檺: 楼${todayTotal.toFixed(2)} / 楼${dailyBudgetCny.toFixed(2)}`,
         response_status: 402,
         error_message: 'Daily budget exceeded',
       });
 
       return {
         allowed: false,
-        reason: `今日DeepSeek预算已用完: ¥${todayTotal.toFixed(2)} / ¥${dailyBudgetCny.toFixed(2)}`,
+        reason: `浠婃棩DeepSeek棰勭畻宸茬敤瀹? 楼${todayTotal.toFixed(2)} / 楼${dailyBudgetCny.toFixed(2)}`,
       };
     }
 
@@ -151,7 +148,7 @@ export async function deepseekPostLog(
 export async function guardedDeepSeekCall(
   options: GuardOptions & {
     body: Record<string, unknown>;
-    timeoutMs?: number;  // 超时毫秒数，默认60000
+    timeoutMs?: number;  // 瓒呮椂姣鏁帮紝榛樿60000
   }
 ): Promise<Response> {
   const { route, body, projectId, requestSummary, dailyBudgetCny, timeoutMs = 60000 } = options;

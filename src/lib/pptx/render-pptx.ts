@@ -2185,7 +2185,7 @@ function renderLogoOutput(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     // 渲染 content_patch 的 LOGO 输出规范
     const text = sanitizeText(opts.logoOutputSpec);
     slide.addText(text, {
-      x: cx + 0.1, y, w: CONTENT_W - 0.2, h: 8.0,
+      x: cx + 0.1, y, w: CONTENT_W - 0.2, h: 9.5,
       fontSize: 12, color: "444444", lineSpacingMultiple: 1.5, valign: "top",
     });
     return;
@@ -2233,7 +2233,7 @@ function renderLogoOutput(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     // 渲染 content_patch 的修改权限说明
     const text = sanitizeText(opts.modificationAuthority);
     slide.addText(text, {
-      x: cx + 0.1, y, w: CONTENT_W - 0.2, h: 8.0,
+      x: cx + 0.1, y, w: CONTENT_W - 0.2, h: 9.5,
       fontSize: 13, color: "444444", lineSpacingMultiple: 1.6, valign: "top",
     });
     // 底部提示

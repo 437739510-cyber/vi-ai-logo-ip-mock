@@ -1,28 +1,28 @@
 /**
- * Billing System V2 - Cost Estimator (淇鐗?
- * 鍩轰簬鐪熷疄API鎴愭湰璁＄畻锛屼笉鏄櫄楂樺畾浠? * DeepSeek: ~0.01鍏?娆″搧鐗屽垎鏋愯皟鐢? * 閫氫箟涓囩浉: ~0.04鍏?寮犲浘
- * iSlide涓嬭浇: 9.9鍏?娆★紙浠呬笅杞芥椂鏀惰垂锛? */
+ * Billing System V2 - Cost Estimator (淇?
+ * 鍩轰簬鐪熷疄API鎴愭湰璁＄畻锛屼笉鏄櫄楂樺畾? * DeepSeek: ~0.01?娆″搧鐗屽垎鏋愯皟? * 閫氫箟涓囩浉: ~0.04?寮犲浘
+ * iSlide涓嬭浇: 9.9?娆★紙浠呬笅杞芥椂鏀惰垂? */
 import type { CostEstimate, CostEstimateItem, UsageAction } from "./types";
 
 /**
  * 鐪熷疄API鍗曚环锛堝崟浣嶏細鍏冿級
- * V1鐨勬敞閲婂啓"鍒?浣嗗疄闄呰褰撴垚"鍏?鏄剧ず锛屽鑷磋垂鐢ㄨ櫄楂? * V2鐩存帴鐢ㄧ湡瀹濧PI鎴愭湰锛堝厓锛? */
+ * V1鐨勬敞閲婂啓"?浣嗗疄闄呰褰撴垚"?鏄剧ず锛屽鑷磋垂鐢ㄨ櫄? * V2鐩存帴鐢ㄧ湡瀹濧PI鎴愭湰锛堝厓? */
 const REAL_API_PRICES: Record<UsageAction, number> = {
   brand_analyze: 0.01,
   industry_search: 0.005,
   mascot_strategy: 0.01,
-  vi_generate: 0,        // 本地ComfyUI免费
-  vi_generate_batch: 0,  // 本地ComfyUI免费
-  future_ip_generate: 0,  // 本地ComfyUI免费
+  vi_generate: 0,        // ComfyUI
+  vi_generate_batch: 0,  // ComfyUI
+  future_ip_generate: 0,  // ComfyUI
 };
 
 const ACTION_LABELS: Record<UsageAction, string> = {
   brand_analyze: "鍝佺墝鍒嗘瀽",
   industry_search: "琛屼笟鎼滅储",
   mascot_strategy: "IP绛栫暐鍒嗘瀽",
-  vi_generate: "AI出图(本地)",
-  vi_generate_batch: "批量出图(本地)",
-  future_ip_generate: "IP图片生成(本地)",
+  vi_generate: "AI图()",
+  vi_generate_batch: "图()",
+  future_ip_generate: "IP图片()",
 };
 
 export function getUnitPrices(): Record<UsageAction, number> {

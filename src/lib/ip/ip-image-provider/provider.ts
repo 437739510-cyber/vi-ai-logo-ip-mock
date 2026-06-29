@@ -1,8 +1,8 @@
 /**
- * IP Image Provider Layer â€?Provider Registry
+ * IP Image Provider Layer ?Provider Registry
  *
  * Manages available image providers and selects the best one.
- * Fallback chain: ComfyUI (local) ¡ú Mock (guaranteed)
+ * Fallback chain: ComfyUI (local)  Mock (guaranteed)
  *
  * All registered providers are automatically wrapped with
  * MetricsProvider for transparent call statistics.
@@ -135,4 +135,4 @@ export function getDefaultRegistry(): ProviderRegistry {
 export function resetDefaultRegistry(): void {
   _defaultRegistry = null;
 }
-
+

@@ -283,6 +283,7 @@ async function planSinglePage(
       // 8秒超时，避免单页卡太久
       aiElements = await Promise.race([
         planLayoutWithAI(pageId, {
+          industry: input.clientInfo.industry,
           companyName,
           brandVision: input.clientInfo.brandVision,
           coreValues: input.clientInfo.coreValues,

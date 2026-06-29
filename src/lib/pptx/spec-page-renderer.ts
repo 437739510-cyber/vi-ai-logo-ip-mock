@@ -25,11 +25,25 @@ let fontsCache: any = null;
 function loadFonts() {
   if (fontsCache) return fontsCache as any;
   const fontsDir = join(process.cwd(), 'public', 'fonts');
+  // Try full fonts first (8MB each, covers all CJK), fallback to subset
+  let fullReg, fullBold, fullSerifReg, fullSerifBold;
+  try { fullReg = readFileSync(join(fontsDir, 'NotoSansSC-Regular.otf')).buffer as ArrayBuffer; } catch {}
+  try { fullBold = readFileSync(join(fontsDir, 'NotoSansSC-Bold.otf')).buffer as ArrayBuffer; } catch {}
+  try { fullSerifReg = readFileSync(join(fontsDir, 'NotoSerifSC-Regular-sub.otf')).buffer as ArrayBuffer; } catch {}
+  try { fullSerifBold = readFileSync(join(fontsDir, 'NotoSerifSC-Bold-sub.otf')).buffer as ArrayBuffer; } catch {}
+  const subReg = readFileSync(join(fontsDir, 'NotoSansSC-Regular-sub.otf')).buffer as ArrayBuffer;
+  const subBold = readFileSync(join(fontsDir, 'NotoSansSC-Bold-sub.otf')).buffer as ArrayBuffer;
+  const subSerifReg = readFileSync(join(fontsDir, 'NotoSerifSC-Regular-sub.otf')).buffer as ArrayBuffer;
+  const subSerifBold = readFileSync(join(fontsDir, 'NotoSerifSC-Bold-sub.otf')).buffer as ArrayBuffer;
   fontsCache = [
-    { name: 'Noto Sans SC', data: readFileSync(join(fontsDir, 'NotoSansSC-Regular-sub.otf')).buffer as ArrayBuffer, weight: 400 as const, style: 'normal' },
-    { name: 'Noto Sans SC', data: readFileSync(join(fontsDir, 'NotoSansSC-Bold-sub.otf')).buffer as ArrayBuffer, weight: 700 as const, style: 'normal' },
-    { name: 'Noto Serif SC', data: readFileSync(join(fontsDir, 'NotoSerifSC-Regular-sub.otf')).buffer as ArrayBuffer, weight: 400 as const, style: 'normal' },
-    { name: 'Noto Serif SC', data: readFileSync(join(fontsDir, 'NotoSerifSC-Bold-sub.otf')).buffer as ArrayBuffer, weight: 700 as const, style: 'normal' },
+    { name: 'Noto Sans SC', data: fullReg || subReg, weight: 400 as const, style: 'normal' },
+    { name: 'Noto Sans SC', data: fullBold || subBold, weight: 700 as const, style: 'normal' },
+    { name: 'Noto Sans SC', data: subReg, weight: 400 as const, style: 'normal' },
+    { name: 'Noto Sans SC', data: subBold, weight: 700 as const, style: 'normal' },
+    { name: 'Noto Serif SC', data: fullSerifReg || subSerifReg, weight: 400 as const, style: 'normal' },
+    { name: 'Noto Serif SC', data: fullSerifBold || subSerifBold, weight: 700 as const, style: 'normal' },
+    { name: 'Noto Serif SC', data: subSerifReg, weight: 400 as const, style: 'normal' },
+    { name: 'Noto Serif SC', data: subSerifBold, weight: 700 as const, style: 'normal' },
   ];
   return fontsCache;
 }
@@ -186,41 +200,41 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
         ]}},
         // 三色说明框（与色卡一一对应）
         { type: 'div', props: { style: { display: 'flex', gap: 20, marginBottom: 12 }, children: [
-          { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50 }, children: [
+          { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50, overflow: 'hidden' }, children: [
             { type: 'div', props: { style: { fontSize: 30, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `品牌主色#${bc.pri}传递品牌核心调性` } },
           ]}},
-          { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50 }, children: [
+          { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50, overflow: 'hidden' }, children: [
             { type: 'div', props: { style: { fontSize: 30, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `辅助色#${bc.sec}营造层次与和谐` } },
           ]}},
-          { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50 }, children: [
+          { type: 'div', props: { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA', borderRadius: 6, padding: '10px 12px', minHeight: 50, overflow: 'hidden' }, children: [
             { type: 'div', props: { style: { fontSize: 30, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `强调色#${bc.acc}用于关键信息突出` } },
           ]}},
         ]}},
         // 底部总说明
         { type: 'div', props: { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F5F5', borderRadius: 6, padding: '12px 20px', minHeight: 60, width: '100%' }, children: [
-          { type: 'div', props: { style: { fontSize: 26, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: '三色组合确保品牌视觉的专业性、一致性与识别度。' } },
+          { type: 'div', props: { style: { width: '100%', fontSize: 26, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: '三色组合确保品牌视觉的专业性、一致性与识别度。' } },
         ]}},
 
-        // ───── 色彩使用说明 ─────
+        // ───── 色彩应用说明 ─────
         { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 28, marginBottom: 14 }, children: [
           { type: 'div', props: { style: { width: 6, height: 26, backgroundColor: `#${bc.pri}`, borderRadius: 3, flexShrink: 0 } } },
-          { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '色彩使用说明' } },
+          { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: '色彩应用说明' } },
         ]}},
         { type: 'div', props: { style: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }, children: [
           { type: 'div', props: { style: { display: 'flex', alignItems: 'flex-start', backgroundColor: '#F8F8F8', borderRadius: 6, padding: '12px 16px', borderLeft: `5px solid #${bc.pri}` }, children: [
-            { type: 'div', props: { style: { fontSize: 24, color: '#333333', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: [
+            { type: 'div', props: { style: { display: 'flex', flexDirection: 'column', fontSize: 24, color: '#333333', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: [
               { type: 'span', props: { style: { fontWeight: 700, color: `#${bc.pri}` }, children: '品牌主色' } },
               { type: 'span', props: { style: {}, children: ` #${bc.pri} — 用于LOGO、标题、品牌核心视觉元素，传达品牌基调与识别度。` } },
             ]}},
           ]}},
           { type: 'div', props: { style: { display: 'flex', alignItems: 'flex-start', backgroundColor: '#F8F8F8', borderRadius: 6, padding: '12px 16px', borderLeft: `5px solid #${bc.sec}` }, children: [
-            { type: 'div', props: { style: { fontSize: 24, color: '#333333', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: [
+            { type: 'div', props: { style: { display: 'flex', flexDirection: 'column', fontSize: 24, color: '#333333', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: [
               { type: 'span', props: { style: { fontWeight: 700, color: `#${bc.sec}` }, children: '辅助色' } },
               { type: 'span', props: { style: {}, children: ` #${bc.sec} — 用于背景、卡片、次要元素、分割线，营造视觉层次与和谐。` } },
             ]}},
           ]}},
           { type: 'div', props: { style: { display: 'flex', alignItems: 'flex-start', backgroundColor: '#F8F8F8', borderRadius: 6, padding: '12px 16px', borderLeft: `5px solid #${bc.acc}` }, children: [
-            { type: 'div', props: { style: { fontSize: 24, color: '#333333', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: [
+            { type: 'div', props: { style: { display: 'flex', flexDirection: 'column', fontSize: 24, color: '#333333', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: [
               { type: 'span', props: { style: { fontWeight: 700, color: `#${bc.acc}` }, children: '强调色' } },
               { type: 'span', props: { style: {}, children: ` #${bc.acc} — 用于CTA按钮、链接、关键数据高亮、优惠标签，吸引注意力。` } },
             ]}},
@@ -267,17 +281,17 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
           { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FAFAFA', borderRadius: 8, padding: '14px 14px', border: '1px solid #EEEEEE' }, children: [
             { type: 'div', props: { style: { width: 28, height: 28, borderRadius: 6, backgroundColor: `#${bc.pri}`, marginBottom: 8 } } },
             { type: 'div', props: { style: { fontSize: 26, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC', marginBottom: 4 }, children: '品牌识别' } },
-            { type: 'div', props: { style: { fontSize: 20, color: '#666666', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '主色覆盖≥60%品牌触点，\n确保视觉统一性' } },
+            { type: 'div', props: { style: { fontSize: 22, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '主色覆盖≥60%品牌触点，确保视觉统一性' } },
           ]}},
           { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FAFAFA', borderRadius: 8, padding: '14px 14px', border: '1px solid #EEEEEE' }, children: [
             { type: 'div', props: { style: { width: 28, height: 28, borderRadius: 6, backgroundColor: `#${bc.sec}`, marginBottom: 8 } } },
             { type: 'div', props: { style: { fontSize: 26, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC', marginBottom: 4 }, children: '层次构建' } },
-            { type: 'div', props: { style: { fontSize: 20, color: '#666666', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '辅助色占25-30%版面，\n营造舒适阅读体验' } },
+            { type: 'div', props: { style: { fontSize: 22, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '辅助色占25-30%版面，营造舒适阅读体验' } },
           ]}},
           { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FAFAFA', borderRadius: 8, padding: '14px 14px', border: '1px solid #EEEEEE' }, children: [
             { type: 'div', props: { style: { width: 28, height: 28, borderRadius: 6, backgroundColor: `#${bc.acc}`, marginBottom: 8 } } },
             { type: 'div', props: { style: { fontSize: 26, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC', marginBottom: 4 }, children: '行动引导' } },
-            { type: 'div', props: { style: { fontSize: 20, color: '#666666', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '强调色用于10-15%关键\n交互与转化元素' } },
+            { type: 'div', props: { style: { fontSize: 22, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '强调色用于10-15%关键交互与转化元素' } },
           ]}},
         ]}},
 
@@ -294,7 +308,7 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
               { type: 'div', props: { style: { flex: 2, backgroundColor: `#${bc.sec}` } } },
               { type: 'div', props: { style: { flex: 1, backgroundColor: `#${bc.acc}` } } },
             ]}},
-            { type: 'div', props: { style: { padding: '8px 10px' }, children: [
+            { type: 'div', props: { style: { display: 'flex', padding: '8px 10px' }, children: [
               { type: 'div', props: { style: { fontSize: 22, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC' }, children: '标准方案' } },
               { type: 'div', props: { style: { fontSize: 18, color: '#999999', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: '3:2:1 比例' } },
             ]}},
@@ -306,7 +320,7 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
               { type: 'div', props: { style: { flex: 1, backgroundColor: `#${bc.acc}` } } },
               { type: 'div', props: { style: { flex: 1, backgroundColor: '#F5F5F5' } } },
             ]}},
-            { type: 'div', props: { style: { padding: '8px 10px' }, children: [
+            { type: 'div', props: { style: { display: 'flex', padding: '8px 10px' }, children: [
               { type: 'div', props: { style: { fontSize: 22, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC' }, children: '强调方案' } },
               { type: 'div', props: { style: { fontSize: 18, color: '#999999', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: '高对比冲击' } },
             ]}},
@@ -318,7 +332,7 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
               { type: 'div', props: { style: { flex: 2, backgroundColor: `#${bc.pri}` } } },
               { type: 'div', props: { style: { flex: 1, backgroundColor: '#FFFFFF' } } },
             ]}},
-            { type: 'div', props: { style: { padding: '8px 10px' }, children: [
+            { type: 'div', props: { style: { display: 'flex', padding: '8px 10px' }, children: [
               { type: 'div', props: { style: { fontSize: 22, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC' }, children: '柔和方案' } },
               { type: 'div', props: { style: { fontSize: 18, color: '#999999', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: '优雅低调' } },
             ]}},
