@@ -1158,7 +1158,30 @@ export default function ProjectDetailPage({
           <h3 className="text-sm font-semibold text-neutral-700">品牌素材</h3>
           <div className="flex items-start gap-3">
             <div className="flex-1">
+              <div className="space-y-2">
               <AssetPreview label="LOGO" files={submission?.logoAssets || []} emptyText="未上传 LOGO" />
+              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs cursor-pointer hover:bg-red-100 transition">
+                <span>+ 上传Logo</span>
+                <input type="file" accept="image/png,image/jpeg" className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !project) return;
+                    const r = new FileReader();
+                    r.onload = async () => {
+                      try {
+                        const res = await fetch('/api/admin/upload-logo', {
+                          method: 'POST', headers: {'Content-Type':'application/json'},
+                          body: JSON.stringify({projectId:project.id, logoData:r.result, logoName:file.name}),
+                        });
+                        if (res.ok) { window.location.reload(); }
+                        else { alert('上传失败'); }
+                      } catch { alert('上传失败'); }
+                    };
+                    r.readAsDataURL(file);
+                  }}
+                />
+              </label>
+            </div>
             </div>
             {submission?.logoAssets?.length > 0 && (
               <button
