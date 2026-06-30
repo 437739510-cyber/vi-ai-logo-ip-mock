@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update project with logo
-    const supabase = await createClient();
+    const supabase = supabaseAdmin;
     
     // Get existing client_info
     const { data: project, error: getErr } = await supabase
