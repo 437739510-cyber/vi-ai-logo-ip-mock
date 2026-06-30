@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/core/supabase';
+import { supabaseAdmin } from '@/lib/core/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,11 +8,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing projectId or logoData' }, { status: 400 });
     }
 
-    // Update project with logo
-    const supabase = supabaseAdmin;
-    
-    // Get existing client_info
-    const { data: project, error: getErr } = await supabase
+    const { data: project, error: getErr } = await supabaseAdmin
       .from('projects')
       .select('client_info')
       .eq('id', projectId)
@@ -26,7 +22,7 @@ export async function POST(request: NextRequest) {
     clientInfo.selectedLogo = logoData;
     clientInfo.selectedLogoName = logoName || 'uploaded_logo.png';
 
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await supabaseAdmin
       .from('projects')
       .update({ client_info: clientInfo, status: 'logo_selected' })
       .eq('id', projectId);
