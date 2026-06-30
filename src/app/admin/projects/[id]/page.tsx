@@ -1159,7 +1159,7 @@ export default function ProjectDetailPage({
           <div className="flex items-start gap-3">
             <div className="flex-1">
               <div className="space-y-2">
-              <AssetPreview label="LOGO" files={submission?.logoAssets?.length ? submission.logoAssets : ((project as any)?.client_info?.selectedLogo ? [{url: (project as any).client_info.selectedLogo, name: (project as any).client_info.selectedLogoName || "logo.png"}] : [])} emptyText="未上传 LOGO" />
+              <AssetPreview label="LOGO" files={submission?.logoAssets?.length ? submission.logoAssets : ((project as any)?.client_info?.selectedLogo ? [{url: (project as any).client_info.selectedLogo, fileName: (project as any).client_info.selectedLogoName || "logo.png", size: 0}] : [])} emptyText="未上传 LOGO" />
               <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs cursor-pointer hover:bg-red-100 transition">
                 <span>+ 上传Logo</span>
                 <input type="file" accept="image/png,image/jpeg" className="hidden"
