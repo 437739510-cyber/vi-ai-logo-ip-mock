@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 /**
  * PptxGenJS Renderer V6 — AI写实图+专业排版
  *
@@ -1858,20 +1858,20 @@ function renderLogoGrid(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
   slide.addText("X", { x: gridX + gridW / 2 - 0.15, y: gridY + gridH + 0.35, w: 0.3, h: 0.25, fontSize: 9, color: bc.pri, bold: true, align: "center" });
   slide.addText("Y", { x: gridX - 0.5, y: gridY + gridH / 2 - 0.12, w: 0.3, h: 0.25, fontSize: 9, color: bc.pri, bold: true, align: "center" });
 
-  // LOGO居中放置
+  // LOGO居中放置 — maintain aspect ratio (PptxGenJS 4.x ignores sizing)
   if (aiLogo) {
-    const logoW = 2.0;
-    const logoH = 1.5;
+    const maxW = 2.0;
+    const maxH = 1.5;
+    const sz = getPngSize(aiLogo as string);
+    const fit = sz ? fitContain(sz.w, sz.h, maxW, maxH) : { w: maxW, h: maxH };
     slide.addImage({
       data: aiLogo,
-      x: gridX + (gridW - logoW) / 2,
-      y: gridY + (gridH - logoH) / 2,
-      w: logoW,
-      h: logoH,
-      sizing: { type: "contain", w: logoW, h: logoH },
+      x: gridX + (gridW - fit.w) / 2,
+      y: gridY + (gridH - fit.h) / 2,
+      w: fit.w,
+      h: fit.h,
     });
   }
-
   // 比例标注
   slide.addText("Logo标准网格为10x10单位，LOGO居中对齐网格中心点。", {
     x: gridX, y: gridY + gridH + 0.65, w: gridW, h: 0.3,
@@ -2136,7 +2136,22 @@ function renderWayfinding(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
 
 // ========== 工具函数 ==========
 function hx(c: string): string { return c.replace("#", "").toUpperCase(); }
-function normImg(d: string): string { return d.startsWith("data:") ? d : `data:image/png;base64,${d}`; }
+function normImg(d: string): string { if (d.startsWith("data:")) return d; if (d.startsWith("image/")) return `data:${d}`; return `data:image/png;base64,${d}`; }
+
+// PptxGenJS 4.x dropped "sizing". Parse PNG dimensions from base64 to calculate
+// correct w/h that maintain aspect ratio within a max bounding box.
+function getPngSize(b64: string): { w: number; h: number } | null {
+  try {
+    const raw = (b64.split(";base64,").pop() || b64).replace(/\s/g, "");
+    const buf = Buffer.from(raw, "base64");
+    if (buf.length < 24 || buf[0] !== 0x89 || buf[1] !== 0x50 || buf[2] !== 0x4E || buf[3] !== 0x47) return null;
+    return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+  } catch { return null; }
+}
+function fitContain(iw: number, ih: number, mw: number, mh: number): { w: number; h: number } {
+  const s = Math.min(mw / iw, mh / ih);
+  return { w: iw * s, h: ih * s };
+}
 function darken(hex: string): string {
   const c = hex.replace("#", "");
   const r = Math.max(0, parseInt(c.slice(0, 2), 16) - 60);
