@@ -1,68 +1,57 @@
-// V111: Merged with regenerate-logo — use `regenerate: true` + `logoId` to regenerate
+// V120: Switched to ComfyUI local (free) -- ARK/DashScope cloud APIs removed
 /**
  * API: POST /api/ai/generate-logo
  *
- * V10 Logo生成模块 — 异步版本
- * 
- * 流程：
- * 1. API立即返回202（Logo生成已启动）
- * 2. 后台逐个生成4张Logo方案图（串行避免429）
- * 3. 进度实时写入DB（client_info.logoGenerationStatus）
- * 4. 前端轮询 get-project-status 获取进度
- * 5. 全部完成后状态变为 logo_generated
+ * V120 Logo generation via ComfyUI local -- async version
+ *
+ * Flow:
+ * 1. API immediately returns 202 (Logo generation started)
+ * 2. Background generates 3-4 Logo variants via ComfyUI SDXL (serial, free)
+ * 3. Progress written to DB in real-time
+ * 4. Frontend polls get-project-status for progress
+ * 5. Status changes to "logo_generated" when all complete
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { arkGenerateLogo } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
+import { comfyuiGenerateLogo, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
 
 export const maxDuration = 180;
 export const dynamic = "force-dynamic";
 
-const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation";
-const DASHSCOPE_TASK = "https://dashscope.aliyuncs.com/api/v1/tasks";
-
-// V72: 下载临时图片并转存到Supabase Storage（解决URL 24小时过期问题）
-async function persistLogoImage(projectId: string, index: number, tempUrl: string): Promise<string | null> {
+// V120: Persist base64 image to Supabase Storage
+async function persistLogoBase64(projectId: string, index: number, base64DataUrl: string): Promise<string | null> {
   try {
-    const res = await fetch(tempUrl, { signal: AbortSignal.timeout(30000) });
-    if (!res.ok) return null;
-    const buffer = Buffer.from(await res.arrayBuffer());
-    const fileName = `${projectId}/logo_${index}_${Date.now()}.jpeg`;
+    const matches = base64DataUrl.match(/^data:image.(png|jpeg|jpg);base64,(.+)$/);
+    if (!matches) return null;
+    const buffer = Buffer.from(matches[2], "base64");
+    const fileName = projectId + "/logo_" + index + "_" + Date.now() + ".jpeg";
     const { error } = await supabaseAdmin.storage
       .from("brand-brain-generated")
       .upload(fileName, buffer, { contentType: "image/jpeg", upsert: true });
     if (error) {
-      console.error(`[persistLogo] Upload failed for ${fileName}:`, error.message);
+      console.error("[persistLogo] Upload failed:", error.message);
       return null;
     }
     const { data } = supabaseAdmin.storage.from("brand-brain-generated").getPublicUrl(fileName);
-    console.log(`[persistLogo] Persisted logo ${index} → ${data.publicUrl}`);
+    console.log("[persistLogo] Persisted logo " + index + " -> " + data.publicUrl);
     return data.publicUrl;
   } catch (e) {
-    console.error(`[persistLogo] Error persisting logo ${index}:`, e);
+    console.error("[persistLogo] Error:", e);
     return null;
   }
 }
 
-
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-  const { regenerate, logoId } = body;
-  const forceRegenerate = body.force === true || regenerate === true;
-    const { projectId } = body;
+    const { projectId, regenerate, logoId } = body;
+    const forceRegenerate = body.force === true || regenerate === true;
 
     if (!projectId) {
       return NextResponse.json({ error: "projectId required" }, { status: 400 });
     }
 
-    const apiKey = process.env.ALIYUN_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "ALIYUN_API_KEY not configured" }, { status: 500 });
-    }
-
-    // Step 1: 从 Supabase 读取品牌档案
+    // Step 1: Read brand profile from Supabase
     const { data: project, error: projErr } = await supabaseAdmin
       .from("projects")
       .select("id, client_info")
@@ -78,35 +67,29 @@ export async function POST(req: NextRequest) {
     const logoSuggestions = brandProfile.logoDesignSuggestions;
 
     if (!logoSuggestions?.prompts || logoSuggestions.prompts.length === 0) {
-      // Check if analysis is still running in background
       const analysisStatus = brandProfile.analysisStatus;
-      let errorMsg = "请先完成品牌分析（点击🧠开始AI分析）";
+      let errorMsg = "请先完成品牌分析";
       if (analysisStatus === "analyzing") {
-        errorMsg = "AI分析正在进行中，请稍等片刻再生成Logo";
+        errorMsg = "AI分析正在进行中";
       }
 
-    // V88: 已有Logo结果且非强制 → 直接返回，避免重复烧钱
-    const forceRegenerate = body.force === true || body.regenerate === true;
-    const existingLogos = brandProfile.logoGenerationResults;
-    if (!forceRegenerate && existingLogos && existingLogos.length >= 4 && clientInfo.logoGenerationStatus?.completed >= 4) {
-      console.log(`[generate-logo] V88: Project ${projectId} already has ${existingLogos.length} logos, skipping. Use force=true to override.`);
-      return NextResponse.json({
-        status: "already_completed",
-        message: "已有4个Logo，无需重复生成",
-        logos: existingLogos,
-      }, { status: 200 });
-    }
-      return NextResponse.json({
-        error: errorMsg,
-      }, { status: 400 });
+      // Already have logos, not forcing -> return existing
+      const existingLogos = brandProfile.logoGenerationResults;
+      if (!forceRegenerate && existingLogos && existingLogos.length >= 4 && clientInfo.logoGenerationStatus?.completed >= 4) {
+        return NextResponse.json({
+          status: "already_completed",
+          message: "已有4个Logo，无需重复生成",
+          logos: existingLogos,
+        }, { status: 200 });
+      }
+      return NextResponse.json({ error: errorMsg }, { status: 400 });
     }
 
     // Check if already generating
-    const currentStatus = clientInfo.generationStatus;
-    if (currentStatus === "logo_generating") {
-      return NextResponse.json({ 
-        success: true, 
-        message: "Logo生成已在进行中",
+    if (clientInfo.generationStatus === "logo_generating") {
+      return NextResponse.json({
+        success: true,
+        message: "Logo生成已经在进行中",
         status: "logo_generating"
       }, { status: 202 });
     }
@@ -114,7 +97,7 @@ export async function POST(req: NextRequest) {
     const companyName = clientInfo.companyName || "品牌";
     const prompts: string[] = logoSuggestions.prompts;
 
-    // Step 2: 写入初始状态 + 启动后台生成
+    // Step 2: Write initial status
     await supabaseAdmin.from("projects").update({
       status: "logo_generating",
       client_info: {
@@ -122,98 +105,77 @@ export async function POST(req: NextRequest) {
         generationStatus: "logo_generating",
         generationMessage: `正在生成Logo (0/${prompts.length})...`,
         logoGenerationStatus: {
-          total: prompts.length,
-          completed: 0,
-          results: [],
+          total: prompts.length, completed: 0, results: [],
           startedAt: new Date().toISOString(),
         },
       },
       updated_at: new Date().toISOString(),
     }).eq("id", projectId);
 
-    // Fire-and-forget: 后台生成Logo
+    // Fire-and-forget: background generation via ComfyUI SDXL
     void (async () => {
-      const logoResults: Array<{ index: number; prompt: string; imageUrl: string | null; error?: string }> = [];
-
-      console.log(`[generate-logo] Background: Generating ${prompts.length} logos for: ${companyName}`);
+      const logoResults: any[] = [];
+      console.log("[generate-logo] Generating " + prompts.length + " logos for: " + companyName + " via ComfyUI");
 
       for (let i = 0; i < prompts.length; i++) {
         const rawPrompt = prompts[i];
-        const enhancedPrompt = `${rawPrompt}, logo design on clean white background, high resolution, professional graphic design, vector style, centered composition, suitable for branding applications`;
+        const enhancedPrompt = rawPrompt + ", logo design on clean white background, centered composition";
+        const negativePrompt = "cartoon, illustration, vector art, flat design, digital art, 3d render, painting, photorealistic, shadow, gradient, complex background, text, watermark";
 
-        console.log(`[generate-logo] Background: Prompt ${i + 1}/${prompts.length}: ${enhancedPrompt.substring(0, 100)}...`);
+        console.log("[generate-logo] Prompt " + (i+1) + "/" + prompts.length);
 
         try {
-          const imageUrl = await generateImage(enhancedPrompt, apiKey);
+          const result = await comfyuiGenerateLogo({
+            prompt: enhancedPrompt,
+            negativePrompt,
+            size: "1024x1024",
+          });
+          console.log("[generate-logo] ComfyUI logo " + (i+1) + " OK (" + result.durationMs + "ms)");
           logoResults.push({
-            index: i,
-            prompt: rawPrompt,
-            imageUrl,
-            error: imageUrl ? undefined : "Generation failed",
+            index: i, prompt: rawPrompt, imageUrl: result.imageUrl,
+            model: result.model, durationMs: result.durationMs,
           });
         } catch (err: any) {
-          console.error(`[generate-logo] Background: Failed prompt ${i + 1}:`, err.message);
-          logoResults.push({
-            index: i,
-            prompt: rawPrompt,
-            imageUrl: null,
-            error: err.message,
-          });
+          console.error("[generate-logo] Failed prompt " + (i+1) + ":", err.message);
+          logoResults.push({ index: i, prompt: rawPrompt, imageUrl: null, error: err.message });
         }
 
-        // Update progress in DB — use in-memory clientInfo cache, skip redundant select
-        const completedCount = logoResults.filter(r => r.imageUrl).length;
+        // Update progress
         try {
-          const cachedInfo = { ...clientInfo };
+          const cachedInfo: any = { ...clientInfo };
           cachedInfo.generationStatus = "logo_generating";
-          cachedInfo.generationMessage = `正在生成Logo (${i + 1}/${prompts.length})...`;
+          cachedInfo.generationMessage = `正在生成Logo (${i+1}/${prompts.length})...`;
           cachedInfo.logoGenerationStatus = {
-            total: prompts.length,
-            completed: i + 1,
-            results: logoResults.map(r => ({
-              index: r.index,
-              prompt: r.prompt,
-              imageUrl: r.imageUrl,
-              error: r.error,
-            })),
+            total: prompts.length, completed: i + 1,
+            results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
             startedAt: cachedInfo.logoGenerationStatus?.startedAt || new Date().toISOString(),
           };
           await supabaseAdmin.from("projects").update({
             client_info: cachedInfo,
             updated_at: new Date().toISOString(),
           }).eq("id", projectId);
-        } catch (updateErr) {
-          console.error(`[generate-logo] Background: Progress update failed:`, updateErr);
-        }
+        } catch (e) {}
 
-        // 间隔2秒避免限频
         if (i < prompts.length - 1) {
           await new Promise(r => setTimeout(r, 2000));
         }
       }
 
       const successCount = logoResults.filter(r => r.imageUrl).length;
-      console.log(`[generate-logo] Background: Done: ${successCount}/${prompts.length} success`);
 
-      // V72: 将临时URL转存到Supabase Storage永久保存
+      // Persist base64 to Supabase Storage
       for (const r of logoResults) {
-        if (r.imageUrl && !r.imageUrl.includes("fzoscrutqhdfzwnjgjvs.supabase.co")) {
-          const permanentUrl = await persistLogoImage(projectId, r.index, r.imageUrl);
-          if (permanentUrl) {
-            r.imageUrl = permanentUrl;
-          }
+        if (r.imageUrl && r.imageUrl.startsWith("data:")) {
+          const permanentUrl = await persistLogoBase64(projectId, r.index, r.imageUrl);
+          if (permanentUrl) r.imageUrl = permanentUrl;
         }
       }
 
-      // Final update: save results
+      // Final update
       try {
         const { data: finalProj } = await supabaseAdmin
-          .from("projects")
-          .select("client_info")
-          .eq("id", projectId)
-          .single();
-
-        const finalInfo = (finalProj?.client_info as Record<string, any>) || {};
+          .from("projects").select("client_info").eq("id", projectId).single();
+        const finalInfo: any = (finalProj?.client_info as Record<string, any>) || {};
         const finalBrandProfile = finalInfo.brandProfile || {};
 
         if (successCount > 0) {
@@ -222,44 +184,27 @@ export async function POST(req: NextRequest) {
             client_info: {
               ...finalInfo,
               generationStatus: "logo_generated",
-              generationMessage: `Logo生成完成 (${successCount}/${prompts.length})`,
+              generationMessage: "Logo生成完成 (" + successCount + "/" + prompts.length + ")",
               brandProfile: {
                 ...finalBrandProfile,
                 logoGenerationResults: logoResults.map(r => ({
-                  index: r.index,
-                  prompt: r.prompt,
-                  imageUrl: r.imageUrl,
-                  error: r.error,
+                  index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error,
                 })),
                 logoGeneratedAt: new Date().toISOString(),
               },
-              // V88: Logo生成成本追踪
-              arkUsageLog: [...(finalInfo.arkUsageLog || []), ...logoResults.filter(r => r.imageUrl).map(() => ({ model: "wan2.6-t2i", type: "logo", cost: 0.20, timestamp: new Date().toISOString() }))],
+              comfyuiUsageLog: [...(finalInfo.comfyuiUsageLog || []),
+                ...logoResults.filter(r => r.imageUrl).map(() => ({
+                  model: "dreamshaperXL10", type: "logo", cost: 0,
+                  timestamp: new Date().toISOString(),
+                }))],
               logoGenerationStatus: {
-                total: prompts.length,
-                completed: prompts.length,
-                results: logoResults.map(r => ({
-                  index: r.index,
-                  prompt: r.prompt,
-                  imageUrl: r.imageUrl,
-                  error: r.error,
-                })),
+                total: prompts.length, completed: prompts.length,
+                results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
                 completedAt: new Date().toISOString(),
               },
             },
             updated_at: new Date().toISOString(),
           }).eq("id", projectId);
-          // V91: Logo图片成本写入api_usage_log
-          for (const r of logoResults.filter(r => r.imageUrl)) {
-            supabaseAdmin.from('api_usage_log').insert({
-              route: 'generate-logo',
-              model: 'wan2.6-t2i',
-              cost_cny: 0.20,
-              input_tokens: 0,
-              output_tokens: 0,
-              project_id: projectId, client_name: companyName, request_summary: 'logo',
-            }).then(() => {}, () => {});
-          }
         } else {
           await supabaseAdmin.from("projects").update({
             status: "submitted",
@@ -268,112 +213,27 @@ export async function POST(req: NextRequest) {
               generationStatus: "failed",
               generationMessage: "Logo生成全部失败，请重试",
               logoGenerationStatus: {
-                total: prompts.length,
-                completed: prompts.length,
-                results: logoResults.map(r => ({
-                  index: r.index,
-                  prompt: r.prompt,
-                  imageUrl: r.imageUrl,
-                  error: r.error,
-                })),
+                total: prompts.length, completed: prompts.length,
+                results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
                 failedAt: new Date().toISOString(),
               },
             },
             updated_at: new Date().toISOString(),
           }).eq("id", projectId);
         }
-      } catch (finalErr) {
-        console.error(`[generate-logo] Background: Final update failed:`, finalErr);
+      } catch (e) {
+        console.error("[generate-logo] Final update failed:", e);
       }
     })();
 
-    // Immediately return 202
     return NextResponse.json({
       success: true,
       message: "Logo生成已启动，请稍候",
-      projectId,
-      companyName,
-      totalLogos: prompts.length,
+      projectId, companyName, totalLogos: prompts.length,
     }, { status: 202 });
 
   } catch (error: any) {
     console.error("[generate-logo] Error:", error);
     return NextResponse.json({ error: error.message || "Logo generation failed" }, { status: 500 });
   }
-}
-
-// ========== 方舟Seedream文生图(免费额度优先) + 通义万相fallback ==========
-async function generateImage(prompt: string, apiKey: string): Promise<string | null> {
-  // 优先使用方舟Seedream(免费额度), 失败降级通义万相
-  const arkKey = process.env.ARK_API_KEY;
-  if (arkKey) {
-    try {
-      const result = await arkGenerateLogo({
-        prompt,
-        size: "1024x1024",
-      });
-      console.log(`[generate-logo] Ark Seedream OK (${result.durationMs}ms, model: ${result.model})`);
-      return result.imageUrl;
-    } catch (err: any) {
-      console.warn(`[generate-logo] Ark Seedream failed, falling back to Wanxiang: ${err.message}`);
-    }
-  }
-
-  // Fallback: 通义万相wan2.6异步生图
-  const maxRetries = 2;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const submitResp = await fetch(DASHSCOPE_API, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "X-DashScope-Async": "enable",
-        },
-        body: JSON.stringify({
-          model: "wan2.6-t2i",
-          input: { messages: [{ role: "user", content: [{ text: prompt }] }] },
-          parameters: { size: "1280*1280", n: 1 },
-        }),
-      });
-
-      if (!submitResp.ok) {
-        const errText = await submitResp.text();
-        console.error(`[generate-logo] Submit attempt ${attempt}: ${submitResp.status} ${errText.substring(0, 200)}`);
-        continue;
-      }
-
-      const submitData = await submitResp.json();
-      const taskId = submitData.output?.task_id;
-      if (!taskId) {
-        console.error(`[generate-logo] No task_id:`, JSON.stringify(submitData).substring(0, 200));
-        continue;
-      }
-
-      console.log(`[generate-logo] Wanxiang task submitted: ${taskId}`);
-
-      for (let poll = 0; poll < 18; poll++) {
-        await new Promise(r => setTimeout(r, 5000));
-        const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
-          headers: { "Authorization": `Bearer ${apiKey}` },
-        });
-        if (!pollResp.ok) continue;
-        const pollData = await pollResp.json();
-        const status = pollData.output?.task_status;
-        if (status === "SUCCEEDED") {
-          const imageUrl = pollData.output?.choices?.[0]?.message?.content?.[0]?.image;
-          if (!imageUrl) { console.error(`[generate-logo] No image URL in result`); break; }
-          console.log(`[generate-logo] Wanxiang image generated: ${imageUrl.substring(0, 80)}...`);
-          return imageUrl;
-        }
-        if (status === "FAILED") {
-          console.error(`[generate-logo] Task failed:`, pollData.output?.message || "unknown");
-          break;
-        }
-      }
-    } catch (err: any) {
-      console.error(`[generate-logo] Attempt ${attempt} error:`, err.message);
-    }
-  }
-  return null;
 }

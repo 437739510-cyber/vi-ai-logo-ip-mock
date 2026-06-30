@@ -1,318 +1,320 @@
-/**
- * Brand Brain V1 — Industry Knowledge Base
+﻿/**
+ * Brand Brain V120 — Industry Knowledge Base
  *
- * V2: Added subCategory for finer-grained industry classification.
+ * Maps bb-clean IndustryType to industry-specific VI design knowledge:
+ * typicalModules → guides DeepSeek to pick appropriate scene_atlas keys
+ * visualKeywords → English keywords injected into ComfyUI prompts
+ * designStyle   → design direction context for DNA extraction
  *
- * A local, deterministic knowledge base that maps industries to their
- * design characteristics, typical VI modules, visual style references,
- * and page-count recommendations.
- *
- * No external API calls. Pure data.
+ * Adapted from COZE Brand Brain industry-knowledge.ts,
+ * extended to cover all 18 bb-clean IndustryType values.
  */
 
-import type { BrandProfile, IndustryCategory } from "./brand-analyzer";
+import type { IndustryType } from "./industry-types";
 
-export interface IndustryProfile {
-  /** Category identifier (一级) */
-  category: IndustryCategory;
+// ── Types ──────────────────────────────────────────────
 
-  /** Sub-category (二级) - more specific than category */
-  subCategory?: string;
-
+export interface IndustryKnowledge {
+  /** bb-clean industry type id */
+  type: IndustryType;
+  /** @deprecated alias for type — old COZE interface compat */
+  category: string;
   /** Human-readable label */
   label: string;
-
-  /** Design characteristics */
+  /** Design style (Chinese, for DeepSeek context) */
   designStyle: string[];
+  /** Color tendency (Chinese, for reference) */
   colorTendency: string[];
-  typographyStyle: string[];
-
-  /** Typical modules for this industry */
+  /** Typical VI application modules — DeepSeek uses these to pick scene_atlas items */
   typicalModules: string[];
-
-  /** Recommended page range (min, max) */
+  /** Typography style guidance */
+  typographyStyle: string[];
+  /** Recommended page range [min, max] */
   recommendedPageRange: [number, number];
-
-  /** Visual keywords for AI prompt generation */
-  visualKeywords: string[];
-
-  /** Sample brands in this category */
+  /** Sample brands for reference */
   sampleBrands: string[];
+  /** Visual keywords (English, injected into ComfyUI prompts) */
+  visualKeywords: string[];
 }
 
-interface IndustryDataEntry extends Omit<IndustryProfile, "subCategory"> {
-  /** Sub-categories (三级细分) with their specific overrides */
-  subCategories?: Record<string, Partial<IndustryDataEntry>>;
-}
+// ── Knowledge Data ─────────────────────────────────────
 
-const industryData: Record<string, IndustryDataEntry> = {
-  // ========== 餐饮/食品 ==========
-  food_beverage: {
-    category: "food_beverage" as IndustryCategory,
-    label: "餐饮/食品",
-    designStyle: ["温暖自然", "食欲感强", "新鲜活力", "材质质感突出"],
-    colorTendency: ["暖色系为主", "自然色系", "高饱和度点缀"],
-    typographyStyle: ["圆润亲切", "手写风格可用", "中文书法/粗体"],
-    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "IP规范", "产品包装系统", "线下门店系统", "社媒内容系统", "宣传物料"],
-    recommendedPageRange: [12, 18] as [number, number],
-    visualKeywords: ["natural", "fresh", "organic", "appetizing", "warm"],
-    sampleBrands: ["椰岛工坊", "喜茶", "三顿半", "元气森林"],
-    subCategories: {
-      // 饮品细分
-      beverage: {
-        designStyle: ["清凉感", "活力感", "透明感", "季节色彩"],
-        colorTendency: ["清爽色系", "水果色", "透明渐变"],
-        typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "IP规范", "产品包装系统", "线下门店系统", "社媒内容系统"],
-        visualKeywords: ["refreshing", "vibrant", "clear", "seasonal"],
-        sampleBrands: ["椰岛工坊", "喜茶", "元气森林", "农夫山泉"],
-      },
-      // 椰子水细分
-      coconut_water: {
-        designStyle: ["热带度假感", "天然纯净", "阳光活力"],
-        colorTendency: ["绿色系", "蓝色系", "暖金色点缀"],
-        typographyStyle: ["现代无衬线", "手写度假风", "圆润亲和"],
-        typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "IP规范", "产品包装系统", "线下门店系统", "社媒内容系统"],
-        visualKeywords: ["tropical", "natural", "pure", "summer", "beach"],
-        sampleBrands: ["椰岛工坊", "Vita Coco", "Malee"],
-      },
-      // 餐厅/正餐
-      restaurant: {
-        designStyle: ["品质感", "格调", "材质突出", "氛围感"],
-        colorTendency: ["暖色系", "深色基调", "金属色点缀"],
-        typographyStyle: ["优雅衬线体", "书法风格", "精致排版"],
-        typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "空间导视系统", "宣传物料", "数字媒体规范"],
-        visualKeywords: ["elegant", "warm", "sophisticated", "ambiance"],
-        sampleBrands: ["大董", "新荣记", "鼎泰丰"],
-      },
-      // 火锅/特色餐饮
-      hotpot: {
-        designStyle: ["热闹感", "烟火气", "社群感", "视觉冲击"],
-        colorTendency: ["红色系", "暖色系", "高饱和度"],
-        typographyStyle: ["粗体国潮", "手写招牌", "醒目大字"],
-        typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "IP规范", "线下门店系统", "社媒内容系统"],
-        visualKeywords: ["bold", "social", "hot", "spicy", "vibrant"],
-        sampleBrands: ["海底捞", "小龙坎", "巴奴"],
-      },
-    },
+const knowledgeMap: Record<IndustryType, IndustryKnowledge> = {
+
+  // ========== 餐饮 ==========
+  restaurant: {
+    type: "restaurant",
+    category: "restaurant",
+    label: "正餐/餐厅",
+    designStyle: ["品质感", "格调", "材质突出", "氛围感"],
+    colorTendency: ["暖色系", "深色基调", "金属色点缀"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "空间导视系统", "宣传物料", "数字媒体规范"],
+    typographyStyle: ["优雅衬线体", "书法风格", "精致排版"],
+    recommendedPageRange: [12,18] as [number, number],
+    sampleBrands: ["大董", "新荣记", "鼎泰丰"],
+    visualKeywords: ["elegant", "warm", "sophisticated", "ambiance"],
+  },
+  fastfood: {
+    type: "fastfood",
+    category: "fastfood",
+    label: "小吃快餐",
+    designStyle: ["热闹感", "烟火气", "社群感", "视觉冲击"],
+    colorTendency: ["红色系", "暖色系", "高饱和度"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "IP规范", "线下门店系统", "社媒内容系统"],
+    typographyStyle: ["粗体国潮", "手写招牌", "醒目大字"],
+    recommendedPageRange: [8,12] as [number, number],
+    sampleBrands: ["海底捞", "小龙坎", "巴奴"],
+    visualKeywords: ["bold", "social", "hot", "spicy", "vibrant"],
+  },
+  beverage: {
+    type: "beverage",
+    category: "beverage",
+    label: "饮品/奶茶",
+    designStyle: ["清凉感", "活力感", "透明感", "季节色彩"],
+    colorTendency: ["清爽色系", "水果色", "透明渐变"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "IP规范", "产品包装系统", "线下门店系统", "社媒内容系统"],
+    typographyStyle: ["现代无衬线", "圆润亲和", "清爽排版"],
+    recommendedPageRange: [10,16] as [number, number],
+    sampleBrands: ["喜茶", "霸王茶姬", "蜜雪冰城"],
+    visualKeywords: ["refreshing", "vibrant", "clear", "seasonal"],
+  },
+  tea: {
+    type: "tea",
+    category: "tea",
+    label: "茶业",
+    designStyle: ["东方美学", "自然质朴", "禅意雅致", "文化沉淀"],
+    colorTendency: ["绿色系", "大地色系", "金色点缀"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "产品包装系统", "线下门店系统", "宣传物料"],
+    typographyStyle: ["书法风格", "精致衬线", "东方韵味"],
+    recommendedPageRange: [8,14] as [number, number],
+    sampleBrands: ["小罐茶", "八马", "竹叶青"],
+    visualKeywords: ["zen", "natural", "elegant", "traditional", "organic"],
+  },
+  fresh_food: {
+    type: "fresh_food",
+    category: "fresh_food",
+    label: "生鲜",
+    designStyle: ["新鲜自然", "健康活力", "洁净感", "透明感"],
+    colorTendency: ["绿色系", "自然色系", "白色为主"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "产品包装系统", "线下门店系统", "宣传物料"],
+    typographyStyle: ["清晰无衬线", "自然风格", "阅读友好"],
+    recommendedPageRange: [8,12] as [number, number],
+    sampleBrands: ["盒马", "每日优鲜", "叮咚买菜"],
+    visualKeywords: ["fresh", "natural", "organic", "clean", "healthy"],
   },
 
-  // ========== 科技/互联网 ==========
-  technology_it: {
-    category: "technology_it" as IndustryCategory,
-    label: "科技/互联网",
-    designStyle: ["极简现代", "科技感强", "几何构成", "留白充分"],
-    colorTendency: ["冷色系为主", "蓝色/紫色调", "渐变色流行"],
-    typographyStyle: ["无衬线字体", "字重变化丰富", "字间距较大"],
-    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "数字产品界面规范", "宣传物料", "PPT模板"],
-    recommendedPageRange: [10, 14] as [number, number],
-    visualKeywords: ["minimal", "tech", "digital", "clean", "geometric"],
-    sampleBrands: ["苹果", "字节跳动", "Notion", "Figma"],
-    subCategories: {
-      saas: {
-        designStyle: ["简洁专业", "信任感", "数据可视化", "工具感"],
-        colorTendency: ["蓝色系", "中性色", "克制用色"],
-        typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "数字产品界面规范", "宣传物料"],
-        visualKeywords: ["clean", "professional", "dashboard", "enterprise"],
-        sampleBrands: ["飞书", "钉钉", "Slack"],
-      },
-      ai: {
-        designStyle: ["未来感", "神秘感", "光效", "抽象图形"],
-        colorTendency: ["紫色系", "深色背景", "发光色点缀"],
-        typographyStyle: ["现代无衬线", "纤细字重", "字母标突出"],
-        typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "数字产品界面规范"],
-        visualKeywords: ["futuristic", "neon", "abstract", "glow"],
-        sampleBrands: ["OpenAI", "Midjourney", "Anthropic"],
-      },
-    },
+  // ========== 美容/时尚 ==========
+  beauty: {
+    type: "beauty",
+    category: "beauty",
+    label: "美容/美发/养生",
+    designStyle: ["优雅精致", "柔和舒适", "女性化", "高级感"],
+    colorTendency: ["粉色系", "玫瑰金", "柔和暖色"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "空间导视系统", "产品包装系统", "社媒内容系统", "宣传物料"],
+    typographyStyle: ["优雅衬线", "精致细体", "女性化"],
+    recommendedPageRange: [10,16] as [number, number],
+    sampleBrands: ["资生堂", "兰蔻", "完美日记"],
+    visualKeywords: ["elegant", "soft", "feminine", "luxury", "serene"],
+  },
+  nail: {
+    type: "nail",
+    category: "nail",
+    label: "美甲/美睫",
+    designStyle: ["精致时尚", "潮流感", "个性化", "色彩丰富"],
+    colorTendency: ["粉色/紫色系", "金属色点缀", "高饱和度"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "社媒内容系统", "宣传物料", "线下门店系统"],
+    typographyStyle: ["时尚无衬线", "装饰性字体", "潮流感"],
+    recommendedPageRange: [8,12] as [number, number],
+    sampleBrands: ["悦诗风吟", "O.P.I", "小奥汀"],
+    visualKeywords: ["trendy", "colorful", "chic", "glamour", "sparkle"],
+  },
+  fashion: {
+    type: "fashion",
+    category: "fashion",
+    label: "服装/时尚",
+    designStyle: ["视觉冲击力", "个性鲜明", "质感突出", "潮流导向"],
+    colorTendency: ["黑白灰基础", "品牌识别色鲜明", "季节色系"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "产品包装系统", "线下门店系统", "社媒内容系统", "宣传物料"],
+    typographyStyle: ["现代无衬线", "粗体标题", "杂志风"],
+    recommendedPageRange: [10,16] as [number, number],
+    sampleBrands: ["优衣库", "ZARA", "蕉下"],
+    visualKeywords: ["fashion", "bold", "editorial", "textured", "minimal"],
   },
 
   // ========== 零售/电商 ==========
-  retail_ecommerce: {
-    category: "retail_ecommerce" as IndustryCategory,
-    label: "零售/电商",
-    designStyle: ["视觉冲击力强", "促销感与品质感平衡", "产品图为核心"],
+  retail: {
+    type: "retail",
+    category: "retail",
+    label: "零售",
+    designStyle: ["视觉冲击力", "促销感与品质感平衡", "产品图为核心"],
     colorTendency: ["品牌识别色鲜明", "高对比度", "限定色活跃"],
-    typographyStyle: ["阅读性强", "标题用粗体", "数字展示突出"],
     typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "产品包装系统", "电商详情页模板", "社媒内容系统", "活动/促销视觉规范"],
-    recommendedPageRange: [10, 16] as [number, number],
-    visualKeywords: ["bold", "colorful", "product-focused", "clean"],
+    typographyStyle: ["阅读性强", "标题用粗体", "数字展示突出"],
+    recommendedPageRange: [10,16] as [number, number],
     sampleBrands: ["完美日记", "三只松鼠", "蕉下"],
-  },
-
-  // ========== 教育/培训 ==========
-  education_training: {
-    category: "education_training" as IndustryCategory,
-    label: "教育/培训",
-    designStyle: ["亲和力强", "清晰易读", "活力感", "信任感"],
-    colorTendency: ["蓝色/绿色系", "温暖辅助色", "不过度鲜艳"],
-    typographyStyle: ["清晰圆润", "字号层级丰富", "中文阅读友好"],
-    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "宣传物料", "数字课件模板", "线下物料规范"],
-    recommendedPageRange: [8, 14] as [number, number],
-    visualKeywords: ["friendly", "clear", "trustworthy", "warm"],
-    sampleBrands: ["得到", "VIPKID", "新东方"],
-    subCategories: {
-      online_learning: {
-        designStyle: ["数字化", "简洁", "交互感", "模块化"],
-        colorTendency: ["蓝色系为主", "明亮色点缀"],
-        typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "数字产品界面规范", "宣传物料"],
-        visualKeywords: ["digital", "clean", "interactive", "modular"],
-        sampleBrands: ["Coursera", "得到", "Udemy"],
-      },
-    },
+    visualKeywords: ["bold", "colorful", "product-focused", "clean"],
   },
 
   // ========== 医疗/健康 ==========
-  healthcare_medical: {
-    category: "healthcare_medical" as IndustryCategory,
-    label: "医疗/健康",
+  pharmacy: {
+    type: "pharmacy",
+    category: "pharmacy",
+    label: "医药/诊所/中医",
     designStyle: ["专业信赖", "温和安抚", "洁净感", "人性化"],
     colorTendency: ["蓝色/绿色系", "低饱和度", "白色为主"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "宣传物料", "空间导视系统", "数字媒体规范"],
     typographyStyle: ["清晰大方", "字距适中", "阅读舒适"],
-    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "宣传物料", "空间导视系统", "数字媒体规范"],
-    recommendedPageRange: [8, 12] as [number, number],
-    visualKeywords: ["clean", "professional", "calm", "trustworthy"],
+    recommendedPageRange: [8,12] as [number, number],
     sampleBrands: ["丁香园", "微医", "Keep"],
+    visualKeywords: ["clean", "professional", "calm", "trustworthy"],
+  },
+  fitness: {
+    type: "fitness",
+    category: "fitness",
+    label: "健身",
+    designStyle: ["力量感", "活力动感", "简洁现代", "激励感"],
+    colorTendency: ["红色/橙色系", "深色背景", "高对比度"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "空间导视系统", "社媒内容系统", "宣传物料"],
+    typographyStyle: ["粗体无衬线", "动感字体", "醒目大字"],
+    recommendedPageRange: [8,12] as [number, number],
+    sampleBrands: ["Keep", "超级猩猩", "乐刻"],
+    visualKeywords: ["powerful", "dynamic", "bold", "athletic", "modern"],
   },
 
-  // ========== 金融/法律 ==========
-  finance_legal: {
-    category: "finance_legal" as IndustryCategory,
-    label: "金融/法律",
-    designStyle: ["稳重专业", "精致高端", "保守可靠", "细节精致"],
-    colorTendency: ["深蓝/深红/金色", "低饱和度", "金属色点缀"],
-    typographyStyle: ["经典衬线体", "严谨排版", "正式感强"],
-    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "办公应用系统", "宣传物料", "报告/PPT模板"],
-    recommendedPageRange: [8, 12] as [number, number],
-    visualKeywords: ["professional", "premium", "trustworthy", "classic"],
-    sampleBrands: ["招商银行", "中金公司", "君合律所"],
+  // ========== 教育 ==========
+  education: {
+    type: "education",
+    category: "education",
+    label: "教育/培训",
+    designStyle: ["亲和力强", "清晰易读", "活力感", "信任感"],
+    colorTendency: ["蓝色/绿色系", "温暖辅助色", "不过度鲜艳"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "宣传物料", "数字课件模板", "线下物料规范"],
+    typographyStyle: ["清晰圆润", "字号层级丰富", "中文阅读友好"],
+    recommendedPageRange: [8,14] as [number, number],
+    sampleBrands: ["得到", "VIPKID", "新东方"],
+    visualKeywords: ["friendly", "clear", "trustworthy", "warm"],
   },
 
-  // ========== 文化/传媒 ==========
-  culture_media: {
-    category: "culture_media" as IndustryCategory,
-    label: "文化/传媒",
-    designStyle: ["艺术感强", "创意自由", "视觉冲击", "个性鲜明"],
-    colorTendency: ["用色大胆", "撞色常见", "渐变色丰富"],
-    typographyStyle: ["实验性字体", "排版创意", "图文混排灵活"],
-    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "数字媒体规范", "社媒内容系统", "线下活动物料"],
-    recommendedPageRange: [10, 16] as [number, number],
-    visualKeywords: ["creative", "bold", "artistic", "dynamic"],
-    sampleBrands: ["B站", "知乎", "单向空间"],
+  // ========== 婚庆 ==========
+  wedding: {
+    type: "wedding",
+    category: "wedding",
+    label: "婚庆",
+    designStyle: ["浪漫优雅", "仪式感", "精致奢华", "情感表达"],
+    colorTendency: ["粉色/香槟色", "金色点缀", "柔和暖色"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "宣传物料", "线下活动物料", "社媒内容系统"],
+    typographyStyle: ["优雅衬线", "手写风格", "浪漫排版"],
+    recommendedPageRange: [10,16] as [number, number],
+    sampleBrands: ["婚礼纪", "铂爵旅拍", "唯一视觉"],
+    visualKeywords: ["romantic", "elegant", "luxury", "soft", "golden"],
   },
 
-  // ========== 制造业 ==========
-  manufacturing: {
-    category: "manufacturing" as IndustryCategory,
-    label: "制造业",
-    designStyle: ["简洁实用", "工业感", "可靠稳重", "功能性优先"],
-    colorTendency: ["蓝色/灰色系", "低饱和度", "企业色稳重"],
-    typographyStyle: ["简洁清晰", "功能优先", "图表标注规范"],
-    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "办公应用系统", "产品包装系统", "宣传物料", "展会/活动规范"],
-    recommendedPageRange: [8, 14] as [number, number],
-    visualKeywords: ["industrial", "reliable", "clean", "functional"],
-    sampleBrands: ["华为", "三一重工", "海尔"],
+  // ========== 母婴/宠物 ==========
+  mother_baby: {
+    type: "mother_baby",
+    category: "mother_baby",
+    label: "母婴",
+    designStyle: ["温暖亲和", "柔软安全", "可爱精致", "信任感"],
+    colorTendency: ["粉色/米色系", "柔和暖色", "低饱和度"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "产品包装系统", "社媒内容系统", "线下门店系统"],
+    typographyStyle: ["圆润亲和", "柔美字体", "阅读友好"],
+    recommendedPageRange: [8,12] as [number, number],
+    sampleBrands: ["孩子王", "Babycare", "全棉时代"],
+    visualKeywords: ["soft", "warm", "gentle", "caring", "cute"],
+  },
+  pet: {
+    type: "pet",
+    category: "pet",
+    label: "宠物",
+    designStyle: ["活泼可爱", "温暖友好", "趣味性", "亲和力"],
+    colorTendency: ["暖色系", "活泼配色", "品牌识别色"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "产品包装系统", "社媒内容系统", "线下门店系统"],
+    typographyStyle: ["圆润活泼", "趣味字体", "亲和力强"],
+    recommendedPageRange: [8,12] as [number, number],
+    sampleBrands: ["疯狂小狗", "pidan", "小佩"],
+    visualKeywords: ["playful", "friendly", "cute", "warm", "fun"],
   },
 
-  // ========== 酒店/旅游 ==========
-  hospitality_tourism: {
-    category: "hospitality_tourism" as IndustryCategory,
-    label: "酒店/旅游",
-    designStyle: ["度假感", "高端舒适", "在地文化融合", "体验导向"],
-    colorTendency: ["暖色/大地色系", "自然色彩", "金色/米色搭配"],
-    typographyStyle: ["优雅衬线体", "手写风格可用", "多语言排版"],
-    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "IP规范", "空间导视系统", "宣传物料", "数字媒体规范"],
-    recommendedPageRange: [12, 20] as [number, number],
-    visualKeywords: ["luxury", "warm", "cultural", "serene"],
-    sampleBrands: ["安缦", "松赞", "亚朵"],
+  // ========== 花卉/家居 ==========
+  floral: {
+    type: "floral",
+    category: "floral",
+    label: "花店",
+    designStyle: ["自然浪漫", "清新优雅", "季节感", "艺术气息"],
+    colorTendency: ["粉色/绿色系", "自然色彩", "柔和配色"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "产品包装系统", "社媒内容系统", "线下门店系统"],
+    typographyStyle: ["优雅衬线", "手写风格", "浪漫排版"],
+    recommendedPageRange: [8,12] as [number, number],
+    sampleBrands: ["花点时间", "野兽派", "花加"],
+    visualKeywords: ["floral", "romantic", "natural", "elegant", "soft"],
+  },
+  home: {
+    type: "home",
+    category: "home",
+    label: "家居",
+    designStyle: ["温暖舒适", "品质生活", "简约实用", "空间感"],
+    colorTendency: ["大地色系", "米色/灰色", "木色调"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "空间导视系统", "产品包装系统", "宣传物料"],
+    typographyStyle: ["简洁无衬线", "温暖亲和", "阅读舒适"],
+    recommendedPageRange: [8,14] as [number, number],
+    sampleBrands: ["宜家", "造作", "网易严选"],
+    visualKeywords: ["cozy", "warm", "minimal", "natural", "textured"],
   },
 
-  // ========== 房地产 ==========
-  real_estate: {
-    category: "real_estate" as IndustryCategory,
-    label: "房地产",
-    designStyle: ["高端大气", "空间感强", "品质感突出", "生活场景化"],
-    colorTendency: ["米色/金色/深灰", "暖色系", "低饱和度奢华感"],
-    typographyStyle: ["精致衬线体", "中文粗体大气", "数字展示考究"],
-    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "宣传物料", "空间导视系统", "数字媒体规范"],
-    recommendedPageRange: [8, 14] as [number, number],
-    visualKeywords: ["premium", "spacious", "elegant", "lifestyle"],
-    sampleBrands: ["万科", "融创", "绿城"],
-  },
-
-  // ========== 其他 ==========
-  other: {
-    category: "other" as IndustryCategory,
-    label: "其他",
+  // ========== 通用 ==========
+  general: {
+    type: "general",
+    category: "general",
+    label: "通用",
     designStyle: ["简洁专业", "可根据需求定制"],
     colorTendency: ["中性色为主", "品牌识别色"],
-    typographyStyle: ["通用无衬线体", "清晰易读"],
     typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "办公应用系统", "宣传物料"],
-    recommendedPageRange: [8, 12] as [number, number],
-    visualKeywords: ["clean", "professional", "versatile"],
+    typographyStyle: ["通用无衬线", "清晰易读"],
+    recommendedPageRange: [8,12] as [number, number],
     sampleBrands: [],
+    visualKeywords: ["clean", "professional", "versatile"],
   },
 };
 
+// ── Lookup API ─────────────────────────────────────────
+
 /**
- * Get base industry profile for a given category
+ * Get industry knowledge for a given IndustryType.
+ * Returns general fallback if type not found.
  */
-export function getIndustryProfile(category: IndustryCategory): IndustryProfile {
-  const base = industryData[category] || industryData.other;
-  const { subCategories: _, ...profile } = base;
-  return profile;
+export function getIndustryKnowledge(type: IndustryType): IndustryKnowledge {
+  return knowledgeMap[type] || knowledgeMap.general;
 }
 
 /**
- * Get industry profile with sub-category overrides.
- * If subCategory is provided and exists, its values override the base profile.
+ * Get all industry knowledge entries (for reference).
  */
-export function getIndustryProfileWithSubCategory(
-  category: IndustryCategory,
-  subCategory?: string
-): IndustryProfile {
-  const base = industryData[category] || industryData.other;
-  const { subCategories, ...baseProfile } = base;
-
-  if (!subCategory || !subCategories || !subCategories[subCategory]) {
-    return baseProfile;
-  }
-
-  const override = subCategories[subCategory];
-  return {
-    ...baseProfile,
-    ...override,
-    // Ensure category stays as the parent category
-    category: baseProfile.category,
-    // Merge arrays instead of replacing
-    designStyle: override.designStyle || baseProfile.designStyle,
-    colorTendency: override.colorTendency || baseProfile.colorTendency,
-    typographyStyle: override.typographyStyle || baseProfile.typographyStyle,
-    typicalModules: override.typicalModules || baseProfile.typicalModules,
-    visualKeywords: override.visualKeywords || baseProfile.visualKeywords,
-    sampleBrands: override.sampleBrands || baseProfile.sampleBrands,
-    subCategory,
-  };
+export function getAllIndustryKnowledge(): IndustryKnowledge[] {
+  return Object.values(knowledgeMap);
 }
 
-/**
- * Get industry profile from a BrandProfile
- */
-export function getProfileForBrand(profile: BrandProfile): IndustryProfile {
-  return getIndustryProfile(profile.industryCategory);
+// ── Compatibility exports (old COZE interface) ─────────
+// These are kept for files that still use the old API:
+// design-director.ts, brand/analyze/route.ts, memory/index.ts, etc.
+
+/** @deprecated Use IndustryKnowledge instead */
+export type IndustryProfile = IndustryKnowledge;
+
+/** @deprecated Use getIndustryKnowledge instead */
+export function getProfileForBrand(profile: { industryCategory?: string }): IndustryKnowledge {
+  // Map old industryCategory to IndustryType if possible
+  const type = (profile.industryCategory || "general") as IndustryType;
+  return getIndustryKnowledge(type);
 }
 
-/**
- * Get all industry profiles (for reference/dropdown)
- */
-export function getAllIndustryProfiles(): IndustryProfile[] {
-  return Object.values(industryData).map(({ subCategories: _, ...profile }) => profile);
+/** @deprecated Use getAllIndustryKnowledge instead */
+export function getAllIndustryProfiles(): IndustryKnowledge[] {
+  return getAllIndustryKnowledge();
 }
 
-/**
- * Get available sub-categories for a given category
- */
-export function getSubCategories(category: IndustryCategory): string[] {
-  const base = industryData[category];
-  if (!base || !base.subCategories) return [];
-  return Object.keys(base.subCategories);
+/** @deprecated No subcategories in V120 — returns empty array */
+export function getSubCategories(_category: string): string[] {
+  return [];
 }
+
+

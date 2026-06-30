@@ -1401,6 +1401,12 @@ export default function ProjectDetailPage({
               </div>
             )}
 
+            {/* Phase 2: VI Manual generation (slow, customer gone) */}
+            <div className="flex items-center gap-2 mt-2 mb-1">
+              <span className="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded">Phase 2</span>
+              <span className="text-[11px] text-neutral-400">VI手册生成（客人离店后慢慢生成）</span>
+            </div>
+
             {/* V32: 格式选择 + 确认按钮 */}
             <div className="flex gap-2">
               <div className="flex items-center gap-1 bg-neutral-100 rounded-xl p-1">

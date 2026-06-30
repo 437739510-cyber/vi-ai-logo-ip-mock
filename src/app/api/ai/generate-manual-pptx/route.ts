@@ -1,19 +1,20 @@
 ﻿/**
- * API: Generate VI Manual PPTX via PptxGenJS Engine V7
+ * API: Generate VI Manual PPTX via PptxGenJS Engine V120 (ComfyUI local only)
  *
  * V7 核心改动（在V6基础上）：
  * - 修复行业判定：椰子水→饮品(不是餐饮)，删掉"椰岛"从餐饮正则
- * - V26: 场景图双引擎并行 - 通义3张+小云雀2张，Promise.all真正并行
+ * - V26: 场景图单引擎 — ComfyUI local 5张，Promise.all真正并行
  * - 修复API端点：compatible-mode不支持万相 → 改用DashScope原生异步API
  * - 修复模型名：wanx2.6-image(错) → wan2.6-t2i(纯文生图)
- * - 场景图从7张减为5张（¥0.20×5=¥1.00/份）
+ * - 场景图从7张减为5张（¥0 — ComfyUI local, free）
  * - 异步调用流程：提交任务 → 轮询结果 → 获取URL → 下载base64
  * - 新增analyze-brand共享逻辑
  * - V27: 场景图方舟Ark Seedream图生图优先(Logo做参考) + DashScope降级
  */
 import { NextRequest, NextResponse } from "next/server";
-import { arkGenerateScene, getArkUnitCost } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
+// V120: ARK removed, using ComfyUI local only
 import { comfyuiGenerateScene, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
+import { extractBrandDNA, fillScenePrompts } from "@/lib/vi-manual/deepseek-dna";
 import path from "path";
 import { readFile, mkdir, writeFile, readdir } from "fs/promises";
 import { planPages } from "@/lib/vi-manual/page-planner";
@@ -21,13 +22,14 @@ import { renderPptxToBuffer } from "@/lib/pptx/render-pptx";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
 import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
+import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 // ========== 行业判定（与analyze-brand共享） ==========
 
-// ========== 行业场景图定义（5张/份，¥1.00） ==========
+// ========== 行业场景图定义（5张/份，¥0 — ComfyUI free） ==========
 interface SceneImgDef {
   key: string;
   rawPrompt: string;
@@ -288,343 +290,29 @@ function buildColorMeaning(bp: any, colors: { primary: string; secondary: string
 }
 
 // ========== 通义万相 异步图片生成 ==========
-const DASHSCOPE_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation";
-const DASHSCOPE_TASK = "https://dashscope.aliyuncs.com/api/v1/tasks";
-
-// ========== 小云雀(Seedream)生图 ==========
-const XYQ_BASE = "https://xyq.jianying.com";
-
-async function generateXYQSceneImage(prompt: string): Promise<string | null> {
-  const accessKey = process.env.XYQ_ACCESS_KEY;
-  if (!accessKey) {
-    console.error("[generateXYQ] No XYQ_ACCESS_KEY");
-    return null;
-  }
-
-  try {
-    // Step 1: 创建会话并提交生图任务
-    const submitResp = await fetch(`${XYQ_BASE}/api/biz/v1/skill/submit_run`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: prompt }),
-    });
-
-    if (!submitResp.ok) {
-      const errText = await submitResp.text();
-      console.error(`[generateXYQ] Submit failed: ${submitResp.status} ${errText.substring(0, 200)}`);
-      return null;
-    }
-
-    const submitData = await submitResp.json();
-    if (submitData.ret !== "0") {
-      console.error(`[generateXYQ] API error: ${submitData.ret} ${submitData.errmsg}`);
-      return null;
-    }
-
-    const threadId = submitData.data?.thread_id;
-    const runId = submitData.data?.run_id;
-    if (!threadId || !runId) {
-      console.error(`[generateXYQ] No thread_id/run_id:`, JSON.stringify(submitData).substring(0, 200));
-      return null;
-    }
-
-    console.log(`[generateXYQ] Task submitted: thread=${threadId} run=${runId}`);
-
-    // Step 2: 轮询结果（最多等120秒，每10秒查一次）
-    for (let poll = 0; poll < 12; poll++) {
-      await new Promise(r => setTimeout(r, 10000));
-
-      const pollResp = await fetch(`${XYQ_BASE}/api/biz/v1/skill/get_thread`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ thread_id: threadId, run_id: runId, after_seq: 0 }),
-      });
-
-      if (!pollResp.ok) continue;
-      const pollData = await pollResp.json();
-      if (pollData.ret !== "0") continue;
-
-      const runList = pollData.data?.thread?.run_list;
-      if (!runList || runList.length === 0) continue;
-
-      const run = runList[0];
-      const runState = run.state;
-
-      // state: 1=pending, 2=running, 3=success, 4=failed, 5=cancelled
-      if (runState === 4 || runState === 5) {
-        console.error(`[generateXYQ] Task failed/cancelled: state=${runState} reason=${run.fail_reason || ""}`);
-        return null;
-      }
-
-      if (runState === 3) {
-        // 成功：从entry_list中提取图片URL
-        const entries = run.entry_list || [];
-        for (const entry of entries) {
-          const message = entry.message;
-          if (message?.content) {
-            for (const c of message.content) {
-              if (c.sub_type === "biz/x_data_image") {
-                try {
-                  const imgData = JSON.parse(c.data);
-                  const imageUrl = imgData?.image?.url;
-                  if (imageUrl) {
-                    console.log(`[generateXYQ] Got image URL, downloading...`);
-                    const imgResp = await fetch(imageUrl);
-                    if (imgResp.ok) {
-                      const imgBuf = Buffer.from(await imgResp.arrayBuffer());
-                      const base64 = imgBuf.toString("base64");
-                      console.log(`[generateXYQ] OK! base64 length=${base64.length}`);
-                      return `data:image/png;base64,${base64}`;
-                    }
-                    console.error(`[generateXYQ] Failed to download image`);
-                  }
-                } catch (e) {
-                  // 继续查找
-                }
-              }
-            }
-          }
-        }
-        console.error(`[generateXYQ] Task succeeded but no image URL found`);
-        return null;
-      }
-
-      // 仍在进行中
-      console.log(`[generateXYQ] Polling... state=${runState}`);
-    }
-
-    console.error(`[generateXYQ] Timeout after 120s`);
-    return null;
-  } catch (err: any) {
-    console.error(`[generateXYQ] Error: ${err.message}`);
-    return null;
-  }
-}
+// V120: DASHSCOPE_API removed
+// V120: DASHSCOPE_TASK removed
 
 
+// V120: XYQ + uploadBase64ToUrl removed — dead code
 
-// ========== Ark Seedream 辅助：base64 → 公网URL ==========
-async function uploadBase64ToUrl(base64Data: string, label: string): Promise<string | null> {
-  try {
-    const matches = base64Data.match(/^data:(.+?);base64,(.+)$/);
-    if (!matches) return null;
-    const mime = matches[1];
-    const b64 = matches[2];
-    const buf = Buffer.from(b64, 'base64');
-    const ext = mime.includes('png') ? 'png' : mime.includes('svg') ? 'svg' : 'jpg';
-    const fileName = `ref-${label}-${Date.now()}.${ext}`;
-    const filePath = `ref-images/${fileName}`;
-    
-    const { data, error } = await supabaseAdmin.storage
-      .from('brand-brain-generated')
-      .upload(filePath, buf, { contentType: mime, upsert: true });
-    if (error) { console.warn('[uploadBase64ToUrl] Failed:', error.message); return null; }
-    
-    const { data: urlData } = supabaseAdmin.storage
-      .from('brand-brain-generated')
-      .getPublicUrl(filePath);
-    return urlData?.publicUrl || null;
-  } catch (e) {
-    console.warn('[uploadBase64ToUrl] Error:', String(e));
-    return null;
-  }
-}
-
+// V120: generateSceneImage removed — DashScope API deprecated (no budget)
 async function generateSceneImage(prompt: string, logoBase64?: string): Promise<string | null> {
-  const apiKey = process.env.ALIYUN_API_KEY;
-  if (!apiKey) {
-    console.error("[generateImage] No ALIYUN_API_KEY");
-    return null;
-  }
-
-  const maxRetries = 3;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      // V9: 支持Logo参考图 - wan2.6-image图像编辑模式
-      const useRefImage = !!logoBase64;
-      const model = useRefImage ? "wan2.6-image" : "wan2.6-t2i";
-      let imgContent: Array<{ text?: string; image?: string }>;
-      if (useRefImage) {
-        imgContent = [{ text: prompt }, { image: logoBase64! }];
-      } else {
-        imgContent = [{ text: prompt }];
-      }
-      const requestParams = useRefImage
-        ? { size: "1104*1472", n: 1, enable_interleave: false, prompt_extend: true }
-        : { size: "1104*1472", n: 1 };
-      // Step 1: 提交异步任务
-      const submitResp = await fetch(DASHSCOPE_API, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "X-DashScope-Async": "enable",
-        },
-        body: JSON.stringify({
-          model,
-          input: { messages: [{ role: "user", content: imgContent }] },
-          parameters: requestParams,
-        }),
-      });
-
-      if (!submitResp.ok) {
-        const errText = await submitResp.text();
-        console.error(`[generateImage] Submit attempt ${attempt}: ${submitResp.status} ${errText.substring(0, 200)}`);
-        if (submitResp.status === 401) break;
-        continue;
-      }
-
-      const submitData = await submitResp.json();
-      const taskId = submitData.output?.task_id;
-      if (!taskId) {
-        console.error(`[generateImage] No task_id in response:`, JSON.stringify(submitData).substring(0, 200));
-        continue;
-      }
-
-      console.log(`[generateImage] Task submitted: ${taskId}`);
-
-      // Step 2: 轮询任务结果（最多等90秒）
-      for (let poll = 0; poll < 18; poll++) {
-        await new Promise(r => setTimeout(r, 5000)); // 等5秒
-
-        const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
-          headers: { "Authorization": `Bearer ${apiKey}` },
-        });
-
-        if (!pollResp.ok) continue;
-        const pollData = await pollResp.json();
-        const status = pollData.output?.task_status;
-
-        if (status === "SUCCEEDED") {
-          // 提取图片URL
-          const imageUrl = pollData.output?.choices?.[0]?.message?.content?.[0]?.image;
-          if (!imageUrl) {
-            console.error(`[generateImage] No image URL in result`);
-            break;
-          }
-
-          // Step 3: 下载图片转base64
-          const imgResp = await fetch(imageUrl);
-          if (imgResp.ok) {
-            const imgBuf = Buffer.from(await imgResp.arrayBuffer());
-            const base64 = imgBuf.toString("base64");
-            console.log(`[generateImage] OK! base64 length=${base64.length}`);
-            return `data:image/png;base64,${base64}`;
-          }
-          console.error(`[generateImage] Failed to download image`);
-          break;
-        }
-
-        if (status === "FAILED") {
-          console.error(`[generateImage] Task failed:`, pollData.output?.message || "unknown");
-          break;
-        }
-
-        // 仍在PENDING/RUNNING，继续轮询
-      }
-    } catch (err: any) {
-      console.error(`[generateImage] Attempt ${attempt} error: ${err.message}`);
-    }
-  }
+  console.warn("[generate-manual-pptx] generateSceneImage called but DashScope is disabled");
   return null;
 }
 
 
-// V17: 通义万相AI生图Logo（替代DeepSeek SVG方案）
+
+// V120: generateLogoImage stubbed — logo generation now handled by /api/ai/generate-logo (ComfyUI)
 async function generateLogoImage(
   prompt: string,
   brandColors: { primary: string; secondary: string }
 ): Promise<string | null> {
-  const apiKey = process.env.ALIYUN_API_KEY;
-  if (!apiKey) {
-    console.error("[generateLogo] No ALIYUN_API_KEY");
-    return null;
-  }
-
-  // 增强prompt：确保Logo设计品质
-  const enhancedPrompt = `${prompt}, logo design on clean white background, high resolution, professional graphic design, centered composition, suitable for branding applications, clean and scalable`;
-
-  const maxRetries = 2;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      // Logo用正方形1024x1024
-      const submitResp = await fetch(DASHSCOPE_API, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "X-DashScope-Async": "enable",
-        },
-        body: JSON.stringify({
-          model: "wan2.6-t2i",
-          input: { messages: [{ role: "user", content: [{ text: enhancedPrompt }] }] },
-          parameters: { size: "1280*1280", n: 1 },
-        }),
-      });
-
-      if (!submitResp.ok) {
-        const errText = await submitResp.text();
-        console.error(`[generateLogo] Submit attempt ${attempt}: ${submitResp.status} ${errText.substring(0, 200)}`);
-        if (submitResp.status === 401) break;
-        continue;
-      }
-
-      const submitData = await submitResp.json();
-      const taskId = submitData.output?.task_id;
-      if (!taskId) {
-        console.error(`[generateLogo] No task_id:`, JSON.stringify(submitData).substring(0, 200));
-        continue;
-      }
-
-      console.log(`[generateLogo] Task submitted: ${taskId}`);
-
-      // 轮询结果（最多等90秒）
-      for (let poll = 0; poll < 18; poll++) {
-        await new Promise(r => setTimeout(r, 5000));
-
-        const pollResp = await fetch(`${DASHSCOPE_TASK}/${taskId}`, {
-          headers: { "Authorization": `Bearer ${apiKey}` },
-        });
-
-        if (!pollResp.ok) continue;
-        const pollData = await pollResp.json();
-        const status = pollData.output?.task_status;
-
-        if (status === "SUCCEEDED") {
-          const imageUrl = pollData.output?.choices?.[0]?.message?.content?.[0]?.image;
-          if (!imageUrl) {
-            console.error(`[generateLogo] No image URL in result`);
-            break;
-          }
-
-          const imgResp = await fetch(imageUrl);
-          if (imgResp.ok) {
-            const imgBuf = Buffer.from(await imgResp.arrayBuffer());
-            const base64 = imgBuf.toString("base64");
-            console.log(`[generateLogo] OK! base64 length=${base64.length}`);
-            return `data:image/png;base64,${base64}`;
-          }
-          console.error(`[generateLogo] Failed to download image`);
-          break;
-        }
-
-        if (status === "FAILED") {
-          console.error(`[generateLogo] Task failed:`, pollData.output?.message || "unknown");
-          break;
-        }
-      }
-    } catch (err: any) {
-      console.error(`[generateLogo] Attempt ${attempt} error:`, err.message);
-    }
-  }
+  console.warn("[generate-manual-pptx] generateLogoImage called but DashScope is disabled");
   return null;
 }
+
 
 // ========== 流式进度推送辅助函数 ==========
 function createStreamResponse() {
@@ -858,6 +546,41 @@ export async function POST(req: NextRequest) {
       if (brandProfile.refinedTargetMarket) effectiveTargetMarket = brandProfile.refinedTargetMarket;
       if (brandProfile.brandStory) effectiveBrandStory = brandProfile.brandStory;
       if (brandProfile.sceneImageSuggestions?.length >= 5) dynamicScenePrompts = brandProfile.sceneImageSuggestions;
+
+      // V121: Override with DNA pipeline (brand-specific scene templates)
+      if (!dynamicScenePrompts || dynamicScenePrompts.length < 5) {
+        try {
+          const ik = getIndustryKnowledge(getIndustryType(industry));
+          const dnaInput = {
+            brandName: companyName,
+            industry,
+            brandVision: effectiveBrandVision,
+            coreValues: effectiveCoreValues,
+            targetMarket: effectiveTargetMarket,
+            brandColors: realColors ? {
+              primary: { hex: realColors.primary },
+              secondary: { hex: realColors.secondary },
+              accent: { hex: realColors.accent }
+            } : undefined,
+            logoDescription: logoPhilosophy,
+            sceneModules: ik.typicalModules,
+            visualKeywords: ik.visualKeywords,
+          };
+          const dnaResult = await extractBrandDNA(dnaInput);
+          if (dnaResult?.success && dnaResult.scene_atlas) {
+            const materials = Object.keys(dnaResult.scene_atlas);
+            const dnaContent = dnaResult.logo_pure_prompt!.positive_en;
+            const filledPrompts = fillScenePrompts(dnaContent, dnaResult.scene_atlas, materials);
+            dynamicScenePrompts = materials.map(m => ({
+              zh: m,
+              en: filledPrompts[m],
+            }));
+            console.log(`[generate-pptx] DNA pipeline OK: ${materials.length} scenes for ${industry}`);
+          }
+        } catch (dnaErr) {
+          console.warn("[generate-pptx] DNA extraction failed, will fallback:", dnaErr);
+        }
+      }
       if (brandProfile.logoDesignSuggestions) {
         console.log("[generate-pptx] Reusing brand analysis, logo suggestions available:", brandProfile.logoDesignSuggestions.style);
         // V103-fix2: 复用路径也需要logoPhilosophy fallback
@@ -928,6 +651,40 @@ export async function POST(req: NextRequest) {
               }
               if (brandProfile.sceneImageSuggestions?.length >= 5) {
                 dynamicScenePrompts = brandProfile.sceneImageSuggestions;
+              }
+              // V121: Override with DNA pipeline (brand-specific scene templates)
+              if (!dynamicScenePrompts || dynamicScenePrompts.length < 5) {
+                try {
+                  const ik = getIndustryKnowledge(getIndustryType(industry));
+                  const dnaInput = {
+                    brandName: companyName,
+                    industry,
+                    brandVision: effectiveBrandVision,
+                    coreValues: effectiveCoreValues,
+                    targetMarket: effectiveTargetMarket,
+                    brandColors: realColors ? {
+                      primary: { hex: realColors.primary },
+                      secondary: { hex: realColors.secondary },
+                      accent: { hex: realColors.accent }
+                    } : undefined,
+                    logoDescription: logoPhilosophy,
+                    sceneModules: ik.typicalModules,
+                    visualKeywords: ik.visualKeywords,
+                  };
+                  const dnaResult = await extractBrandDNA(dnaInput);
+                  if (dnaResult?.success && dnaResult.scene_atlas) {
+                    const materials = Object.keys(dnaResult.scene_atlas);
+                    const dnaContent = dnaResult.logo_pure_prompt!.positive_en;
+                    const filledPrompts = fillScenePrompts(dnaContent, dnaResult.scene_atlas, materials);
+                    dynamicScenePrompts = materials.map(m => ({
+                      zh: m,
+                      en: filledPrompts[m],
+                    }));
+                    console.log(`[generate-pptx] DNA pipeline OK: ${materials.length} scenes for ${industry}`);
+                  }
+                } catch (dnaErr) {
+                  console.warn("[generate-pptx] DNA extraction failed, will fallback:", dnaErr);
+                }
               }
 
               // 保存品牌档案到DB（保留selectedLogo和logoGenerationResults）
@@ -1132,8 +889,8 @@ export async function POST(req: NextRequest) {
         }
         aiLogoData = await generateLogoImage(logoPrompt, realColors);
         if (aiLogoData) {
-          arkUsageLog.push({ model: 'wan2.6-t2i', type: 'logo', cost: 0.20, timestamp: new Date().toISOString() });
-          console.log("[generate-pptx] AI logo via 通义万相 OK! base64 length:", aiLogoData.length);
+          // V120: Free ComfyUI, no cost tracking needed
+          console.log("[generate-pptx] AI logo generated OK! base64 length:", aiLogoData.length);
         } else {
           console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
         }
@@ -1203,8 +960,7 @@ export async function POST(req: NextRequest) {
     // V29: 场景图用文生图（不是图生图），把Logo外观描述写进prompt
     // 旧版成功的原因：品牌分析AI把Logo外观详细写进sceneImageSuggestions prompt
     // 图生图(img2img)只是风格参考，不能精确还原Logo图案
-    const arkKey = process.env.ARK_API_KEY;
-
+    // V120: ARK API key check removed
 
     // V29: 把Logo视觉描述追加到场景图prompt，让AI文生图时精确画出Logo
     // 优先用视觉AI直接读Logo图生成的描述，比品牌分析AI的推测更准确
@@ -1227,50 +983,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log(`[generate-pptx] Engine: ComfyUI(优先) + DashScope(降级) + Ark Seedream(兜底), ${imgDefs.length} images, Logo desc: ${!!logoDesc}`);
+    console.log(`[generate-pptx] Engine: ComfyUI(local, free), ${imgDefs.length} images, Logo desc: ${!!logoDesc}`);
 
     for (let i = 0; i < imgDefs.length; i += 2) {
       const batch = imgDefs.slice(i, i + 2);
       const results = await Promise.allSettled(
         batch.map(async (def) => {
-          // V41: ComfyUI本地生图优先（免费、无额度限制）
+          // V120: ComfyUI local only (free, no cloud API budget)
           try {
-            const comfyOk = await isComfyUIAvailable();
-            if (comfyOk) {
-              const comfyResult = await comfyuiGenerateScene({ prompt: def.rawPrompt, size: "2048x2048" });
-              console.log(`[generate-pptx] ComfyUI OK for ${def.key} (${comfyResult.durationMs}ms)`);
-              return { def, imgData: comfyResult.imageUrl };
-            }
+            const comfyResult = await comfyuiGenerateScene({ prompt: def.rawPrompt, size: "2048x2048" });
+            console.log(`[generate-pptx] ComfyUI OK for ${def.key} (${comfyResult.durationMs}ms)`);
+            return { def, imgData: comfyResult.imageUrl };
           } catch (e: any) {
-            console.warn(`[generate-pptx] ComfyUI failed for ${def.key}: ${e.message}`);
-          }
-          // V29b: DashScope文生图优先（旧版已验证能正确画出Logo）
-          try {
-            // V29b: 不传参考图，走纯文生图（prompt里已有Logo视觉描述，文生图比图生图更能精确还原Logo）
-            const imgData = await generateSceneImage(def.rawPrompt);
-            if (imgData) {
-              console.log(`[generate-pptx] DashScope OK for ${def.key}`);
-              arkUsageLog.push({ model: 'wan2.6-t2i', type: 'scene', cost: 0.20, timestamp: new Date().toISOString() });
-              return { def, imgData };
-            }
-          } catch (e: any) {
-            console.warn(`[generate-pptx] DashScope failed for ${def.key}:`, e.message);
-          }
-          // 降级: Ark Seedream文生图
-          if (arkKey) {
-            try {
-              const arkResult = await arkGenerateScene({ prompt: def.rawPrompt });  // V32: 使用默认2048x2048，兼容4.5/5.0Lite
-              const imgResp = await fetch(arkResult.imageUrl);
-              if (imgResp.ok) {
-                const imgBuf = Buffer.from(await imgResp.arrayBuffer());
-                console.log(`[generate-pptx] Ark Seedream fallback OK (${arkResult.model}) for ${def.key}`);
-                // V32: 记录方舟用量
-                arkUsageLog.push({ model: arkResult.model, type: 'scene', cost: getArkUnitCost(arkResult.model), timestamp: new Date().toISOString() });
-                return { def, imgData: "data:image/png;base64," + imgBuf.toString("base64") };
-              }
-            } catch (e: any) {
-              console.warn(`[generate-pptx] Ark Seedream fallback failed for ${def.key}:`, e.message);
-            }
+            console.error(`[generate-pptx] ComfyUI FAILED for ${def.key}: ${e.message}`);
+            throw e;
           }
           return { def, imgData: null };
         })

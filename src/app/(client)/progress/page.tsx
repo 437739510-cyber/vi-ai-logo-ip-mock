@@ -9,11 +9,14 @@ import { Suspense } from "react";
 const STATUS_STEPS: { key: string; label: string }[] = [
   { key: "submitted", label: "已提交" },
   { key: "paid", label: "已付款" },
-  { key: "confirmed", label: "需求确认中" },
-  { key: "brand_analyzing", label: "AI 品牌分析中" },
+  { key: "confirmed", label: "确认中" },
+  { key: "brand_analyzing", label: "AI 分析中" },
+  // Phase 1: Logo (fast, customer waiting on-site)
   { key: "logo_generating", label: "Logo 生成中" },
   { key: "logo_generated", label: "Logo 已生成" },
-  { key: "designing", label: "VI手册制作中" },
+  { key: "logo_selected", label: "Logo 已选定" },
+  // Phase 2: VI Manual (slow, runs after customer leaves)
+  { key: "designing", label: "VI 手册生成中" },
   { key: "delivered", label: "已交付" },
 ];
 

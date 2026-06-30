@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DeepSeek DNA Extractor
  *
  * Step 1 of DNA workflow: extract brand DNA (logo_pure_prompt + scene_atlas) from brand data.
@@ -25,6 +25,10 @@ export interface BrandDNAInput {
   };
   logoDescription?: string;
   logoStyle?: string;
+  /** Industry VI application modules for dynamic scene template selection */
+  sceneModules?: string[];
+  /** English visual keywords for ComfyUI prompt styling */
+  visualKeywords?: string[];
 }
 
 export interface LogoPurePrompt {
@@ -65,22 +69,23 @@ const DEFAULT_SCENE_TEMPLATES: Record<string, SceneAtlasEntry> = {
 
 // ── System prompt for DeepSeek ─────────────────────────
 
-function buildDNASystemPrompt(): string {
+function buildDNASystemPrompt(sceneModules?: string[]): string {
   return `You are a senior brand VI designer and AI prompt engineer.
 Your task is to analyze a brand and produce two outputs in strict JSON format.
 
 ## Output 1: logo_pure_prompt
 A pair of English prompts (positive + negative) for generating a clean, standalone logo on a white background.
-- positive_en: 50-80 words describing the exact logo shape, elements, style, colors. Use concrete visual terms (silhouette, emblem, geometric, line-art, etc.). Do NOT mention scenes or materials — this is for a flat vector logo only.
-- negative_en: standard quality-control terms (deformed, blurry, low quality, text, watermark, 3d, shadow, complex background).
+- positive_en: 25-35 words describing ONLY the logo shape, visual elements, and colors. Do NOT include any style words — no flat, no vector, no 3d, no photorealistic, no physical, no material. Pure design description. Use concrete visual terms (silhouette, emblem, geometric, line-art, etc.). Do NOT mention scenes or materials — this is for a style-neutral logo mark only (no style adjectives).
+- negative_en: standard quality-control terms (deformed, blurry, low quality, text, watermark, cartoon, illustration, vector, flat design, clipart, digital art, 3d render, painting, sketch, drawing).
 
 ## Output 2: scene_atlas
-A set of scene templates (5 materials minimum: 手提袋, 招牌, 工服, 名片, 纸杯).
-Each template MUST contain the placeholder {{DNA}} exactly where the logo description should be inserted.
+A set of scene templates (5 items). Choose concrete physical items that best represent the brands typical VI application modules listed below. Each template MUST contain the placeholder {{DNA}} exactly where the logo description should be inserted.
 - template_en: full scene prompt with {{DNA}} as the logo subject
-- Describe specific materials (hot-stamped gold foil, embroidered patch, backlit acrylic, etc.)
+- Describe specific materials chosen for this industry (e.g. restaurant→menu cover, retail→shopping bag, beauty→product box)
 - Use photorealistic, 8k, cinematic style
 - ALL fields must be in English only
+
+The 5 scene items should be chosen from or inspired by these VI application modules: ${sceneModules ? sceneModules.join(", ") : "手提袋, 招牌, 工服, 名片, 纸杯"}
 
 ## Output format (JSON only, no markdown wrapping):
 {
@@ -89,11 +94,11 @@ Each template MUST contain the placeholder {{DNA}} exactly where the logo descri
     "negative_en": "..."
   },
   "scene_atlas": {
-    "手提袋": {"template_en": "{{DNA}} ..."},
-    "招牌": {"template_en": "{{DNA}} ..."},
-    "工服": {"template_en": "{{DNA}} ..."},
-    "名片": {"template_en": "{{DNA}} ..."},
-    "纸杯": {"template_en": "{{DNA}} ..."}
+    "物品名称1": {"template_en": "{{DNA}} ..."},
+    "物品名称2": {"template_en": "{{DNA}} ..."},
+    "物品名称3": {"template_en": "{{DNA}} ..."},
+    "物品名称4": {"template_en": "{{DNA}} ..."},
+    "物品名称5": {"template_en": "{{DNA}} ..."}
   }
 }`;
 }
@@ -113,6 +118,9 @@ function buildDNAUserPrompt(input: BrandDNAInput): string {
   if (input.logoDescription) prompt += `Logo Description: ${input.logoDescription}\n`;
   if (input.logoStyle) prompt += `Logo Style: ${input.logoStyle}\n`;
 
+  if (input.visualKeywords && input.visualKeywords.length > 0) {
+    prompt += `Visual Keywords: ${input.visualKeywords.join(", ")}\n`;
+  }
   return prompt;
 }
 
@@ -129,7 +137,7 @@ export async function extractBrandDNA(input: BrandDNAInput): Promise<BrandDNARes
       body: {
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: buildDNASystemPrompt() },
+          { role: "system", content: buildDNASystemPrompt(input.sceneModules) },
           { role: "user", content: buildDNAUserPrompt(input) },
         ],
         temperature: 0.7,
@@ -246,4 +254,7 @@ export function fillScenePrompts(
 
   return result;
 }
+
+
+
 
