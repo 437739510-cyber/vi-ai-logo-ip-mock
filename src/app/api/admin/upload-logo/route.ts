@@ -18,7 +18,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    const clientInfo = project.client_info || {};
+    // client_info might be a string (from JSON.stringify in previous update) or parsed object
+    let clientInfo = project.client_info;
+    if (typeof clientInfo === 'string') {
+      clientInfo = JSON.parse(clientInfo);
+    }
+    if (!clientInfo || typeof clientInfo !== 'object') {
+      clientInfo = {};
+    }
+
     clientInfo.selectedLogo = logoData;
     clientInfo.selectedLogoName = logoName || 'uploaded_logo.png';
 
