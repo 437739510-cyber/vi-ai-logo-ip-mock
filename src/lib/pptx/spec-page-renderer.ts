@@ -281,7 +281,7 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
           { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FAFAFA', borderRadius: 8, padding: '14px 14px', border: '1px solid #EEEEEE' }, children: [
             { type: 'div', props: { style: { width: 28, height: 28, borderRadius: 6, backgroundColor: `#${bc.pri}`, marginBottom: 8 } } },
             { type: 'div', props: { style: { fontSize: 26, fontWeight: 700, color: '#333333', fontFamily: 'Noto Sans SC', marginBottom: 4 }, children: '品牌识别' } },
-            { type: 'div', props: { style: { fontSize: 22, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '主色覆盖≥60%品牌触点，确保视觉统一性' } },
+            { type: 'div', props: { style: { fontSize: 22, color: '#555555', fontFamily: 'Noto Sans SC', lineHeight: 1.5 }, children: '主色为品牌核心识别色，贯穿Logo、标识系统及关键视觉触点' } },
           ]}},
           { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FAFAFA', borderRadius: 8, padding: '14px 14px', border: '1px solid #EEEEEE' }, children: [
             { type: 'div', props: { style: { width: 28, height: 28, borderRadius: 6, backgroundColor: `#${bc.sec}`, marginBottom: 8 } } },
@@ -345,3 +345,4 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
   const png = await sharp(Buffer.from(svg)).png().toBuffer();
   return `data:image/png;base64,${png.toString('base64')}`;
 }
+

@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 /**
  * PptxGenJS Renderer V6 — AI写实图+专业排版
  *
@@ -316,9 +316,9 @@ function addContentFrame(slide: PptxGenJS.Slide, title: string, bc: BC): void {
   // 顶部品牌色细线
   slide.addShape("rect", { x: 0, y: 0, w: SW, h: 0.06, fill: { color: bc.pri } });
   // 标题
-  slide.addText(title, { x: MARGIN + LEFT_BAR_W, y: 0.5, w: CONTENT_W - LEFT_BAR_W, h: 0.7, fontSize: 24, bold: true, color: bc.priDark, fontFace: "Noto Sans SC" });
+  slide.addText(title, { x: MARGIN + LEFT_BAR_W, y: 0.35, w: CONTENT_W - LEFT_BAR_W, h: 0.65, fontSize: 22, bold: true, color: bc.priDark, fontFace: "Noto Sans SC" });
   // 标题下装饰线
-  slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: 1.25, w: 2.0, h: 0.05, fill: { color: bc.acc } });
+  slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: 1.05, w: 1.6, h: 0.04, fill: { color: bc.acc } });
   // 底部品牌色细线
   slide.addShape("rect", { x: 0, y: SH - 0.06, w: SW, h: 0.06, fill: { color: bc.pri } });
 }
@@ -534,7 +534,7 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
   const cx = MARGIN + LEFT_BAR_W;
   const colGap = 0.25;
   const colW = (CONTENT_W - colGap * 2) / 3;
-  const colTopY = 1.8;
+  const colTopY = 2.3;
   const cardH = 2.8;  // 三列卡片高度
 
   for (let i = 0; i < sections.length; i++) {
@@ -1740,6 +1740,7 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
   // 目录项
   const tocItems = getTocItems(industry, opts.sceneSectionTitles);
   let yPos = 2.6;
+  tocItems.sort((a, b) => PAGE_ORDER.indexOf(a.pageId) - PAGE_ORDER.indexOf(b.pageId));
   for (let i = 0; i < tocItems.length; i++) {
     const item = tocItems[i];
     const numStr = String(i + 1).padStart(2, "0");
@@ -1951,7 +1952,7 @@ function renderColorTaboos(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
 
   const rules = [
     { title: "主色禁用大面积铺满", desc: "玫瑰红 #" + bc.pri + " 仅作点缀色（LOGO、装饰线、强调文字），占画面比例不超过20%。大面积红色产生压迫感，与「温柔治愈」品牌调性冲突。", icon: "⚠" },
-    { title: "三色搭配比例", desc: "主色 10-20% / 辅助色 15-25% / 背景留白（米金+白色）55-75%。保持呼吸感，避免色彩拥挤。", icon: "📐" },
+    { title: "三色搭配比例", desc: "主色 10-25% / 辅助色 15-30% / 背景留白 50-70%。保持视觉呼吸感与层次。", icon: "📐" },
     { title: "禁止搭配色", desc: "避免与高饱和度绿色、荧光色、纯黑 #000000 混搭，破坏品牌温柔轻奢质感。", icon: "🚫" },
     { title: "单色印刷规范", desc: "黑白/单色印刷时使用灰度版本，保留品牌色明度阶梯。主色→70%灰、辅助色→50%灰、强调色→30%灰。", icon: "🖨" },
   ];
@@ -2278,6 +2279,9 @@ function renderLogoOutput(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     x: cx + 0.2, y: y + 0.35, w: CONTENT_W - 0.4, h: 0.5, fontSize: 11, color: "E65100", align: "center",
   });
 }
+
+
+
 
 
 
