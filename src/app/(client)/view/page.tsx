@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon, Phone, Key, RefreshCw, History, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
@@ -50,7 +50,10 @@ export default function ViewLogoPage() {
   const [historyRound, setHistoryRound] = useState<number | null>(null); // null = current, 1/2/3... = history round
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [mounted, setMounted] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const handleView = async () => {
     if (phone.length < 11 || viewPassword.length < 4) return;
@@ -164,9 +167,16 @@ export default function ViewLogoPage() {
 
   const handleRegenerate = async () => {
     if (!projectData) return;
-    // 重新生成提示：告知客人旧Logo无法找回
-    if (!window.confirm("⚠️ 重新生成后，当前4个Logo方案将被替换，无法找回。\n\n确定要继续吗？")) {
-      return;
+    // 未选择Logo时的强提醒
+    if (selectedIdx === null) {
+      if (!window.confirm("⚠️ 您还没有选择偏好的Logo方案。\n\n建议先点击一个喜欢的Logo，这样下一轮刷新后仍可在「历史轮次」中找回。\n\n确定跳过选择直接刷新吗？")) {
+        return;
+      }
+    } else {
+      // 已选择Logo时的普通确认
+      if (!window.confirm("⚠️ 重新生成后，当前4个Logo方案将被替换。\n\n已选方案会保留在「历史轮次」中，可随时找回。\n\n确定要继续吗？")) {
+        return;
+      }
     }
     setRegenerating(true);
     try {
@@ -268,7 +278,7 @@ export default function ViewLogoPage() {
             </div>
             <button
               onClick={handleView}
-              disabled={phone.length < 11 || viewPassword.length < 4 || loading}
+              disabled={!mounted || phone.length < 11 || viewPassword.length < 4 || loading}
               className="w-full py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -557,3 +567,5 @@ export default function ViewLogoPage() {
     </div>
   );
 }
+
+
