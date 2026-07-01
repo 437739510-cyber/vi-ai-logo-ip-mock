@@ -1,4 +1,4 @@
-// API Route: POST /api/submit
+﻿// API Route: POST /api/submit
 // Save to Supabase + local JSON fallback
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
@@ -170,6 +170,7 @@ export async function POST(req: NextRequest) {
           companyScale,
           companyScaleLabel: getScaleLabel(companyScale),
           companyScaleReason: scaleReason,
+          generationStatus: "pending_logo",
           brandPersonality: body.brandPersonality || "",
           logoUsage: body.logoUsage || "",
           logoStyle: body.logoStyle || "",

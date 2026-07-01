@@ -1,6 +1,6 @@
-/**
+﻿/**
  * API: Download generated PPTX file
- * V24: Local file first, then proxy from Storage with Content-Disposition (fixes cross-origin download)
+ * V25: Relaxed filename validation, projectId query param support, broader regex
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createReadStream, statSync, existsSync } from "fs";
@@ -13,18 +13,23 @@ export async function GET(
 ) {
   const { filename } = await params;
 
-  // Security: only allow pptx/pdf files
-  if (!filename.match(/^vi-manual-[\w\-]+\.(pptx|pdf)$/)) {
-    return NextResponse.json({ error: "无效的文件名" }, { status: 400 });
+  // V25: Only check file extension, accept wider naming patterns (including Chinese)
+  const extMatch = filename.match(/\.(pptx|pdf)$/i);
+  if (!extMatch) {
+    return NextResponse.json({ error: "invalid file type" }, { status: 400 });
   }
 
   // Extract projectId from filename: vi-manual-{projectId}-{timestamp}.pptx
-  const match = filename.match(/^vi-manual-([\w\-]+?)-\d+\.(pptx|pdf)$/);
-  const projectId = match ? match[1] : null;
+  // Fallback: searchParams projectId
+  const match = filename.match(/^vi-manual-([\w\-]+?)-\d+\.(pptx|pdf)$/i);
+  let projectId = match ? match[1] : null;
+  if (!projectId) {
+    projectId = request.nextUrl.searchParams.get("projectId");
+  }
 
-  const ext = path.extname(filename).toLowerCase();
+  const ext = extMatch[1].toLowerCase();
   const contentType =
-    ext === ".pdf"
+    ext === "pdf"
       ? "application/pdf"
       : "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
@@ -42,7 +47,7 @@ export async function GET(
       return new Response(webStream, {
         headers: {
           "Content-Type": contentType,
-          "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
           "Content-Length": fileStat.size.toString(),
           "Cache-Control": "public, max-age=3600",
         },
@@ -52,18 +57,18 @@ export async function GET(
     }
   }
 
-  // V24: Proxy from Supabase Storage (not redirect) to force download with Content-Disposition
+  // Proxy from Supabase Storage (not redirect) to force download with Content-Disposition
   if (projectId) {
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const storagePath = `${projectId}/${filename}`;
-      const storageUrl = `${supabaseUrl}/storage/v1/object/public/manuals/${storagePath}`;
+      const storagePath = `${projectId}/`;
+      const storageUrl = `${supabaseUrl}/storage/v1/object/public/manuals/`;
 
       console.log(`[download-pptx] Local file not found, proxying from Storage: ${storageUrl}`);
       
       const resp = await fetch(storageUrl, { 
         method: "GET",
-        signal: AbortSignal.timeout(60000),  // 60s timeout for large files
+        signal: AbortSignal.timeout(60000),
       });
       
       if (resp.ok) {
@@ -75,7 +80,7 @@ export async function GET(
             status: 200,
             headers: {
               "Content-Type": contentType,
-              "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+              "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
               ...(contentLength ? { "Content-Length": contentLength } : {}),
               "Cache-Control": "public, max-age=3600",
             },
@@ -88,7 +93,7 @@ export async function GET(
   }
 
   return NextResponse.json(
-    { error: "文件不存在或已过期，请重新生成" },
+    { error: "file not found or expired" },
     { status: 404 }
   );
 }

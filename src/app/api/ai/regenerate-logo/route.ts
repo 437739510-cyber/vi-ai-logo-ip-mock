@@ -1,6 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { comfyuiGenerateLogo, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
 
 /**
  * POST /api/ai/regenerate-logo
@@ -9,7 +8,7 @@ import { comfyuiGenerateLogo, isComfyUIAvailable } from "@/lib/ip/ip-image-provi
  * Looks up submission by phone, verifies viewPassword, saves feedback, re-triggers logo gen.
  */
 
-export const maxDuration = 180;
+export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
@@ -60,6 +59,22 @@ export async function POST(req: NextRequest) {
       feedback: feedback || "",
     });
     brandProfile.regenerationHistory = regenerationHistory;
+
+    // Save current logos to history before overwriting
+    const currentLogoResults = brandProfile.logoGenerationResults || [];
+    const validCurrentLogos = currentLogoResults.filter((r: any) => r.imageUrl && !r.error);
+    if (validCurrentLogos.length > 0) {
+      const logoHistory = (clientInfo.logoHistory || []) as Array<{
+        round: number; logos: Array<{ index: number; imageUrl: string; prompt?: string }>; savedAt: string;
+      }>;
+      logoHistory.push({
+        round: logoHistory.length + 1,
+        logos: validCurrentLogos.map((r: any) => ({ index: r.index, imageUrl: r.imageUrl, prompt: r.prompt })),
+        savedAt: new Date().toISOString(),
+      });
+      clientInfo.logoHistory = logoHistory;
+    }
+
     brandProfile.selectedLogo = null;
     brandProfile.preferredLogo = null;
 
@@ -76,66 +91,9 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", project.id);
 
-    // Step 5: Trigger background regeneration
+    // Step 5: Delegate to local worker — Zeabur cannot reach local ComfyUI
     const projectId = project.id;
-    const comfyAvailable = await isComfyUIAvailable();
 
-    // Fire-and-forget: start generation in background
-    (async () => {
-      try {
-        const companyName = clientInfo.companyName || "Brand";
-        const industry = clientInfo.industry || "general";
-        const logoSuggestions = brandProfile.logoDesignSuggestions;
-
-        if (!logoSuggestions?.prompts || logoSuggestions.prompts.length === 0) {
-          return;
-        }
-
-        const results: Array<{ index: number; imageUrl?: string; prompt: string; error?: string }> = [];
-
-        for (let i = 0; i < logoSuggestions.prompts.length; i++) {
-          const prompt = logoSuggestions.prompts[i];
-          try {
-            if (comfyAvailable) {
-              const result = await comfyuiGenerateLogo({ prompt });
-              results.push({ index: i, imageUrl: result.imageUrl, prompt });
-            } else {
-              results.push({ index: i, error: "ComfyUI not available", prompt });
-            }
-          } catch (e: any) {
-            results.push({ index: i, error: e.message || "Generation failed", prompt });
-          }
-
-          // Update progress
-          const bp = { ...brandProfile, logoGenerationResults: results };
-          await supabaseAdmin
-            .from("projects")
-            .update({
-              client_info: {
-                ...clientInfo,
-                brandProfile: bp,
-                logoGenerationStatus: { started: true, completed: i + 1, total: logoSuggestions.prompts.length },
-              },
-            })
-            .eq("id", projectId);
-        }
-
-        // Mark as complete
-        await supabaseAdmin
-          .from("projects")
-          .update({
-            client_info: {
-              ...clientInfo,
-              brandProfile: { ...brandProfile, logoGenerationResults: results },
-              generationStatus: "logo_generated",
-              logoGenerationStatus: { started: true, completed: logoSuggestions.prompts.length, total: logoSuggestions.prompts.length },
-            },
-          })
-          .eq("id", projectId);
-      } catch (e) {
-        console.error("[regenerate-logo] Background generation failed:", e);
-      }
-    })();
 
     return NextResponse.json({
       success: true,

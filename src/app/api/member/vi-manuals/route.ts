@@ -64,15 +64,29 @@ export async function GET() {
           selectedAt: selectedLogo.selectedAt,
         } : null,
         logoCount: logoResults.filter((l: any) => l.imageUrl).length,
-        // VI Manual info
-        viManuals: completedHistory.map((h: any) => ({
-          id: h.id,
-          format: h.format || "pptx",
-          pageCount: h.pageCount || 0,
-          completedAt: h.completedAt,
-          downloadUrl: h.downloadUrl || h.storageUrl || null,
-          fileName: h.fileName || "",
-        })),
+        // VI Manual info (history + pptxResult fallback)
+        viManuals: (() => {
+          const fromHistory = completedHistory.map((h: any) => ({
+            id: h.id,
+            format: h.format || "pptx",
+            pageCount: h.pageCount || 0,
+            completedAt: h.completedAt,
+            downloadUrl: h.downloadUrl || h.storageUrl || null,
+            fileName: h.fileName || "",
+          }));
+          // Fallback: no history but pptxResult exists (custom script generation)
+          if (fromHistory.length === 0 && ci.pptxResult) {
+            fromHistory.push({
+              id: "pptx-" + Date.now(),
+              format: "pptx",
+              pageCount: ci.pptxResult.pageCount || 0,
+              completedAt: new Date().toISOString(),
+              downloadUrl: ci.pptxResult.downloadUrl || ci.pptxResult.storageUrl || ci.pptxResult.url || null,
+              fileName: ci.pptxResult.fileName || "",
+            });
+          }
+          return fromHistory;
+        })(),
       };
     });
 

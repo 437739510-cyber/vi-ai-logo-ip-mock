@@ -23,7 +23,7 @@ const PROMPT_URL = `${COMFYUI_BASE}/api/prompt`;
 const HISTORY_URL = `${COMFYUI_BASE}/api/history`;
 const TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 1_000;
-const COMFYUI_OUTPUT_DIR = "E:\ComfyUI\output";
+const COMFYUI_OUTPUT_DIR = "E:/ComfyUI/output";
 
 
 // DreamShaperXL (SDXL) workflow - primary option
@@ -42,7 +42,7 @@ function buildSDXLWorkflow(
     },
     "4": {
       class_type: "CheckpointLoaderSimple",
-      inputs: { ckpt_name: "dreamshaperXL10_alpha2Xl10.safetensors" },
+      inputs: { ckpt_name: "dreamshaperXL_alpha2Xl10.safetensors" },
     },
     "5": {
       class_type: "EmptyLatentImage",
@@ -278,7 +278,7 @@ export class ComfyUIProvider implements ImageProvider {
     } catch (sdxlErr) {
       console.warn("[comfyui-provider] SDXL failed, trying Z-Image Turbo:", (sdxlErr as Error).message);
     }
-    const workflow = buildWorkflow(params.prompt, params.negativePrompt, width, height, seed);
+    const workflow = buildSDXLWorkflow(params.prompt, params.negativePrompt, width, height, seed);
     const { filename, durationMs } = await comfyGenerateSync(workflow);
     const imageUrl = readImageAsBase64(filename);
     return {
@@ -307,7 +307,7 @@ export async function comfyGenerateImage(options: {
   seed?: number;
 }): Promise<{ imageUrl: string; durationMs: number }> {
   const seed = options.seed ?? Math.floor(Math.random() * 2_147_483_647);
-  const workflow = buildWorkflow(
+  const workflow = buildSDXLWorkflow(
     options.prompt, options.negativePrompt || "",
     options.width || 1024, options.height || 1024, seed
   );
