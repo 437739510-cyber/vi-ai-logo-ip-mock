@@ -1,17 +1,19 @@
 ﻿/**
  * Brand Brain Automation Worker
  * ==============================
- * Runs on local PC (Windows 10). Polls Supabase for pending tasks,
- * calls ComfyUI locally for image generation, uploads results.
+ * Local Windows polling script. Bridges cloud Zeabur to local ComfyUI.
  *
  * Flow:
- *   pending_logo  → DeepSeek brand analysis + ComfyUI logo gen (4 logos)
+ *   pending_logo   → DeepSeek brand analysis + ComfyUI logo gen (4 logos)
  *   pending_manual → ComfyUI scene gen (5 images) + PPTX render + upload
  *
  * Usage: npx tsx scripts/worker.mjs
- *        or  node --import tsx scripts/worker.mjs
+ *        or create a Windows Scheduled Task
  *
- * Startup: Add to Windows Task Scheduler or run in terminal.
+ * Requires:
+ *   SUPABASE_SERVICE_KEY env var (from .env.local)
+ *   DEEPSEEK_API_KEY env var (from .env.local)
+ *   ComfyUI running on http://127.0.0.1:8188
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -19,7 +21,6 @@ import { comfyuiGenerateLogo, comfyuiGenerateScene, isComfyUIAvailable } from '.
 import { planPages } from '../src/lib/vi-manual/page-planner';
 import { renderPptxToBuffer } from '../src/lib/pptx/render-pptx';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
-import { getIndustryKnowledge } from '../src/lib/brand/industry-knowledge';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -29,7 +30,7 @@ import { fileURLToPath } from 'url';
 const SUPABASE_URL = 'https://fzoscrutqhdfzwnjgjvs.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || '';
-const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const POLL_INTERVAL_MS = 10_000;
 const DEEPSEEK_TIMEOUT_MS = 60_000;
 const MAX_LOGO_GEN_RETRIES = 2;
@@ -44,11 +45,10 @@ await fs.mkdir(LOG_DIR, { recursive: true });
 
 function log(level, msg) {
   const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-  const line = [] [] ;
+  const line = `[${ts}] [${level}] ${msg}`;
   console.log(line);
-  // Also append to log file
-  const date = ts.slice(0, 10);
-  fs.appendFile(path.join(LOG_DIR, worker-.log), line + '\n').catch(() => {});
+  const today = ts.slice(0, 10);
+  fs.appendFile(path.join(LOG_DIR, `worker-${today}.log`), line + '\n').catch(() => {});
 }
 
 // ========== DeepSeek API ==========
@@ -58,10 +58,10 @@ async function callDeepSeek(systemPrompt, userPrompt, temperature = 0.7, maxToke
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': Bearer ,
+      'Authorization': `Bearer ${DEEPSEEK_KEY}`,
     },
     body: JSON.stringify({
-      model: 'deepseek-v4-flash',
+      model: 'deepseek-chat',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -74,53 +74,52 @@ async function callDeepSeek(systemPrompt, userPrompt, temperature = 0.7, maxToke
 
   if (!resp.ok) {
     const errText = await resp.text();
-    throw new Error(DeepSeek : );
+    throw new Error(`DeepSeek API error: ${errText}`);
   }
 
   const data = await resp.json();
-  const content = data.choices?.[0]?.message?.content || '';
-  return content;
+  return data.choices?.[0]?.message?.content || '';
 }
 
 function parseDeepSeekJSON(content) {
   const cleaned = content
-    .replace(/^`(?:json)?\s*/i, '')
-    .replace(/\s*`$/i, '')
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
     .trim();
   return JSON.parse(cleaned);
 }
 
-// ========== Brand Analysis ==========
+// ========== Brand Analysis Prompt ==========
 
 function buildAnalysisPrompt(clientInfo) {
   const parts = [
     '## 客户品牌基础信息',
     '',
-    公司名称：,
-    所属行业：,
+    `公司名称：${clientInfo.companyName || ''}`,
+    `所属行业：${clientInfo.industry || ''}`,
   ];
   if (clientInfo.province || clientInfo.city) {
-    parts.push(所在地：);
+    parts.push(`所在地：${clientInfo.province || ''} ${clientInfo.city || ''}`);
   }
   parts.push('');
   parts.push('### 客户已填写的品牌信息（有则保留润色，无则AI代写）：');
-  parts.push(品牌愿景：);
-  parts.push(核心价值：);
-  parts.push(目标市场：);
-  if (clientInfo.logoPhilosophy) parts.push(LOGO设计理念：);
-  if (clientInfo.brandPersonality) parts.push(品牌个性：);
-  if (clientInfo.logoStyle) parts.push(Logo图形偏好：);
-  if (clientInfo.logoUsage) parts.push(Logo主要用途：);
-  if (clientInfo.avoidElements) parts.push(设计禁忌：);
-  if (clientInfo.competitorReference) parts.push(竞品参考：);
-  if (clientInfo.mainProducts) parts.push(主营产品：);
-  if (clientInfo.description) parts.push(补充描述：);
+  parts.push(`品牌愿景：${clientInfo.brandVision || ''}`);
+  parts.push(`核心价值：${clientInfo.coreValues || ''}`);
+  parts.push(`目标市场：${clientInfo.targetMarket || ''}`);
+  if (clientInfo.logoPhilosophy) parts.push(`LOGO设计理念：${clientInfo.logoPhilosophy}`);
+  if (clientInfo.brandPersonality) parts.push(`品牌个性：${clientInfo.brandPersonality}`);
+  if (clientInfo.logoStyle) parts.push(`Logo图形偏好：${clientInfo.logoStyle}`);
+  if (clientInfo.logoUsage) parts.push(`Logo主要用途：${clientInfo.logoUsage}`);
+  if (clientInfo.avoidElements) parts.push(`设计禁忌：${clientInfo.avoidElements}`);
+  if (clientInfo.competitorReference) parts.push(`竞品参考：${clientInfo.competitorReference}`);
+  if (clientInfo.mainProducts) parts.push(`主营产品：${clientInfo.mainProducts}`);
+  if (clientInfo.description) parts.push(`补充描述：${clientInfo.description}`);
   parts.push('');
   parts.push('请基于以上信息，进行深度品牌分析，输出品牌档案JSON。');
   return parts.join('\n');
 }
 
-const BRAND_ANALYSIS_SYSTEM = 你是一位资深的品牌战略分析师，精通中国本土市场的品牌定位与VI策略。
+const BRAND_ANALYSIS_SYSTEM = `你是一位资深的品牌战略分析师，精通中国本土市场的品牌定位与VI策略。
 
 你的任务是：根据客户提供的品牌基础信息，进行深度分析，输出品牌档案。
 
@@ -170,7 +169,21 @@ const BRAND_ANALYSIS_SYSTEM = 你是一位资深的品牌战略分析师，精�
     "coreValues": "同上",
     "targetMarket": "同上"
   }
-};
+}`;
+
+// ========== Scene Image Defaults ==========
+
+function buildScenePrompts(companyName, industryType) {
+  const style = getIndustryDefaults(industryType)?.sceneStyle || 'clean studio lighting';
+  const name = companyName || '品牌';
+  return [
+    { key: 'stationery-1', prompt: `Professional product photography of branded stationery set (business cards, letterhead, envelopes) with company logo "${name}" printed, arranged on clean desk surface, studio lighting, product fully visible, ${style}` },
+    { key: 'packaging-1', prompt: `Professional product photography of a branded paper bag with company logo "${name}" printed, standing upright on clean surface, studio lighting, product fully visible, ${style}` },
+    { key: 'packaging-2', prompt: `Professional product photography of branded product packaging box with company logo "${name}" printed, clean studio background, product fully visible, ${style}` },
+    { key: 'marketing-1', prompt: `Professional product photography of a promotional poster display with company branding "${name}" visible, studio setting, product fully visible` },
+    { key: 'marketing-2', prompt: `Professional product photography of a branded membership card with company logo "${name}" printed, clean studio background, product fully visible` },
+  ];
+}
 
 // ========== Logo Generation ==========
 
@@ -179,16 +192,12 @@ async function processLogoGeneration(project) {
   const clientInfo = (project.client_info || {});
   const brandProfile = clientInfo.brandProfile || {};
 
-  log('INFO', [LOGO] Processing project:  ());
+  log('INFO', `[LOGO] Processing project: ${projectId} (${clientInfo.companyName || 'unknown'})`);
 
   // Step 1: Mark as generating
   await supabase.from('projects').update({
     status: 'logo_generating',
-    client_info: {
-      ...clientInfo,
-      generationStatus: 'logo_generating',
-      generationMessage: 'AI正在分析品牌...',
-    },
+    client_info: { ...clientInfo, generationStatus: 'logo_generating', generationMessage: 'AI正在分析品牌...' },
     updated_at: new Date().toISOString(),
   }).eq('id', projectId);
 
@@ -197,7 +206,7 @@ async function processLogoGeneration(project) {
   let analysisProfile = brandProfile;
 
   if (!logoPrompts || logoPrompts.length === 0) {
-    log('INFO', [LOGO] : No logo prompts found, running brand analysis...);
+    log('INFO', `[LOGO] ${projectId}: No logo prompts found, running brand analysis...`);
     try {
       const analysisPrompt = buildAnalysisPrompt(clientInfo);
       const dsContent = await callDeepSeek(BRAND_ANALYSIS_SYSTEM, analysisPrompt, 0.7, 4096);
@@ -207,9 +216,9 @@ async function processLogoGeneration(project) {
       if (!logoPrompts || logoPrompts.length === 0) {
         throw new Error('Brand analysis returned no logo prompts');
       }
-      log('INFO', [LOGO] : Brand analysis OK, got  prompts);
+      log('INFO', `[LOGO] ${projectId}: Brand analysis OK, got ${logoPrompts.length} prompts`);
 
-      // Save brand profile
+      // Save brand profile to DB
       await supabase.from('projects').update({
         client_info: {
           ...clientInfo,
@@ -237,25 +246,20 @@ async function processLogoGeneration(project) {
         updated_at: new Date().toISOString(),
       }).eq('id', projectId);
     } catch (err) {
-      log('ERROR', [LOGO] : Brand analysis failed: );
+      log('ERROR', `[LOGO] ${projectId}: Brand analysis failed: ${err.message}`);
       await supabase.from('projects').update({
         status: 'submitted',
-        client_info: {
-          ...clientInfo,
-          generationStatus: 'failed',
-          generationMessage: 品牌分析失败: ,
-        },
+        client_info: { ...clientInfo, generationStatus: 'failed', generationMessage: `品牌分析失败: ${err.message}` },
         updated_at: new Date().toISOString(),
       }).eq('id', projectId);
       return;
     }
   }
 
-  // Step 3: Check ComfyUI
+  // Step 3: Check ComfyUI availability
   const comfyAvailable = await isComfyUIAvailable();
   if (!comfyAvailable) {
-    log('WARN', [LOGO] : ComfyUI not available, will retry later);
-    // Reset status so it gets picked up again
+    log('WARN', `[LOGO] ${projectId}: ComfyUI not available, will retry later`);
     await supabase.from('projects').update({
       client_info: { ...clientInfo, generationStatus: 'pending_logo' },
       updated_at: new Date().toISOString(),
@@ -264,7 +268,7 @@ async function processLogoGeneration(project) {
   }
 
   // Step 4: Generate 4 logos via ComfyUI (serial)
-  log('INFO', [LOGO] : Generating  logos via ComfyUI...);
+  log('INFO', `[LOGO] ${projectId}: Generating ${logoPrompts.length} logos via ComfyUI...`);
   const logoResults = [];
   const companyName = clientInfo.companyName || 'Brand';
 
@@ -278,7 +282,7 @@ async function processLogoGeneration(project) {
 
     while (retries <= MAX_LOGO_GEN_RETRIES && !result) {
       try {
-        log('INFO', [LOGO] : Logo / (attempt )...);
+        log('INFO', `[LOGO] ${projectId}: Logo ${i + 1}/${logoPrompts.length} (attempt ${retries + 1})...`);
         const genResult = await comfyuiGenerateLogo({
           prompt: enhancedPrompt,
           negativePrompt,
@@ -291,10 +295,10 @@ async function processLogoGeneration(project) {
           model: genResult.model,
           durationMs: genResult.durationMs,
         };
-        log('INFO', [LOGO] : Logo  OK (ms));
+        log('INFO', `[LOGO] ${projectId}: Logo ${i + 1} OK (${genResult.durationMs}ms)`);
       } catch (err) {
         retries++;
-        log('WARN', [LOGO] : Logo  failed (attempt ): );
+        log('WARN', `[LOGO] ${projectId}: Logo ${i + 1} failed (attempt ${retries}): ${err.message}`);
         if (retries > MAX_LOGO_GEN_RETRIES) {
           result = { index: i, prompt: rawPrompt, imageUrl: null, error: err.message };
         }
@@ -303,21 +307,19 @@ async function processLogoGeneration(project) {
     }
     logoResults.push(result);
 
-    // Update progress
+    // Update progress after each logo (non-critical, don't throw)
     try {
-      const freshCI = { ...(await supabase.from('projects').select('client_info').eq('id', projectId).single()).data?.client_info || clientInfo };
+      const fresh = await supabase.from('projects').select('client_info').eq('id', projectId).single();
+      const freshCI = { ...(fresh.data?.client_info || clientInfo) };
       freshCI.generationStatus = 'logo_generating';
-      freshCI.generationMessage = 正在生成Logo (/)...;
+      freshCI.generationMessage = `正在生成Logo (${i + 1}/${logoPrompts.length})...`;
       freshCI.logoGenerationStatus = {
         total: logoPrompts.length,
         completed: i + 1,
         results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
         startedAt: freshCI.logoGenerationStatus?.startedAt || new Date().toISOString(),
       };
-      await supabase.from('projects').update({
-        client_info: freshCI,
-        updated_at: new Date().toISOString(),
-      }).eq('id', projectId);
+      await supabase.from('projects').update({ client_info: freshCI, updated_at: new Date().toISOString() }).eq('id', projectId);
     } catch (e) { /* non-critical */ }
 
     if (i < logoPrompts.length - 1) {
@@ -327,34 +329,34 @@ async function processLogoGeneration(project) {
 
   // Step 5: Persist base64 images to Supabase Storage
   const successCount = logoResults.filter(r => r.imageUrl).length;
-  log('INFO', [LOGO] : / logos generated, persisting...);
+  log('INFO', `[LOGO] ${projectId}: ${successCount}/${logoPrompts.length} logos generated, persisting...`);
 
   for (const r of logoResults) {
     if (r.imageUrl && r.imageUrl.startsWith('data:')) {
       try {
-        const matches = r.imageUrl.match(/^data:image.(png|jpeg|jpg);base64,(.+)$/);
+        const matches = r.imageUrl.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
         if (matches) {
           const buffer = Buffer.from(matches[2], 'base64');
-          const fileName = ${projectId}/logo__.jpeg;
+          const fileName = `${projectId}/logo_${r.index}_${Date.now()}.jpeg`;
           const { error } = await supabase.storage
             .from('brand-brain-generated')
             .upload(fileName, buffer, { contentType: 'image/jpeg', upsert: true });
           if (!error) {
             const { data } = supabase.storage.from('brand-brain-generated').getPublicUrl(fileName);
             r.imageUrl = data.publicUrl;
-            log('INFO', [LOGO] : Persisted logo  -> );
+            log('INFO', `[LOGO] ${projectId}: Persisted logo ${r.index} -> ${data.publicUrl}`);
           }
         }
       } catch (e) {
-        log('WARN', [LOGO] : Failed to persist logo : );
+        log('WARN', `[LOGO] ${projectId}: Failed to persist logo ${r.index}: ${e.message}`);
       }
     }
   }
 
-  // Step 6: Update project status
+  // Step 6: Update final status
   try {
-    const { data: finalProj } = await supabase.from('projects').select('client_info').eq('id', projectId).single();
-    const finalInfo = (finalProj?.client_info || clientInfo);
+    const finalProj = await supabase.from('projects').select('client_info').eq('id', projectId).single();
+    const finalInfo = (finalProj.data?.client_info || clientInfo);
     const finalBP = finalInfo.brandProfile || brandProfile;
 
     if (successCount > 0) {
@@ -363,12 +365,10 @@ async function processLogoGeneration(project) {
         client_info: {
           ...finalInfo,
           generationStatus: 'logo_generated',
-          generationMessage: Logo生成完成 (/),
+          generationMessage: `Logo生成完成 (${successCount}/${logoPrompts.length})`,
           brandProfile: {
             ...finalBP,
-            logoGenerationResults: logoResults.map(r => ({
-              index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error,
-            })),
+            logoGenerationResults: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
             logoGeneratedAt: new Date().toISOString(),
           },
           logoGenerationStatus: {
@@ -380,21 +380,17 @@ async function processLogoGeneration(project) {
         },
         updated_at: new Date().toISOString(),
       }).eq('id', projectId);
-      log('INFO', [LOGO] : DONE! Status -> logo_generated);
+      log('INFO', `[LOGO] ${projectId}: DONE! Status -> logo_generated`);
     } else {
       await supabase.from('projects').update({
         status: 'submitted',
-        client_info: {
-          ...finalInfo,
-          generationStatus: 'failed',
-          generationMessage: 'Logo生成全部失败，请检查ComfyUI',
-        },
+        client_info: { ...finalInfo, generationStatus: 'failed', generationMessage: 'Logo生成全部失败，请检查ComfyUI' },
         updated_at: new Date().toISOString(),
       }).eq('id', projectId);
-      log('ERROR', [LOGO] : ALL logos failed!);
+      log('ERROR', `[LOGO] ${projectId}: ALL logos failed!`);
     }
   } catch (e) {
-    log('ERROR', [LOGO] : Final update error: );
+    log('ERROR', `[LOGO] ${projectId}: Final update error: ${e.message}`);
   }
 }
 
@@ -405,7 +401,7 @@ async function processManualGeneration(project) {
   const clientInfo = (project.client_info || {});
   const brandProfile = clientInfo.brandProfile || {};
 
-  log('INFO', [MANUAL] Processing project:  ());
+  log('INFO', `[MANUAL] Processing project: ${projectId} (${clientInfo.companyName || 'unknown'})`);
 
   // Mark as generating
   await supabase.from('projects').update({
@@ -422,7 +418,7 @@ async function processManualGeneration(project) {
   // Step 1: Get selected logo
   const selectedLogo = brandProfile.selectedLogo;
   if (!selectedLogo?.imageUrl) {
-    log('ERROR', [MANUAL] : No selected logo found);
+    log('ERROR', `[MANUAL] ${projectId}: No selected logo found`);
     await supabase.from('projects').update({
       client_info: { ...clientInfo, generationStatus: 'failed', generationMessage: '未找到选中的Logo' },
       updated_at: new Date().toISOString(),
@@ -430,35 +426,28 @@ async function processManualGeneration(project) {
     return;
   }
 
-  log('INFO', [MANUAL] : Downloading selected logo...);
+  log('INFO', `[MANUAL] ${projectId}: Downloading selected logo...`);
   let logoData;
   try {
     const imgResp = await fetch(selectedLogo.imageUrl);
-    if (!imgResp.ok) throw new Error(Failed to download: );
+    if (!imgResp.ok) throw new Error(`Failed to download: ${imgResp.status}`);
     const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
     const mime = imgResp.headers.get('content-type') || 'image/png';
-    logoData = data:;base64,;
+    logoData = `data:${mime};base64,${imgBuffer.toString('base64')}`;
   } catch (err) {
-    log('ERROR', [MANUAL] : Logo download failed: );
+    log('ERROR', `[MANUAL] ${projectId}: Logo download failed: ${err.message}`);
     await supabase.from('projects').update({
-      client_info: { ...clientInfo, generationStatus: 'failed', generationMessage: Logo下载失败:  },
+      client_info: { ...clientInfo, generationStatus: 'failed', generationMessage: `Logo下载失败: ${err.message}` },
       updated_at: new Date().toISOString(),
     }).eq('id', projectId);
     return;
   }
 
   // Step 2: Generate 5 scene images via ComfyUI
-  log('INFO', [MANUAL] : Generating scene images...);
+  log('INFO', `[MANUAL] ${projectId}: Generating scene images...`);
+  const companyName = clientInfo.companyName || '';
   const industryType = getIndustryType(clientInfo.industry || 'general');
-  const industryDefaults = getIndustryDefaults(industryType);
-
-  const scenePrompts = [
-    { key: 'stationery-1', prompt: Professional product photography of branded stationery set (business cards, letterhead, envelopes) with company logo "" printed, arranged on clean desk surface, studio lighting, product fully visible,  industry style },
-    { key: 'packaging-1', prompt: Professional product photography of a branded paper bag with company logo "" printed, standing upright on clean surface, studio lighting, product fully visible,  industry style },
-    { key: 'packaging-2', prompt: Professional product photography of branded product packaging box with company logo "" printed, clean studio background, product fully visible,  industry style },
-    { key: 'marketing-1', prompt: Professional product photography of a promotional poster display with company branding "" visible, studio setting, product fully visible },
-    { key: 'marketing-2', prompt: Professional product photography of a branded membership card with company logo "" printed, clean studio background, product fully visible },
-  ];
+  const scenePrompts = buildScenePrompts(companyName, industryType);
 
   const sceneImages = {};
   const sceneLabels = {
@@ -472,7 +461,7 @@ async function processManualGeneration(project) {
 
   const comfyAvailable = await isComfyUIAvailable();
   if (!comfyAvailable) {
-    log('WARN', [MANUAL] : ComfyUI not available, will retry later);
+    log('WARN', `[MANUAL] ${projectId}: ComfyUI not available, will retry later`);
     await supabase.from('projects').update({
       client_info: { ...clientInfo, generationStatus: 'pending_manual' },
       updated_at: new Date().toISOString(),
@@ -482,42 +471,37 @@ async function processManualGeneration(project) {
 
   for (const sp of scenePrompts) {
     try {
-      log('INFO', [MANUAL] : Scene ...);
+      log('INFO', `[MANUAL] ${projectId}: Scene ${sp.key}...`);
       const result = await comfyuiGenerateScene({
         prompt: sp.prompt,
         negativePrompt: 'blurry, low quality, distorted, watermark, text overlay',
         size: '1024x1024',
       });
-      sceneImages[sp.key] = result.imageUrl;
-      log('INFO', [MANUAL] : Scene  OK (ms));
+      if (result.imageUrl) {
+        sceneImages[sp.key] = result.imageUrl;
+        log('INFO', `[MANUAL] ${projectId}: Scene ${sp.key} OK (${result.durationMs || '?'}ms)`);
+      }
     } catch (err) {
-      log('WARN', [MANUAL] : Scene  failed: , using placeholder);
-      // Continue without this scene
+      log('WARN', `[MANUAL] ${projectId}: Scene ${sp.key} failed: ${err.message}, using placeholder`);
     }
   }
 
   // Update progress
   await supabase.from('projects').update({
-    client_info: {
-      ...clientInfo,
-      generationStatus: 'manual_generating',
-      generationMessage: '正在规划VI手册页面...',
-      generationPercent: 40,
-    },
+    client_info: { ...clientInfo, generationStatus: 'manual_generating', generationMessage: '正在规划VI手册页面...', generationPercent: 40 },
     updated_at: new Date().toISOString(),
   }).eq('id', projectId);
 
   // Step 3: Plan pages via DeepSeek
-  log('INFO', [MANUAL] : Planning pages...);
+  log('INFO', `[MANUAL] ${projectId}: Planning pages...`);
   let blueprints;
   try {
-    const brandColors = brandProfile.colorPalette
-      ? {
-          primary: { hex: brandProfile.colorPalette[0]?.hex || '#333333', name: brandProfile.colorPalette[0]?.name || '主色' },
-          secondary: { hex: brandProfile.colorPalette[1]?.hex || '#666666', name: brandProfile.colorPalette[1]?.name || '辅助色' },
-          accent: { hex: brandProfile.colorPalette[2]?.hex || '#CC0000', name: brandProfile.colorPalette[2]?.name || '强调色' },
-        }
-      : { primary: { hex: '#333333', name: '主色' }, secondary: { hex: '#666666', name: '辅助色' }, accent: { hex: '#CC0000', name: '强调色' } };
+    const cp = brandProfile.colorPalette || [];
+    const brandColors = {
+      primary: { hex: cp[0]?.hex || '#333333', name: cp[0]?.name || '主色' },
+      secondary: { hex: cp[1]?.hex || '#666666', name: cp[1]?.name || '辅助色' },
+      accent: { hex: cp[2]?.hex || '#CC0000', name: cp[2]?.name || '强调色' },
+    };
 
     blueprints = await planPages({
       clientInfo: {
@@ -528,18 +512,14 @@ async function processManualGeneration(project) {
         logoPhilosophy: clientInfo.logoPhilosophy || '',
         industry: clientInfo.industry || 'general',
         brandPersonality: clientInfo.brandPersonality || '',
-        logoStyle: clientInfo.logoStyle || '',
-        avoidElements: clientInfo.avoidElements || '',
-        competitorReference: clientInfo.competitorReference || '',
-        description: clientInfo.description || '',
       },
       brandColors,
     });
-    log('INFO', [MANUAL] :  pages planned);
+    log('INFO', `[MANUAL] ${projectId}: ${blueprints.length} pages planned`);
   } catch (err) {
-    log('ERROR', [MANUAL] : Page planning failed: );
+    log('ERROR', `[MANUAL] ${projectId}: Page planning failed: ${err.message}`);
     await supabase.from('projects').update({
-      client_info: { ...clientInfo, generationStatus: 'failed', generationMessage: 页面规划失败:  },
+      client_info: { ...clientInfo, generationStatus: 'failed', generationMessage: `页面规划失败: ${err.message}` },
       updated_at: new Date().toISOString(),
     }).eq('id', projectId);
     return;
@@ -547,19 +527,15 @@ async function processManualGeneration(project) {
 
   // Update progress
   await supabase.from('projects').update({
-    client_info: {
-      ...clientInfo,
-      generationStatus: 'manual_generating',
-      generationMessage: '正在渲染VI手册PPTX...',
-      generationPercent: 70,
-    },
+    client_info: { ...clientInfo, generationStatus: 'manual_generating', generationMessage: '正在渲染VI手册PPTX...', generationPercent: 70 },
     updated_at: new Date().toISOString(),
   }).eq('id', projectId);
 
   // Step 4: Render PPTX
-  log('INFO', [MANUAL] : Rendering PPTX...);
+  log('INFO', `[MANUAL] ${projectId}: Rendering PPTX...`);
   let pptxBuf;
   try {
+    const cp = brandProfile.colorPalette || [];
     const options = {
       projectName: clientInfo.companyName || 'Brand',
       companyName: clientInfo.companyName || 'Brand',
@@ -567,9 +543,9 @@ async function processManualGeneration(project) {
       logoData,
       aiLogoData: logoData,
       brandColors: {
-        primary: brandProfile.colorPalette?.[0]?.hex || '#333333',
-        secondary: brandProfile.colorPalette?.[1]?.hex || '#666666',
-        accent: brandProfile.colorPalette?.[2]?.hex || '#CC0000',
+        primary: cp[0]?.hex || '#333333',
+        secondary: cp[1]?.hex || '#666666',
+        accent: cp[2]?.hex || '#CC0000',
       },
       brandVision: clientInfo.brandVision || brandProfile.refinedBrandVision || '',
       coreValues: clientInfo.coreValues || brandProfile.refinedCoreValues || '',
@@ -583,41 +559,41 @@ async function processManualGeneration(project) {
       englishName: (clientInfo.companyName || 'BRAND').toUpperCase(),
     };
     pptxBuf = await renderPptxToBuffer(blueprints, options);
-    log('INFO', [MANUAL] : PPTX rendered ( KB));
+    log('INFO', `[MANUAL] ${projectId}: PPTX rendered (${(pptxBuf.length / 1024).toFixed(0)} KB)`);
   } catch (err) {
-    log('ERROR', [MANUAL] : PPTX render failed: );
+    log('ERROR', `[MANUAL] ${projectId}: PPTX render failed: ${err.message}`);
     await supabase.from('projects').update({
-      client_info: { ...clientInfo, generationStatus: 'failed', generationMessage: PPTX渲染失败:  },
+      client_info: { ...clientInfo, generationStatus: 'failed', generationMessage: `PPTX渲染失败: ${err.message}` },
       updated_at: new Date().toISOString(),
     }).eq('id', projectId);
     return;
   }
 
   // Step 5: Upload to Supabase Storage
-  log('INFO', [MANUAL] : Uploading PPTX...);
-  const fileName = i-manual--.pptx;
-  const storagePath = ${projectId}/;
+  log('INFO', `[MANUAL] ${projectId}: Uploading PPTX...`);
+  const ts = Date.now();
+  const fileName = `vi-manual-${projectId}-${ts}.pptx`;
+  const storagePath = `${projectId}/${fileName}`;
   try {
     const { error: uploadErr } = await supabase.storage
-      .from('manuals')
+      .from('brand-brain-generated')
       .upload(storagePath, pptxBuf, {
         contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         upsert: true,
       });
     if (uploadErr) throw new Error(uploadErr.message);
 
-    const storageUrl = https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/manuals/;
+    const storageUrl = `${SUPABASE_URL}/storage/v1/object/public/brand-brain-generated/${storagePath}`;
 
-    // Step 6: Update project
+    // Step 6: Update project as completed
     const pptxResult = {
-      url: '/api/ai/download-pptx/' + fileName,
-      downloadUrl: '/api/ai/download-pptx/' + fileName,
+      url: `/api/ai/download-pptx/${fileName}`,
+      downloadUrl: `/api/ai/download-pptx/${fileName}`,
       fileName,
       pageCount: blueprints.length,
       storageUrl,
     };
 
-    // Also update viGenerationHistory for member backend
     const viHistory = clientInfo.viGenerationHistory || [];
     viHistory.push({
       timestamp: new Date().toISOString(),
@@ -639,11 +615,11 @@ async function processManualGeneration(project) {
       updated_at: new Date().toISOString(),
     }).eq('id', projectId);
 
-    log('INFO', [MANUAL] : DONE! PPTX uploaded, status -> completed);
+    log('INFO', `[MANUAL] ${projectId}: DONE! PPTX uploaded -> ${storageUrl}`);
   } catch (err) {
-    log('ERROR', [MANUAL] : Upload failed: );
+    log('ERROR', `[MANUAL] ${projectId}: Upload failed: ${err.message}`);
     await supabase.from('projects').update({
-      client_info: { ...clientInfo, generationStatus: 'failed', generationMessage: 上传失败:  },
+      client_info: { ...clientInfo, generationStatus: 'failed', generationMessage: `上传失败: ${err.message}` },
       updated_at: new Date().toISOString(),
     }).eq('id', projectId);
   }
@@ -662,7 +638,7 @@ async function poll() {
       .limit(1);
 
     if (logoErr) {
-      log('WARN', [POLL] Logo query error: );
+      log('WARN', `[POLL] Logo query error: ${logoErr.message}`);
     } else if (logoProjects && logoProjects.length > 0) {
       for (const project of logoProjects) {
         await processLogoGeneration(project);
@@ -678,14 +654,14 @@ async function poll() {
       .limit(1);
 
     if (manualErr) {
-      log('WARN', [POLL] Manual query error: );
+      log('WARN', `[POLL] Manual query error: ${manualErr.message}`);
     } else if (manualProjects && manualProjects.length > 0) {
       for (const project of manualProjects) {
         await processManualGeneration(project);
       }
     }
   } catch (err) {
-    log('ERROR', [POLL] Unexpected error: );
+    log('ERROR', `[POLL] Unexpected error: ${err.message}`);
   }
 }
 
@@ -693,15 +669,12 @@ async function poll() {
 
 async function main() {
   log('INFO', '===== Brand Brain Automation Worker Started =====');
-  log('INFO', Poll interval: s);
-  log('INFO', Supabase: );
-  log('INFO', ComfyUI: http://127.0.0.1:8188);
+  log('INFO', `Poll interval: ${POLL_INTERVAL_MS / 1000}s`);
+  log('INFO', `Supabase: ${SUPABASE_URL}`);
 
-  // Check ComfyUI on startup
   const comfyAvailable = await isComfyUIAvailable();
-  log('INFO', ComfyUI available: );
+  log('INFO', `ComfyUI available: ${comfyAvailable}`);
 
-  // Main loop
   while (true) {
     await poll();
     await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
@@ -709,9 +682,7 @@ async function main() {
 }
 
 main().catch(err => {
-  log('FATAL', Worker crashed: );
+  log('FATAL', `Worker crashed: ${err.message}`);
   console.error(err);
   process.exit(1);
 });
-
-
