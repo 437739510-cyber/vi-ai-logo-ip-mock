@@ -1,0 +1,87 @@
+{
+  "comment": "BrandBrain VI场景图 — 办公/商务场景 (Stationery) | DreamShaperXL10 | 1024×1024",
+  "brand_params": {
+    "model": "dreamshaperXL10_alpha2Xl10.safetensors",
+    "vae": "sdxl_fp16_fix.safetensors",
+    "width": 1024,
+    "height": 1024,
+    "steps": 25,
+    "cfg": 5.5,
+    "sampler": "dpmpp_2m",
+    "scheduler": "karras",
+    "positive": "professional storefront scene, modern store design, elegant signage with brand logo, clean storefront display, outdoor daytime lighting, commercial street atmosphere, architectural photography, highly detailed, premium retail environment, warm inviting atmosphere, photorealistic, 8k, sharp focus",
+    "negative": "text, watermark, signature, people, customers, crowded, dirty, messy, blurry, low quality, cartoon, illustration, painting, sketch, monochrome, sepia, fisheye, wide angle distortion, oversaturated, HDR, neon glow, graffiti"
+  },
+  "nodes": {
+    "3": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "dreamshaperXL10_alpha2Xl10.safetensors"
+      }
+    },
+    "10": {
+      "class_type": "CLIPSetLastLayer",
+      "inputs": {
+        "stop_at_clip_layer": -2,
+        "clip": ["3", 1]
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "professional storefront scene, modern store design, elegant signage with brand logo, clean storefront display, outdoor daytime lighting, commercial street atmosphere, architectural photography, highly detailed, premium retail environment, warm inviting atmosphere, photorealistic, 8k, sharp focus",
+        "clip": ["10", 0]
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "text, watermark, signature, people, customers, crowded, dirty, messy, blurry, low quality, cartoon, illustration, painting, sketch, monochrome, sepia, fisheye, wide angle distortion, oversaturated, HDR, neon glow, graffiti",
+        "clip": ["10", 0]
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "13": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "sdxl_fp16_fix.safetensors"
+      }
+    },
+    "8": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 42,
+        "steps": 25,
+        "cfg": 5.5,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "denoise": 1,
+        "model": ["3", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
+      }
+    },
+    "9": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["8", 0],
+        "vae": ["13", 0]
+      }
+    },
+    "14": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "BrandBrain_stationery",
+        "images": ["9", 0]
+      }
+    }
+  }
+}

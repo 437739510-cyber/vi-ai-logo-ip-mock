@@ -1,0 +1,137 @@
+{
+  "comment": "SDXL_Product_Packaging_DreamShaper - 包装海报效果图，不用于中文Logo",
+  "nodes": {
+    "3": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "dreamshaperXL_alpha2Xl10.safetensors"
+      }
+    },
+    "10": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "lora_name": "LogoRedmondV2-Logo-LogoRedmAF.safetensors",
+        "strength_model": 0.3,
+        "strength_clip": 0.3,
+        "model": [
+          "3",
+          0
+        ],
+        "clip": [
+          "3",
+          1
+        ]
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "product packaging mockup, shopping bag with logo, clean commercial photography, professional studio lighting, white background, high quality",
+        "clip": [
+          "10",
+          1
+        ]
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "blurry, low quality, distorted, watermark, text, 3d render, cartoon, illustration, deformed",
+        "clip": [
+          "10",
+          1
+        ]
+      }
+    },
+    "6": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "7": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 0,
+        "steps": 25,
+        "cfg": 6.0,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "denoise": 1.0,
+        "model": [
+          "10",
+          0
+        ],
+        "positive": [
+          "4",
+          0
+        ],
+        "negative": [
+          "5",
+          0
+        ],
+        "latent_image": [
+          "6",
+          0
+        ]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "7",
+          0
+        ],
+        "vae": [
+          "3",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "ds_packaging",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    },
+    "12": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "example_product.png"
+      }
+    },
+    "13": {
+      "class_type": "Canny",
+      "inputs": {
+        "image": [
+          "12",
+          0
+        ],
+        "low_threshold": 100,
+        "high_threshold": 200
+      }
+    },
+    "14": {
+      "class_type": "ControlNetApply",
+      "inputs": {
+        "strength": 0.5,
+        "control_net": "kohya_controllllite_xl_canny.safetensors",
+        "conditioning": [
+          "4",
+          0
+        ],
+        "image": [
+          "13",
+          0
+        ]
+      }
+    }
+  }
+}

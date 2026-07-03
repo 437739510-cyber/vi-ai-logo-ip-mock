@@ -1,7 +1,7 @@
 {
-  "comment": "BrandBrain VI场景图 — 产品包装场景 (Packaging) | DreamShaperXL10 | 1024×1024",
+  "comment": "BrandBrain VI场景�?�?产品包装场景 (Packaging) | DreamShaperXL10 | 1024×1024",
   "brand_params": {
-    "model": "dreamshaperXL10_alpha2Xl10.safetensors",
+    "model": "dreamshaperXL_alpha2Xl10.safetensors",
     "vae": "sdxl_fp16_fix.safetensors",
     "width": 1024,
     "height": 1024,
@@ -9,35 +9,22 @@
     "cfg": 5.5,
     "sampler": "dpmpp_2m",
     "scheduler": "karras",
-    "positive": "product packaging mockup on wooden table, branded packaging boxes with logo, paper bags with logo, premium product display, natural lighting, shallow depth of field, commercial product photography, elegant brand presentation, craft paper texture, lifestyle product shot, high end retail packaging, photorealistic, sharp details, warm tones",
-    "negative": "text, watermark, signature, people, hands holding, crowded, messy background, dirty, blurry, low quality, cartoon, illustration, painting, sketch, monochrome, oversaturated, neon glow, cheap-looking, plastic wrap, bubble wrap"
+    "positive": "{{POSITIVE_PROMPT}}",
+    "negative": "{{NEGATIVE_PROMPT}}",
+    "template_vars": {
+      "positive": "{{POSITIVE_PROMPT}}",
+      "negative": "{{NEGATIVE_PROMPT}}",
+      "seed": "{{SEED}}",
+      "scene_id": "{{SCENE_ID}}",
+      "industry_id": "{{INDUSTRY_ID}}"
+    },
+    "scene_type": "packaging"
   },
   "nodes": {
     "3": {
       "class_type": "CheckpointLoaderSimple",
       "inputs": {
-        "ckpt_name": "dreamshaperXL10_alpha2Xl10.safetensors"
-      }
-    },
-    "10": {
-      "class_type": "CLIPSetLastLayer",
-      "inputs": {
-        "stop_at_clip_layer": -2,
-        "clip": ["3", 1]
-      }
-    },
-    "6": {
-      "class_type": "CLIPTextEncode",
-      "inputs": {
-        "text": "product packaging mockup on wooden table, branded packaging boxes with logo, paper bags with logo, premium product display, natural lighting, shallow depth of field, commercial product photography, elegant brand presentation, craft paper texture, lifestyle product shot, high end retail packaging, photorealistic, sharp details, warm tones",
-        "clip": ["10", 0]
-      }
-    },
-    "7": {
-      "class_type": "CLIPTextEncode",
-      "inputs": {
-        "text": "text, watermark, signature, people, hands holding, crowded, messy background, dirty, blurry, low quality, cartoon, illustration, painting, sketch, monochrome, oversaturated, neon glow, cheap-looking, plastic wrap, bubble wrap",
-        "clip": ["10", 0]
+        "ckpt_name": "dreamshaperXL_alpha2Xl10.safetensors"
       }
     },
     "5": {
@@ -48,40 +35,114 @@
         "batch_size": 1
       }
     },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{POSITIVE_PROMPT}}",
+        "clip": [
+          "10",
+          0
+        ]
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{NEGATIVE_PROMPT}}",
+        "clip": [
+          "10",
+          0
+        ]
+      }
+    },
+    "8": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": "{{SEED}}",
+        "steps": 25,
+        "cfg": 5.5,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "denoise": 1,
+        "model": [
+          "3",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ]
+      }
+    },
+    "9": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "8",
+          0
+        ],
+        "vae": [
+          "13",
+          0
+        ]
+      }
+    },
+    "10": {
+      "class_type": "CLIPSetLastLayer",
+      "inputs": {
+        "stop_at_clip_layer": -2,
+        "clip": [
+          "3",
+          1
+        ]
+      }
+    },
     "13": {
       "class_type": "VAELoader",
       "inputs": {
         "vae_name": "sdxl_fp16_fix.safetensors"
       }
     },
-    "8": {
-      "class_type": "KSampler",
-      "inputs": {
-        "seed": 43,
-        "steps": 25,
-        "cfg": 5.5,
-        "sampler_name": "dpmpp_2m",
-        "scheduler": "karras",
-        "denoise": 1,
-        "model": ["3", 0],
-        "positive": ["6", 0],
-        "negative": ["7", 0],
-        "latent_image": ["5", 0]
-      }
-    },
-    "9": {
-      "class_type": "VAEDecode",
-      "inputs": {
-        "samples": ["8", 0],
-        "vae": ["13", 0]
-      }
-    },
     "14": {
       "class_type": "SaveImage",
       "inputs": {
         "filename_prefix": "BrandBrain_packaging",
-        "images": ["9", 0]
+        "images": [
+          "9",
+          0
+        ]
       }
     }
+  },
+  "template_info": {
+    "version": "2.1",
+    "scene_types": [
+      "packaging"
+    ],
+    "ip_adapter": false,
+    "controlnet": false,
+    "custom_nodes": "none",
+    "parameters": {
+      "steps": 25,
+      "cfg": 5.5,
+      "sampler": "dpmpp_2m"
+    },
+    "required_vars": [
+      "POSITIVE_PROMPT",
+      "NEGATIVE_PROMPT",
+      "SEED"
+    ],
+    "optional_vars": [
+      "SCENE_ID",
+      "INDUSTRY_ID"
+    ]
   }
 }

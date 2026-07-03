@@ -13,7 +13,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 // V120: ARK removed, using ComfyUI local only
-import { comfyuiGenerateScene, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
+import { getDefaultRegistry } from "@/lib/ip/ip-image-provider";
 import { extractBrandDNA, fillScenePrompts } from "@/lib/vi-manual/deepseek-dna";
 import path from "path";
 import { readFile, mkdir, writeFile, readdir } from "fs/promises";
@@ -983,19 +983,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log(`[generate-pptx] Engine: ComfyUI(local, free), ${imgDefs.length} images, Logo desc: ${!!logoDesc}`);
+    const provider = await getDefaultRegistry().getActive();
+    console.log(`[generate-pptx] Engine: ${provider.name}, ${imgDefs.length} images, Logo desc: ${!!logoDesc}`);
 
     for (let i = 0; i < imgDefs.length; i += 2) {
       const batch = imgDefs.slice(i, i + 2);
       const results = await Promise.allSettled(
         batch.map(async (def) => {
-          // V120: ComfyUI local only (free, no cloud API budget)
+          // V121: using provider from registry
           try {
-            const comfyResult = await comfyuiGenerateScene({ prompt: def.rawPrompt, size: "2048x2048" });
-            console.log(`[generate-pptx] ComfyUI OK for ${def.key} (${comfyResult.durationMs}ms)`);
-            return { def, imgData: comfyResult.imageUrl };
+            const result = await provider.generateImage({ brandContext: { brandName: companyName, industry: industryType, brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "scene", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: def.key, label: def.page, description: def.rawPrompt }, prompt: def.rawPrompt, negativePrompt: "text, watermark, ugly, distorted, low quality", output: { width: 2048, height: 2048, format: "png" } });
+            console.log(`[generate-pptx] ${provider.name} OK for ${def.key} (${result.durationMs}ms)`);
+            return { def, imgData: result.imageUrl };
           } catch (e: any) {
-            console.error(`[generate-pptx] ComfyUI FAILED for ${def.key}: ${e.message}`);
+            console.error(`[generate-pptx] ${provider.name} FAILED for ${def.key}: ${e.message}`);
             throw e;
           }
           return { def, imgData: null };

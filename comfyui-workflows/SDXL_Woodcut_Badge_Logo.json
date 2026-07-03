@@ -1,0 +1,121 @@
+{
+  "comment": "SDXL_Woodcut_Badge_Logo - 木刻徽章Logo，删文字LoRA换Woodcut",
+  "nodes": {
+    "3": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "ponyDiffusionV6XL_v6StartWithThisOne.safetensors"
+      }
+    },
+    "10": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "lora_name": "LogoRedmondV2-Logo-LogoRedmAF.safetensors",
+        "strength_model": 0.5,
+        "strength_clip": 0.5,
+        "model": [
+          "3",
+          0
+        ],
+        "clip": [
+          "3",
+          1
+        ]
+      }
+    },
+    "11": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "lora_name": "woodcut_xl.safetensors",
+        "strength_model": 0.45,
+        "strength_clip": 0.45,
+        "model": [
+          "10",
+          0
+        ],
+        "clip": [
+          "10",
+          1
+        ]
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "woodcut print style, circular badge logo, crab claws and ocean waves, CHAOWEI Chinese text, bold carving lines, vintage ink texture, high contrast black and deep blue on cream paper",
+        "clip": [
+          "11",
+          1
+        ]
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "deformed, blurry, low quality, distorted, 3d render, shadow, gradient, watermark, photorealistic, illustration, cartoon, flat vector",
+        "clip": [
+          "11",
+          1
+        ]
+      }
+    },
+    "6": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "7": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 0,
+        "steps": 20,
+        "cfg": 3.5,
+        "sampler_name": "euler_ancestral",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "model": [
+          "11",
+          0
+        ],
+        "positive": [
+          "4",
+          0
+        ],
+        "negative": [
+          "5",
+          0
+        ],
+        "latent_image": [
+          "6",
+          0
+        ]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "7",
+          0
+        ],
+        "vae": [
+          "3",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "woodcut_logo",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    }
+  }
+}

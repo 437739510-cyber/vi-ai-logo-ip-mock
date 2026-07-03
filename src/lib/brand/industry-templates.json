@@ -1,0 +1,3103 @@
+{
+  "template_version": "2.0",
+  "last_updated": "2026-07-01",
+  "description": "行业模板配置 - 包含18个行业,每个行业8个场景的完整配置",
+  "source": "industry-types.ts / INDUSTRY_DEFAULTS",
+  "mapping": "industry_id参照industry-types.ts定义,scene_id格式为[INDUSTRY_CODE]-NN",
+  "logo_params": {
+    "model": "dreamshaperXL_alpha2Xl10",
+    "steps": 28,
+    "cfg": 5.5,
+    "sampler": "dpmpp_2m_karras",
+    "controlnet": {
+      "canny": 0.7,
+      "tile": 0.5
+    },
+    "negative_common": "blurry, distorted text, garbled characters, 3d render, gradient, shadow, glow effect, delicate ornament, watermark, wavy text"
+  },
+  "scene_params": {
+    "model": "juggernautXL_version9",
+    "steps": 25,
+    "cfg": 6.0,
+    "sampler": "dpmpp_2m_sde_karras",
+    "negative_common": "blurry, low quality, distorted logo, garbled text, clean studio, white background, 3d render, cartoon, watermark, fake text"
+  },
+  "scene_category_standard": [
+    {
+      "vi_module": "应用系统",
+      "scenes": [
+        "门头招牌",
+        "核心经营物料/陈列",
+        "员工工服"
+      ],
+      "count": 3
+    },
+    {
+      "vi_module": "包装系统",
+      "scenes": [
+        "主营产品包装",
+        "手提袋/打包袋"
+      ],
+      "count": 2
+    },
+    {
+      "vi_module": "营销系统",
+      "scenes": [
+        "店内宣传物料",
+        "会员卡/消费凭证"
+      ],
+      "count": 2
+    },
+    {
+      "vi_module": "导视系统",
+      "scenes": [
+        "店内标识/指示牌"
+      ],
+      "count": 1
+    }
+  ],
+  "industries": [
+    {
+      "industry_id": "restaurant",
+      "industry_name": "正餐餐厅",
+      "industry_category": "餐饮美食",
+      "alt_names": [
+        "餐厅",
+        "海鲜",
+        "火锅",
+        "中餐",
+        "西餐"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "蟹钳",
+          "海浪",
+          "筷子",
+          "餐盘",
+          "火焰"
+        ],
+        "style_keywords": [
+          "粗犷渔港风",
+          "手绘笔触",
+          "红色喜庆",
+          "美食摄影",
+          "暖色调"
+        ],
+        "default_colors": {
+          "main": "#C62828",
+          "accent": "#F9A825",
+          "highlight": "#FFFFFF"
+        },
+        "avoid_elements": [
+          "精致渐变",
+          "轻奢优雅风",
+          "极简冷淡",
+          "3D渲染"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "REST-01",
+          "vi_module": "应用系统",
+          "scene_name": "门头招牌实景",
+          "prompt_template": "realistic photo of a restaurant storefront at twilight, warm lighting from inside, brand logo on signboard above entrance, outdoor seating area, {{scene_atmosphere}}, professional architectural photography, depth of field",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "REST-02",
+          "vi_module": "应用系统",
+          "scene_name": "餐桌摆盘陈列",
+          "prompt_template": "overhead flat lay of elegant restaurant table setup, ceramic plates with gourmet food garnishes, branded napkins and chopsticks, {{scene_atmosphere}}, food photography style, soft diffused lighting, 8k",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "REST-03",
+          "vi_module": "应用系统",
+          "scene_name": "厨师服展示",
+          "prompt_template": "professional portrait of restaurant chef in clean white chef coat with brand logo embroidery, apron, chef hat, standing in kitchen background, {{scene_atmosphere}}, fashion photography lighting, detailed fabric texture",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "REST-04",
+          "vi_module": "包装系统",
+          "scene_name": "外卖餐盒包装",
+          "prompt_template": "branded takeout box on wooden surface, compartment container with lid, logo printed on top, chopsticks and napkin beside, {{scene_atmosphere}}, product photography, softbox lighting, sharp focus",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "REST-05",
+          "vi_module": "包装系统",
+          "scene_name": "手提袋/打包袋",
+          "prompt_template": "branded paper carry bag with restaurant logo, twisted kraft handles, filled with takeout boxes visible at top, {{scene_atmosphere}}, commercial product photography, studio lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "REST-06",
+          "vi_module": "营销系统",
+          "scene_name": "菜单牌/店内海报",
+          "prompt_template": "restaurant menu board on wall, chalkboard style, featured dishes listed with prices, brand colors, decorative border, {{scene_atmosphere}}, menu photography, even lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "REST-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/消费凭证",
+          "prompt_template": "premium membership card on dark wood table, restaurant brand design, metallic gold foil accents, {{scene_atmosphere}}, macro photography, shallow depth of field, luxury texture",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "REST-08",
+          "vi_module": "导视系统",
+          "scene_name": "店内指引标识",
+          "prompt_template": "wall-mounted directional sign in restaurant, wooden or metal finish, arrows pointing to restrooms and exits, brand color scheme, {{scene_atmosphere}}, interior detail shot, natural lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "fastfood",
+      "industry_name": "快餐小吃",
+      "industry_category": "餐饮美食",
+      "alt_names": [
+        "快餐",
+        "小吃",
+        "炸鸡",
+        "汉堡",
+        "麻辣烫"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "汉堡",
+          "薯条",
+          "火焰",
+          "星星",
+          "蒸汽"
+        ],
+        "style_keywords": [
+          "快餐活力风",
+          "亮黄暖红",
+          "卡通感",
+          "高饱和度",
+          "热闹氛围"
+        ],
+        "default_colors": {
+          "main": "#D32F2F",
+          "accent": "#F9A825",
+          "highlight": "#FFFFFF"
+        },
+        "avoid_elements": [
+          "暗色调",
+          "极简黑白",
+          "优雅风格",
+          "冷淡风"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "FAST-01",
+          "vi_module": "应用系统",
+          "scene_name": "外卖窗口实景",
+          "prompt_template": "realistic photo of fast food storefront with bright signage, glowing menu board visible through glass window, takeout counter, {{scene_atmosphere}}, street photography style, warm golden hour light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FAST-02",
+          "vi_module": "应用系统",
+          "scene_name": "柜台餐品陈列",
+          "prompt_template": "glass display counter filled with freshly cooked fried chicken and fries, steam rising, branded containers, {{scene_atmosphere}}, food photography, macro lens, vibrant colors",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FAST-03",
+          "vi_module": "应用系统",
+          "scene_name": "店员围裙工服",
+          "prompt_template": "fast food worker in branded apron and cap, holding takeout bag, smiling at camera, {{scene_atmosphere}}, candid portrait style, soft natural lighting, colorful background",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FAST-04",
+          "vi_module": "包装系统",
+          "scene_name": "汉堡纸盒包装",
+          "prompt_template": "branded burger box opened on red checkered tablecloth, fries and drink beside, logo visible on packaging, {{scene_atmosphere}}, product flat lay, top-down view, bright lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FAST-05",
+          "vi_module": "包装系统",
+          "scene_name": "外带打包袋",
+          "prompt_template": "kraft paper bag with fast food logo, greasy spot texture, filled with wrapped burgers, fries container peeking out, {{scene_atmosphere}}, commercial still life, rustic texture",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FAST-06",
+          "vi_module": "营销系统",
+          "scene_name": "优惠海报/灯箱",
+          "prompt_template": "illuminated promotional poster in fast food restaurant, combo meal deal, bold typography, price in large font, {{scene_atmosphere}}, graphic display photography, backlit effect",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FAST-07",
+          "vi_module": "营销系统",
+          "scene_name": "储值卡/优惠券",
+          "prompt_template": "branded loyalty card and paper coupons spread on counter, barcode visible, fast food color scheme, {{scene_atmosphere}}, macro detail shot, bright overhead lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FAST-08",
+          "vi_module": "导视系统",
+          "scene_name": "店内价目标识",
+          "prompt_template": "hanging ceiling menu board in fast food restaurant, digital display showing items and prices, numbered items, {{scene_atmosphere}}, commercial interior photography",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "beverage",
+      "industry_name": "饮品/茶饮",
+      "industry_category": "餐饮美食",
+      "alt_names": [
+        "奶茶",
+        "咖啡",
+        "果汁",
+        "茶饮",
+        "饮品"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "茶叶",
+          "水滴",
+          "吸管",
+          "冰块",
+          "水果切片"
+        ],
+        "style_keywords": [
+          "清新自然风",
+          "森系绿色",
+          "手作质感",
+          "清爽通透",
+          "ins风格"
+        ],
+        "default_colors": {
+          "main": "#00695C",
+          "accent": "#D84315",
+          "highlight": "#FFB300"
+        },
+        "avoid_elements": [
+          "厚重暗色调",
+          "工业风",
+          "复杂装饰",
+          "古板传统"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "BEV-01",
+          "vi_module": "应用系统",
+          "scene_name": "茶饮店门面",
+          "prompt_template": "realistic photo of trendy tea shop storefront, floor-to-ceiling glass windows, neon brand sign, outdoor bench, {{scene_atmosphere}}, modern architectural photography, golden hour",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEV-02",
+          "vi_module": "应用系统",
+          "scene_name": "吧台器具陈列",
+          "prompt_template": "barista workspace with branded cups lined up, professional espresso machine, fresh ingredients in jars, {{scene_atmosphere}}, overhead flat lay, bright natural light, clean composition",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEV-03",
+          "vi_module": "应用系统",
+          "scene_name": "店员围裙展示",
+          "prompt_template": "barista in branded apron and cap holding a finished drink with latte art, {{scene_atmosphere}}, portrait photography, soft warm lighting, friendly expression",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEV-04",
+          "vi_module": "包装系统",
+          "scene_name": "饮品杯包装",
+          "prompt_template": "branded disposable cup with logo, clear dome lid showing colorful drink, ice cubes, fruit topping, sleeve with brand pattern, {{scene_atmosphere}}, product photography, white background, studio lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEV-05",
+          "vi_module": "包装系统",
+          "scene_name": "手提杯托袋",
+          "prompt_template": "branded paper cup carrier holding 4 colorful drinks, logo on side, condensation droplets visible, {{scene_atmosphere}}, commercial product still life, morning lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEV-06",
+          "vi_module": "营销系统",
+          "scene_name": "招牌饮品海报",
+          "prompt_template": "brand poster on tea shop wall featuring signature drink, ingredients listed, artistic food illustration style, {{scene_atmosphere}}, interior signage photography, soft spotlight",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEV-07",
+          "vi_module": "营销系统",
+          "scene_name": "积分卡/小票",
+          "prompt_template": "minimalist brand membership card and paper receipt with QR code, tea design motif, embossed texture, {{scene_atmosphere}}, macro product shot, soft diffused light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEV-08",
+          "vi_module": "导视系统",
+          "scene_name": "店内导视牌",
+          "prompt_template": "wooden directional signpost with tea shop section labels, hand-lettered style, green and white colors, {{scene_atmosphere}}, detail photography, natural wood texture",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "beauty",
+      "industry_name": "美容/美发",
+      "industry_category": "生活服务",
+      "alt_names": [
+        "美容",
+        "美发",
+        "SPA",
+        "护肤",
+        "造型"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "花瓣",
+          "梳子",
+          "镜子",
+          "水波纹",
+          "蝴蝶结"
+        ],
+        "style_keywords": [
+          "优雅轻奢风",
+          "莫兰迪色",
+          "柔美女性化",
+          "高级质感",
+          "浪漫柔和"
+        ],
+        "default_colors": {
+          "main": "#E8576C",
+          "accent": "#9B72CF",
+          "highlight": "#F0D5A8"
+        },
+        "avoid_elements": [
+          "工业硬朗风",
+          "暗黑风",
+          "卡通幼稚",
+          "粗俗图案"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "BEAU-01",
+          "vi_module": "应用系统",
+          "scene_name": "美容院门头",
+          "prompt_template": "realistic photo of beauty salon storefront, pink and purple signage, elegant entrance with flowers, {{scene_atmosphere}}, luxury retail architecture photography, warm evening lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEAU-02",
+          "vi_module": "应用系统",
+          "scene_name": "产品展示陈列",
+          "prompt_template": "glass shelf displaying skincare product line, branded bottles and jars, rose gold accents, {{scene_atmosphere}}, product display photography, soft studio lighting, shallow depth of field",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEAU-03",
+          "vi_module": "应用系统",
+          "scene_name": "美容师制服",
+          "prompt_template": "professional beautician in clean white uniform with brand logo, holding skincare product, styled hair and makeup, {{scene_atmosphere}}, professional portrait photography, soft key light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEAU-04",
+          "vi_module": "包装系统",
+          "scene_name": "护肤产品包装",
+          "prompt_template": "branded skincare jar with cream visible, gold foil label, minimalist design, surrounded by rose petals, {{scene_atmosphere}}, beauty product photography, macro, premium lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEAU-05",
+          "vi_module": "包装系统",
+          "scene_name": "品牌手提袋",
+          "prompt_template": "luxury paper shopping bag with ribbon handles, beauty brand logo embossed, tissue paper peeking out, {{scene_atmosphere}}, commercial product photography, soft window light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEAU-06",
+          "vi_module": "营销系统",
+          "scene_name": "服务价目海报",
+          "prompt_template": "elegant service menu board in beauty salon, gold frame, services and prices in calligraphy, {{scene_atmosphere}}, interior detail shot, warm ambient light, luxurious feel",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEAU-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/疗程卡",
+          "prompt_template": "branded VIP membership card with holographic finish, gold foil details, salon name embossed, {{scene_atmosphere}}, macro photography, reflective surface, premium texture",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "BEAU-08",
+          "vi_module": "导视系统",
+          "scene_name": "店内指示牌",
+          "prompt_template": "elegant room sign for salon areas, acrylic with gold text, washroom and treatment room labels, {{scene_atmosphere}}, interior detail photography, soft diffused lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "fashion",
+      "industry_name": "服装鞋帽",
+      "industry_category": "时尚零售",
+      "alt_names": [
+        "服装",
+        "女装",
+        "男装",
+        "鞋帽",
+        "服饰"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "蝴蝶结",
+          "衣架",
+          "线条",
+          "几何",
+          "皇冠"
+        ],
+        "style_keywords": [
+          "极简高级风",
+          "暗色奢华",
+          "金色点缀",
+          "时尚大片",
+          "剪裁感"
+        ],
+        "default_colors": {
+          "main": "#1A1A2E",
+          "accent": "#C9A96E",
+          "highlight": "#E8D5B7"
+        },
+        "avoid_elements": [
+          "廉价卡通",
+          "荧光色",
+          "过度可爱",
+          "杂乱繁复"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "FASH-01",
+          "vi_module": "应用系统",
+          "scene_name": "精品店门面",
+          "prompt_template": "realistic photo of high-end boutique storefront, dark facade with gold brand lettering, mannequins in window, {{scene_atmosphere}}, luxury retail architecture photography, street scene",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FASH-02",
+          "vi_module": "应用系统",
+          "scene_name": "服装陈列搭配",
+          "prompt_template": "minimalist clothing rack display with curated outfits, coordinated colors, soft fabric texture visible, {{scene_atmosphere}}, fashion retail photography, clean composition, gallery lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FASH-03",
+          "vi_module": "应用系统",
+          "scene_name": "店员着装展示",
+          "prompt_template": "fashion store assistant in brand uniform, coordinating outfit, holding folded garment, {{scene_atmosphere}}, fashion portrait photography, editorial style, dramatic lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FASH-04",
+          "vi_module": "包装系统",
+          "scene_name": "品牌服装包装",
+          "prompt_template": "branded garment box with ribbon, tissue paper inside, folded dress visible, gold foil brand logo, {{scene_atmosphere}}, luxury product photography, soft natural light, premium",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FASH-05",
+          "vi_module": "包装系统",
+          "scene_name": "购物手提袋",
+          "prompt_template": "branded paper shopping bag with rope handles, fashion logo, textured paper, tissue paper spilling out, {{scene_atmosphere}}, commercial still life, studio lighting, minimalist",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FASH-06",
+          "vi_module": "营销系统",
+          "scene_name": "橱窗展示海报",
+          "prompt_template": "window display mannequin in latest collection, curated lighting, brand signage on glass, {{scene_atmosphere}}, fashion display photography, dramatic shadows, artistic composition",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FASH-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/EVIP卡",
+          "prompt_template": "premium black membership card with gold foil, fashion brand logo, embossed numbers, {{scene_atmosphere}}, macro product photography, luxury texture, spotlight effect",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FASH-08",
+          "vi_module": "导视系统",
+          "scene_name": "店内楼层导视",
+          "prompt_template": "elegant floor directory sign in boutique store, minimalist design, department names in gold, {{scene_atmosphere}}, interior architectural detail, ambient lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "mother_baby",
+      "industry_name": "母婴儿童",
+      "industry_category": "婚恋亲子",
+      "alt_names": [
+        "母婴",
+        "儿童",
+        "婴儿",
+        "孕婴",
+        "亲子"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "奶瓶",
+          "云朵",
+          "星星",
+          "揇铃",
+          "小脚丫"
+        ],
+        "style_keywords": [
+          "温暖柔美风",
+          "马卡龙色",
+          "手绘水彩",
+          "圆润可爱",
+          "柔和暖色"
+        ],
+        "default_colors": {
+          "main": "#E8836B",
+          "accent": "#5B9EA6",
+          "highlight": "#F5C6AA"
+        },
+        "avoid_elements": [
+          "暗黑风格",
+          "工业质感",
+          "复杂线条",
+          "荧光色彩"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "MOM-01",
+          "vi_module": "应用系统",
+          "scene_name": "母婴店门头",
+          "prompt_template": "realistic photo of baby store storefront, pastel color scheme, cute animal mascot on signage, stroller parking, {{scene_atmosphere}}, cheerful retail architecture, daytime natural light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "MOM-02",
+          "vi_module": "应用系统",
+          "scene_name": "婴儿用品陈列",
+          "prompt_template": "shelves filled with baby products, soft toys, bottles arranged by color, organized display, {{scene_atmosphere}}, retail interior photography, warm soft lighting, gentle colors",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "MOM-03",
+          "vi_module": "应用系统",
+          "scene_name": "店员围裙展示",
+          "prompt_template": "nursery assistant in pastel apron with brand logo, holding a plush toy, kind smile, {{scene_atmosphere}}, warm portrait photography, soft key light, cozy atmosphere",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "MOM-04",
+          "vi_module": "包装系统",
+          "scene_name": "婴儿护肤品包装",
+          "prompt_template": "branded baby lotion bottle and diaper pack on soft fabric, cute animal illustrations, pastel packaging, {{scene_atmosphere}}, product photography, diffused studio lighting, soft focus",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "MOM-05",
+          "vi_module": "包装系统",
+          "scene_name": "购物手提袋",
+          "prompt_template": "cute paper shopping bag with baby brand print, pastel colors, ribbon handles, {{scene_atmosphere}}, product still life, soft natural lighting, gentle shadows",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "MOM-06",
+          "vi_module": "营销系统",
+          "scene_name": "促销活动海报",
+          "prompt_template": "colorful in-store promotion poster for baby products, cute illustrations, discount information, {{scene_atmosphere}}, retail signage photography, even lighting, cheerful composition",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "MOM-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/成长卡",
+          "prompt_template": "milestone membership card with baby footprint design, pastel gradient, QR code for tracking, {{scene_atmosphere}}, macro product photography, soft diffused light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "MOM-08",
+          "vi_module": "导视系统",
+          "scene_name": "店内区域指示",
+          "prompt_template": "cute room sign for baby store sections, cloud-shaped acrylic, pastel colors, {{scene_atmosphere}}, interior detail photography, soft ambient lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "wedding",
+      "industry_name": "婚庆摄影",
+      "industry_category": "婚恋亲子",
+      "alt_names": [
+        "婚庆",
+        "婚纱",
+        "摄影",
+        "婚礼",
+        "跟拍"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "戒指",
+          "花瓣",
+          "蝴蝶结",
+          "爱心",
+          "蕾丝"
+        ],
+        "style_keywords": [
+          "复古浪漫风",
+          "香濤金色",
+          "高级感",
+          "典雅油画",
+          "柔光梦幻"
+        ],
+        "default_colors": {
+          "main": "#8B6F4E",
+          "accent": "#D4A574",
+          "highlight": "#F5E6D3"
+        },
+        "avoid_elements": [
+          "暗黑阴郁",
+          "廉价花哨",
+          "卡通风格",
+          "过度饱和"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "WED-01",
+          "vi_module": "应用系统",
+          "scene_name": "婚纱馆门面",
+          "prompt_template": "realistic photo of wedding studio storefront, elegant signage with calligraphy, window display with mannequin in wedding dress, {{scene_atmosphere}}, luxury storefront photography, golden hour",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "WED-02",
+          "vi_module": "应用系统",
+          "scene_name": "婚纱陈列展示",
+          "prompt_template": "bridal gowns hanging on display rack, lace and satin textures, soft spotlighting, elegant interior, {{scene_atmosphere}}, bridal boutique photography, ambient warm light, dreamy",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "WED-03",
+          "vi_module": "应用系统",
+          "scene_name": "员工制服展示",
+          "prompt_template": "wedding consultant in elegant dress and blazer with brand pin, professional demeanor, {{scene_atmosphere}}, portrait photography, soft key light, refined background",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "WED-04",
+          "vi_module": "包装系统",
+          "scene_name": "喜糖礼盒包装",
+          "prompt_template": "luxury wedding favor box with satin ribbon, gold foil brand logo, dried flowers on top, {{scene_atmosphere}}, product photography, soft romantic lighting, macro detail",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "WED-05",
+          "vi_module": "包装系统",
+          "scene_name": "婚礼伴手礼袋",
+          "prompt_template": "elegant organza gift bag with brand tag, tissue paper, gold ribbon handles, {{scene_atmosphere}}, wedding detail photography, diffused natural light, romantic",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "WED-06",
+          "vi_module": "营销系统",
+          "scene_name": "婚礼套餐海报",
+          "prompt_template": "wedding package poster in gold frame, service tiers listed, floral border, {{scene_atmosphere}}, interior decor photography, warm spotlight, elegant composition",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "WED-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/感恩卡",
+          "prompt_template": "ivory membership card with gold foil border, couple silhouette design, brand name embossed, {{scene_atmosphere}}, luxury macro photography, soft studio light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "WED-08",
+          "vi_module": "导视系统",
+          "scene_name": "婚礼场地导视",
+          "prompt_template": "elegant wooden signpost in wedding venue, floral decoration, arrows pointing to ceremony and reception areas, {{scene_atmosphere}}, outdoor detail photography, natural light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "fitness",
+      "industry_name": "健身运动",
+      "industry_category": "生活服务",
+      "alt_names": [
+        "健身",
+        "运动",
+        "璑伽",
+        "健身房",
+        "体能"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "哑铃",
+          "火焰",
+          "闪电",
+          "肌肉",
+          "齿轮"
+        ],
+        "style_keywords": [
+          "硬朗力量风",
+          "黑红配色",
+          "锐利线条",
+          "动感活力",
+          "工业质感"
+        ],
+        "default_colors": {
+          "main": "#D32F2F",
+          "accent": "#1B5E20",
+          "highlight": "#FFC107"
+        },
+        "avoid_elements": [
+          "柔美可爱",
+          "马卡龙色",
+          "精致装饰",
+          "复古格调"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "FIT-01",
+          "vi_module": "应用系统",
+          "scene_name": "健身房门头",
+          "prompt_template": "realistic photo of gym entrance, bold red and black signage, glass doors revealing equipment inside, {{scene_atmosphere}}, modern architecture photography, dramatic lighting, action vibe",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FIT-02",
+          "vi_module": "应用系统",
+          "scene_name": "器材陈列区",
+          "prompt_template": "row of free weights and dumbbells neatly organized on rack, gym mirrors reflecting space, {{scene_atmosphere}}, fitness facility photography, bright overhead lighting, clean composition",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FIT-03",
+          "vi_module": "应用系统",
+          "scene_name": "教练运动服",
+          "prompt_template": "personal trainer in branded athletic wear, muscles defined, confident pose, gym background, {{scene_atmosphere}}, fitness portrait photography, dramatic sidelight, sweat glow",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FIT-04",
+          "vi_module": "包装系统",
+          "scene_name": "蛋白粉包装",
+          "prompt_template": "branded protein tub with scoop, metallic label, bold red and green design, gym background, {{scene_atmosphere}}, product photography, rugged texture, studio lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FIT-05",
+          "vi_module": "包装系统",
+          "scene_name": "运动手提袋",
+          "prompt_template": "black sports duffel bag with brand logo, gym essentials visible, strong silhouette, {{scene_atmosphere}}, commercial product photography, high contrast lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FIT-06",
+          "vi_module": "营销系统",
+          "scene_name": "训练海报/横幅",
+          "prompt_template": "gym motivational banner on wall, bold typography, fitness quote, brand colors, {{scene_atmosphere}}, interior gym photography, dramatic uplighting, strong shadows",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FIT-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/门禁卡",
+          "prompt_template": "sleek black membership card with gym logo, metallic finish, barcode on back, {{scene_atmosphere}}, macro product photography, sharp focus, reflective surface",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FIT-08",
+          "vi_module": "导视系统",
+          "scene_name": "场馆指引标识",
+          "prompt_template": "wall sign in gym area, directional arrows, locker room and studio labels, metal finish, {{scene_atmosphere}}, interior detail photography, ambient gym lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "pharmacy",
+      "industry_name": "药店诊所",
+      "industry_category": "生活服务",
+      "alt_names": [
+        "药店",
+        "药房",
+        "诊所",
+        "医药",
+        "健康"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "十字",
+          "叶片",
+          "胶囊",
+          "心形",
+          "盾牌"
+        ],
+        "style_keywords": [
+          "专业洁净风",
+          "蓝绿配色",
+          "医学感",
+          "简洁信赖",
+          "温和专业"
+        ],
+        "default_colors": {
+          "main": "#1565C0",
+          "accent": "#2E7D32",
+          "highlight": "#BBDEFB"
+        },
+        "avoid_elements": [
+          "卡通幼稚",
+          "花哨装饰",
+          "暗黑风格",
+          "过度艺术化"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "PHARM-01",
+          "vi_module": "应用系统",
+          "scene_name": "药房门头",
+          "prompt_template": "realistic photo of pharmacy storefront, green cross sign illuminated, clean glass windows, prescription counter visible, {{scene_atmosphere}}, commercial architecture, clean daytime lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "PHARM-02",
+          "vi_module": "应用系统",
+          "scene_name": "药品陈列货架",
+          "prompt_template": "organized pharmacy shelves with OTC medications, color-coded labels, well-lit aisles, {{scene_atmosphere}}, retail interior photography, bright white lighting, clinical clean",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "PHARM-03",
+          "vi_module": "应用系统",
+          "scene_name": "药师白大褂",
+          "prompt_template": "pharmacist in white lab coat with brand patch, holding medication bottle, professional expression, {{scene_atmosphere}}, professional portrait photography, soft key light, clean background",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "PHARM-04",
+          "vi_module": "包装系统",
+          "scene_name": "药品包装盒",
+          "prompt_template": "branded medicine box on clean surface, dosage information, brand logo and color scheme, blister packs beside, {{scene_atmosphere}}, pharmaceutical product photography, clinical lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "PHARM-05",
+          "vi_module": "包装系统",
+          "scene_name": "药店手提袋",
+          "prompt_template": "white paper bag with pharmacy brand logo and green cross, prescription bottles visible at top, {{scene_atmosphere}}, commercial product still life, bright studio lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "PHARM-06",
+          "vi_module": "营销系统",
+          "scene_name": "健康宣传海报",
+          "prompt_template": "health awareness poster in pharmacy, wellness tips, medical illustrations, clean design, {{scene_atmosphere}}, informative signage photography, wall mount, even lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "PHARM-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/医保卡",
+          "prompt_template": "loyalty card with pharmacy brand, barcode, medical cross design, signature strip, {{scene_atmosphere}}, macro product photography, bright diffused light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "PHARM-08",
+          "vi_module": "导视系统",
+          "scene_name": "药房指引标识",
+          "prompt_template": "directional sign in pharmacy, section labels for prescription and OTC, clear typography, {{scene_atmosphere}}, interior detail photography, bright ambient light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "pet",
+      "industry_name": "宠物生活",
+      "industry_category": "生活服务",
+      "alt_names": [
+        "宠物",
+        "宠物店",
+        "猫",
+        "狗",
+        "宠物用品"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "爪印",
+          "骨头",
+          "鱼",
+          "铃铛",
+          "项圈"
+        ],
+        "style_keywords": [
+          "温暖友好风",
+          "暖橙色系",
+          "可爱手绘",
+          "活泼有趣",
+          "木质自然"
+        ],
+        "default_colors": {
+          "main": "#FF8F00",
+          "accent": "#5D4037",
+          "highlight": "#FFE082"
+        },
+        "avoid_elements": [
+          "冷色调",
+          "工业风",
+          "暗黑风格",
+          "正式商务"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "PET-01",
+          "vi_module": "应用系统",
+          "scene_name": "宠物店门头",
+          "prompt_template": "realistic photo of pet shop storefront, bright signage with paw print design, pet supplies visible through window, {{scene_atmosphere}}, retail storefront photography, cheerful daytime",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "PET-02",
+          "vi_module": "应用系统",
+          "scene_name": "宠物用品陈列",
+          "prompt_template": "shelves with dog toys and treats arranged by type and color, organized display, {{scene_atmosphere}}, retail photography, warm lighting, playful composition",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "PET-03",
+          "vi_module": "应用系统",
+          "scene_name": "店员围裙展示",
+          "prompt_template": "pet store assistant in brown apron with brand logo, holding a friendly cat, smiling, {{scene_atmosphere}}, warm portrait photography, soft natural light, cozy atmosphere",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "PET-04",
+          "vi_module": "包装系统",
+          "scene_name": "宠物食品包装",
+          "prompt_template": "branded dog food bag on wooden floor, resealable top, nutrition information, paw print logo, {{scene_atmosphere}}, product photography, textured surface, studio lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "PET-05",
+          "vi_module": "包装系统",
+          "scene_name": "宠物手提袋",
+          "prompt_template": "paper bag with pet brand logo and paw prints, dog leash hanging out, tissue paper, {{scene_atmosphere}}, product still life, warm studio light, playful",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "PET-06",
+          "vi_module": "营销系统",
+          "scene_name": "宠物服务海报",
+          "prompt_template": "in-store service poster showing grooming and bathing services, cute pet illustrations, pricing, {{scene_atmosphere}}, retail signage photography, wall mounted, bright light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "PET-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/洗澡卡",
+          "prompt_template": "loyalty card with paw print design, warm orange colors, pet name field, barcode, {{scene_atmosphere}}, macro photography, warm diffused light, friendly feel",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "PET-08",
+          "vi_module": "导视系统",
+          "scene_name": "店内宠物导视",
+          "prompt_template": "cute paw print directional signs in pet store, section labels for food and toys, {{scene_atmosphere}}, interior detail photography, playful warm lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "retail",
+      "industry_name": "零售/超市",
+      "industry_category": "零售购物",
+      "alt_names": [
+        "超市",
+        "便利店",
+        "零售",
+        "百货",
+        "日用"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "购物车",
+          "购物袋",
+          "货架",
+          "标签",
+          "条码"
+        ],
+        "style_keywords": [
+          "现代整洁风",
+          "蓝橙配色",
+          "清晰明亮",
+          "效率感",
+          "通透空间"
+        ],
+        "default_colors": {
+          "main": "#1565C0",
+          "accent": "#EF6C00",
+          "highlight": "#78909C"
+        },
+        "avoid_elements": [
+          "暗黑风格",
+          "复古做旧",
+          "过度装饰",
+          "狭窄拥挤感"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "RET-01",
+          "vi_module": "应用系统",
+          "scene_name": "超市门面",
+          "prompt_template": "realistic photo of supermarket entrance, bright signage, shopping carts lined up, glass automatic doors, {{scene_atmosphere}}, retail architecture photography, daytime white balance",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "RET-02",
+          "vi_module": "应用系统",
+          "scene_name": "商品货架陈列",
+          "prompt_template": "well-stocked grocery aisle with neatly arranged products, color-coordinated shelves, promotional end caps, {{scene_atmosphere}}, retail interior photography, bright fluorescent lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "RET-03",
+          "vi_module": "应用系统",
+          "scene_name": "员工马甲工服",
+          "prompt_template": "supermarket staff in branded vest and name tag, stocking shelves, professional demeanor, {{scene_atmosphere}}, candid workplace photography, natural overhead lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "RET-04",
+          "vi_module": "包装系统",
+          "scene_name": "自有品牌包装",
+          "prompt_template": "branded private-label product packaging on shelf, clean modern design, product information visible, {{scene_atmosphere}}, product display photography, bright studio light, sharp focus",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "RET-05",
+          "vi_module": "包装系统",
+          "scene_name": "超市购物袋",
+          "prompt_template": "reusable shopping bag with brand logo, groceries inside, sturdy construction, {{scene_atmosphere}}, product still life photography, natural lighting, everyday scene",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "RET-06",
+          "vi_module": "营销系统",
+          "scene_name": "促销海报/吊旗",
+          "prompt_template": "hanging promotional banner and shelf talkers in supermarket, discount offers, bold prices, {{scene_atmosphere}}, retail display photography, even lighting, busy composition",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "RET-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/积分卡",
+          "prompt_template": "store loyalty card with membership number, blue and orange design, magnetic stripe, {{scene_atmosphere}}, macro product photography, overhead lighting, clean surface",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "RET-08",
+          "vi_module": "导视系统",
+          "scene_name": "超市区域标识",
+          "prompt_template": "departmental hanging signs in supermarket, produce and dairy sections, bold font, clear visibility, {{scene_atmosphere}}, interior wayfinding photography, bright ambient light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "education",
+      "industry_name": "教育培训",
+      "industry_category": "教育培训",
+      "alt_names": [
+        "教育",
+        "培训",
+        "学校",
+        "辅导",
+        "艺术"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "书本",
+          "灯泡",
+          "星星",
+          "笔",
+          "阶梯"
+        ],
+        "style_keywords": [
+          "专业学术风",
+          "蓝绿搭配",
+          "知识感",
+          "清晰规范",
+          "鼓励积极"
+        ],
+        "default_colors": {
+          "main": "#283593",
+          "accent": "#00897B",
+          "highlight": "#FF8F00"
+        },
+        "avoid_elements": [
+          "暗黑低俗",
+          "过度卡通",
+          "花哨混乱",
+          "娱乐化"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "EDU-01",
+          "vi_module": "应用系统",
+          "scene_name": "培训机构门面",
+          "prompt_template": "realistic photo of education center storefront, bright modern signage, inspirational quotes on window, welcoming entrance, {{scene_atmosphere}}, educational architecture photography, daytime",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "EDU-02",
+          "vi_module": "应用系统",
+          "scene_name": "教具教材陈列",
+          "prompt_template": "classroom shelf with neatly organized textbooks and teaching materials, stationery, learning tools, {{scene_atmosphere}}, educational interior photography, bright white lighting, organized",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "EDU-03",
+          "vi_module": "应用系统",
+          "scene_name": "教师制服展示",
+          "prompt_template": "teacher in smart casual attire with brand badge, holding tablet, professional teaching environment, {{scene_atmosphere}}, educational portrait photography, soft natural light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "EDU-04",
+          "vi_module": "包装系统",
+          "scene_name": "教材教辅包装",
+          "prompt_template": "branded textbook and workbook set on desk, colorful covers, school logo, learning materials arranged, {{scene_atmosphere}}, educational product photography, bright desk lamp",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "EDU-05",
+          "vi_module": "包装系统",
+          "scene_name": "品牌手提袋",
+          "prompt_template": "eco-friendly canvas tote bag with education brand logo, books peeking out, sturdy design, {{scene_atmosphere}}, product still life, natural lighting, academic setting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "EDU-06",
+          "vi_module": "营销系统",
+          "scene_name": "课程宣传海报",
+          "prompt_template": "course promotion poster on wall, curriculum highlights, student success stories, bright colors, {{scene_atmosphere}}, educational display photography, even gallery lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "EDU-07",
+          "vi_module": "营销系统",
+          "scene_name": "学员卡/听课证",
+          "prompt_template": "student ID card and lanyard with school logo, photo placeholder, barcode, {{scene_atmosphere}}, macro product photography, clean bright studio light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "EDU-08",
+          "vi_module": "导视系统",
+          "scene_name": "校区指引标识",
+          "prompt_template": "wayfinding sign in educational facility, classroom numbers, directional arrows, clean sans-serif font, {{scene_atmosphere}}, interior institutional photography, bright light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "fresh_food",
+      "industry_name": "生鲜果蔬",
+      "industry_category": "餐饮美食",
+      "alt_names": [
+        "生鲜",
+        "水果",
+        "蔬菜",
+        "农产品",
+        "有机"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "叶片",
+          "水滴",
+          "太阳",
+          "果篮",
+          "露珠"
+        ],
+        "style_keywords": [
+          "自然新鲜风",
+          "绿色生机",
+          "田园感",
+          "水润光泽",
+          "健康有机"
+        ],
+        "default_colors": {
+          "main": "#2E7D32",
+          "accent": "#F9A825",
+          "highlight": "#FFFFFF"
+        },
+        "avoid_elements": [
+          "工业机械感",
+          "暗色调",
+          "过度包装",
+          "冷硬风格"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "FRESH-01",
+          "vi_module": "应用系统",
+          "scene_name": "果蔬店门面",
+          "prompt_template": "realistic photo of fresh produce store storefront, colorful fruits visible, green awning, chalkboard sign, {{scene_atmosphere}}, market-style architecture photography, sunny day",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FRESH-02",
+          "vi_module": "应用系统",
+          "scene_name": "生鲜堆头陈列",
+          "prompt_template": "abundant display of fresh fruits and vegetables in wooden crates, arranged by color, water droplets visible, {{scene_atmosphere}}, food market photography, natural window light, vibrant",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FRESH-03",
+          "vi_module": "应用系统",
+          "scene_name": "店员围裙展示",
+          "prompt_template": "produce vendor in green apron with brand logo, holding fresh apples, friendly smile, {{scene_atmosphere}}, market portrait photography, warm natural sunlight, earthy",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FRESH-04",
+          "vi_module": "包装系统",
+          "scene_name": "水果礼盒包装",
+          "prompt_template": "branded fruit gift box with clear window, assorted premium fruits, ribbon bow, green logo, {{scene_atmosphere}}, product photography, soft natural light, appetizing",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FRESH-05",
+          "vi_module": "包装系统",
+          "scene_name": "环保购物袋",
+          "prompt_template": "reusable mesh produce bag with brand logo, filled with fresh vegetables, eco-friendly, {{scene_atmosphere}}, product still life, natural woodland background, green tones",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FRESH-06",
+          "vi_module": "营销系统",
+          "scene_name": "新鲜特价海报",
+          "prompt_template": "daily specials poster on wall, fresh produce prices, hand-lettered style, chalkboard effect, {{scene_atmosphere}}, market signage photography, warm ambient light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FRESH-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/充值卡",
+          "prompt_template": "rewards card with fruit illustration, green gradient, brand logo, QR code for points, {{scene_atmosphere}}, macro product photography, diffused light, fresh feel",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FRESH-08",
+          "vi_module": "导视系统",
+          "scene_name": "生鲜区域标识",
+          "prompt_template": "wooden section sign in produce store, organic and conventional labels, hand-painted style, {{scene_atmosphere}}, interior market photography, natural warm light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "floral",
+      "industry_name": "花店花艺",
+      "industry_category": "时尚零售",
+      "alt_names": [
+        "花店",
+        "鲜花",
+        "花艺",
+        "盆景",
+        "绿植"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "花瓣",
+          "叶子",
+          "花束",
+          "丝带",
+          "花瓶"
+        ],
+        "style_keywords": [
+          "浪漫柔美风",
+          "粉色少女",
+          "自然清新",
+          "水彩感",
+          "梦幻柔焦"
+        ],
+        "default_colors": {
+          "main": "#C2185B",
+          "accent": "#F48FB1",
+          "highlight": "#FCE4EC"
+        },
+        "avoid_elements": [
+          "暗黑硬朗",
+          "工业风格",
+          "过度极简",
+          "冷硬几何"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "FLOR-01",
+          "vi_module": "应用系统",
+          "scene_name": "花店门面",
+          "prompt_template": "realistic photo of flower shop storefront, overflowing flower baskets, awning, romantic signage, {{scene_atmosphere}}, charming storefront photography, golden hour glow, dreamy",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FLOR-02",
+          "vi_module": "应用系统",
+          "scene_name": "花卉陈列展示",
+          "prompt_template": "buckets of fresh flowers arranged by color on wooden shelves, petals and greenery abundant, {{scene_atmosphere}}, floral display photography, soft diffused light, vibrant",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FLOR-03",
+          "vi_module": "应用系统",
+          "scene_name": "花艺师围裙",
+          "prompt_template": "florist in pink apron with brand logo, arranging bouquet, creative workspace background, {{scene_atmosphere}}, artisan portrait photography, soft natural window light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FLOR-04",
+          "vi_module": "包装系统",
+          "scene_name": "鲜花束包装",
+          "prompt_template": "branded bouquet wrapping with kraft paper and ribbon, brand sticker, fresh blooms visible, {{scene_atmosphere}}, floral product photography, soft romantic lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "FLOR-05",
+          "vi_module": "包装系统",
+          "scene_name": "手提花盒",
+          "prompt_template": "branded flower box with clear lid, arranged bouquet inside, ribbon bow, elegant design, {{scene_atmosphere}}, luxury floristry photography, soft diffused studio light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FLOR-06",
+          "vi_module": "营销系统",
+          "scene_name": "花艺课程海报",
+          "prompt_template": "floral workshop poster on wall, class schedule, bouquet designs, botanical illustrations, {{scene_atmosphere}}, artistic display photography, soft spotlight, romantic",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FLOR-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/花卡",
+          "prompt_template": "floral membership card with pressed flower design, pink gradient, elegant font, {{scene_atmosphere}}, macro product photography, soft backlight, delicate texture",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "FLOR-08",
+          "vi_module": "导视系统",
+          "scene_name": "店内花区标识",
+          "prompt_template": "wooden sign in flower shop, section labels for roses and lilies, hand-painted flowers, {{scene_atmosphere}}, rustic interior detail, soft natural light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "home",
+      "industry_name": "家居建材",
+      "industry_category": "零售购物",
+      "alt_names": [
+        "家居",
+        "建材",
+        "家具",
+        "装修",
+        "软装"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "房子",
+          "工具",
+          "尺子",
+          "叶子",
+          "齿轮"
+        ],
+        "style_keywords": [
+          "自然质朴风",
+          "大地色系",
+          "侘寂美学",
+          "温润质感",
+          "手作温度"
+        ],
+        "default_colors": {
+          "main": "#5D4037",
+          "accent": "#A1887F",
+          "highlight": "#EFEBE9"
+        },
+        "avoid_elements": [
+          "荧光色彩",
+          "卡通风格",
+          "过度花哨",
+          "冷工业感"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "HOME-01",
+          "vi_module": "应用系统",
+          "scene_name": "家居店门面",
+          "prompt_template": "realistic photo of home decor store storefront, warm window display with room setup, elegant signage, {{scene_atmosphere}}, retail storefront photography, warm golden hour light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "HOME-02",
+          "vi_module": "应用系统",
+          "scene_name": "家居场景陈列",
+          "prompt_template": "beautifully styled living room display in store, sofa and coffee table arrangement, coordinated decor, {{scene_atmosphere}}, interior design photography, soft warm lighting, inviting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "HOME-03",
+          "vi_module": "应用系统",
+          "scene_name": "店员工装展示",
+          "prompt_template": "home store assistant in branded apron, adjusting display decor, professional and friendly, {{scene_atmosphere}}, retail portrait photography, warm ambient lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "HOME-04",
+          "vi_module": "包装系统",
+          "scene_name": "家居用品包装",
+          "prompt_template": "branded home fragrance candle box on wooden surface, minimalist design, earthy colors, {{scene_atmosphere}}, product photography, soft natural light, warm tones",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "HOME-05",
+          "vi_module": "包装系统",
+          "scene_name": "建材手提袋",
+          "prompt_template": "sturdy canvas shopping bag with home brand logo, furniture samples inside, reinforced handles, {{scene_atmosphere}}, product still life, natural lighting, functional aesthetic",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "HOME-06",
+          "vi_module": "营销系统",
+          "scene_name": "促销海报/画册",
+          "prompt_template": "in-store promotional display for seasonal collection, room setup with signage, curated decor, {{scene_atmosphere}}, retail display photography, warm spotlights, cozy atmosphere",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "HOME-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/折扣卡",
+          "prompt_template": "premium membership card in wood texture design, brand logo embossed, warm brown tones, {{scene_atmosphere}}, macro product photography, soft warm light, organic texture",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "HOME-08",
+          "vi_module": "导视系统",
+          "scene_name": "家居区域导视",
+          "prompt_template": "departmental signage in home store, minimalist wooden signs for furniture and lighting sections, {{scene_atmosphere}}, interior wayfinding photography, warm ambient light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "nail",
+      "industry_name": "美甲美睫",
+      "industry_category": "生活服务",
+      "alt_names": [
+        "美甲",
+        "美睫",
+        "指甲",
+        "甲艺",
+        "手足护理"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "指甲",
+          "星星",
+          "水滴",
+          "亮片",
+          "花朵"
+        ],
+        "style_keywords": [
+          "甜酷时尚风",
+          "紫粉渐变",
+          "精致闪亮",
+          "少女感",
+          "潮流个性"
+        ],
+        "default_colors": {
+          "main": "#E8576C",
+          "accent": "#9B72CF",
+          "highlight": "#F0D5A8"
+        },
+        "avoid_elements": [
+          "暗黑压抑",
+          "工业粗糙",
+          "过度朴素",
+          "冷硬无趣"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "NAIL-01",
+          "vi_module": "应用系统",
+          "scene_name": "美甲店门面",
+          "prompt_template": "realistic photo of nail salon storefront, neon sign, pink and purple decor visible, stylish entrance, {{scene_atmosphere}}, trendy retail architecture photography, evening neon glow",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "NAIL-02",
+          "vi_module": "应用系统",
+          "scene_name": "甲油陈列展示",
+          "prompt_template": "organized nail polish shelf display, hundreds of colors arranged in gradient, bottles catching light, {{scene_atmosphere}}, beauty retail photography, bright spotlights, colorful",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "NAIL-03",
+          "vi_module": "应用系统",
+          "scene_name": "美甲师制服",
+          "prompt_template": "nail artist in stylish branded apron, holding nail art brush, focused on detailed work, {{scene_atmosphere}}, professional portrait photography, bright task lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "NAIL-04",
+          "vi_module": "包装系统",
+          "scene_name": "甲油胶包装",
+          "prompt_template": "branded gel nail polish bottles with metallic caps, color swatch labels, minimalist packaging, {{scene_atmosphere}}, beauty product photography, soft studio light, gradient background",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "NAIL-05",
+          "vi_module": "包装系统",
+          "scene_name": "品牌手提袋",
+          "prompt_template": "small branded paper bag with cosmetic tissue, nail files peeking out, logo in gold foil, {{scene_atmosphere}}, product still life photography, soft pink lighting",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "NAIL-06",
+          "vi_module": "营销系统",
+          "scene_name": "美甲款式海报",
+          "prompt_template": "nail art design poster on wall, gallery of completed styles, trending designs, {{scene_atmosphere}}, salon interior photography, soft pink ambient light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "NAIL-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/充值卡",
+          "prompt_template": "loyalty card with nail art design, holographic effect, pink and purple gradient, barcode, {{scene_atmosphere}}, macro product photography, iridescent light, sparkle",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "NAIL-08",
+          "vi_module": "导视系统",
+          "scene_name": "店内服务标识",
+          "prompt_template": "stylish acrylic sign in nail salon, service labels in elegant font, pink neon border, {{scene_atmosphere}}, interior detail photography, ambient pink glow",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "tea",
+      "industry_name": "茶业茗茶",
+      "industry_category": "餐饮美食",
+      "alt_names": [
+        "茶业",
+        "茶叶",
+        "茗茶",
+        "茶文化",
+        "茶具"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "茶叶",
+          "茶壶",
+          "山水",
+          "竹子",
+          "茶杯"
+        ],
+        "style_keywords": [
+          "禅意古风",
+          "东方雅致",
+          "水墨韵味",
+          "自然拙朴",
+          "空灵安静"
+        ],
+        "default_colors": {
+          "main": "#33691E",
+          "accent": "#D4A574",
+          "highlight": "#F5E6D3"
+        },
+        "avoid_elements": [
+          "艳俗花哨",
+          "工业现代",
+          "可爱卡通",
+          "冷色科技"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "TEA-01",
+          "vi_module": "应用系统",
+          "scene_name": "茶叶店门面",
+          "prompt_template": "realistic photo of traditional tea house storefront, wooden facade, calligraphy sign, bamboo decor, {{scene_atmosphere}}, cultural architecture photography, soft morning light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "TEA-02",
+          "vi_module": "应用系统",
+          "scene_name": "茶具茶叶陈列",
+          "prompt_template": "display shelf with ceramic teapots and tea canisters, wooden texture, organized by tea type, {{scene_atmosphere}}, traditional still life photography, warm soft lighting, zen",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "TEA-03",
+          "vi_module": "应用系统",
+          "scene_name": "茶艺师服饰",
+          "prompt_template": "tea master in traditional attire with brand embroidery, performing tea ceremony, serene expression, {{scene_atmosphere}}, cultural portrait photography, soft warm backlight, peaceful",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "TEA-04",
+          "vi_module": "包装系统",
+          "scene_name": "茶叶礼盒包装",
+          "prompt_template": "branded tea gift box wrapped in traditional paper and fabric, seal stamp logo, premium tea canisters inside, {{scene_atmosphere}}, luxury product photography, warm natural light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "TEA-05",
+          "vi_module": "包装系统",
+          "scene_name": "品牌手提袋",
+          "prompt_template": "handcrafted paper bag with tea brand calligraphy, twisted rope handles, natural kraft texture, {{scene_atmosphere}}, artisanal photography, soft diffused light, earthy",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "TEA-06",
+          "vi_module": "营销系统",
+          "scene_name": "茶文化海报",
+          "prompt_template": "wall scroll or framed poster in tea house, tea culture poem, ink wash painting style, {{scene_atmosphere}}, traditional interior photography, soft ambient light, serene",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "TEA-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/品茗卡",
+          "prompt_template": "tea ceremony membership card with embossed tea leaf, traditional pattern border, warm cream color, {{scene_atmosphere}}, macro photography, soft natural light, textured paper",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "TEA-08",
+          "vi_module": "导视系统",
+          "scene_name": "茶馆内导视",
+          "prompt_template": "wooden engraved sign in tea house, section labels, Chinese calligraphy style, natural patina, {{scene_atmosphere}}, traditional detail photography, warm soft light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "industry_id": "general",
+      "industry_name": "通用模板",
+      "industry_category": "通用模板",
+      "alt_names": [
+        "通用",
+        "模板",
+        "自定义",
+        "灵活",
+        "综合"
+      ],
+      "logo_map": {
+        "core_elements": [
+          "星形",
+          "菱形",
+          "圆圈",
+          "箭头",
+          "网格"
+        ],
+        "style_keywords": [
+          "现代简洁风",
+          "通用百搭",
+          "清晰专业",
+          "高适应",
+          "中性色彩"
+        ],
+        "default_colors": {
+          "main": "#37474F",
+          "accent": "#00897B",
+          "highlight": "#FFB300"
+        },
+        "avoid_elements": [
+          "过度主题化",
+          "强烈文化特征",
+          "极端风格化",
+          "限定场景"
+        ]
+      },
+      "scene_list": [
+        {
+          "scene_id": "GEN-01",
+          "vi_module": "应用系统",
+          "scene_name": "品牌门头",
+          "prompt_template": "realistic photo of modern storefront with brand signage, clean glass facade, contemporary architecture, {{scene_atmosphere}}, commercial architecture photography, natural daylight",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.75
+            },
+            {
+              "type": "depth",
+              "weight": 0.5
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "GEN-02",
+          "vi_module": "应用系统",
+          "scene_name": "产品陈列展示",
+          "prompt_template": "clean product display on minimalist shelves, neatly arranged items, organized by height and color, {{scene_atmosphere}}, retail product photography, bright studio lighting, professional",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "GEN-03",
+          "vi_module": "应用系统",
+          "scene_name": "员工着装展示",
+          "prompt_template": "employee in branded uniform standing at counter, brand logo visible, professional posture, {{scene_atmosphere}}, corporate portrait photography, soft key light, clean background",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "openpose",
+              "weight": 0.6
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "GEN-04",
+          "vi_module": "包装系统",
+          "scene_name": "产品包装",
+          "prompt_template": "branded product packaging box on clean surface, logo front and center, minimalist design, {{scene_atmosphere}}, product packaging photography, studio lighting, sharp focus",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            },
+            {
+              "type": "canny",
+              "weight": 0.4
+            }
+          ],
+          "priority": "required",
+          "enabled": true
+        },
+        {
+          "scene_id": "GEN-05",
+          "vi_module": "包装系统",
+          "scene_name": "品牌手提袋",
+          "prompt_template": "branded carry bag with logo, neutral colors, clean design, handles visible, {{scene_atmosphere}}, commercial product still life, soft studio light, minimalist",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "GEN-06",
+          "vi_module": "营销系统",
+          "scene_name": "宣传海报",
+          "prompt_template": "in-store promotional poster or banner, brand messaging, clean layout with product images, {{scene_atmosphere}}, retail signage photography, backlit display, even light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "GEN-07",
+          "vi_module": "营销系统",
+          "scene_name": "会员卡/积分卡",
+          "prompt_template": "standard membership card with brand logo, clean modern design with magnetic stripe, {{scene_atmosphere}}, macro product photography, bright diffused studio light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.7
+            }
+          ],
+          "priority": "suggested",
+          "enabled": true
+        },
+        {
+          "scene_id": "GEN-08",
+          "vi_module": "导视系统",
+          "scene_name": "店内指引标识",
+          "prompt_template": "clean wayfinding sign in interior space, clear typography, brand color accents, arrow indicators, {{scene_atmosphere}}, interior signage photography, bright ambient light",
+          "controlnet_override": [
+            {
+              "type": "ip-adapter",
+              "weight": 0.6
+            }
+          ],
+          "priority": "optional",
+          "enabled": false
+        }
+      ]
+    }
+  ]
+}

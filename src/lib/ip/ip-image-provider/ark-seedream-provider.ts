@@ -24,7 +24,7 @@ const TIMEOUT_MS = 40_000;
 const MODEL_V3 = "doubao-seedream-3-0-t2i-250415";
 const MODEL_V45 = "doubao-seedream-4-5-251128";
 const MODEL_V5LITE = "doubao-seedream-5-0-260128";
-const MODEL_V4 = "doubao-seedream-4-0-250828";
+const MODEL_V4 = "ark-bd343774-47ba-4811-bf4c-0533306c7267-8c346";
 
 // 文生图fallback链: 3.0(200张免费) → 4.5(200张) → 5.0Lite(50张) → 4.0(191张)
 const TXT2IMG_MODELS = [MODEL_V3, MODEL_V45, MODEL_V5LITE, MODEL_V4];
@@ -158,7 +158,7 @@ export class ArkSeedreamProvider implements ImageProvider {
       code.includes("limit") ||
       code.includes("insufficient") ||
       code.includes("balance") ||
-      msg.includes("model not open") ||
+      msg.includes("model not open") || msg.includes("does not exist") || msg.includes("do not have access") ||
       msg.includes("quota") ||
       msg.includes("insufficient") ||
       msg.includes("balance")

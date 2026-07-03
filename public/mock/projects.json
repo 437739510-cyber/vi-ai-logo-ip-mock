@@ -1,5 +1,181 @@
 [
   {
+    "id": "VI-20260703-SKXI",
+    "submissionId": "SBM-20260703-5372",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "4444",
+    "mainProducts": "",
+    "businessForm": "直营",
+    "createdAt": "2026-07-03T08:22:25.372Z",
+    "updatedAt": "2026-07-03T08:22:25.372Z",
+    "created_at": "2026-07-03T08:22:25.372Z",
+    "updated_at": "2026-07-03T08:22:25.372Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-03T08:22:25.372Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260703-A18J",
+    "submissionId": "SBM-20260703-3927",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "7777",
+    "mainProducts": "",
+    "businessForm": "直营",
+    "createdAt": "2026-07-03T08:14:23.927Z",
+    "updatedAt": "2026-07-03T08:14:23.927Z",
+    "created_at": "2026-07-03T08:14:23.927Z",
+    "updated_at": "2026-07-03T08:14:23.927Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-03T08:14:23.927Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260703-X8WQ",
+    "submissionId": "SBM-20260703-2056",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "2222",
+    "mainProducts": "",
+    "businessForm": "??",
+    "createdAt": "2026-07-03T08:11:02.056Z",
+    "updatedAt": "2026-07-03T08:11:02.056Z",
+    "created_at": "2026-07-03T08:11:02.056Z",
+    "updated_at": "2026-07-03T08:11:02.056Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-03T08:11:02.056Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260703-MCWO",
+    "submissionId": "SBM-20260703-2962",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "9999",
+    "mainProducts": "",
+    "businessForm": "??",
+    "createdAt": "2026-07-03T08:10:52.962Z",
+    "updatedAt": "2026-07-03T08:10:52.962Z",
+    "created_at": "2026-07-03T08:10:52.962Z",
+    "updated_at": "2026-07-03T08:10:52.962Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-03T08:10:52.962Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260703-9GAF",
+    "submissionId": "SBM-20260703-3889",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#8B1A1A",
+      "secondary": "#D4A574",
+      "accent": "#2F2F2F"
+    },
+    "viewPassword": "7777",
+    "mainProducts": "",
+    "businessForm": "直营",
+    "createdAt": "2026-07-03T07:38:03.888Z",
+    "updatedAt": "2026-07-03T07:38:03.888Z",
+    "created_at": "2026-07-03T07:38:03.888Z",
+    "updated_at": "2026-07-03T07:38:03.888Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-03T07:38:03.888Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260703-XKPF",
+    "submissionId": "SBM-20260703-7820",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#8B1A1A",
+      "secondary": "#D4A574",
+      "accent": "#2F2F2F"
+    },
+    "viewPassword": "1111",
+    "mainProducts": "",
+    "businessForm": "直营",
+    "createdAt": "2026-07-03T07:34:47.820Z",
+    "updatedAt": "2026-07-03T07:34:47.820Z",
+    "created_at": "2026-07-03T07:34:47.820Z",
+    "updated_at": "2026-07-03T07:34:47.820Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-03T07:34:47.820Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260703-5CZP",
+    "submissionId": "SBM-20260703-3365",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#8B1A1A",
+      "secondary": "#D4A574",
+      "accent": "#2F2F2F"
+    },
+    "viewPassword": "2222",
+    "mainProducts": "",
+    "businessForm": "直营",
+    "createdAt": "2026-07-03T06:45:13.364Z",
+    "updatedAt": "2026-07-03T06:45:13.364Z",
+    "created_at": "2026-07-03T06:45:13.364Z",
+    "updated_at": "2026-07-03T06:45:13.364Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-03T06:45:13.364Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260703-XXVF",
+    "submissionId": "SBM-20260703-0417",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#192337",
+      "secondary": "#B41E1E",
+      "accent": "#C8A03C"
+    },
+    "viewPassword": "8888",
+    "mainProducts": "",
+    "businessForm": "",
+    "createdAt": "2026-07-03T05:49:00.416Z",
+    "updatedAt": "2026-07-03T05:49:00.416Z",
+    "created_at": "2026-07-03T05:49:00.416Z",
+    "updated_at": "2026-07-03T05:49:00.416Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-03T05:49:00.416Z"
+      }
+    ]
+  },
+  {
     "id": "VI-20260625-OCEM",
     "submissionId": "SBM-20260625-6526",
     "status": "submitted",

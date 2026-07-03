@@ -1,0 +1,121 @@
+{
+  "comment": "潮味海鲜大排档 Logo - Pony XL V6 + LogoRedmondV2 + sharp_chinese_text_fix",
+  "nodes": {
+    "3": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "ponyDiffusionV6XL_v6StartWithThisOne.safetensors"
+      }
+    },
+    "10": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "lora_name": "LogoRedmondV2-Logo-LogoRedmAF.safetensors",
+        "strength_model": 0.5,
+        "strength_clip": 0.5,
+        "model": [
+          "3",
+          0
+        ],
+        "clip": [
+          "3",
+          1
+        ]
+      }
+    },
+    "11": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "lora_name": "sharp_chinese_text_fix_sdxl.safetensors",
+        "strength_model": 0.5,
+        "strength_clip": 0.5,
+        "model": [
+          "10",
+          0
+        ],
+        "clip": [
+          "10",
+          1
+        ]
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "score_9, score_8_up, score_7_up, best quality, masterpiece, logo design, text logo, the words '潮味海鲜大排档', Chinese restaurant seafood brand logo, crab and ocean wave graphic elements, woodcut print style, deep navy blue and rust orange colors, bold Chinese calligraphy lettering, flat 2D vector style, simple light beige background, centered composition, clean sharp edges, minimalist, commercial food logo, stamp seal style",
+        "clip": [
+          "11",
+          1
+        ]
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "worst quality, low quality, normal quality, blurry, deformed, distorted, 3d render, shadow, gradient, complex background, watermark, text, extra limbs, bad anatomy, photorealistic, photography, illustration, cartoon, sketch, painting, soft edges, glow effect, abstract, messy, oversaturated, rainbow, pink, gold, jewelry, lotus, flower, elegant luxury, pastel",
+        "clip": [
+          "11",
+          1
+        ]
+      }
+    },
+    "6": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 512,
+        "height": 512,
+        "batch_size": 1
+      }
+    },
+    "7": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 0,
+        "steps": 20,
+        "cfg": 3.5,
+        "sampler_name": "euler_ancestral",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "model": [
+          "11",
+          0
+        ],
+        "positive": [
+          "4",
+          0
+        ],
+        "negative": [
+          "5",
+          0
+        ],
+        "latent_image": [
+          "6",
+          0
+        ]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "7",
+          0
+        ],
+        "vae": [
+          "3",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "chaowei_pony",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    }
+  }
+}

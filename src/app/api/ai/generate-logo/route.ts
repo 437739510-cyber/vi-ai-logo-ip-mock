@@ -1,4 +1,4 @@
-// V120: Switched to ComfyUI local (free) -- ARK/DashScope cloud APIs removed
+﻿// V120: Switched to ComfyUI local (free) -- ARK/DashScope cloud APIs removed
 /**
  * API: POST /api/ai/generate-logo
  *
@@ -13,7 +13,8 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { comfyuiGenerateLogo, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
+import { getDefaultRegistry, type GenerateImageResult } from "@/lib/ip/ip-image-provider";
+import { overlayChineseText } from "@/lib/ip/overlay-chinese";
 
 export const maxDuration = 180;
 export const dynamic = "force-dynamic";
@@ -112,10 +113,11 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     }).eq("id", projectId);
 
-    // Fire-and-forget: background generation via ComfyUI SDXL
+    // Fire-and-forget: background generation via provider registry
     void (async () => {
       const logoResults: any[] = [];
-      console.log("[generate-logo] Generating " + prompts.length + " logos for: " + companyName + " via ComfyUI");
+      const provider = await getDefaultRegistry().getActive();
+      console.log("[generate-logo] Generating " + prompts.length + " logos for: " + companyName + " via " + provider.name);
 
       for (let i = 0; i < prompts.length; i++) {
         const rawPrompt = prompts[i];
@@ -125,15 +127,18 @@ export async function POST(req: NextRequest) {
         console.log("[generate-logo] Prompt " + (i+1) + "/" + prompts.length);
 
         try {
-          const result = await comfyuiGenerateLogo({
-            prompt: enhancedPrompt,
-            negativePrompt,
-            size: "1024x1024",
-          });
-          console.log("[generate-logo] ComfyUI logo " + (i+1) + " OK (" + result.durationMs + "ms)");
+          const result = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-${i+1}`, label: "Logo", description: rawPrompt }, prompt: enhancedPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
+          console.log("[generate-logo] " + provider.name + " logo " + (i+1) + " OK (" + result.durationMs + "ms)");
+          // V121: Overlay Chinese brand name on logo (SDXL/Star-3 can''t do Chinese)
+          let logoImageUrl = result.imageUrl;
+          try {
+            if (result.providerName.indexOf(chr(97)+chr(114)+chr(107)) === -1) { logoImageUrl = await overlayChineseText(result.imageUrl, companyName); }
+          } catch (e: any) {
+            console.warn("[generate-logo] Chinese overlay failed for logo " + (i+1) + ":", e.message);
+          }
           logoResults.push({
-            index: i, prompt: rawPrompt, imageUrl: result.imageUrl,
-            model: result.model, durationMs: result.durationMs,
+            index: i, prompt: rawPrompt, imageUrl: logoImageUrl,
+            model: result.providerMeta?.model || result.providerName, durationMs: result.durationMs,
           });
         } catch (err: any) {
           console.error("[generate-logo] Failed prompt " + (i+1) + ":", err.message);

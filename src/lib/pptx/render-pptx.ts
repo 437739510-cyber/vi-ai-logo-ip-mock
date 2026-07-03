@@ -250,9 +250,9 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
     }
     sceneImages = compressedScenes;
     // Logo在PPTX中会被多次引用，缩小到256px足够显示
-    if (options.logoData) options.logoData = await compressImage(options.logoData, { maxWidth: 256, isLogo: true });
-    if (options.mascotData) options.mascotData = await compressImage(options.mascotData, { maxWidth: 256, isLogo: true });
-    if (options.aiLogoData) options.aiLogoData = await compressImage(options.aiLogoData, { maxWidth: 256, isLogo: true });
+    if (options.logoData) options.logoData = await compressImage(options.logoData, { maxWidth: 1024, isLogo: true });
+    if (options.mascotData) options.mascotData = await compressImage(options.mascotData, { maxWidth: 1024, isLogo: true });
+    if (options.aiLogoData) options.aiLogoData = await compressImage(options.aiLogoData, { maxWidth: 1024, isLogo: true });
     console.log("[render-pptx] Image compression done");
   }
 
@@ -554,7 +554,7 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     // 标签
     slide.addText(s.label, {
       x: colX + 0.2, y: colTopY + 0.3, w: colW - 0.4, h: 0.45,
-      fontSize: 18, bold: true, color: bc.pri, fontFace: "Noto Sans SC", align: "center",
+      fontSize: 22, bold: true, color: bc.pri, fontFace: "Noto Sans SC", align: "center",
     });
     // 内容
     slide.addText(s.content, {
@@ -574,7 +574,7 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     });
     slide.addText("品牌故事", {
       x: cx + 0.3, y: storyY, w: CONTENT_W - 0.3, h: 0.45,
-      fontSize: 18, bold: true, color: bc.pri, fontFace: "Noto Sans SC",
+      fontSize: 22, bold: true, color: bc.pri, fontFace: "Noto Sans SC",
     });
     slide.addText(sanitizeText(opts.brandStory), {
       x: cx + 0.3, y: storyY + 0.5, w: CONTENT_W - 0.5, h: storyH - 0.6,
@@ -625,8 +625,8 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
   const philosophy = opts.logoPhilosophy || fta(bp, ["logo-philosophy","logo-meaning","logo-concept"]) || "Logo 凝练了品牌核心视觉要素，体现品牌独特识别性。";
   const phiY = 4.8;
   slide.addShape("rect", { x: cx, y: phiY, w: 0.06, h: 0.35, fill: { color: bc.pri }, rectRadius: 0.02 });
-  slide.addText("设计理念", { x: cx + 0.2, y: phiY, w: 2, h: 0.35, fontSize: 18, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
-  slide.addText(philosophy, { x: cx + 0.2, y: phiY + 0.45, w: CONTENT_W - 0.4, h: 1.5, fontSize: 14, color: "444444", lineSpacingMultiple: 1.5, fontFace: "Noto Sans SC" });
+  slide.addText("设计理念", { x: cx + 0.2, y: phiY, w: 2, h: 0.35, fontSize: 22, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+  slide.addText(philosophy, { x: cx + 0.2, y: phiY + 0.45, w: CONTENT_W - 0.4, h: 3.0, fontSize: 14, color: "444444", lineSpacingMultiple: 1.5, fontFace: "Noto Sans SC" });
 
 
 
@@ -662,7 +662,7 @@ function renderLogoVariations(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: R
 
   const gap = 0.2;
   const cellW = (CONTENT_W - gap) / 2;
-  const cellH = 2.6;
+  const cellH = 3.4;
 
   for (const v of variations) {
     const x = cx + v.col * (cellW + gap);
@@ -699,7 +699,7 @@ function renderLogoVariations(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: R
 
   // Bottom note
   slide.addText("Logo在不同背景和应用场景下应选用合适的组合形式，确保识别性与美观性。", {
-    x: cx, y: 7.2, w: CONTENT_W, h: 0.3,
+    x: cx, y: 8.2, w: CONTENT_W, h: 0.3,
     fontSize: 12, color: "888888", align: "center",
   });
 }
@@ -1069,7 +1069,7 @@ function renderBasicSpec(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Render
   const cx = MARGIN + LEFT_BAR_W;
 
   // Logo保护空间
-  slide.addText("LOGO 保护空间", { x: cx, y: 1.6, w: CONTENT_W, h: 0.5, fontSize: 18, bold: true, color: bc.pri });
+  slide.addText("LOGO 保护空间", { x: cx, y: 1.6, w: CONTENT_W, h: 0.5, fontSize: 22, bold: true, color: bc.pri });
   slide.addText("LOGO 四周保留至少 15% 保护空间，不可被任何元素遮挡或裁切", { x: cx, y: 2.1, w: CONTENT_W, h: 0.4, fontSize: 14, color: "555555" });
 
   const demoSize = 2.8;
@@ -1086,7 +1086,7 @@ function renderBasicSpec(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Render
   slide.addText("15% 保护空间", { x: demoX - 0.35, y: demoY + demoSize + 0.15, w: demoSize + 0.7, h: 0.3, fontSize: 12, color: "999999", align: "center" });
 
   // 最小尺寸
-  slide.addText("最小尺寸规范", { x: cx, y: 6.5, w: CONTENT_W, h: 0.5, fontSize: 18, bold: true, color: bc.pri });
+  slide.addText("最小尺寸规范", { x: cx, y: 6.5, w: CONTENT_W, h: 0.5, fontSize: 22, bold: true, color: bc.pri });
   const rows = [
     [{ text: "应用场景", options: { fontSize: 12, bold: true, color: "FFFFFF" } }, { text: "最小宽度", options: { fontSize: 12, bold: true, color: "FFFFFF" } }, { text: "说明", options: { fontSize: 12, bold: true, color: "FFFFFF" } }],
     [{ text: "印刷品", options: { fontSize: 12, color: "333333" } }, { text: "30mm", options: { fontSize: 12, color: "333333" } }, { text: "名片/信封等印刷物料", options: { fontSize: 12, color: "333333" } }],

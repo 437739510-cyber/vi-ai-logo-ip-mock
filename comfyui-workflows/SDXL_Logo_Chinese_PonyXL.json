@@ -1,0 +1,121 @@
+{
+  "comment": "SDXL_Logo_Chinese_PonyXL - 中文Logo专用，虾or大排档字体标",
+  "nodes": {
+    "3": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "ponyDiffusionV6XL_v6StartWithThisOne.safetensors"
+      }
+    },
+    "10": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "lora_name": "LogoRedmondV2-Logo-LogoRedmAF.safetensors",
+        "strength_model": 0.5,
+        "strength_clip": 0.5,
+        "model": [
+          "3",
+          0
+        ],
+        "clip": [
+          "3",
+          1
+        ]
+      }
+    },
+    "11": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "lora_name": "sharp_chinese_text_fix_sdxl.safetensors",
+        "strength_model": 0.4,
+        "strength_clip": 0.4,
+        "model": [
+          "10",
+          0
+        ],
+        "clip": [
+          "10",
+          1
+        ]
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "2D flat vector logo, clean white background, centered, high contrast, sharp edges, seafood crab claws and ocean waves, rough brush lettering CHAOWEI Chinese seafood brand, woodcut style",
+        "clip": [
+          "11",
+          1
+        ]
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "deformed, blurry, low quality, distorted, 3d render, shadow, gradient, complex background, watermark, extra limbs, bad anatomy, photorealistic, illustration, cartoon",
+        "clip": [
+          "11",
+          1
+        ]
+      }
+    },
+    "6": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "7": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 0,
+        "steps": 20,
+        "cfg": 3.5,
+        "sampler_name": "euler_ancestral",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "model": [
+          "11",
+          0
+        ],
+        "positive": [
+          "4",
+          0
+        ],
+        "negative": [
+          "5",
+          0
+        ],
+        "latent_image": [
+          "6",
+          0
+        ]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "7",
+          0
+        ],
+        "vae": [
+          "3",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "pony_logo",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    }
+  }
+}

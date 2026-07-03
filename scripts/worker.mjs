@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Brand Brain Automation Worker
  * ==============================
  * Local Windows polling script. Bridges cloud Zeabur to local ComfyUI.
@@ -275,7 +275,7 @@ async function processLogoGeneration(project) {
   for (let i = 0; i < logoPrompts.length; i++) {
     const rawPrompt = logoPrompts[i];
     const enhancedPrompt = rawPrompt + ', logo design on clean white background, centered composition';
-    const negativePrompt = 'cartoon, illustration, vector art, flat design, digital art, photorealistic, shadow, gradient, complex background, text, watermark';
+    const negativePrompt = 'deformed, blurry, low quality, distorted, 3d render, shadow, gradient, complex background, watermark, text, extra limbs, bad anatomy';
 
     let retries = 0;
     let result = null;
