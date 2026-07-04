@@ -1,4 +1,4 @@
-/**
+﻿/**
  * IP Image Provider Layer — Mock Provider
  *
  * Placeholder implementation — no real image generation.
@@ -30,7 +30,7 @@ export class MockProvider implements ImageProvider {
     );
 
     return {
-      imageUrl: "", // Future: actual image URL
+      imageUrl: "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22512%22 height=%22512%22%3E%3Crect fill=%22%23E8576C%22 width=%22512%22 height=%22512%22/%3E%3Ctext x=%22256%22 y=%22256%22 fill=%22white%22 font-size=%2224%22 text-anchor=%22middle%22 dy=%22.3em%22%3E花语时光%3C/text%3E%3C/svg%3E", // Future: actual image URL
       actualCost: PLACEHOLDER_COST,
       durationMs: PLACEHOLDER_DELAY_MS,
       assetId: `mock-asset-${this.counter}-${Date.now()}`,

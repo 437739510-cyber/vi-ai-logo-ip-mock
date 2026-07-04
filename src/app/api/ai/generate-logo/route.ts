@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
           // V121: Overlay Chinese brand name on logo (SDXL/Star-3 can''t do Chinese)
           let logoImageUrl = result.imageUrl;
           try {
-            if (result.providerName.indexOf(chr(97)+chr(114)+chr(107)) === -1) { logoImageUrl = await overlayChineseText(result.imageUrl, companyName); }
+            if (result.providerName.indexOf("ark") === -1) { logoImageUrl = await overlayChineseText(result.imageUrl, companyName); }
           } catch (e: any) {
             console.warn("[generate-logo] Chinese overlay failed for logo " + (i+1) + ":", e.message);
           }

@@ -21,16 +21,15 @@ import type {
 const ARK_API_URL = "https://ark.cn-beijing.volces.com/api/v3/images/generations";
 const TIMEOUT_MS = 40_000;
 
-const MODEL_V3 = "doubao-seedream-3-0-t2i-250415";
 const MODEL_V45 = "doubao-seedream-4-5-251128";
 const MODEL_V5LITE = "doubao-seedream-5-0-260128";
-const MODEL_V4 = "ark-bd343774-47ba-4811-bf4c-0533306c7267-8c346";
+const MODEL_V4 = "doubao-seedream-4-0-250828";
 
-// 文生图fallback链: 3.0(200张免费) → 4.5(200张) → 5.0Lite(50张) → 4.0(191张)
-const TXT2IMG_MODELS = [MODEL_V3, MODEL_V45, MODEL_V5LITE, MODEL_V4];
+// 文生图fallback链: 4.0(191张) → 4.5(200张) → 5.0Lite(50张)
+const TXT2IMG_MODELS = [MODEL_V4, MODEL_V45, MODEL_V5LITE];
 
-// 图生图fallback链: 4.5(200张) → 5.0Lite(50张) → 4.0(191张)  (3.0不支持图生图)
-const IMG2IMG_MODELS = [MODEL_V45, MODEL_V5LITE, MODEL_V4];
+// 图生图fallback链: 4.0(191张) → 4.5(200张) → 5.0Lite(50张)
+const IMG2IMG_MODELS = [MODEL_V4, MODEL_V45, MODEL_V5LITE];
 
 // ========== Error Types ==========
 
@@ -376,8 +375,7 @@ export function estimateArkCost(model: string, count: number): number {
 
 export function getArkUnitCost(model: string): number {
   switch (model) {
-    case MODEL_V3: return 0.259;
-    case MODEL_V45: return 0.25;
+        case MODEL_V45: return 0.25;
     case MODEL_V5LITE: return 0.22;
     case MODEL_V4: return 0.20;
     default: return 0.20;

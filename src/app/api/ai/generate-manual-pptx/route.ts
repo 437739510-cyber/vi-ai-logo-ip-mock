@@ -1005,7 +1005,15 @@ export async function POST(req: NextRequest) {
       for (const result of results) {
         if (result.status === "fulfilled" && result.value.imgData) {
           const { def, imgData } = result.value;
-          sceneImages[def.key] = imgData;
+          if (imgData.startsWith("http")) {
+            const imgResp = await fetch(imgData);
+            if (imgResp.ok) {
+              const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+              sceneImages[def.key] = "data:image/png;base64," + imgBuf.toString("base64");
+            }
+          } else {
+            sceneImages[def.key] = imgData;
+          }
           if ((def as any).label) sceneLabels[def.key] = (def as any).label;
           imgSuccess++;
         } else if (result.status === "rejected") {
