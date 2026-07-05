@@ -13,6 +13,8 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { getUnifiedParam } from "@/lib/vi-manual/param-bus";
+import { logArkUsage } from "@/lib/core/billing/ark-usage-log";
 import { getDefaultRegistry, type GenerateImageResult } from "@/lib/ip/ip-image-provider";
 import { overlayChineseText } from "@/lib/ip/overlay-chinese";
 
@@ -45,7 +47,8 @@ async function persistLogoBase64(projectId: string, index: number, base64DataUrl
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { projectId, regenerate, logoId } = body;
+    const projectId: string = body.projectId || "";
+    const regenerate = body.regenerate;
     const forceRegenerate = body.force === true || regenerate === true;
 
     if (!projectId) {
@@ -98,6 +101,17 @@ export async function POST(req: NextRequest) {
     const companyName = clientInfo.companyName || "品牌";
     const prompts: string[] = logoSuggestions.prompts;
 
+    // M1.4: Read unified param package for font + color
+    let headingFont = "Source Han Sans SC";
+    let primaryColor = "#C0392B";
+    try {
+      const params = await getUnifiedParam(projectId);
+      headingFont = params.fonts.heading.nameEn || headingFont;
+      primaryColor = params.colors.primary.hex || primaryColor;
+    } catch (e: any) {
+      console.warn("[generate-logo] param-bus read failed, using defaults:", e.message);
+    }
+
     // Step 2: Write initial status
     await supabaseAdmin.from("projects").update({
       status: "logo_generating",
@@ -115,9 +129,11 @@ export async function POST(req: NextRequest) {
 
     // Fire-and-forget: background generation via provider registry
     void (async () => {
+      try {
       const logoResults: any[] = [];
       const provider = await getDefaultRegistry().getActive();
       console.log("[generate-logo] Generating " + prompts.length + " logos for: " + companyName + " via " + provider.name);
+      console.log("[generate-logo] Provider details: name=" + provider.name + ", type=" + (provider.constructor?.name || "unknown"));
 
       for (let i = 0; i < prompts.length; i++) {
         const rawPrompt = prompts[i];
@@ -129,10 +145,12 @@ export async function POST(req: NextRequest) {
         try {
           const result = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-${i+1}`, label: "Logo", description: rawPrompt }, prompt: enhancedPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
           console.log("[generate-logo] " + provider.name + " logo " + (i+1) + " OK (" + result.durationMs + "ms)");
+          // Log ARK usage
+          void logArkUsage({ route: "ai/generate-logo", model: String(result.providerMeta?.model || "seedream"), imageCount: 1, projectId, durationMs: result.durationMs, success: true });
           // V121: Overlay Chinese brand name on logo (SDXL/Star-3 can''t do Chinese)
-          let logoImageUrl = result.imageUrl;
+          let logoImageUrl: string = result.imageUrl || "";
           try {
-            if (result.providerName.indexOf("ark") === -1) { logoImageUrl = await overlayChineseText(result.imageUrl, companyName); }
+            if (result.providerName.indexOf("ark") === -1) { logoImageUrl = await overlayChineseText(result.imageUrl, companyName, headingFont); }
           } catch (e: any) {
             console.warn("[generate-logo] Chinese overlay failed for logo " + (i+1) + ":", e.message);
           }
@@ -141,7 +159,15 @@ export async function POST(req: NextRequest) {
             model: result.providerMeta?.model || result.providerName, durationMs: result.durationMs,
           });
         } catch (err: any) {
-          console.error("[generate-logo] Failed prompt " + (i+1) + ":", err.message);
+          const errDetail = {
+            prompt: rawPrompt.slice(0, 80),
+            message: err.message,
+            stack: err.stack?.slice(0, 300),
+            code: err.code,
+            name: err.name,
+            providerName: provider?.name || "unknown",
+          };
+          console.error("[generate-logo] Failed prompt " + (i+1) + ":", JSON.stringify(errDetail, null, 2));
           logoResults.push({ index: i, prompt: rawPrompt, imageUrl: null, error: err.message });
         }
 
@@ -228,6 +254,31 @@ export async function POST(req: NextRequest) {
         }
       } catch (e) {
         console.error("[generate-logo] Final update failed:", e);
+      }
+      } catch (fatalErr: any) {
+        console.error("[generate-logo] FATAL background error:", fatalErr.message, fatalErr.stack?.slice(0, 300));
+        try {
+          const { data: fatalProj } = await supabaseAdmin
+            .from("projects").select("client_info").eq("id", projectId).single();
+          const fatalInfo: any = (fatalProj?.client_info as Record<string, any>) || {};
+          await supabaseAdmin.from("projects").update({
+            status: "submitted",
+            client_info: {
+              ...fatalInfo,
+              generationStatus: "failed",
+              generationMessage: "Logo generation crashed: " + (fatalErr.message || "unknown error"),
+              logoGenerationStatus: {
+                total: 4, completed: 0,
+                results: [],
+                failedAt: new Date().toISOString(),
+                error: fatalErr.message || "unknown",
+              },
+            },
+            updated_at: new Date().toISOString(),
+          }).eq("id", projectId);
+        } catch (e2) {
+          console.error("[generate-logo] Failed to update fatal error status:", e2);
+        }
       }
     })();
 
