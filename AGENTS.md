@@ -1,4 +1,4 @@
-# 项目协作规则（Agent Rules）
+﻿# 项目协作规则（Agent Rules）
 
 > 本文件约定 AI 助手（Codex）在本项目中的工作规范，确保协作安全、可控、可追溯。
 
@@ -76,3 +76,4 @@
 | 产品规划文档 | PRODUCT-PLAN.md |
 | PRD | PRD.md |
 | 当前阶段 | 客户端页面已完成（首页 / 咨询留资 / 确认页 / 进度查询），管理端 + API 开发中 |
+| 统一档案目录 | D:\disk\HERMES&CODEX\BRAND_BRAIN_new\ (PROJECT_MASTER.md 主线索引) |

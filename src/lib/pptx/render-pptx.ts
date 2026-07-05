@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 /**
  * PptxGenJS Renderer V6 — AI写实图+专业排版
  *
@@ -272,7 +272,7 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
   return Buffer.from(base64, "base64");
 }
 
-const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","logo-backgrounds","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","summary","material-priority","wayfinding","logo-output","modification-authority","closing"];
+const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","wayfinding","summary","material-priority","logo-output","modification-authority","closing"];
 
 async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>): Promise<void> {
   switch (bp.pageId) {
@@ -305,7 +305,8 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
   // 页码（封面/封底/目录不加）
   if (bp.pageId !== "cover" && bp.pageId !== "closing" && bp.pageId !== "toc") {
     const idx = PAGE_ORDER.indexOf(bp.pageId);
-    slide.addText(`${idx > 0 ? idx : ""}`, { x: SW - MARGIN - 0.5, y: SH - 0.55, w: 0.5, h: 0.3, fontSize: 12, color: "BBBBBB", align: "right" });
+    const pageNum = idx - 1;
+    slide.addText(`${pageNum > 0 ? pageNum : ""}`, { x: SW - MARGIN - 0.5, y: SH - 0.55, w: 0.5, h: 0.3, fontSize: 12, color: "BBBBBB", align: "right" });
   }
 }
 
@@ -1752,7 +1753,7 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
     // 点线
     slide.addText("....................................................................................", { x: cx + 0.7, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 9, color: "CCCCCC", align: "right" });
     // 页码
-    const realPageNum = PAGE_ORDER.indexOf(item.pageId);
+    const realPageNum = PAGE_ORDER.indexOf(item.pageId) - 1;
     slide.addText(realPageNum > 0 ? `${realPageNum}` : "", { x: cx + CONTENT_W - 0.6, y: yPos, w: 0.6, h: 0.5, fontSize: 13, color: "999999", align: "right" });
     yPos += 0.6;
   }
@@ -1762,28 +1763,30 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
 }
 
 function getTocItems(industry: IndustryType, aiTitles?: Record<string, string> | null): { title: string; pageId: string }[] {
-  const baseItems: { title: string; pageId: string }[] = [
+  const configs = getSceneConfigs(industry, aiTitles);
+  const items: { title: string; pageId: string }[] = [
     { title: "品牌核心理念", pageId: "brand-philosophy" },
     { title: "标识诠释", pageId: "logo-interpretation" },
     { title: "Logo组合规范", pageId: "logo-variations" },
-    { title: "Logo误用规范", pageId: "logo-misuse" },
+    { title: "LOGO网格制图规范", pageId: "logo-grid" },
     { title: "辅助图形", pageId: "auxiliary-graphics" },
+    { title: "辅助图形禁用规范", pageId: "aux-graphics-misuse" },
     { title: "标准色彩规范", pageId: "brand-colors" },
+    { title: "色彩使用规范", pageId: "color-taboos" },
     { title: "字体系统", pageId: "typography" },
+    { title: "字体版权说明", pageId: "font-copyright" },
     { title: "基础规范", pageId: "basic-spec" },
-  ];
-  // V99: 从getSceneConfigs动态获取标题，与场景页保持一致（支持V98 AI动态标题）
-  const configs = getSceneConfigs(industry, aiTitles);
-  const sceneItems = [
+    { title: "Logo误用规范", pageId: "logo-misuse" },
     { title: configs.stationery.title, pageId: "stationery" },
     { title: configs.packaging.title, pageId: "packaging" },
     { title: configs.marketing.title, pageId: "marketing" },
-  ];
-  const endItems: { title: string; pageId: string }[] = [
     { title: "导视系统", pageId: "wayfinding" },
     { title: "总结", pageId: "summary" },
+    { title: "VI物料落地清单", pageId: "material-priority" },
+    { title: "LOGO文件输出规范", pageId: "logo-output" },
+    { title: "VI修改权限说明", pageId: "modification-authority" },
   ];
-  return [...baseItems, ...sceneItems, ...endItems];
+  return items;
 }
 
 // ========== Summary ==========
@@ -1810,6 +1813,14 @@ function renderSummary(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPp
     slide.addText(p.label, { x: cx + 0.9, y: yPos, w: 2.5, h: 0.45, fontSize: 17, bold: true, color: bc.pri });
     slide.addText(p.desc, { x: cx + 0.9, y: yPos + 0.5, w: CONTENT_W - 1.1, h: 0.7, fontSize: 14, color: "555555", lineSpacingMultiple: 1.5 });
     yPos += 1.6;
+  }
+  // 客群感知 — closingCustomerPerception
+  const perception = sanitizeText(opts.closingCustomerPerception || "");
+  if (perception) {
+    slide.addShape("rect", { x: cx, y: yPos + 0.3, w: CONTENT_W, h: 0.04, fill: { color: bc.acc } });
+    slide.addText("客群感知", { x: cx, y: yPos + 0.45, w: CONTENT_W, h: 0.4, fontSize: 17, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+    slide.addShape("rect", { x: cx, y: yPos + 0.9, w: CONTENT_W, h: 1.0, fill: { color: bc.priLight }, rectRadius: 0.08 });
+    slide.addText(perception, { x: cx + 0.2, y: yPos + 0.95, w: CONTENT_W - 0.4, h: 0.9, fontSize: 13, color: bc.priDark, lineSpacingMultiple: 1.4, valign: "middle" });
   }
 }
 
@@ -1918,30 +1929,27 @@ function renderFontCopyright(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Re
 function renderAuxGraphicsMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, bp.label || "辅助图形禁用规范", bc);
   const cx = MARGIN + LEFT_BAR_W;
+  let y = 1.5;
 
   const misuses = [
-    { title: "禁止拉伸变形", desc: "不得对辅助图形进行非等比缩放，纹样比例失真破坏品牌精致感" },
-    { title: "禁止局部裁切", desc: "不得单独裁切辅助图形的局部纹样，需保持完整图案结构" },
-    { title: "禁止随意换色", desc: "不得使用品牌色以外的颜色替换辅助图形，破坏色彩体系一致性" },
-    { title: "禁止多层杂乱叠加", desc: "辅助图形叠加不超过两层，避免视觉混乱降低品牌识别度" },
-    { title: "禁止旋转倾斜", desc: "条纹组合必须保持水平/垂直方向，点阵组合不得旋转" },
-    { title: "禁止扭曲特效", desc: "不得添加非规范的扭曲、模糊、3D等滤镜效果" },
+    { title: "禁止拉伸变形", desc: "不得对辅助图形进行非等比缩放，纹样比例失真破坏品牌精致感", icon: "\u2715" },
+    { title: "禁止局部裁切", desc: "不得单独裁切辅助图形的局部纹样，需保持完整图案结构", icon: "\u2715" },
+    { title: "禁止随意换色", desc: "不得使用品牌色以外的颜色替换辅助图形，破坏色彩体系一致性", icon: "\u2715" },
+    { title: "禁止多层杂乱叠加", desc: "辅助图形叠加不超过两层，避免视觉混乱降低品牌识别度", icon: "\u2715" },
+    { title: "禁止旋转倾斜", desc: "条纹组合必须保持水平/垂直方向，点阵组合不得旋转", icon: "\u2715" },
+    { title: "禁止扭曲特效", desc: "不得添加非规范的扭曲、模糊、3D等滤镜效果", icon: "\u2715" },
   ];
 
   for (let i = 0; i < misuses.length; i++) {
-    const col = i % 3;
-    const row = Math.floor(i / 3);
-    const x = cx + col * (CONTENT_W / 3 + 0.1);
-    const y = 1.5 + row * 2.6;
-    const w = CONTENT_W / 3 - 0.15;
-
-    slide.addShape("rect", { x, y, w, h: 2.2, fill: { color: "FFF5F5" }, line: { color: "E0C0C0", width: 0.5 }, rectRadius: 0.08 });
-    slide.addText([{ text: "✕ ", options: { color: "CC3333", fontSize: 16, bold: true } }, { text: misuses[i].title, options: { bold: true, fontSize: 13, color: "333333" } }], { x: x + 0.15, y: y + 0.15, w: w - 0.3, h: 0.4 });
-    slide.addText(misuses[i].desc, { x: x + 0.15, y: y + 0.7, w: w - 0.3, h: 1.2, fontSize: 11, color: "666666", lineSpacing: 18 });
+    slide.addShape("rect", { x: cx, y, w: 0.12, h: 1.5, fill: { color: bc.pri }, rectRadius: 0.03 });
+    slide.addText(misuses[i].icon + " " + misuses[i].title, { x: cx + 0.35, y: y + 0.05, w: CONTENT_W - 0.5, h: 0.45, fontSize: 15, bold: true, color: "CC3333" });
+    slide.addText(misuses[i].desc, { x: cx + 0.35, y: y + 0.5, w: CONTENT_W - 0.5, h: 0.8, fontSize: 12, color: "555555", lineSpacing: 18 });
+    y += 1.7;
   }
 
+  slide.addShape("rect", { x: cx, y: 10.5, w: CONTENT_W, h: 0.6, fill: { color: "FFF3E0" }, rectRadius: 0.06 });
   slide.addText("辅助图形是品牌视觉的延伸，规范使用确保品牌调性统一。以上为常见的错误用法，门店及设计师应严格避免。", {
-    x: cx, y: 7.0, w: CONTENT_W, h: 0.3, fontSize: 11, color: "999999", align: "center",
+    x: cx + 0.2, y: 10.6, w: CONTENT_W - 0.4, h: 0.45, fontSize: 11, color: "E65100",
   });
 }
 
@@ -1976,12 +1984,18 @@ function renderMaterialPriority(slide: PptxGenJS.Slide, bp: PageBlueprint, opts:
   addContentFrame(slide, bp.label || "VI物料落地清单", bc);
   const cx = MARGIN + LEFT_BAR_W;
 
-  const rawItems = getIndustryMaterials(opts.industry).map(function(m) { return { priority: m.priority, category: m.category, desc: m.desc, color: m.color }; });
-  // M5: Filter cross-industry contamination from material list
-  const items = rawItems.filter(function(item) {
-    const cleaned = cleanDirtyWords(item.category + " " + item.desc, opts.industry || "");
-    return !cleaned.cleaned; // exclude items with dirty words
-  });
+  const items: Array<{priority: string; category: string; desc: string; color: string}> = opts.materialPriorityList && opts.materialPriorityList.length > 0
+    ? opts.materialPriorityList.map(function(m) {
+        const colorMap: Record<string, string> = { "\u5FC5\u505A": "C62828", "\u5EFA\u8BAE": "E67E22", "\u53EF\u9009": "2E7D32" };
+        return { priority: m.priority, category: m.category, desc: m.description, color: colorMap[m.priority] || "999999" };
+      })
+    : (function() {
+        const rawItems = getIndustryMaterials(opts.industry).map(function(m) { return { priority: m.priority, category: m.category, desc: m.desc, color: m.color }; });
+        return rawItems.filter(function(item) {
+          const cleaned = cleanDirtyWords(item.category + " " + item.desc, opts.industry || "");
+          return !cleaned.cleaned;
+        });
+      })();
 
   // 图例
   slide.addShape("rect", { x: cx, y: 1.4, w: 0.25, h: 0.25, fill: { color: "C62828" }, rectRadius: 0.04 });
