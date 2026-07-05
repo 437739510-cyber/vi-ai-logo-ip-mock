@@ -13,6 +13,7 @@
  */
 
 import type { Agent, AgentResult, AgentContext } from "./types";
+import { validateParamPackageIntegrity, ValidationBlockedError } from "@/lib/vi-manual/quality-check";
 import { AGENT_IDENTITIES } from "./types";
 
 export const manualComposerIdentity = AGENT_IDENTITIES["manual-composer"];
@@ -51,6 +52,12 @@ export const manualComposerAgent: Agent<ManualComposerInput, ManualComposerOutpu
   canExecute: async (context: AgentContext) => {
     if (!context.modulePlan) {
       return { canRun: false, reason: "缺少模块规划（modulePlan），请先运行 Brand Planner" };
+    }
+    // M3: Validate param-package integrity before manual composition
+    const integrityCheck = validateParamPackageIntegrity(context as any);
+    if (!integrityCheck.passed) {
+      const issues = integrityCheck.issues.join("; ");
+      return { canRun: false, reason: "Param-package integrity check failed: " + issues };
     }
     if (!context.assetGuardResult?.isGenerationSafe) {
       return { canRun: false, reason: "资产保护检查未通过，请先解决资产保护问题" };

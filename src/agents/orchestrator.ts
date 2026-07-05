@@ -149,6 +149,7 @@ import { designDirectorAgent } from "./design-director";
 import { assetGuardianAgent } from "./asset-guardian-agent";
 import { manualComposerAgent } from "./manual-composer";
 import { getMemoryAdapter } from "@/lib/core/memory";
+import { checkCrossIndustryContamination, validateParamPackageIntegrity, ValidationBlockedError } from "@/lib/vi-manual/quality-check";
 import type { ClientMemory, ProjectMemory, BrainResultSnapshot } from "@/lib/core/memory";
 /**
  * Reverse mapping: encoded industry value → human-readable label used by brand-analyzer.
@@ -331,6 +332,20 @@ export async function executeBrandBrainPipeline(
         switch (agentId) {
           case "brand-analyst":
             context.brandProfile = result.data.profile;
+            // M3: Validate brand analysis for cross-industry contamination
+            try {
+              const bpText = JSON.stringify(result.data.profile || {});
+              const contamination = checkCrossIndustryContamination(
+                bpText,
+                context.clientInfo.industry || "",
+                context.clientInfo.brandVision || context.clientInfo.coreValues || ""
+              );
+              if (!contamination.passed) {
+                console.warn("[orchestrator] Cross-industry contamination:", contamination.dirtyWords);
+              }
+            } catch (vErr) {
+              console.warn("[orchestrator] Validation non-blocking:", vErr);
+            }
             break;
           case "brand-planner":
             context.modulePlan = result.data;

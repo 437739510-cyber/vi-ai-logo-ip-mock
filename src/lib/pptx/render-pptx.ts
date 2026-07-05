@@ -14,7 +14,8 @@
 import PptxGenJS from "pptxgenjs";
 import type { PageBlueprint } from "@/lib/vi-manual/page-planner";
 import { compressImage } from "./compress-image";
-import { type IndustryType, getIndustryType } from "@/lib/brand/industry-types";
+import { type IndustryType, getIndustryType, getIndustryMaterials } from "@/lib/brand/industry-types";
+import { cleanDirtyWords, filterMaterialsByIndustry } from "@/lib/vi-manual/dirty-word-cleaner";
 
 import { renderTypographyPng, renderColorSpecPng } from "./spec-page-renderer";
 
@@ -271,7 +272,7 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
   return Buffer.from(base64, "base64");
 }
 
-const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","logo-misuse","logo-backgrounds","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","stationery","packaging","marketing","summary","material-priority","wayfinding","logo-output","modification-authority","closing"];
+const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","logo-backgrounds","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","summary","material-priority","wayfinding","logo-output","modification-authority","closing"];
 
 async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>): Promise<void> {
   switch (bp.pageId) {
@@ -1975,18 +1976,12 @@ function renderMaterialPriority(slide: PptxGenJS.Slide, bp: PageBlueprint, opts:
   addContentFrame(slide, bp.label || "VI物料落地清单", bc);
   const cx = MARGIN + LEFT_BAR_W;
 
-  const items = [
-    { priority: "必做", category: "门店招牌", desc: "门头招牌+侧招灯箱，品牌线下第一视觉触点", color: "C62828" },
-    { priority: "必做", category: "员工工服", desc: "美容师围裙/制服+名牌，直接影响客户信任感", color: "C62828" },
-    { priority: "必做", category: "产品包装", desc: "护肤品瓶身标签+包装盒，产品即品牌载体", color: "C62828" },
-    { priority: "必做", category: "会员卡", desc: "VIP卡片设计，客户留存与复购核心触点", color: "C62828" },
-    { priority: "建议", category: "价目表/预约单", desc: "前台标准物料，提升门店专业度", color: "E67E22" },
-    { priority: "建议", category: "手提袋/礼盒", desc: "伴手礼包装，社交传播重要载体", color: "E67E22" },
-    { priority: "建议", category: "线上配图模板", desc: "小红书/大众点评视觉统一，影响线上获客转化", color: "E67E22" },
-    { priority: "可选", category: "活动海报/展架", desc: "开业/促销按需制作，非日常必备", color: "2E7D32" },
-    { priority: "可选", category: "门店软装", desc: "窗帘/墙面/前台摆件，品牌氛围营造", color: "2E7D32" },
-    { priority: "可选", category: "导视系统", desc: "门牌/房号牌/指引立牌，连锁扩张时统一制作", color: "2E7D32" },
-  ];
+  const rawItems = getIndustryMaterials(opts.industry).map(function(m) { return { priority: m.priority, category: m.category, desc: m.desc, color: m.color }; });
+  // M5: Filter cross-industry contamination from material list
+  const items = rawItems.filter(function(item) {
+    const cleaned = cleanDirtyWords(item.category + " " + item.desc, opts.industry || "");
+    return !cleaned.cleaned; // exclude items with dirty words
+  });
 
   // 图例
   slide.addShape("rect", { x: cx, y: 1.4, w: 0.25, h: 0.25, fill: { color: "C62828" }, rectRadius: 0.04 });
@@ -2020,7 +2015,7 @@ function renderMaterialPriority(slide: PptxGenJS.Slide, bp: PageBlueprint, opts:
     slide.addText(items[i].desc, { x: cx + 2.45, y: rowY + 0.08, w: 4.5, h: 0.34, fontSize: 10, color: "666666" });
   }
 
-  slide.addText("门店分批落地建议：首批完成4项必做物料（招牌+工服+包装+会员卡），第二批补齐建议物料，第三批按需扩展可选物料。", {
+  slide.addText("门店分批落地建议：首批完成必做物料，第二批补齐建议物料，第三批按需扩展可选物料。具体清单根据行业动态配置。", {
     x: cx, y: 7.35, w: CONTENT_W, h: 0.3, fontSize: 11, color: "999999", align: "center",
   });
 }
