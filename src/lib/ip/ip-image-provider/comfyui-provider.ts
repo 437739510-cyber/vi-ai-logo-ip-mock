@@ -1,4 +1,4 @@
-/**
+﻿/**
  * IP Image Provider Layer 闂?ComfyUI Provider (闂佸搫鐗滈崜娆忥耿?
  *
  * Local image generation via ComfyUI REST API (http://127.0.0.1:8188).
@@ -22,7 +22,7 @@ import imageGenConfig from "../../../config/image-gen-config.json";
 const COMFYUI_BASE = "http://127.0.0.1:8188";
 const PROMPT_URL = `${COMFYUI_BASE}/api/prompt`;
 const HISTORY_URL = `${COMFYUI_BASE}/api/history`;
-const TIMEOUT_MS = 120_000;
+const TIMEOUT_MS = 60_000;
 const POLL_INTERVAL_MS = 1_000;
 const COMFYUI_OUTPUT_DIR = "E:/ComfyUI/output";
 // ========== Config Loader ==========

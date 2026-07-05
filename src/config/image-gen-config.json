@@ -1,9 +1,9 @@
 {
     "version":  1,
     "models":  {
-                   "ponyXL":  "ponyDiffusionV6XL_v6StartWithThisOne",
+                   "ponyXL":  "ponyDiffusionV6XL_v6StartWithThisOne.safetensors",
                    "dreamshaperXL":  "dreamshaperXL_alpha2Xl10.safetensors",
-                   "realvisXL":  "RealVisXL_V5.0_fp16",
+                   "realvisXL":  "RealVisXL_V5.0_fp16.safetensors",
                    "juggernautXL":  "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
                },
     "logo":  {
@@ -18,7 +18,7 @@
                                    "weight":  0.5
                                }
                            ],
-                 "model":  "ponyXL",
+                 "model":  "dreamshaperXL",
                  "sampler":  "euler",
                  "steps":  20,
                  "scheduler":  "normal"

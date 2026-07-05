@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
 - 如果客户已填写，请优化润色，保留客户原意
 
 ### 6. 视觉方向建议
-- 【必填】colorPalette必须输出3个具体hex色值（主色、辅助色、强调色），如果客户已有品牌色则必须优先使用客户品牌色。每个色的meaning必须说明该色与品牌定位/行业特征的关联（如"深墨绿呼应中医经络的专业与沉稳"），不可写泛泛的"温暖""活力"等空话
+- 【必填】colorPalette必须输出3个具体hex色值。如果用户已自定义品牌色（见输入中的品牌色字段），colorPalette必须100%使用用户提供的hex值，禁止修改或替换。若用户未提供品牌色，根据行业特征生成。（主色、辅助色、强调色），如果客户已有品牌色则必须优先使用客户品牌色。每个色的meaning必须说明该色与品牌定位/行业特征的关联（如"深墨绿呼应中医经络的专业与沉稳"），不可写泛泛的"温暖""活力"等空话
 - 推荐的视觉风格（如极简、国潮、科技感等）
 - VI应用效果图建议（5个场景，必须是品牌Logo/视觉元素印在该行业真实使用的品牌物料上的效果图，场景品类根据客户行业动态决定，中英文对照）
 - sceneSectionTitles：3个场景页的中文标题，必须根据客户行业动态生成（如餐饮→"餐饮应用系统/餐饮包装系统/餐饮营销系统"，水果→"生鲜应用系统/生鲜包装系统/生鲜营销系统"，洗车→"洗车应用系统/洗车包装系统/洗车营销系统"）
@@ -286,6 +286,9 @@ function buildAnalysisPrompt(clientInfo: any): string {
   parts.push("");
   parts.push("### 客户已填写的品牌信息（有则保留润色，无则AI代写）：");
 
+  if (clientInfo.subIndustry) {
+    parts.push("细分业态：" + clientInfo.subIndustry);
+  }
   if (clientInfo.brandVision) {
     parts.push(`品牌愿景：${clientInfo.brandVision}`);
   } else {

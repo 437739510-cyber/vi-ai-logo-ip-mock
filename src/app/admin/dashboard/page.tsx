@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { StatCard } from "@/components/admin/StatCard";
@@ -51,23 +51,22 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [deepseekBalance, setDeepseekBalance] = useState<ApiBalance | null>(null);
-  const [dashscopeBalance, setDashscopeBalance] = useState<ApiBalance | null>(null);
+  const [arkBalance, setArkBalance] = useState<ApiBalance | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [usageLogs, setUsageLogs] = useState<UsageLog[]>([]);
   const [todaySummary, setTodaySummary] = useState<TodaySummary | null>(null);
   const [todayDeepseekSummary, setTodayDeepseekSummary] = useState<ProviderSummary | null>(null);
-  const [todayDashscopeSummary, setTodayDashscopeSummary] = useState<ProviderSummary | null>(null);
+  const [todayArkSummary, setTodayArkSummary] = useState<ProviderSummary | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
 
   const fetchBalances = useCallback(async () => {
     setBalanceLoading(true);
     try {
-      const [dsRes, dqRes] = await Promise.allSettled([
+      const [dsRes] = await Promise.allSettled([
         fetch("/api/billing/deepseek-balance").then(r => r.json()),
-        fetch("/api/billing/dashscope-balance").then(r => r.json()),
       ]);
       if (dsRes.status === "fulfilled") setDeepseekBalance(dsRes.value);
-      if (dqRes.status === "fulfilled") setDashscopeBalance(dqRes.value);
+      setArkBalance({ provider: "ark-seedream", balance: 212.40, currency: "CNY" });
     } catch { /* ignore */ }
     setBalanceLoading(false);
   }, []);
@@ -81,7 +80,7 @@ export default function DashboardPage() {
         setUsageLogs(data.logs || []);
         setTodaySummary(data.todaySummary || null);
         setTodayDeepseekSummary(data.todayDeepseekSummary || null);
-        setTodayDashscopeSummary(data.todayDashscopeSummary || null);
+        setTodayArkSummary(data.todayDashscopeSummary || null);
       }
     } catch { /* ignore */ }
     setLogsLoading(false);
@@ -176,14 +175,14 @@ export default function DashboardPage() {
             </p>
             {deepseekBalance?.error && <p className="text-xs text-red-400 mt-1">{deepseekBalance.error}</p>}
           </div>
-          <div className="rounded-xl bg-gradient-to-br from-orange-50 to-amber-50 p-4 border border-orange-100">
-            <p className="text-xs font-medium text-orange-600 mb-1">通义万象</p>
+          <div className="rounded-xl bg-gradient-to-br from-red-50 to-rose-50 p-4 border border-red-100">
+            <p className="text-xs font-medium text-red-600 mb-1">火山 Seedream 4.0</p>
             <p className="text-xl font-bold text-neutral-900">
-              {dashscopeBalance?.balance !== null && dashscopeBalance?.balance !== undefined
-                ? `¥${dashscopeBalance.balance.toFixed(2)}`
-                : dashscopeBalance?.error ? "获取失败" : "—"}
+              {arkBalance?.balance !== null && arkBalance?.balance !== undefined
+                ? `¥${arkBalance.balance.toFixed(2)}`
+                : arkBalance?.error ? "获取失败" : "—"}
             </p>
-            {dashscopeBalance?.error && <p className="text-xs text-red-400 mt-1">{dashscopeBalance.error}</p>}
+            {arkBalance?.error && <p className="text-xs text-red-400 mt-1">{arkBalance.error}</p>}
           </div>
         </div>
       </div>
@@ -243,24 +242,24 @@ export default function DashboardPage() {
           ) : null}
         </div>
 
-        {/* 今日通义万相调用 */}
+        {/* 今日火山引擎调用 */}
         <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-orange-600" />
-              <h3 className="text-sm font-bold text-neutral-900">今日通义万相调用</h3>
+              <ImageIcon className="w-4 h-4 text-red-600" />
+              <h3 className="text-sm font-bold text-neutral-900">今日火山引擎调用</h3>
             </div>
             <span className="text-xs text-neutral-400">
-              {todayDashscopeSummary?.totalCalls || 0} 次 · ¥{(todayDashscopeSummary?.totalCost || 0).toFixed(4)}
+              {todayArkSummary?.totalCalls || 0} 次 · ¥{(todayArkSummary?.totalCost || 0).toFixed(4)}
             </span>
           </div>
           {/* 按模型汇总 */}
-          {todayDashscopeSummary && Object.keys(todayDashscopeSummary.byModel).length > 0 && (
+          {todayArkSummary && Object.keys(todayArkSummary.byModel).length > 0 && (
             <div className="mb-4">
               <p className="text-xs font-medium text-neutral-500 mb-2">模型明细</p>
               <div className="grid grid-cols-2 gap-2">
-                {Object.entries(todayDashscopeSummary.byModel).map(([model, info]) => (
-                  <div key={model} className="rounded-lg bg-orange-50/50 p-2.5 border border-orange-100/50">
+                {Object.entries(todayArkSummary.byModel).map(([model, info]) => (
+                  <div key={model} className="rounded-lg bg-red-50/50 p-2.5 border border-red-100/50">
                     <p className="text-xs font-medium text-neutral-700 truncate" title={model}>{model}</p>
                     <p className="text-xs text-neutral-400">{info.calls}次 · ¥{info.cost.toFixed(4)}</p>
                   </div>
@@ -269,11 +268,11 @@ export default function DashboardPage() {
             </div>
           )}
           {/* 按路由汇总 */}
-          {todayDashscopeSummary && Object.keys(todayDashscopeSummary.byRoute).length > 0 && (
+          {todayArkSummary && Object.keys(todayArkSummary.byRoute).length > 0 && (
             <div>
               <p className="text-xs font-medium text-neutral-500 mb-2">路由明细</p>
               <div className="grid grid-cols-2 gap-2">
-                {Object.entries(todayDashscopeSummary.byRoute).map(([route, info]) => (
+                {Object.entries(todayArkSummary.byRoute).map(([route, info]) => (
                   <div key={route} className="rounded-lg bg-neutral-50 p-2.5 border border-neutral-100">
                     <p className="text-xs font-medium text-neutral-700 truncate" title={route}>{route}</p>
                     <p className="text-xs text-neutral-400">{info.calls}次 · ¥{info.cost.toFixed(4)}</p>
@@ -282,7 +281,7 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
-          {!todayDashscopeSummary || todayDashscopeSummary.totalCalls === 0 ? (
+          {!todayArkSummary || todayArkSummary.totalCalls === 0 ? (
             <p className="text-xs text-neutral-400 text-center py-3">今日暂无调用</p>
           ) : null}
         </div>

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { detectCompanyScale, type CompanyScale, getScaleLabel } from "@/lib/brand/company-scale";
 import { writeFile, readFile, mkdir } from "fs/promises";
+import { getCategoryDict } from "@/lib/vi-manual/category-dict";
 import path from "path";
 
 const MOCK_DIR = path.join(process.cwd(), "public", "mock");
@@ -23,6 +24,11 @@ export async function POST(req: NextRequest) {
     const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
     const projectId = `VI-${dateStr}-${rand}`;
     const submissionId = `SBM-${dateStr}-${String(Date.now()).slice(-4)}`;
+
+    // M1.2: infer subIndustry from mainProducts + industry
+    const mainProducts = body.mainProducts || "";
+    const industry = body.industry || "";
+    const subIndustry = inferSubIndustry(mainProducts, industry);
 
     const isoNow = now.toISOString();
 
@@ -76,6 +82,8 @@ export async function POST(req: NextRequest) {
       avoidElements: body.avoidElements || "",
       existingSignagePain: body.existingSignagePain || "",
       competitorReference: body.competitorReference || "",
+          colorOverrides: body.brandColors ? { primary: { hex: body.brandColors.primary || "", name: "品牌主色" }, secondary: { hex: body.brandColors.secondary || "", name: "辅助色" }, accent: { hex: body.brandColors.accent || "", name: "强调色" } } : null,
+          industryKey: getCategoryDict(mainProducts || "")?.category_key || "",
       referenceManual: body.referenceFile
         ? { fileName: body.referenceFile.fileName, url: body.referenceFile.url, pageCount: 0, isReferenceEnabled: true, referenceMode: body.referenceEnabled ? "weak" : "none" }
         : null,
@@ -90,6 +98,11 @@ export async function POST(req: NextRequest) {
       status: "submitted" as const,
       brandColors: body.brandColors || null,
       viewPassword: submission.viewPassword,
+          companyName: submission.companyName || "",
+          industry: submission.industry || "",
+          brandVision: body.brandVision || "",
+          coreValues: body.coreValues || "",
+          targetMarket: body.targetMarket || "",
       mainProducts: submission.mainProducts,
       businessForm: submission.businessForm,
       createdAt: isoNow,
@@ -165,7 +178,13 @@ export async function POST(req: NextRequest) {
         student_id: body.studentId || null,
         client_info: {
           viewPassword: submission.viewPassword,
+          companyName: submission.companyName || "",
+          industry: submission.industry || "",
+          brandVision: body.brandVision || "",
+          coreValues: body.coreValues || "",
+          targetMarket: body.targetMarket || "",
           mainProducts: submission.mainProducts || body.mainProducts || "",
+          subIndustry,
           businessForm: submission.businessForm || body.businessForm || "",
           companyScale,
           companyScaleLabel: getScaleLabel(companyScale),
@@ -177,6 +196,8 @@ export async function POST(req: NextRequest) {
           avoidElements: body.avoidElements || "",
           existingSignagePain: body.existingSignagePain || "",
           competitorReference: body.competitorReference || "",
+          colorOverrides: body.brandColors ? { primary: { hex: body.brandColors.primary || "", name: "品牌主色" }, secondary: { hex: body.brandColors.secondary || "", name: "辅助色" }, accent: { hex: body.brandColors.accent || "", name: "强调色" } } : null,
+          industryKey: getCategoryDict(mainProducts || "")?.category_key || "",
         },
         created_at: isoNow,
         updated_at: isoNow,
@@ -207,6 +228,20 @@ export async function POST(req: NextRequest) {
     console.error("[SUBMIT] Error:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Submit failed" }, { status: 500 });
   }
+}
+
+
+// M1.2: infer sub-industry from main products
+function inferSubIndustry(mainProducts: string, industry: string): string {
+  if (!mainProducts) return "";
+  const lower = mainProducts.toLowerCase();
+  if (lower.includes("面") || lower.includes("刀削")) return "面馆";
+  if (lower.includes("火锅")) return "火锅";
+  if (lower.includes("奶茶") || lower.includes("茶饮")) return "茶饮";
+  if (lower.includes("花") || lower.includes("花卉")) return "花艺";
+  if (lower.includes("海鲜") || lower.includes("水产")) return "海鲜";
+  if (lower.includes("美容") || lower.includes("护肤")) return "美容";
+  return "";
 }
 
 // V79: Generate 4-digit same-number password (easy for elderly to remember)

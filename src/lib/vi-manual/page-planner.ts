@@ -210,10 +210,10 @@ export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[
   const pageIds = input.pageIds || [
     "cover", "toc", "brand-philosophy", "logo-interpretation", "logo-variations",
     "logo-grid",
-    "logo-misuse", "auxiliary-graphics", "aux-graphics-misuse", "brand-colors",
+    "auxiliary-graphics", "aux-graphics-misuse", "brand-colors",
     "color-taboos",
-    "typography", "font-copyright", "basic-spec", "stationery", "packaging",
-    "marketing", "summary", "material-priority", "logo-output", "modification-authority", "closing",
+    "typography", "font-copyright", "basic-spec", "logo-misuse", "stationery", "packaging",
+    "marketing", "wayfinding", "summary", "material-priority", "logo-output", "modification-authority", "closing",
   ];
 
   // 加载参考模板（如果有）
@@ -276,7 +276,7 @@ async function planSinglePage(
   const sortedRules = sortRulesByPriority(rules);
 
   // Phase 10: 尝试 AI 布局优先（仅关键页面，其余走硬编码fallback以节省时间）
-  const AI_LAYOUT_PAGES = new Set(["cover", "brand-philosophy", "logo-interpretation", "summary"]);
+  const AI_LAYOUT_PAGES = new Set(["cover", "logo-interpretation", "summary"]);
   let aiElements = null;
   if (AI_LAYOUT_PAGES.has(pageId)) {
     try {
@@ -322,7 +322,7 @@ async function planSinglePage(
 
 // ========== 蓝图构建 ==========
 
-interface BuildContext {
+export interface BuildContext {
   companyName: string;
   pri: { hex: string; name?: string };
   sec: { hex: string; name?: string };
@@ -371,7 +371,7 @@ function buildBlueprint(pageId: string, ctx: BuildContext): PageBlueprint {
 
 // ========== 背景生成 ==========
 
-function buildBackground(pageId: string, ctx: BuildContext): PageBackground {
+export function buildBackground(pageId: string, ctx: BuildContext): PageBackground {
   const { pri, sec, acc, pageRef } = ctx;
 
   // 参考模板优先：如果模板有分析，直接使用模板布局风格
@@ -500,6 +500,7 @@ function buildElements(pageId: string, ctx: BuildContext): PageElement[] {
     case "marketing": return buildMarketingElements(ctx);
     case "font-copyright": return buildFontCopyrightElements(ctx);
     case "summary": return buildSummaryElements(ctx);
+    case "wayfinding": return [{ type: "custom" as const, id: "wayfinding-placeholder", content: PAGE_LABELS["wayfinding"] }];
     case "material-priority": return buildMaterialPriorityElements(ctx);
     case "logo-output": return [{
       type: "custom" as const, id: "logo-output-placeholder",
@@ -635,7 +636,7 @@ function buildPhilosophyElements(ctx: BuildContext): PageElement[] {
     elements.push({ type: "text", id: `ph-${s.id}-content`,
       content: s.content, position: "top-center",
       fontSize: 14, fontWeight: 400, color: "#444",
-      marginTop: yBase + 30, marginLeft: 80, marginRight: 80,
+      marginTop: yBase + 30, marginLeft: 40, marginRight: 40,
       params: { align: "left", lineHeight: 1.5 },
     });
 
@@ -708,7 +709,7 @@ function buildLogoInterpElements(ctx: BuildContext): PageElement[] {
       elements.push({ type: "text", id: "li-meaning",
         content: logoMeaning, position: "top-center",
         fontSize: 13, fontWeight: 400, color: "#444",
-        marginTop: yPos + 45, marginLeft: 80, marginRight: 80,
+        marginTop: yPos + 45, marginLeft: 40, marginRight: 40,
         params: { align: "left", lineHeight: 1.5 },
       });
     }
@@ -759,7 +760,7 @@ function buildLogoInterpElements(ctx: BuildContext): PageElement[] {
       elements.push({ type: "text", id: "li-ip-philosophy",
         content: mascotPhilosophy,
         position: "top-center", fontSize: 12, fontWeight: 400, color: "#555",
-        marginTop: mascotY + 125, marginLeft: 80, marginRight: 80,
+        marginTop: mascotY + 125, marginLeft: 40, marginRight: 40,
         params: { align: "left", lineHeight: 1.5 },
       });
     }
@@ -802,7 +803,7 @@ function buildLogoVariationsElements(ctx: BuildContext): PageElement[] {
       });
 
       elements.push({ type: "logo", id: `lv-${v.id}`,
-        position: "absolute", widthPct: 20, heightPct: 14,
+        position: "absolute", widthPct: 25, heightPct: 18,
         marginLeft: xBase + 100, marginTop: yBase + 30,
         shadow: !v.bgDark,
         params: { variation: v.id, bgDark: v.bgDark },
@@ -913,7 +914,7 @@ function buildAuxiliaryGraphicsElements(ctx: BuildContext): PageElement[] {
   elements.push({ type: "text", id: "ag-intro",
     content: "辅助图形是品牌视觉系统的重要组成部分，用于丰富视觉层次、强化品牌识别。",
     position: "top-center", fontSize: 13, color: "#666",
-    marginTop: 100, marginLeft: 80, marginRight: 80,
+    marginTop: 100, marginLeft: 40, marginRight: 40,
     params: { align: "left", lineHeight: 1.6 },
   });
 
@@ -950,7 +951,7 @@ function buildAuxiliaryGraphicsElements(ctx: BuildContext): PageElement[] {
   elements.push({ type: "text", id: "ag-usage-list",
     content: "1. 文档/手册页眉装饰线\n2. 包装袋底部纹样\n3. 名片背面背景\n4. 社交媒体封面装饰\n5. 店铺墙面装饰纹样",
     position: "top-center", fontSize: 12, color: "#555",
-    marginTop: 475, marginLeft: 80, marginRight: 80,
+    marginTop: 475, marginLeft: 40, marginRight: 40,
     params: { align: "left", lineHeight: 1.8 },
   });
 
