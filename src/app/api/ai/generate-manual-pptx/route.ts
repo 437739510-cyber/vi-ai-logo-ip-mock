@@ -23,6 +23,7 @@ import { supabaseAdmin } from "@/lib/core/supabase";
 import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
 import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
+import { validateAndBlockAsync } from "@/lib/vi-manual/quality-check";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -1069,6 +1070,16 @@ export async function POST(req: NextRequest) {
     });
 
     console.log("[generate-pptx] Blueprints:", blueprints.length, "pages");
+
+    // ===== QC Gate: 轻量化内容校验（fire-and-forget，不阻塞管线）=====
+    const qcMd = blueprints
+      .map((bp: any) => bp.elements?.map((e: any) => e.content || "").join("\n") || "")
+      .join("\n\n");
+    validateAndBlockAsync(qcMd, "cross", {}, {
+      projectId: projectId || "unknown",
+      brandName: companyName || "unknown",
+      industry: industryType || "general",
+    }).catch((e: any) => console.warn("[generate-pptx] QC gate warning:", e.message));
 
     // ===== Step 6: 渲染 PPTX =====
     // V12: PPTX组装中
