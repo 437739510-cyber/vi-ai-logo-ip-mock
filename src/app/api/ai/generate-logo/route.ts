@@ -179,7 +179,22 @@ export async function POST(req: NextRequest) {
             providerName: provider?.name || "unknown",
           };
           console.error("[generate-logo] Failed prompt " + (i+1) + ":", JSON.stringify(errDetail, null, 2));
-          logoResults.push({ index: i, prompt: rawPrompt, imageUrl: null, error: err.message });
+          // P2-02: 1 retry on failure
+          let retried = false;
+          try {
+            console.log("[generate-logo] Retrying prompt " + (i+1) + "...");
+            const retryResult = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "" }, prompt: finalPrompt, negativePrompt, width: 1024, height: 1024, seed: Math.floor(Math.random() * 2147483647) });
+            let retryUrl: string = retryResult.imageUrl || "";
+            try { retryUrl = await overlayChineseText(retryResult.imageUrl, companyName, headingFont); } catch (e: any) {}
+            logoResults.push({ index: i, prompt: rawPrompt, imageUrl: retryUrl, model: retryResult.providerMeta?.model || retryResult.providerName, durationMs: retryResult.durationMs });
+            retried = true;
+            console.log("[generate-logo] Retry " + (i+1) + " OK");
+          } catch (retryErr: any) {
+            console.error("[generate-logo] Retry also failed for prompt " + (i+1) + ":", retryErr.message);
+          }
+          if (!retried) {
+            logoResults.push({ index: i, prompt: rawPrompt, imageUrl: null, error: err.message });
+          }
         }
 
         // Update progress
