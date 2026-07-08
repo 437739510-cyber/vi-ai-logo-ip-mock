@@ -1,4 +1,4 @@
-﻿// V120: Switched to ComfyUI local (free) -- ARK/DashScope cloud APIs removed
+// V120: Switched to ComfyUI local (free) -- ARK/DashScope cloud APIs removed
 /**
  * API: POST /api/ai/generate-logo
  *
@@ -234,9 +234,9 @@ export async function POST(req: NextRequest) {
                 })),
                 logoGeneratedAt: new Date().toISOString(),
               },
-              comfyuiUsageLog: [...(finalInfo.comfyuiUsageLog || []),
+              arkUsageLog: [...(finalInfo.arkUsageLog || []),
                 ...logoResults.filter(r => r.imageUrl).map((r) => ({
-                  model: r.model, type: "logo", cost: 0,
+                  model: r.model, type: "logo", cost: r.actualCost || 0,
                   timestamp: new Date().toISOString(),
                 }))],
               logoGenerationStatus: {
