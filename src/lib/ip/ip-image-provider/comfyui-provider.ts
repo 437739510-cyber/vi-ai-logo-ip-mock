@@ -298,7 +298,7 @@ export class ComfyUIProvider implements ImageProvider {
         imageUrl: sdxlImage, actualCost: 0, durationMs: sdxlResult.durationMs,
         assetId: `comfyui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         providerName: "comfyui",
-        providerMeta: { model: "dreamshaperXL10", width, height, seed, steps: 20 },
+        providerMeta: { model: getImageGenConfig().logo.model, width, height, seed, steps: 20 },
       };
     } catch (sdxlErr) {
       console.warn("[comfyui-provider] SDXL failed, trying Z-Image Turbo:", (sdxlErr as Error).message);
@@ -355,7 +355,7 @@ export async function comfyGenerateLogo(options: {
     width: size.width, height: size.height,
     genParams: { steps: cfg.logo.steps, cfg: cfg.logo.cfg, sampler_name: cfg.logo.sampler, scheduler: cfg.logo.scheduler },
   });
-  return { imageUrl, durationMs, model: "dreamshaperXL10" };
+  return { imageUrl, durationMs, model: cfg.logo.model };
 }
 
 export async function comfyGenerateScene(options: {
@@ -371,7 +371,7 @@ export async function comfyGenerateScene(options: {
     width: size.width, height: size.height,
     genParams: { steps: cfg2.scene.steps, cfg: cfg2.scene.cfg, sampler_name: cfg2.scene.sampler, scheduler: cfg2.scene.scheduler },
   });
-  return { imageUrl, durationMs, model: "dreamshaperXL10" };
+  return { imageUrl, durationMs, model: cfg2.scene.model };
 }
 
 
