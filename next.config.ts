@@ -2,6 +2,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Keep for large SSE streaming responses — triggers deprecation warning but safe to ignore
+  serverRuntimeConfig: {
+    responseLimit: false,
+  },
   images: {
     remotePatterns: [
       {
