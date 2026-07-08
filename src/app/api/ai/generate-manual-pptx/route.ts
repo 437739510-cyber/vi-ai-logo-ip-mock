@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API: Generate VI Manual PPTX via PptxGenJS Engine V120 (ComfyUI local only)
  *
  * V7 核心改动（在V6基础上）：
@@ -1190,26 +1190,28 @@ export async function POST(req: NextRequest) {
       await writeFile(path.join(outputDir, fileName), buffer);
     }
 
-    // ===== Step 7.5: 上传到Supabase Storage存档 =====
+    // ===== Step 7.5: async upload to Supabase Storage (fire-and-forget, does not block download) =====
     let storageUrl: string | null = null;
-    try {
-      const storagePath = `${projectId}/${fileName}`;
-      const { data: uploadData, error: uploadErr } = await supabaseAdmin.storage
-        .from("manuals")
-        .upload(storagePath, buffer, {
-          contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-          upsert: true,
-        });
-      if (uploadErr) {
-        console.warn("[generate-pptx] Storage upload failed:", uploadErr.message);
-      } else {
-        const { data: urlData } = supabaseAdmin.storage.from("manuals").getPublicUrl(storagePath);
-        storageUrl = urlData?.publicUrl || null;
-        console.log("[generate-pptx] Storage upload OK:", storageUrl);
-      }
-    } catch (storageErr: any) {
-      console.warn("[generate-pptx] Storage upload error:", storageErr?.message);
-    }
+    void (async () => {
+      try {
+        const sp = `${projectId}/${fileName}`;
+        const { error: ue } = await supabaseAdmin.storage
+          .from("manuals")
+          .upload(sp, buffer, {
+            contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            upsert: true,
+          });
+        if (ue) { console.warn("[generate-pptx] Storage upload failed:", ue.message); return; }
+        const { data: ud } = supabaseAdmin.storage.from("manuals").getPublicUrl(sp);
+        const url = ud?.publicUrl || null;
+        console.log("[generate-pptx] Storage upload OK:", url);
+        if (url) {
+          await supabaseAdmin.from("projects").update({
+            client_info: { pptxResult: { url: `/api/ai/download-pptx/${fileName}`, storageUrl: url, pageCount: blueprints.length, fileName } }
+          }).eq("id", projectId!);
+        }
+      } catch (e: any) { console.warn("[generate-pptx] Storage upload error:", e?.message); }
+    })();
 
     console.log("[generate-pptx] ===== DONE =====", fileName, `(${imgSuccess} images, ${blueprints.length} pages)`);
     // V85-fix: 合并所有DB更新为一次写入，避免竞态覆盖pptxResult
@@ -1231,7 +1233,7 @@ export async function POST(req: NextRequest) {
           generationStatus: "completed",
           generationMessage: "生成完成！",
           generationPercent: 100,
-          pptxResult: { url: `/api/ai/download-pptx/${fileName}`, storageUrl, pageCount: blueprints.length, fileName },
+          pptxResult: { url: `/api/ai/download-pptx/${fileName}`, pageCount: blueprints.length, fileName },
         },
         status: "completed",
         updated_at: new Date().toISOString(),
