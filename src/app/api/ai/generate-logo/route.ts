@@ -17,6 +17,7 @@ import { getUnifiedParam } from "@/lib/vi-manual/param-bus";
 import { logArkUsage } from "@/lib/core/billing/ark-usage-log";
 import { getDefaultRegistry, type GenerateImageResult } from "@/lib/ip/ip-image-provider";
 import { overlayChineseText } from "@/lib/ip/overlay-chinese";
+import { preGenerationGuard, postGenerationGuard } from "@/lib/vi-manual/asset-guardian";
 
 export const maxDuration = 180;
 export const dynamic = "force-dynamic";
@@ -140,10 +141,15 @@ export async function POST(req: NextRequest) {
         const enhancedPrompt = rawPrompt + ", logo design on clean white background, centered composition";
         const negativePrompt = "cartoon, illustration, vector art, flat design, digital art, 3d render, painting, photorealistic, shadow, gradient, complex background, text, watermark";
 
+
+        // P1-ASSET-GUARDIAN: pre-generation prompt safety check
+        const guardResult = preGenerationGuard(enhancedPrompt, companyName);
+        if (guardResult.riskLevel === "high") console.warn("[asset-guardian] High risk prompt:", guardResult.blockedTerms);
+        const finalPrompt = guardResult.enhancedPrompt || enhancedPrompt;
         console.log("[generate-logo] Prompt " + (i+1) + "/" + prompts.length);
 
         try {
-          const result = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-${i+1}`, label: "Logo", description: rawPrompt }, prompt: enhancedPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
+          const result = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-${i+1}`, label: "Logo", description: rawPrompt }, prompt: finalPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
           console.log("[generate-logo] " + provider.name + " logo " + (i+1) + " OK (" + result.durationMs + "ms)");
           // Log ARK usage
           void logArkUsage({ route: "ai/generate-logo", model: String(result.providerMeta?.model || "seedream"), imageCount: 1, projectId, durationMs: result.durationMs, success: true });
@@ -154,6 +160,11 @@ export async function POST(req: NextRequest) {
           } catch (e: any) {
             console.warn("[generate-logo] Chinese overlay failed for logo " + (i+1) + ":", e.message);
           }
+
+          // P1-ASSET-GUARDIAN: post-generation asset validation (fire-and-forget)
+          postGenerationGuard(null, logoImageUrl, companyName).then(r => {
+            if (r.riskLevel !== "none") console.warn("[asset-guardian] Post-gen:", r.blockedTerms);
+          });
           logoResults.push({
             index: i, prompt: rawPrompt, imageUrl: logoImageUrl,
             model: result.providerMeta?.model || result.providerName, durationMs: result.durationMs,
