@@ -1,7 +1,7 @@
-﻿/**
+/**
  * VI Manual Professional Standards
  * Comprehensive specification templates for all VI manual modules.
- * Uses ${paramName} placeholders aligned with param-bus field names.
+ * Uses \${paramName} placeholders aligned with param-bus field names.
  */
 
 // ---- Brand Philosophy Templates ----
@@ -15,32 +15,32 @@ export interface BrandPhilosophyTemplate {
 export const BRAND_PHILOSOPHY: Record<string, BrandPhilosophyTemplate> = {
   positioning: {
     section: "品牌定位",
-    template: `${brandName}是一个专注于${industry}领域的品牌，以${brandPositioning}为核心定位，为${targetMarket}提供${mainProducts}。`,
+    template: `\${brandName}是一个专注于\${industry}领域的品牌，以\${brandPositioning}为核心定位，为\${targetMarket}提供\${mainProducts}。`,
     placeholders: ["brandName", "industry", "brandPositioning", "targetMarket", "mainProducts"],
   },
   vision: {
     section: "品牌愿景",
-    template: `${refinedBrandVision}`,
+    template: `\${refinedBrandVision}`,
     placeholders: ["refinedBrandVision"],
   },
   mission: {
     section: "品牌使命",
-    template: `通过${coreValues}，为${targetMarket}创造${brandHighlight || "独特的品牌价值"}。`,
+    template: `通过\${coreValues}，为\${targetMarket}创造\${brandHighlight || "独特的品牌价值"}。`,
     placeholders: ["coreValues", "targetMarket", "brandHighlight"],
   },
   values: {
     section: "核心价值观",
-    template: `${refinedCoreValues}`,
+    template: `\${refinedCoreValues}`,
     placeholders: ["refinedCoreValues"],
   },
   tone: {
     section: "品牌调性",
-    template: `品牌调性关键词：${brandToneKeywords?.join("、") || ""}。整体风格偏向${visualStyleSuggestion}`,
+    template: `品牌调性关键词：\${brandToneKeywords?.join("、") || ""}。整体风格偏向\${visualStyleSuggestion}`,
     placeholders: ["brandToneKeywords", "visualStyleSuggestion"],
   },
   slogan: {
     section: "品牌Slogan",
-    template: `基于品牌定位"${brandPositioning}"，结合${industry}行业特性，提炼简短有力的品牌口号。`,
+    template: `基于品牌定位"\${brandPositioning}"，结合\${industry}行业特性，提炼简短有力的品牌口号。`,
     placeholders: ["brandPositioning", "industry"],
   },
 };
@@ -56,12 +56,12 @@ export const LOGO_STANDARDS: LogoStandardTemplate[] = [
   {
     section: "网格制图",
     rules: [
-      "外框轮廓宽高比例：${gridRatio}（如10:8网格单位）",
-      "圆角半径：${cornerRadius} 网格单位",
-      "核心图形元素坐标：(${elementX}, ${elementY}) 网格坐标",
-      "核心元素尺寸：${elementW}x${elementH} 网格单位",
-      "标准字与图形最小间距：${textGap} 网格单位",
-      "字号对应：${fontSize} 网格单位",
+      "外框轮廓宽高比例：\${gridRatio}（如10:8网格单位）",
+      "圆角半径：\${cornerRadius} 网格单位",
+      "核心图形元素坐标：(\${elementX}, \${elementY}) 网格坐标",
+      "核心元素尺寸：\${elementW}x\${elementH} 网格单位",
+      "标准字与图形最小间距：\${textGap} 网格单位",
+      "字号对应：\${fontSize} 网格单位",
     ],
   },
   {
@@ -99,9 +99,9 @@ export const LOGO_STANDARDS: LogoStandardTemplate[] = [
 export const COLOR_STANDARDS = {
   ratioRule: "品牌主色占比60%，辅助色占比30%，强调色占比10%（平面印刷场景）",
   colorTypes: {
-    primary: { label: "品牌主色", ratio: "60%", hex: "${colorPalette[0].hex}", cmyk: "${colorPalette[0].cmyk}", pantone: "${colorPalette[0].pantone}", meaning: "${colorPalette[0].meaning}" },
-    secondary: { label: "辅助色", ratio: "30%", hex: "${colorPalette[1].hex}", cmyk: "${colorPalette[1].cmyk}", pantone: "${colorPalette[1].pantone}", meaning: "${colorPalette[1].meaning}" },
-    accent: { label: "强调色", ratio: "10%", hex: "${colorPalette[2].hex}", cmyk: "${colorPalette[2].cmyk}", pantone: "${colorPalette[2].pantone}", meaning: "${colorPalette[2].meaning}" },
+    primary: { label: "品牌主色", ratio: "60%", hex: "\${colorPalette[0].hex}", cmyk: "\${colorPalette[0].cmyk}", pantone: "\${colorPalette[0].pantone}", meaning: "\${colorPalette[0].meaning}" },
+    secondary: { label: "辅助色", ratio: "30%", hex: "\${colorPalette[1].hex}", cmyk: "\${colorPalette[1].cmyk}", pantone: "\${colorPalette[1].pantone}", meaning: "\${colorPalette[1].meaning}" },
+    accent: { label: "强调色", ratio: "10%", hex: "\${colorPalette[2].hex}", cmyk: "\${colorPalette[2].cmyk}", pantone: "\${colorPalette[2].pantone}", meaning: "\${colorPalette[2].meaning}" },
   },
   taboos: [
     "禁止在低对比度背景上使用品牌色",
@@ -134,14 +134,14 @@ export const AUXILIARY_GRAPHICS_STANDARDS = {
 
 export const FONT_STANDARDS = {
   hierarchy: [
-    { level: "H1 主标题", font: "${fontSuggestions.chinese.title.font}", weight: "${fontSuggestions.chinese.title.weight}", size: "28-36pt", lineHeight: "1.2", letterSpacing: "0" },
-    { level: "H2 次级标题", font: "${fontSuggestions.chinese.title.font}", weight: "Medium", size: "20-24pt", lineHeight: "1.3", letterSpacing: "0" },
-    { level: "正文", font: "${fontSuggestions.chinese.body.font}", weight: "${fontSuggestions.chinese.body.weight}", size: "9-11pt", lineHeight: "1.6", letterSpacing: "0" },
-    { level: "数字/价格", font: "${fontSuggestions.numbersAndPrices.font}", weight: "${fontSuggestions.numbersAndPrices.weight}", size: "12-16pt", lineHeight: "1.4", letterSpacing: "0" },
-    { level: "英文标题", font: "${fontSuggestions.english.title.font}", weight: "${fontSuggestions.english.title.weight}", size: "24-32pt", lineHeight: "1.2", letterSpacing: "-0.5" },
-    { level: "英文正文", font: "${fontSuggestions.english.body.font}", weight: "${fontSuggestions.english.body.weight}", size: "9-11pt", lineHeight: "1.5", letterSpacing: "0" },
+    { level: "H1 主标题", font: "\${fontSuggestions.chinese.title.font}", weight: "\${fontSuggestions.chinese.title.weight}", size: "28-36pt", lineHeight: "1.2", letterSpacing: "0" },
+    { level: "H2 次级标题", font: "\${fontSuggestions.chinese.title.font}", weight: "Medium", size: "20-24pt", lineHeight: "1.3", letterSpacing: "0" },
+    { level: "正文", font: "\${fontSuggestions.chinese.body.font}", weight: "\${fontSuggestions.chinese.body.weight}", size: "9-11pt", lineHeight: "1.6", letterSpacing: "0" },
+    { level: "数字/价格", font: "\${fontSuggestions.numbersAndPrices.font}", weight: "\${fontSuggestions.numbersAndPrices.weight}", size: "12-16pt", lineHeight: "1.4", letterSpacing: "0" },
+    { level: "英文标题", font: "\${fontSuggestions.english.title.font}", weight: "\${fontSuggestions.english.title.weight}", size: "24-32pt", lineHeight: "1.2", letterSpacing: "-0.5" },
+    { level: "英文正文", font: "\${fontSuggestions.english.body.font}", weight: "\${fontSuggestions.english.body.weight}", size: "9-11pt", lineHeight: "1.5", letterSpacing: "0" },
   ],
-  copyright: "${fontSuggestions.copyrightInfo}",
+  copyright: "\${fontSuggestions.copyrightInfo}",
 };
 
 // ---- IP/Mascot Specifications ----
