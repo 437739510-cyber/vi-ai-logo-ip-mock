@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Anti-Pattern Library
  * Known error patterns from past VI manual generations.
  * Feeds into QC checks and prompt constraints.
@@ -145,4 +145,67 @@ export const ANTI_PATTERNS: AntiPattern[] = [
 export function incrementErrorCount(errorId: string): void {
   const pattern = ANTI_PATTERNS.find(p => p.errorId === errorId);
   if (pattern) pattern.occurrenceCount++;
+}
+
+// ---- KM-007: Auto-log errors to case_library ----
+
+export interface AutoLogParams {
+  projectId: string;
+  brandName: string;
+  industry: string;
+  errorId: string;
+  mdContext: string;
+  detectRule: string;
+}
+
+/**
+ * Auto-log a detected QC error into the case_library for knowledge accumulation.
+ * Deduplicates by projectId + errorId: if already logged for this project, skips.
+ */
+export async function autoLogError(params: AutoLogParams): Promise<{ logged: boolean; caseId?: string }> {
+  try {
+    const { supabaseAdmin } = await import("@/lib/core/supabase");
+
+    // Dedup: check if this error already logged for this project
+    const { data: existing } = await supabaseAdmin
+      .from("case_library")
+      .select("case_id")
+      .eq("project_id", params.projectId)
+      .contains("highlight_tags", [params.errorId])
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      return { logged: false };
+    }
+
+    const pattern = ANTI_PATTERNS.find(p => p.errorId === params.errorId);
+    const fixGuide = pattern?.fixGuide || "";
+
+    const { data, error } = await supabaseAdmin
+      .from("case_library")
+      .insert({
+        project_id: params.projectId,
+        brand_name: params.brandName,
+        industry: params.industry,
+        quality_score: 0,
+        highlight_tags: [params.errorId, params.detectRule],
+        is_reference: false,
+        md_context: params.mdContext.slice(0, 2000),
+        fix_guide: fixGuide,
+        created_at: new Date().toISOString(),
+      })
+      .select("case_id")
+      .single();
+
+    if (error) {
+      console.warn("[autoLogError] Insert failed:", error.message);
+      return { logged: false };
+    }
+
+    console.log(`[autoLogError] Logged ${params.errorId} -> case_library (${data?.case_id})`);
+    return { logged: true, caseId: data?.case_id };
+  } catch (e: any) {
+    console.warn("[autoLogError] Unexpected error:", e.message);
+    return { logged: false };
+  }
 }

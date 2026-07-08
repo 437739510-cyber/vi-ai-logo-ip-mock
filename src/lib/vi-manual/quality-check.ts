@@ -8,7 +8,7 @@ import type { UnifiedParamPackage } from "./param-package";
 
 import { supabaseAdmin } from "@/lib/core/supabase";
 
-import { ANTI_PATTERNS, incrementErrorCount } from "../quality-check/anti-patterns";
+import { ANTI_PATTERNS, incrementErrorCount, autoLogError, type AutoLogParams } from "../quality-check/anti-patterns";
 export interface ValidationIssue {
   id: string;
   name: string;
@@ -538,8 +538,26 @@ export function validateCrossRound(round2Md: string, params: ParamPackage): Flow
   return { passed: result.passed, needsRetry: false, result };
 }
 
+/** KM-007: Project context for auto-logging detected errors to case_library */
+export interface QCProjectContext {
+  projectId: string;
+  brandName: string;
+  industry: string;
+}
+
+/** KM-007: Extended return type with error IDs for caller notification */
+export interface ValidateAndBlockResult {
+  blocked: boolean;
+  errorIds: string[];
+}
+
 /** M3.1: Validate and throw if high-risk issues found — use this at pipeline gate points */
-export function validateAndBlock(md: string, stage: "round1" | "round2" | "cross", extra: { dict?: IndustryDict | null; params?: ParamPackage }): void {
+export function validateAndBlock(
+  md: string,
+  stage: "round1" | "round2" | "cross",
+  extra: { dict?: IndustryDict | null; params?: ParamPackage },
+  projectCtx?: QCProjectContext,
+): void {
   let result: FlowResult;
   switch (stage) {
     case "round1":
@@ -551,6 +569,24 @@ export function validateAndBlock(md: string, stage: "round1" | "round2" | "cross
     case "cross":
       result = validateCrossRound(md, extra.params!);
       break;
+  }
+
+  // KM-007: Auto-log high-risk errors to case_library (fire-and-forget)
+  if (projectCtx) {
+    const highRiskIssues = result.result.issues.filter(i => i.risk === "high");
+    for (const issue of highRiskIssues) {
+      const pattern = ANTI_PATTERNS.find(p => p.detectRule === issue.id);
+      const errorId = pattern?.errorId || "AUTO_" + issue.id;
+      const logParams: AutoLogParams = {
+        projectId: projectCtx.projectId,
+        brandName: projectCtx.brandName,
+        industry: projectCtx.industry,
+        errorId,
+        mdContext: md.slice(0, 2000),
+        detectRule: issue.id,
+      };
+      autoLogError(logParams).catch(e => console.warn("[QC] autoLogError failed:", e));
+    }
   }
 
   if (!result.passed) {
@@ -799,3 +835,55 @@ export async function saveQCResult(
     return false;
   }
 }
+
+/**
+ * KM-007: Async variant of validateAndBlock that returns error IDs for caller notification.
+ * Auto-logs high-risk errors to case_library and returns { blocked, errorIds }.
+ * Does NOT throw -- caller decides whether to abort the pipeline.
+ */
+export async function validateAndBlockAsync(
+  md: string,
+  stage: "round1" | "round2" | "cross",
+  extra: { dict?: IndustryDict | null; params?: ParamPackage },
+  projectCtx: QCProjectContext,
+): Promise<ValidateAndBlockResult> {
+  let result: FlowResult;
+  switch (stage) {
+    case "round1":
+      result = validateRound1(md);
+      break;
+    case "round2":
+      result = validateRound2(md, extra.dict || null);
+      break;
+    case "cross":
+      result = validateCrossRound(md, extra.params!);
+      break;
+  }
+
+  const highRiskIssues = result.result.issues.filter(i => i.risk === "high");
+  const errorIds: string[] = [];
+
+  for (const issue of highRiskIssues) {
+    const pattern = ANTI_PATTERNS.find(p => p.detectRule === issue.id);
+    const errorId = pattern?.errorId || "AUTO_" + issue.id;
+    errorIds.push(errorId);
+
+    const logParams: AutoLogParams = {
+      projectId: projectCtx.projectId,
+      brandName: projectCtx.brandName,
+      industry: projectCtx.industry,
+      errorId,
+      mdContext: md.slice(0, 2000),
+      detectRule: issue.id,
+    };
+    await autoLogError(logParams).catch(e => console.warn("[QC] autoLogError failed:", e));
+  }
+
+  const warnings = result.result.issues.filter(i => i.risk !== "high");
+  if (warnings.length > 0) {
+    console.warn("[QualityCheck] " + stage + " warnings (" + warnings.length + "):", warnings.map(i => "[" + i.id + "] " + i.message).join("; "));
+  }
+
+  return { blocked: !result.passed, errorIds };
+}
+
