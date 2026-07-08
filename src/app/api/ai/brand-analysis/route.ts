@@ -159,10 +159,10 @@ export async function POST(req: NextRequest) {
     "elements": "建议包含的设计元素（图形、符号、字体风格）",
     "colorGuidance": "配色建议，需与品牌色协调",
     "prompts": [
-      "prompt1 description in English. CRITICAL: the Chinese brand name MUST be included in quotes (e.g. "brandname") inside the prompt. Describe design style, core graphic elements, color scheme, layout. NEVER use pinyin or English translation for the brand name",
-      "prompt2: style variant of the same concept, also must include "brandname" in Chinese",
-      "prompt3: different creative direction variant, also must include "brandname" in Chinese",
-      "prompt4: another creative direction, also must include "brandname" in Chinese"
+      "prompt1 description in English. Describe design style, core graphic elements, color scheme, layout. CRITICAL: use pinyin for the brand name only — NEVER use Chinese characters (SDXL cannot render them; Chinese text is overlaid after generation by overlay_chinese.py)",
+      "prompt2: style variant of the same concept, must include "brandname" in pinyin (NOT Chinese characters)",
+      "prompt3: different creative direction variant, must include "brandname" in pinyin (NOT Chinese characters)",
+      "prompt4: another creative direction, must include "brandname" in pinyin (NOT Chinese characters)"
     ]
   },
   "colorPalette": [
