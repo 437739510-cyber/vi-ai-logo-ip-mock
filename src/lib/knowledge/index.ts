@@ -24,3 +24,5 @@ export {
   INDUSTRY_CONFIGS,
   getIndustryConfig,
 } from "./industries";
+export { buildKBInjection, getIndustryFontContext } from "./kb-injector";
+export type { KBInjection } from "./kb-injector";

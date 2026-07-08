@@ -7,6 +7,7 @@ import { saveGenerationLog, type GenerationLogEntry } from "@/lib/core/generatio
 import { arkGenerateScene, getArkUnitCost } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
 import { comfyuiGenerateScene, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
 import { renderProfessionalPage } from "@/lib/pptx/vi-page-renderer";
+import { buildKBInjection, getIndustryFontContext } from "@/lib/knowledge/kb-injector";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 
@@ -181,6 +182,7 @@ async function generateDesignDecision(
   const brief = [
     `公司名：${clientInfo?.companyName || "未提供"}`,
     `行业：${clientInfo?.industry || "未提供"}`,
+    `[??????] ${buildKBInjection(clientInfo?.industry || "").combined}`,
     `品牌愿景：${clientInfo?.brandVision || "未提供"}`,
     `核心价值：${clientInfo?.coreValues || "未提供"}`,
     `目标市场：${clientInfo?.targetMarket || "未提供"}`,
