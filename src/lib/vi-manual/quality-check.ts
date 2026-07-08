@@ -6,6 +6,8 @@ import { IndustryDict, getIndustryIsolation, type IndustryIsolation } from "./ca
 import { ParamPackage } from "./parameter-extract";
 import type { UnifiedParamPackage } from "./param-package";
 
+import { supabaseAdmin } from "@/lib/core/supabase";
+
 import { ANTI_PATTERNS, incrementErrorCount } from "../quality-check/anti-patterns";
 export interface ValidationIssue {
   id: string;
@@ -657,4 +659,143 @@ export function validateCmykHexConsistency(hex: string, cmyk: string): { passed:
     return { passed: false, message: `Black (#000000) must have CMYK 0,0,0,100, got ${cmyk}` };
   }
   return { passed: true, message: "OK" };
+}
+
+// ==================== KM-006: QC Enhancement ====================
+
+/** Error distribution by type and severity */
+export interface QCErrorStats {
+  total: number;
+  byType: Record<string, number>;
+  bySeverity: { critical: number; warning: number; info: number };
+  byRule: Record<string, number>;
+}
+
+/** Auto-fix suggestion for simple, correctable errors */
+export interface AutoFixSuggestion {
+  errorId: string;
+  originalValue: string;
+  suggestedValue: string;
+  confidence: "high" | "medium" | "low";
+  reason: string;
+}
+
+/**
+ * Compute error distribution statistics from a validation result.
+ */
+export function getErrorStats(result: ValidationResult): QCErrorStats {
+  const issues = result.issues;
+  const byType: Record<string, number> = {};
+  const byRule: Record<string, number> = {};
+  let critical = 0, warning = 0, info = 0;
+
+  for (const issue of issues) {
+    byRule[issue.id] = (byRule[issue.id] || 0) + 1;
+    if (issue.risk === "high") critical++;
+    else if (issue.risk === "medium") warning++;
+    else info++;
+
+    // Extract type from enriched message or use id prefix
+    const typeMatch = issue.message.match(/\[(硬错误|假规范|资产风险|内容错配)\]/);
+    const typeKey = typeMatch ? typeMatch[1] : "unclassified";
+    byType[typeKey] = (byType[typeKey] || 0) + 1;
+  }
+
+  return {
+    total: issues.length,
+    byType,
+    bySeverity: { critical, warning, info },
+    byRule,
+  };
+}
+
+/**
+ * Generate auto-fix suggestions for simple, deterministic errors.
+ * Currently handles: color name mismatch (ERR_COLOR_001), font name typos (ERR_FONT_001).
+ */
+export function generateFixSuggestions(issues: ValidationIssue[]): AutoFixSuggestion[] {
+  const suggestions: AutoFixSuggestion[] = [];
+
+  for (const issue of issues) {
+    // ERR_COLOR_001: color name mismatch
+    if (issue.id === "QC01") {
+      const hexMatch = issue.message.match(/#([0-9A-Fa-f]{6})/);
+      if (hexMatch) {
+        suggestions.push({
+          errorId: "ERR_COLOR_001",
+          originalValue: hexMatch[0],
+          suggestedValue: `核实 ${hexMatch[0]} 对应的标准颜色名称`,
+          confidence: "medium",
+          reason: "HEX色值需与标准颜色名称一一对应",
+        });
+      }
+    }
+
+    // ERR_FONT_001: font name spelling
+    if (issue.id === "QC04") {
+      const fontMatch = issue.message.match(/("([^"]+)"|'([^']+)')/);
+      if (fontMatch) {
+        const fontName = fontMatch[2] || fontMatch[3];
+        suggestions.push({
+          errorId: "ERR_FONT_001",
+          originalValue: fontName,
+          suggestedValue: `在 SAFE_FONTS 库中查找 "${fontName}" 的正确拼写`,
+          confidence: "high",
+          reason: "字体名称拼写错误，需修正为官方标准名称",
+        });
+      }
+    }
+
+    // ERR_PLACEHOLDER_001: residual placeholders
+    if (issue.id === "A02") {
+      suggestions.push({
+        errorId: "ERR_PLACEHOLDER_001",
+        originalValue: "模板占位符文本",
+        suggestedValue: "删除占位符，替换为实际品牌内容",
+        confidence: "high",
+        reason: "模板占位符（自定义填写/待补充等）必须替换为实际内容",
+      });
+    }
+  }
+
+  return suggestions;
+}
+
+/**
+ * Persist QC result to project record in Supabase.
+ * Updates projects.qc_result JSONB field.
+ */
+export async function saveQCResult(
+  projectId: string,
+  result: ValidationResult,
+  stage: "round1" | "round2" | "cross"
+): Promise<boolean> {
+  try {
+    const stats = getErrorStats(result);
+    const fixSuggestions = generateFixSuggestions(result.issues);
+
+    const qcResult = {
+      stage,
+      passed: result.passed,
+      risk: result.risk,
+      stats,
+      fixSuggestions: fixSuggestions.slice(0, 10), // cap at 10
+      issueCount: result.issues.length,
+      checkedAt: new Date().toISOString(),
+    };
+
+    const { error } = await supabaseAdmin
+      .from("projects")
+      .update({ qc_result: qcResult, updated_at: new Date().toISOString() })
+      .eq("id", projectId);
+
+    if (error) {
+      console.warn("[QC] Failed to save qc_result:", error.message);
+      return false;
+    }
+    return true;
+  } catch (e: any) {
+    console.warn("[QC] saveQCResult error:", e.message);
+    return false;
+  }
 }
