@@ -24,7 +24,7 @@ const PROMPT_URL = `${COMFYUI_BASE}/api/prompt`;
 const HISTORY_URL = `${COMFYUI_BASE}/api/history`;
 const TIMEOUT_MS = 60_000;
 const POLL_INTERVAL_MS = 1_000;
-const COMFYUI_OUTPUT_DIR = "E:/ComfyUI/output";
+const COMFYUI_OUTPUT_DIR = "D:/ComfyUI-backup/output";
 // ========== Config Loader ==========
 
 type ImageGenConfig = typeof imageGenConfig;
