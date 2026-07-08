@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
           let retried = false;
           try {
             console.log("[generate-logo] Retrying prompt " + (i+1) + "...");
-            const retryResult = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-retry-${i+1}`, label: "Logo Retry", description: rawPrompt }, prompt: finalPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } } });
+            const retryResult = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-retry-${i+1}`, label: "Logo Retry", description: rawPrompt }, prompt: finalPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
             let retryUrl: string = retryResult.imageUrl || "";
             try { retryUrl = await overlayChineseText(retryResult.imageUrl, companyName, headingFont); } catch (e: any) {}
             logoResults.push({ index: i, prompt: rawPrompt, imageUrl: retryUrl, model: retryResult.providerMeta?.model || retryResult.providerName, durationMs: retryResult.durationMs });
