@@ -182,7 +182,7 @@ async function generateDesignDecision(
   const brief = [
     `公司名：${clientInfo?.companyName || "未提供"}`,
     `行业：${clientInfo?.industry || "未提供"}`,
-    `[??????] ${buildKBInjection(clientInfo?.industry || "").combined}`,
+    ...(() => { try { return [`[??????] ${buildKBInjection(clientInfo?.industry || "").combined}`,]; } catch { return []; } })(),
     `品牌愿景：${clientInfo?.brandVision || "未提供"}`,
     `核心价值：${clientInfo?.coreValues || "未提供"}`,
     `目标市场：${clientInfo?.targetMarket || "未提供"}`,
