@@ -23,6 +23,7 @@ import { supabaseAdmin } from "@/lib/core/supabase";
 import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
 import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
 import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
+import { validateAndBlockAsync, type QCProjectContext } from "@/lib/vi-manual/quality-check";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -1069,6 +1070,20 @@ export async function POST(req: NextRequest) {
     });
 
     console.log("[generate-pptx] Blueprints:", blueprints.length, "pages");
+
+    // ===== QC Gate: validate blueprint content before rendering =====
+    try {
+      const qcText = JSON.stringify(blueprints);
+      const qcCtx: QCProjectContext = { projectId: projectId!, brandName: companyName, industry };
+      const qcResult = await validateAndBlockAsync(qcText, "round2", {}, qcCtx);
+      if (qcResult.blocked) {
+        console.warn("[generate-pptx] QC blocked:", qcResult.errorIds.join(", "));
+      } else {
+        console.log("[generate-pptx] QC passed");
+      }
+    } catch (qcErr: any) {
+      console.warn("[generate-pptx] QC check error (non-blocking):", qcErr.message);
+    }
 
     // ===== Step 6: 渲染 PPTX =====
     // V12: PPTX组装中

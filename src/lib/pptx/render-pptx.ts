@@ -1743,7 +1743,7 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
   const tocItems = getTocItems(industry, opts.sceneSectionTitles);
   let yPos = 2.6;
   tocItems.sort((a, b) => PAGE_ORDER.indexOf(a.pageId) - PAGE_ORDER.indexOf(b.pageId));
-  for (let i = 0; i < tocItems.length; i++) {
+  for (let i = 0; i < Math.min(tocItems.length, 15); i++) {
     const item = tocItems[i];
     const numStr = String(i + 1).padStart(2, "0");
     // 序号
