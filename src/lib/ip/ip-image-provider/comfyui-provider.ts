@@ -1,4 +1,4 @@
-﻿/**
+/**
  * IP Image Provider Layer 闂?ComfyUI Provider (闂佸搫鐗滈崜娆忥耿?
  *
  * Local image generation via ComfyUI REST API (http://127.0.0.1:8188).
@@ -19,12 +19,11 @@ import imageGenConfig from "../../../config/image-gen-config.json";
 
 // ========== Constants ==========
 
-const COMFYUI_BASE = "http://127.0.0.1:8188";
+const COMFYUI_BASE = process.env.COMFYUI_BASE_URL || "http://127.0.0.1:8188";
 const PROMPT_URL = `${COMFYUI_BASE}/api/prompt`;
 const HISTORY_URL = `${COMFYUI_BASE}/api/history`;
 const TIMEOUT_MS = 60_000;
 const POLL_INTERVAL_MS = 1_000;
-const COMFYUI_OUTPUT_DIR = "D:/ComfyUI-backup/output";
 // ========== Config Loader ==========
 
 type ImageGenConfig = typeof imageGenConfig;
@@ -246,25 +245,15 @@ async function comfyGenerateSync(
   return { filename, durationMs: Date.now() - startTime };
 }
 
-function readImageAsBase64(filename: string): string {
-  const possiblePaths = [
-    path.join(COMFYUI_OUTPUT_DIR, filename),
-  ];
-  let imagePath = null;
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) { imagePath = p; break; }
+async function readImageAsBase64(filename: string): Promise<string> {
+  const viewUrl = COMFYUI_BASE + "/view?filename=" + encodeURIComponent(filename) + "&type=output";
+  const resp = await fetch(viewUrl, { signal: AbortSignal.timeout(30_000) });
+  if (!resp.ok) {
+    throw new ComfyUIError("Generated image not found via HTTP: " + filename + " (" + resp.status + ")", "FILE_NOT_FOUND", false);
   }
-  if (!imagePath) {
-    const files = fs.readdirSync(COMFYUI_OUTPUT_DIR);
-    const match = files.find((f) => f.startsWith(filename.replace(/\.[^.]+$/, "")));
-    if (match) imagePath = path.join(COMFYUI_OUTPUT_DIR, match);
-  }
-  if (!imagePath || !fs.existsSync(imagePath)) {
-    throw new ComfyUIError(`Generated image not found: ${filename}`, "FILE_NOT_FOUND", false);
-  }
-  const buffer = fs.readFileSync(imagePath);
+  const buffer = Buffer.from(await resp.arrayBuffer());
   const base64 = buffer.toString("base64");
-  return `data:image/png;base64,${base64}`;
+  return "data:image/png;base64," + base64;
 }
 
 // ========== Provider Implementation ==========
@@ -293,7 +282,7 @@ export class ComfyUIProvider implements ImageProvider {
       const sdxlWorkflow = buildSDXLWorkflow(params.prompt, params.negativePrompt, width, height, seed);
       const sdxlStart = Date.now();
       const sdxlResult = await comfyGenerateSync(sdxlWorkflow);
-      const sdxlImage = readImageAsBase64(sdxlResult.filename);
+      const sdxlImage = await readImageAsBase64(sdxlResult.filename);
       return {
         imageUrl: sdxlImage, actualCost: 0, durationMs: sdxlResult.durationMs,
         assetId: `comfyui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -305,7 +294,7 @@ export class ComfyUIProvider implements ImageProvider {
     }
     const workflow = buildSDXLWorkflow(params.prompt, params.negativePrompt, width, height, seed);
     const { filename, durationMs } = await comfyGenerateSync(workflow);
-    const imageUrl = readImageAsBase64(filename);
+    const imageUrl = await readImageAsBase64(filename);
     return {
       imageUrl, actualCost: 0, durationMs,
       assetId: `comfyui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -339,7 +328,7 @@ export async function comfyGenerateImage(options: {
     options.genParams
   );
   const { filename, durationMs } = await comfyGenerateSync(workflow);
-  const imageUrl = readImageAsBase64(filename);
+  const imageUrl = await readImageAsBase64(filename);
   return { imageUrl, durationMs };
 }
 
@@ -387,7 +376,7 @@ export async function comfyGenerateFromWorkflow(
   options?: { timeoutMs?: number }
 ): Promise<{ imageUrl: string; durationMs: number }> {
   const { filename, durationMs } = await comfyGenerateSync(workflow, options?.timeoutMs);
-  const imageUrl = readImageAsBase64(filename);
+  const imageUrl = await readImageAsBase64(filename);
   return { imageUrl, durationMs };
 }
 
