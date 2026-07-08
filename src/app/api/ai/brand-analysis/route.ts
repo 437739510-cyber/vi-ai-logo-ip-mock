@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API Route: POST /api/ai/brand-analysis
  *
  * AI 品牌分析引擎 — 补全"信息断层"的核心层
@@ -159,10 +159,10 @@ export async function POST(req: NextRequest) {
     "elements": "建议包含的设计元素（图形、符号、字体风格）",
     "colorGuidance": "配色建议，需与品牌色协调",
     "prompts": [
-      "英文prompt1：用于AI生图的详细描述，需包含设计风格、核心图形元素、配色方案、布局方式",
-      "英文prompt2：同一概念的风格变体",
-      "英文prompt3：不同方向的变体",
-      "英文prompt4：另一个创意方向"
+      "prompt1 description in English. CRITICAL: the Chinese brand name MUST be included in quotes (e.g. "brandname") inside the prompt. Describe design style, core graphic elements, color scheme, layout. NEVER use pinyin or English translation for the brand name",
+      "prompt2: style variant of the same concept, also must include "brandname" in Chinese",
+      "prompt3: different creative direction variant, also must include "brandname" in Chinese",
+      "prompt4: another creative direction, also must include "brandname" in Chinese"
     ]
   },
   "colorPalette": [
