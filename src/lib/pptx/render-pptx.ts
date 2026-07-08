@@ -1745,13 +1745,10 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
   tocItems.sort((a, b) => PAGE_ORDER.indexOf(a.pageId) - PAGE_ORDER.indexOf(b.pageId));
   for (let i = 0; i < Math.min(tocItems.length, 15); i++) {
     const item = tocItems[i];
-    const numStr = String(i + 1).padStart(2, "0");
-    // 序号
-    slide.addText(numStr, { x: cx, y: yPos, w: 0.6, h: 0.5, fontSize: 13, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
-    // 标题
-    slide.addText(item.title, { x: cx + 0.7, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 14, color: "333333", fontFace: "Noto Sans SC" });
-    // 点线
-    slide.addText("....................................................................................", { x: cx + 0.7, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 9, color: "CCCCCC", align: "right" });
+    // 标题（左对齐，无独立序号）
+    slide.addText(item.title, { x: cx, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 14, color: "333333", fontFace: "Noto Sans SC" });
+    // 点线填充
+    slide.addText("....................................................................................", { x: cx, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 9, color: "CCCCCC", align: "right" });
     // 页码
     const realPageNum = PAGE_ORDER.indexOf(item.pageId) - 1;
     slide.addText(realPageNum > 0 ? `${realPageNum}` : "", { x: cx + CONTENT_W - 0.6, y: yPos, w: 0.6, h: 0.5, fontSize: 13, color: "999999", align: "right" });
