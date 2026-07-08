@@ -111,7 +111,7 @@ export async function postGenerationGuard(
         // 2. Size check: image must be ≥ 256×256 worth of data (~5KB floor)
         if (sizeBytes < 5000) {
           warnings.push(`size:${sizeBytes}bytes (too small)`);
-          riskLevel = riskLevel === "high" ? "high" : "medium";
+        if (riskLevel !== "high") riskLevel = "medium";
         }
       }
     }
