@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Asset Guardian — Logo asset safety guard (pre/post generation)
  *
  * Protects existing brand assets by detecting risky prompt patterns
@@ -108,10 +108,10 @@ export async function postGenerationGuard(
       const contentLength = resp.headers.get("content-length");
       if (contentLength) {
         const sizeBytes = parseInt(contentLength, 10);
-        // 2. Size check: image must be ≥ 256×256 worth of data (~5KB floor)
+        // 2. Size check: image must be >= 256x256 worth of data (~5KB floor)
         if (sizeBytes < 5000) {
           warnings.push(`size:${sizeBytes}bytes (too small)`);
-        if (riskLevel !== "high") riskLevel = "medium";
+          if (riskLevel !== "high") riskLevel = "medium";
         }
       }
     }
@@ -127,11 +127,11 @@ export async function postGenerationGuard(
     const hasBrandToken = brandTokens.some((t) => t.length > 0 && urlPath.includes(t));
     if (!hasBrandToken) {
       warnings.push("naming:no brand token in URL");
-      // Low severity — many CDNs use random filenames
-      if (riskLevel === "none") riskLevel = "low";
+      // Low severity -- many CDNs use random filenames
+      if (riskLevel !== "high" && riskLevel !== "medium") riskLevel = "low";
     }
   } catch {
-    // Invalid URL — already caught above
+    // Invalid URL -- already caught above
   }
 
   return {
