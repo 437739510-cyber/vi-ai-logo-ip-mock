@@ -143,3 +143,14 @@ export async function postGenerationGuard(
     riskLevel: rl,
   };
 }
+
+// ---- Helpers ----
+
+function riskRank(level: AssetGuardResult["riskLevel"]): number {
+  switch (level) {
+    case "high": return 3;
+    case "medium": return 2;
+    case "low": return 1;
+    default: return 0;
+  }
+}
