@@ -111,7 +111,7 @@ export async function postGenerationGuard(
         // 2. Size check: image must be >= 256x256 worth of data (~5KB floor)
         if (sizeBytes < 5000) {
           warnings.push(`size:${sizeBytes}bytes (too small)`);
-          if (riskLevel !== "high") riskLevel = "medium";
+          riskLevel = "medium";
         }
       }
     }
@@ -127,27 +127,19 @@ export async function postGenerationGuard(
     const hasBrandToken = brandTokens.some((t) => t.length > 0 && urlPath.includes(t));
     if (!hasBrandToken) {
       warnings.push("naming:no brand token in URL");
-      // Low severity -- many CDNs use random filenames
-      if (riskLevel !== "high" && riskLevel !== "medium") riskLevel = "low";
+      // Use intermediate const to break TS type narrowing
+      const rl2: AssetGuardResult["riskLevel"] = riskLevel;
+      if (rl2 === "none") riskLevel = "low";
     }
   } catch {
     // Invalid URL -- already caught above
   }
 
+  // Use intermediate const to break TS type narrowing
+  const rl: AssetGuardResult["riskLevel"] = riskLevel;
   return {
-    passed: riskLevel !== "high",
+    passed: rl !== "high",
     blockedTerms: warnings,
-    riskLevel,
+    riskLevel: rl,
   };
-}
-
-// ---- Helpers ----
-
-function riskRank(level: AssetGuardResult["riskLevel"]): number {
-  switch (level) {
-    case "high": return 3;
-    case "medium": return 2;
-    case "low": return 1;
-    default: return 0;
-  }
 }
