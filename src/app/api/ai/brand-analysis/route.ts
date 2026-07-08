@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
 - 如果客户已填写，请优化润色，保留客户原意
 
 ### 6. 视觉方向建议
-- 【必填】colorPalette必须输出3个具体hex色值。如果用户已自定义品牌色（见输入中的品牌色字段），colorPalette必须100%使用用户提供的hex值，禁止修改或替换。若用户未提供品牌色，根据行业特征生成。（主色、辅助色、强调色），如果客户已有品牌色则必须优先使用客户品牌色。每个色的meaning必须说明该色与品牌定位/行业特征的关联（如"深墨绿呼应中医经络的专业与沉稳"），不可写泛泛的"温暖""活力"等空话
+- 【必填】colorPalette必须输出3个完整色值（含hex/rgb/cmyk/pantone）。如果用户已自定义品牌色（见输入中的品牌色字段），colorPalette必须100%使用用户提供的hex值，禁止修改或替换。若用户未提供品牌色，根据行业特征生成（主色、辅助色、强调色），如果客户已有品牌色则必须优先使用客户品牌色。cmyk值必须是印刷适配值（非RGB数学转换），pantone按哑光铜版纸标准。每个色的meaning必须说明该色与品牌定位/行业特征的关联（如"深墨绿呼应中医经络的专业与沉稳"），不可写泛泛的"温暖""活力"等空话
 - 推荐的视觉风格（如极简、国潮、科技感等）
 - VI应用效果图建议（5个场景，必须是品牌Logo/视觉元素印在该行业真实使用的品牌物料上的效果图，场景品类根据客户行业动态决定，中英文对照）
 - sceneSectionTitles：3个场景页的中文标题，必须根据客户行业动态生成（如餐饮→"餐饮应用系统/餐饮包装系统/餐饮营销系统"，水果→"生鲜应用系统/生鲜包装系统/生鲜营销系统"，洗车→"洗车应用系统/洗车包装系统/洗车营销系统"）
@@ -165,16 +165,39 @@ export async function POST(req: NextRequest) {
       "prompt4: another creative direction, must include "brandname" in pinyin (NOT Chinese characters)"
     ]
   },
+  "fontSuggestions": {
+    "chinese": {
+      "title": {"font": "思源黑体", "weight": "Bold"},
+      "body": {"font": "思源黑体", "weight": "Regular"}
+    },
+    "english": {
+      "title": {"font": "Montserrat", "weight": "Bold"},
+      "body": {"font": "Montserrat", "weight": "Regular"}
+    },
+    "numbersAndPrices": {"font": "思源黑体", "weight": "Bold"},
+    "copyrightInfo": "字体版权声明，中文推荐思源黑体/阿里巴巴普惠体等免费商用字体，英文推荐Montserrat/Inter等SIL Open Font License字体"
+  },
   "colorPalette": [
-    {"name": "品牌主色", "hex": "#RRGGBB", "oklch": "oklch值", "nameEn": "Primary", "meaning": "该色彩与品牌定位/行业特征的关联说明，1-2句话"},
-    {"name": "辅助色", "hex": "#RRGGBB", "oklch": "oklch值", "nameEn": "Secondary", "meaning": "该色彩与品牌定位/行业特征的关联说明，1-2句话"},
-    {"name": "强调色", "hex": "#RRGGBB", "oklch": "oklch值", "nameEn": "Accent", "meaning": "该色彩与品牌定位/行业特征的关联说明，1-2句话"}
+    {"name": "品牌主色", "nameEn": "Primary", "hex": "#37474F", "oklch": "oklch(0.40 0.02 220)", "rgb": "rgb(55,71,79)", "cmyk": "cmyk(0,0,0,70)", "pantone": "Pantone 432 C", "meaning": "该色彩与品牌定位/行业特征的关联说明，1-2句话"},
+    {"name": "辅助色", "nameEn": "Secondary", "hex": "#78909C", "oklch": "oklch(0.55 0.04 220)", "rgb": "rgb(120,144,156)", "cmyk": "cmyk(20,5,0,40)", "pantone": "Pantone 5493 C", "meaning": "该色彩与品牌定位/行业特征的关联说明，1-2句话"},
+    {"name": "强调色", "nameEn": "Accent", "hex": "#FF6F00", "oklch": "oklch(0.70 0.18 60)", "rgb": "rgb(255,111,0)", "cmyk": "cmyk(0,55,100,0)", "pantone": "Pantone 151 C", "meaning": "该色彩与品牌定位/行业特征的关联说明，1-2句话"}
   ],
   "aiGeneratedFields": {
     "brandVision": "如果客户没写，AI代写的品牌愿景；如果已写，留空",
     "coreValues": "如果客户没写，AI代写的核心价值；如果已写，留空",
     "targetMarket": "如果客户没写，AI代写的目标市场；如果已写，留空"
-  }
+  },
+  "regionalAssets": {
+    "regionalMindset": "提炼1-3个大众认知最强地域标签，如北纬18度黄金产区、千年瓷都、天府粮仓等，不能是通用套话",
+    "visualSymbols": [
+      {"element": "地域标志元素名", "style": "视觉风格（如简约线条风/水彩渐变/剪影）", "applyTo": "落位VI模块（辅助图形/包装底纹/Logo装饰元素）"}
+    ],
+    "endorsementCopy": [
+      "产地背书文案，可直接用于包装/宣传",
+      "第二句背书文案"
+    ],
+    "applicationScenarios": ["辅助图形", "包装卖点区", "营销物料背书"]
+  },
 }`,
           },
           {
@@ -238,8 +261,10 @@ export async function POST(req: NextRequest) {
         sceneImageSuggestions: profile.sceneImageSuggestions || [],
         sceneSectionTitles: profile.sceneSectionTitles || null,
         logoDesignSuggestions: profile.logoDesignSuggestions || null,
+        fontSuggestions: profile.fontSuggestions || null,
         colorPalette: profile.colorPalette || null,  // V103: 保存AI色彩方案
         aiGeneratedFields: profile.aiGeneratedFields || {},
+        regionalAssets: profile.regionalAssets || null,
         analysisStatus: "completed",
         analyzedAt: new Date().toISOString(),
       },
