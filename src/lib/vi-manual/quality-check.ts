@@ -1,4 +1,4 @@
-﻿// Quality Check Engine — Validation Packages A/B/C/D
+// Quality Check Engine — Validation Packages A/B/C/D
 // Source: Hermes handoff 2026-07-04 Part 2
 // V2: Added blocking (throw on high risk), CMYK/HEX check, integration hooks
 
@@ -6,6 +6,7 @@ import { IndustryDict, getIndustryIsolation, type IndustryIsolation } from "./ca
 import { ParamPackage } from "./parameter-extract";
 import type { UnifiedParamPackage } from "./param-package";
 
+import { ANTI_PATTERNS, incrementErrorCount } from "../quality-check/anti-patterns";
 export interface ValidationIssue {
   id: string;
   name: string;
@@ -499,10 +500,20 @@ function checkPackageD(round2Md: string, params: ParamPackage): ValidationIssue[
 
 function makeResult(issues: ValidationIssue[]): ValidationResult {
   const highIssues = issues.filter(i => i.risk === "high");
+  // KM-002: enrich issues with anti-pattern fix guides
+  const enrichedIssues = issues.map(issue => {
+    const pattern = ANTI_PATTERNS.find(p => p.detectRule === issue.id);
+    if (pattern) {
+      incrementErrorCount(pattern.errorId);
+      return { ...issue, message: `${issue.message} | 修正指引：${pattern.fixGuide}` };
+    }
+    return issue;
+  });
+
   return {
     passed: highIssues.length === 0,
-    issues,
-    risk: highIssues.length > 0 ? "high" : issues.length > 0 ? "medium" : "none",
+    issues: enrichedIssues,
+    risk: highIssues.length > 0 ? "high" : enrichedIssues.length > 0 ? "medium" : "none",
   };
 }
 
