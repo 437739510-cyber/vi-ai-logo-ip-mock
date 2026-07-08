@@ -35,6 +35,98 @@ export class ValidationBlockedError extends Error {
   }
 }
 
+
+// ==================== QC Constants ====================
+
+/** QC-01: Standard color hex to Chinese name mapping */
+const COLOR_NAME_MAP: Record<string, string> = {
+  "37474F": "深灰蓝",
+  "2E7D32": "墨綠",
+  "F9A825": "明黄",
+  "C62828": "深红",
+  "1565C0": "深蓝",
+  "6A1B9A": "深紫",
+  "1B5E20": "深綠",
+  "BF360C": "深橙",
+  "0D47A1": "藏蓝",
+  "4A148C": "深紫罗兰",
+  "880E4F": "深品红",
+  "3E2723": "深棕",
+  "263238": "深灰",
+  "E65100": "橙色",
+  "FF6F00": "琥珀",
+  "F57F17": "金黄色",
+  "827717": "橄榄綠",
+  "33691E": "草綠",
+  "00695C": "青綠",
+  "00838F": "青色",
+  "01579B": "天蓝",
+  "283593": "酻蓝",
+  "4E342E": "咖啡",
+  "424242": "炭灰",
+  "FF5722": "朱红",
+  "E91E63": "玫红",
+  "9C27B0": "紫色",
+  "673AB7": "紫罗兰",
+  "3F51B5": "酻青",
+  "2196F3": "蓝色",
+  "03A9F4": "浅蓝",
+  "00BCD4": "湖蓝",
+  "009688": "蓝綠",
+  "4CAF50": "綠色",
+  "8BC34A": "黄綠",
+  "CDDC39": "酸橙",
+  "FFC107": "琥珀黄",
+  "FF9800": "橘黄",
+  "795548": "棕色",
+  "607D8B": "蓝灰",
+  "B71C1C": "深红",
+  "D32F2F": "红色",
+  "F44336": "亮红",
+  "1976D2": "蓝色",
+  "388E3C": "綠色",
+  "FBC02D": "明黄",
+  "7B1FA2": "紫色",
+  "E64A19": "深橙",
+  "00796B": "深青綠",
+  "5D4037": "深棕",
+  "455A64": "蓝灰",
+};
+
+/** QC-04: Standard open-source font name library (key = common mis-spelling target) */
+const FONT_NAME_SET = new Set([
+  "思源黑体",
+  "思源宋体",
+  "Montserrat",
+  "Open Sans",
+  "Noto Sans",
+  "Noto Sans SC",
+  "Noto Serif",
+  "Noto Serif SC",
+  "Roboto",
+  "Roboto Slab",
+  "Lato",
+  "Raleway",
+  "Oswald",
+  "Poppins",
+  "Nunito",
+  "Playfair Display",
+  "Merriweather",
+  "Inter",
+  "DM Sans",
+  "Work Sans",
+  "Source Han Sans SC",
+  "Source Han Serif SC",
+  "HarmonyOS Sans SC",
+  "LXGW WenKai",
+  "ZCOOL QingKe HuangYou",
+  "Ma Shan Zheng",
+  "Zhi Mang Xing",
+  "Liu Jian Mao Cao",
+  "Noto Sans JP",
+  "Noto Sans KR",
+]);
+
 // ==================== Package A: Basic Format Check ====================
 
 const RULES_A = {
@@ -45,7 +137,7 @@ const RULES_A = {
   },
   A02: {
     name: "字段残留",
-    re: /\b(字段|内容|所在城市|行业类别|店铺类型|经营年限|主营产品|上传张数|其他丽人|其他餐饮|其他零售)\b/g,
+    re: /\b(字段|内容|所在城市|行业类别|店铺类型|经营年限|主营产品|上传张数|其他丽人|其他餐饮|其他零售|自定义填写|待补充|占位符|示例文本|请替换|请填写|此处输入|template|placeholder|其他[:：]?)\b/gi,
     risk: "high" as const,
   },
   A03: {
@@ -102,6 +194,28 @@ function checkPackageA(md: string): ValidationIssue[] {
   return issues;
 }
 
+
+function checkQC01(md: string): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  // Match pattern: ChineseColorWord optional-# HEX (e.g. "玫瑰红 #37474F" or "深灰蓝 37474F")
+  const re = /([一-龥]{2,5}(?:色)?)\s*#?([A-Fa-f0-9]{6})/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(md)) !== null) {
+    const claimedName = match[1];
+    const hex = match[2].toUpperCase();
+    const standardName = COLOR_NAME_MAP[hex];
+    if (standardName && claimedName !== standardName) {
+      issues.push({
+        id: "QC01",
+        name: "色值-颜色名称不一致",
+        message: `"“${claimedName}” 与色值 #${hex} 不匹配，应为：${standardName}"`,
+        risk: "high",
+      });
+    }
+  }
+  return issues;
+}
+
 // ==================== Package B: Foundation Quality Check ====================
 
 const UNAUTHORIZED_FONTS = /\b(微软雅黑|方正[\u4e00-\u9fa5]{0,4}|汉仪[\u4e00-\u9fa5]{0,4}|造字工房|站酷(?!.*免费))\b/g;
@@ -115,12 +229,23 @@ function checkPackageB(md: string): ValidationIssue[] {
     issues.push({ id: "B01", name: "未授权字体", message: `Unlicensed fonts: ${fontMatches.join(", ")}`, risk: "high" });
   }
 
-  // B02: color ratio > 60%
-  const ratioMatch = md.match(/(?:主色|标准色).*?占比.*?(\d+)\s*%/i);
-  if (ratioMatch) {
+  // B02: color ratio check (context-aware per QC-05)
+  // Iterate all ratio mentions to support multi-ratio documents
+  const ratioRe = /(?:主色|标准色).*?占比.*?(\d+)\s*%/gi;
+  let ratioMatch: RegExpExecArray | null;
+  while ((ratioMatch = ratioRe.exec(md)) !== null) {
     const pct = parseInt(ratioMatch[1], 10);
+    const ctxStart = Math.max(0, ratioMatch.index - 80);
+    const ctxEnd = Math.min(md.length, ratioMatch.index + 120);
+    const context = md.slice(ctxStart, ctxEnd);
+    // QC-05: spatial signage (storefront, wall, signboard) allows full-bleed >= 80%
+    const isSpatial = /(?:门头|招牌|空间|墙面|背景墙|店招|店面|立牌|灯箱|户外|广告牌)/i.test(context);
+    if (isSpatial) {
+      // Spatial materials: high ratio is normal, skip
+      continue;
+    }
     if (pct > 60) {
-      issues.push({ id: "B02", name: "色彩占比常识", message: `Primary color ratio ${pct}% exceeds 60% limit`, risk: "medium" });
+      issues.push({ id: "B02", name: "色彩占比常识", message: `Primary color ratio ${pct}% exceeds 60% limit (平面印刷物料上下文)`, risk: "medium" });
     }
   }
 
@@ -159,6 +284,110 @@ function checkPackageB(md: string): ValidationIssue[] {
     }
   }
 
+  return issues;
+}
+
+
+// ==================== QC-03: TOC-Heading Consistency ====================
+
+function checkQC03(md: string): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  // Extract TOC entries: | N | title text |
+  const tocRe = /^\|\s*(\d+)\s*\|\s*(.+?)\s*\|/gm;
+  const tocEntries: Map<number, string> = new Map();
+  let m1: RegExpExecArray | null;
+  while ((m1 = tocRe.exec(md)) !== null) {
+    const num = parseInt(m1[1], 10);
+    const title = m1[2].trim();
+    if (title && !tocEntries.has(num)) tocEntries.set(num, title);
+  }
+  if (tocEntries.size === 0) return issues;
+
+  // Extract body headings: ## N. title or ### N. title
+  const headingRe = /^#{2,3}\s*(\d+)\.?\s+(.+)$/gm;
+  const bodyHeadings: Map<number, string> = new Map();
+  let m2: RegExpExecArray | null;
+  while ((m2 = headingRe.exec(md)) !== null) {
+    const num = parseInt(m2[1], 10);
+    const title = m2[2].trim();
+    if (title && !bodyHeadings.has(num)) bodyHeadings.set(num, title);
+  }
+
+  // Compare TOC vs body headings by chapter number
+  for (const [num, tocTitle] of tocEntries) {
+    const bodyTitle = bodyHeadings.get(num);
+    if (!bodyTitle) {
+      issues.push({
+        id: "QC03",
+        name: "目录-正文标题不一致",
+        message: `目录第${num}项“${tocTitle}”在正文中未找到对应标题`,
+        risk: "medium",
+      });
+      continue;
+    }
+    // Simple diff: exact match check + length diff as proxy for Levenshtein
+    if (tocTitle !== bodyTitle) {
+      const lenDiff = Math.abs(tocTitle.length - bodyTitle.length);
+      // Count differing characters by simple position comparison
+      let charDiff = 0;
+      const maxLen = Math.max(tocTitle.length, bodyTitle.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (tocTitle[i] !== bodyTitle[i]) charDiff++;
+      }
+      if (charDiff > 2 || lenDiff > 2) {
+        issues.push({
+          id: "QC03",
+          name: "目录-正文标题不一致",
+          message: `目录“${tocTitle}” ≠ 正文“${bodyTitle}” (第${num}项，差异${charDiff}字符)`,
+          risk: "medium",
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+// ==================== QC-04: Font Name Spelling ====================
+
+function checkQC04(md: string): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  // Scan for potential font name mentions (quoted, after "字体：" or standalone capitalized words)
+  const fontRe = /(?:字体[：:\s]*|font[：:\s]*|["\u201c])([A-Za-z\u4e00-\u9fa5][A-Za-z\u4e00-\u9fa5\s-]{2,30}?)(?:["\u201d]|$|[,;\u3001])/gi;
+  let match: RegExpExecArray | null;
+  while ((match = fontRe.exec(md)) !== null) {
+    const found = match[1].trim();
+    if (found.length < 3) continue;
+    // Check if it is an exact match in the font set
+    if (FONT_NAME_SET.has(found)) continue;
+    // Approximate match: check if similar to any standard name
+    for (const stdName of FONT_NAME_SET) {
+      const lenDiff = Math.abs(found.length - stdName.length);
+      if (lenDiff > 2) continue;
+      // Simple similarity: if one is substring of the other, or share most chars
+      if (stdName.toLowerCase().includes(found.toLowerCase()) || found.toLowerCase().includes(stdName.toLowerCase())) {
+        issues.push({
+          id: "QC04",
+          name: "字体名称拼写偏差",
+          message: `“${found}” 可能为拼写错误，正确名称：“${stdName}”`,
+          risk: "medium",
+        });
+        break;
+      }
+      // Character overlap ratio for Chinese font names
+      if (/[一-龥]/.test(found)) {
+        const overlap = [...found].filter(ch => stdName.includes(ch)).length;
+        if (overlap >= found.length - 1 && overlap >= 2) {
+          issues.push({
+            id: "QC04",
+            name: "字体名称拼写偏差",
+            message: `“${found}” 可能为拼写错误，正确名称：“${stdName}”`,
+            risk: "medium",
+          });
+          break;
+        }
+      }
+    }
+  }
   return issues;
 }
 
@@ -278,7 +507,7 @@ function makeResult(issues: ValidationIssue[]): ValidationResult {
 }
 
 export function validateRound1(md: string): FlowResult {
-  const issues = [...checkPackageA(md), ...checkPackageB(md)];
+  const issues = [...checkPackageA(md), ...checkPackageB(md), ...checkQC01(md), ...checkQC03(md), ...checkQC04(md)];
   const result = makeResult(issues);
   return { passed: result.passed, needsRetry: !result.passed, result };
 }
