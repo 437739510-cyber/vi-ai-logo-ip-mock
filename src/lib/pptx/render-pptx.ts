@@ -1990,7 +1990,7 @@ function renderColorTaboos(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
   }
 
   slide.addShape("rect", { x: cx, y: 8.0, w: CONTENT_W, h: 0.6, fill: { color: "FFF3E0" }, rectRadius: 0.06 });
-  slide.addText("色彩规范的核心原则：温柔不刺眼，精致不廉价。如有特殊场景色彩需求，须向品牌总部提交审核。", {
+  slide.addText(sanitizeColorNames("色彩规范的核心原则：温柔不刺眼，精致不廉价。如有特殊场景色彩需求，须向品牌总部提交审核。"), {
     x: cx + 0.2, y: 8.1, w: CONTENT_W - 0.4, h: 0.45, fontSize: 11, color: "E65100",
   });
 }
