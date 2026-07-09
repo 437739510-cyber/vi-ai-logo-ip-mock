@@ -32,5 +32,27 @@ export async function GET(req: NextRequest) {
     };
   }
 
-  return NextResponse.json({ success: true, envStatus });
+  // Test DeepSeek connectivity from Zeabur side
+    let deepseekStatus = "not_tested";
+    let deepseekError = "";
+    const dsKey = process.env.DEEPSEEK_API_KEY;
+    if (dsKey) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const dsRes = await fetch("https://api.deepseek.com/v1/chat/completions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${dsKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "user", content: "hi" }], max_tokens: 5 }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        deepseekStatus = dsRes.ok ? "ok_" + dsRes.status : "fail_" + dsRes.status;
+      } catch (e: any) {
+        deepseekStatus = "error";
+        deepseekError = e.message || String(e);
+      }
+    }
+
+    return NextResponse.json({ success: true, envStatus, deepseekConnectivity: { status: deepseekStatus, error: deepseekError } });
 }
