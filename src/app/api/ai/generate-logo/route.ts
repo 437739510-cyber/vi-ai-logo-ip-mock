@@ -18,6 +18,9 @@ import { logArkUsage } from "@/lib/core/billing/ark-usage-log";
 import { getDefaultRegistry, type GenerateImageResult } from "@/lib/ip/ip-image-provider";
 import { overlayChineseText } from "@/lib/ip/overlay-chinese";
 import { preGenerationGuard, postGenerationGuard } from "@/lib/vi-manual/asset-guardian";
+import { STORAGE_BUCKET } from "@/config/storage";
+const _DEV = process.env.NODE_ENV === "development";
+
 
 export const maxDuration = 180;
 export const dynamic = "force-dynamic";
@@ -30,14 +33,14 @@ async function persistLogoBase64(projectId: string, index: number, base64DataUrl
     const buffer = Buffer.from(matches[2], "base64");
     const fileName = projectId + "/logo_" + index + "_" + Date.now() + ".jpeg";
     const { error } = await supabaseAdmin.storage
-      .from("brand-brain-generated")
+      .from(STORAGE_BUCKET)
       .upload(fileName, buffer, { contentType: "image/jpeg", upsert: true });
     if (error) {
       console.error("[persistLogo] Upload failed:", error.message);
       return null;
     }
-    const { data } = supabaseAdmin.storage.from("brand-brain-generated").getPublicUrl(fileName);
-    console.log("[persistLogo] Persisted logo " + index + " -> " + data.publicUrl);
+    const { data } = supabaseAdmin.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
+    _DEV && console.log("[persistLogo] Persisted logo " + index + " -> " + data.publicUrl);
     return data.publicUrl;
   } catch (e) {
     console.error("[persistLogo] Error:", e);
@@ -132,8 +135,8 @@ export async function POST(req: NextRequest) {
       try {
       const logoResults: any[] = [];
       const provider = await getDefaultRegistry().getActive();
-      console.log("[generate-logo] Generating " + prompts.length + " logos for: " + companyName + " via " + provider.name);
-      console.log("[generate-logo] Provider details: name=" + provider.name + ", type=" + (provider.constructor?.name || "unknown"));
+      _DEV && console.log("[generate-logo] Generating " + prompts.length + " logos for: " + companyName + " via " + provider.name);
+      _DEV && console.log("[generate-logo] Provider details: name=" + provider.name + ", type=" + (provider.constructor?.name || "unknown"));
 
       for (let i = 0; i < prompts.length; i++) {
         const rawPrompt = prompts[i];
@@ -145,11 +148,11 @@ export async function POST(req: NextRequest) {
         const guardResult = preGenerationGuard(enhancedPrompt, companyName);
         if (guardResult.riskLevel === "high") console.warn("[asset-guardian] High risk prompt:", guardResult.blockedTerms);
         const finalPrompt = guardResult.enhancedPrompt || enhancedPrompt;
-        console.log("[generate-logo] Prompt " + (i+1) + "/" + prompts.length);
+        _DEV && console.log("[generate-logo] Prompt " + (i+1) + "/" + prompts.length);
 
         try {
           const result = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-${i+1}`, label: "Logo", description: rawPrompt }, prompt: finalPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
-          console.log("[generate-logo] " + provider.name + " logo " + (i+1) + " OK (" + result.durationMs + "ms)");
+          _DEV && console.log("[generate-logo] " + provider.name + " logo " + (i+1) + " OK (" + result.durationMs + "ms)");
           // Log ARK usage
           void logArkUsage({ route: "ai/generate-logo", model: String(result.providerMeta?.model || "seedream"), imageCount: 1, projectId, durationMs: result.durationMs, success: true });
           // V121: Overlay Chinese brand name on logo (SDXL/Star-3 can''t do Chinese)
@@ -181,13 +184,13 @@ export async function POST(req: NextRequest) {
           // P2-02: 1 retry on failure
           let retried = false;
           try {
-            console.log("[generate-logo] Retrying prompt " + (i+1) + "...");
+            _DEV && console.log("[generate-logo] Retrying prompt " + (i+1) + "...");
             const retryResult = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-retry-${i+1}`, label: "Logo Retry", description: rawPrompt }, prompt: finalPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
             let retryUrl: string = retryResult.imageUrl || "";
             try { retryUrl = await overlayChineseText(retryResult.imageUrl, companyName, headingFont); } catch (e: any) {}
             logoResults.push({ index: i, prompt: rawPrompt, imageUrl: retryUrl, model: retryResult.providerMeta?.model || retryResult.providerName, durationMs: retryResult.durationMs });
             retried = true;
-            console.log("[generate-logo] Retry " + (i+1) + " OK");
+            _DEV && console.log("[generate-logo] Retry " + (i+1) + " OK");
           } catch (retryErr: any) {
             console.error("[generate-logo] Retry also failed for prompt " + (i+1) + ":", retryErr.message);
           }

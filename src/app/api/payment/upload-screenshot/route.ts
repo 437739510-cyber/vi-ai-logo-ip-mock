@@ -2,6 +2,7 @@
 // Guest uploads payment screenshot after scanning QR code
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { STORAGE_BUCKET } from "@/config/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadErr } = await supabaseAdmin.storage
-      .from("brand-brain-generated")
+      .from(STORAGE_BUCKET)
       .upload(filePath, buffer, { contentType: file.type, upsert: true });
 
     if (uploadErr) {
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     // Get public URL
     const { data: urlData } = supabaseAdmin.storage
-      .from("brand-brain-generated")
+      .from(STORAGE_BUCKET)
       .getPublicUrl(filePath);
 
     const screenshotUrl = urlData.publicUrl;

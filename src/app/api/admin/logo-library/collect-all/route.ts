@@ -4,6 +4,7 @@
  */
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { STORAGE_BUCKET } from "@/config/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -125,7 +126,7 @@ async function collectFromProjects(projects: any[]) {
 
           for (const old of oldestLogos || []) {
             if (old.storage_path) {
-              await supabaseAdmin.storage.from("brand-brain-generated").remove([old.storage_path]);
+              await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([old.storage_path]);
             }
             await supabaseAdmin.from("logo_library").delete().eq("id", old.id);
           }
@@ -135,13 +136,13 @@ async function collectFromProjects(projects: any[]) {
         const timestamp = Date.now();
         const storagePath = `library/${project.id}/logo-${logo.index}-${timestamp}.png`;
         const { error: uploadErr } = await supabaseAdmin.storage
-          .from("brand-brain-generated")
+          .from(STORAGE_BUCKET)
           .upload(storagePath, imgBuffer, { contentType: "image/png", upsert: true });
 
         if (uploadErr) continue;
 
         const permanentUrl = supabaseAdmin.storage
-          .from("brand-brain-generated")
+          .from(STORAGE_BUCKET)
           .getPublicUrl(storagePath).data.publicUrl;
 
         // Extract style tags

@@ -5,11 +5,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { STORAGE_BUCKET } from "@/config/storage";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-const BUCKET = "brand-brain-generated";
+const BUCKET = STORAGE_BUCKET;
 const STORAGE_PREFIX = "uploads/form-assets";
 
 export async function POST(req: NextRequest) {

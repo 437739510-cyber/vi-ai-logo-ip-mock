@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Brand Brain — Orchestrator
  *
  * The central coordinator that manages the agent pipeline.

@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { cookies } from "next/headers";
-import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
+import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 
 const ALIYUN_API = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
@@ -181,7 +181,7 @@ ${photoContext}
   try {
     const res = await guardedDeepSeekCall({
       route: "member/generate",
-      body: {model: "deepseek-v4-flash",
+      body: {model: DEEPSEEK_MODEL,
         messages: [{ role: "user", content: prompt }],
         max_tokens: 500,
         temperature: 0.8,},

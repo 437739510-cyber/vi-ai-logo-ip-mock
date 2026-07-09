@@ -2,6 +2,7 @@
 // 编辑器内的 AI 设计助手，使用 DeepSeek 进行实时对话
 import { NextRequest, NextResponse } from "next/server";
 import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
+import { DEEPSEEK_MODEL } from "@/lib/core/billing/deepseek-guard";
 
 
 export async function POST(req: NextRequest) {
@@ -30,7 +31,7 @@ ${manualContext ? JSON.stringify(manualContext, null, 2) : "暂无"}
 
     const deepseekRes = await guardedDeepSeekCall({
       route: "ai/chat",
-      body: {model: "deepseek-v4-flash",
+      body: {model: DEEPSEEK_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           ...messages.slice(-10), // 只保留最近 10 条消息作为上下文

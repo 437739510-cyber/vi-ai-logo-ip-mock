@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
-import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
+import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 
 const MOCK_DIR = path.join(process.cwd(), "public", "mock");
 
@@ -56,7 +56,7 @@ async function analyzeManualWithDeepSeek(
 
     const resp = await guardedDeepSeekCall({
       route: "ai/generate-scheme",
-      body: {model: "deepseek-v4-flash",
+      body: {model: DEEPSEEK_MODEL,
         messages: [
           { role: "system", content: "你是品牌 VI 设计专家，擅长分析品牌手册的设计语言。" },
           {
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
 
     const deepseekRes = await guardedDeepSeekCall({
       route: "ai/generate-scheme",
-      body: {model: "deepseek-v4-flash",
+      body: {model: DEEPSEEK_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: JSON.stringify(params) },

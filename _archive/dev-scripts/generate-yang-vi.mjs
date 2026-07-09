@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * generate-yang-vi.mjs
  * Full pipeline: DeepSeek DNA -> ComfyUI scene images -> PptxGenJS VI manual
  * Run: node scripts/generate-yang-vi.mjs (from bb-clean root)
@@ -14,24 +14,24 @@ const PROJECT_ROOT = path.resolve(__dirname, "..");
 const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || '';
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const COMFYUI_URL = "http://127.0.0.1:8188";
-const OUTPUT_DIR = "D:\\disk\\CODEX\\viÊÖ²álogo";
+const OUTPUT_DIR = "D:\\disk\\CODEX\\viæ‰‹å†Œlogo";
 
 const brandData = {
-  brandName: "»¨ÑÕÃÀÈİÔº",
+  brandName: "èŠ±é¢œç¾å®¹é™¢",
   industry: "beauty",
-  industryLabel: "ÃÀÈİ/ÑøÉú",
-  brandVision: "ÒÔ»¨ÑøÑÕ£¬´«³Ğ¶«·½²İ±¾»¤·ôÖÇ»Û£¬ÈÃÃ¿Ò»Î»Å®ĞÔ»À·¢×ÔÈ»Ö®ÃÀ",
-  coreValues: "ÌìÈ»¡¢½³ĞÄ¡¢ĞÅÀµ¡¢ÓÅÑÅ",
-  targetMarket: "28-55Ëê¶¼ÊĞÅ®ĞÔ£¬×·ÇóÌìÈ»»¤·ôÓëÉíĞÄÆ½ºâ",
+  industryLabel: "ç¾å®¹/å…»ç”Ÿ",
+  brandVision: "ä»¥èŠ±å…»é¢œï¼Œä¼ æ‰¿ä¸œæ–¹è‰æœ¬æŠ¤è‚¤æ™ºæ…§ï¼Œè®©æ¯ä¸€ä½å¥³æ€§ç„•å‘è‡ªç„¶ä¹‹ç¾",
+  coreValues: "å¤©ç„¶ã€åŒ å¿ƒã€ä¿¡èµ–ã€ä¼˜é›…",
+  targetMarket: "28-55å²éƒ½å¸‚å¥³æ€§ï¼Œè¿½æ±‚å¤©ç„¶æŠ¤è‚¤ä¸èº«å¿ƒå¹³è¡¡",
   brandColors: {
-    primary: { hex: "#E8576C", name: "»¨ÑÕ·Û" },
-    secondary: { hex: "#F8BBD0", name: "Ç³Ó£·Û" },
-    accent: { hex: "#C9A96E", name: "°µ½ğ" },
+    primary: { hex: "#E8576C", name: "èŠ±é¢œç²‰" },
+    secondary: { hex: "#F8BBD0", name: "æµ…æ¨±ç²‰" },
+    accent: { hex: "#C9A96E", name: "æš—é‡‘" },
   },
-  logoDescription: "ÒÔ»¨°êÓëÅ®ĞÔ²àÁ³ÂÖÀªÈÚºÏµÄÔ²ĞÎ»ÕÕÂ£¬ÏßÌõÈáÃÀÁ÷³©£¬ÌåÏÖ¶«·½ÔÏÎ¶Óë×ÔÈ»Ö®ÃÀ",
-  logoStyle: "ĞÂÖĞÊ½¡¢¼òÔ¼ÓÅÑÅ¡¢»¨°ê»ÕÕÂ",
+  logoDescription: "ä»¥èŠ±ç“£ä¸å¥³æ€§ä¾§è„¸è½®å»“èåˆçš„åœ†å½¢å¾½ç« ï¼Œçº¿æ¡æŸ”ç¾æµç•…ï¼Œä½“ç°ä¸œæ–¹éŸµå‘³ä¸è‡ªç„¶ä¹‹ç¾",
+  logoStyle: "æ–°ä¸­å¼ã€ç®€çº¦ä¼˜é›…ã€èŠ±ç“£å¾½ç« ",
   businessAge: 15,
-  location: "±±¾©",
+  location: "åŒ—äº¬",
 };
 
 const sceneTemplates = [
@@ -160,28 +160,28 @@ async function renderPptx(sceneImages, brandDNA) {
   slide.background = { fill: pri };
   slide.addShape(pptx.ShapeType.ellipse, { x: SW * 0.25, y: SH * 0.15, w: SW * 0.5, h: SW * 0.5, fill: { color: sec, transparency: 60 } });
   slide.addText("BRAND IDENTITY MANUAL", { x: MARGIN, y: SH * 0.55, w: SW - MARGIN * 2, h: 0.5, fontSize: 11, color: "FFFFFF", align: "center", fontFace: "Arial", charSpacing: 6 });
-  slide.addText("»¨ÑÕÃÀÈİÔº", { x: MARGIN, y: SH * 0.62, w: SW - MARGIN * 2, h: 1.0, fontSize: 42, color: "FFFFFF", align: "center", fontFace: "Microsoft YaHei", bold: true });
+  slide.addText("èŠ±é¢œç¾å®¹é™¢", { x: MARGIN, y: SH * 0.62, w: SW - MARGIN * 2, h: 1.0, fontSize: 42, color: "FFFFFF", align: "center", fontFace: "Microsoft YaHei", bold: true });
   slide.addText("HUA YAN BEAUTY", { x: MARGIN, y: SH * 0.72, w: SW - MARGIN * 2, h: 0.6, fontSize: 14, color: "FFFFFF", align: "center", fontFace: "Arial", charSpacing: 6 });
-  slide.addText("ÊÓ¾õÊ¶±ğÏµÍ³¹æ·¶ÊÖ²á", { x: MARGIN, y: SH * 0.82, w: SW - MARGIN * 2, h: 0.5, fontSize: 12, color: "FFFFFF", align: "center", fontFace: "Microsoft YaHei" });
+  slide.addText("è§†è§‰è¯†åˆ«ç³»ç»Ÿè§„èŒƒæ‰‹å†Œ", { x: MARGIN, y: SH * 0.82, w: SW - MARGIN * 2, h: 0.5, fontSize: 12, color: "FFFFFF", align: "center", fontFace: "Microsoft YaHei" });
   slide.addText("2026", { x: MARGIN, y: SH * 0.90, w: SW - MARGIN * 2, h: 0.4, fontSize: 10, color: "FFFFFF", align: "center", fontFace: "Arial" });
 
   // Page 2: TOC
   pn++; slide = pptx.addSlide(); addFrame(slide);
-  slide.addText("Ä¿  Â¼", { x: MARGIN + 0.15, y: 0.6, w: 4, h: 0.8, fontSize: 28, color: pri, fontFace: "Microsoft YaHei", bold: true });
-  ["01  Æ·ÅÆ¸ÅÊö","02  Éè¼ÆÀíÄî","03  ±êÊ¶ÊÍÒå","04  ±êÊ¶¹æ·¶","05  É«²ÊÏµÍ³","06  ×ÖÌåÏµÍ³","07  Æ·ÅÆÎïÁÏ","08  °ü×°ÏµÍ³","09  ²úÆ·°ü×°","10  Ğû´«º£±¨","11  »áÔ±¿¨Éè¼Æ","12  Ó¦ÓÃ³¡¾°"].forEach((item, i) => {
+  slide.addText("ç›®  å½•", { x: MARGIN + 0.15, y: 0.6, w: 4, h: 0.8, fontSize: 28, color: pri, fontFace: "Microsoft YaHei", bold: true });
+  ["01  å“ç‰Œæ¦‚è¿°","02  è®¾è®¡ç†å¿µ","03  æ ‡è¯†é‡Šä¹‰","04  æ ‡è¯†è§„èŒƒ","05  è‰²å½©ç³»ç»Ÿ","06  å­—ä½“ç³»ç»Ÿ","07  å“ç‰Œç‰©æ–™","08  åŒ…è£…ç³»ç»Ÿ","09  äº§å“åŒ…è£…","10  å®£ä¼ æµ·æŠ¥","11  ä¼šå‘˜å¡è®¾è®¡","12  åº”ç”¨åœºæ™¯"].forEach((item, i) => {
     slide.addText(item, { x: MARGIN + 0.15 + (i < 6 ? 0 : 3.2), y: 1.8 + (i % 6) * 1.2, w: 3.0, h: 0.8, fontSize: 13, color: "555555", fontFace: "Microsoft YaHei" });
   });
   addPn(slide, pn, TOTAL);
 
   // Page 3: Brand Overview
   pn++; slide = pptx.addSlide(); addFrame(slide);
-  slide.addText("01  Æ·ÅÆ¸ÅÊö", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
+  slide.addText("01  å“ç‰Œæ¦‚è¿°", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
   slide.addShape(pptx.ShapeType.rect, { x: MARGIN + 0.15, y: 1.15, w: 1.5, h: 0.03, fill: { color: acc } });
   [
-    ["Æ·ÅÆÃû³Æ", brandData.brandName], ["ĞĞÒµÀà±ğ", brandData.industryLabel],
-    ["¾­ÓªÄêÏŞ", `${brandData.businessAge} Äê`], ["ËùÔÚ³ÇÊĞ", brandData.location],
-    ["Æ·ÅÆÔ¸¾°", brandData.brandVision], ["ºËĞÄ¼ÛÖµ", brandData.coreValues],
-    ["Ä¿±ê¿ÍÈº", brandData.targetMarket],
+    ["å“ç‰Œåç§°", brandData.brandName], ["è¡Œä¸šç±»åˆ«", brandData.industryLabel],
+    ["ç»è¥å¹´é™", `${brandData.businessAge} å¹´`], ["æ‰€åœ¨åŸå¸‚", brandData.location],
+    ["å“ç‰Œæ„¿æ™¯", brandData.brandVision], ["æ ¸å¿ƒä»·å€¼", brandData.coreValues],
+    ["ç›®æ ‡å®¢ç¾¤", brandData.targetMarket],
   ].forEach(([label, value], i) => {
     slide.addText(label, { x: MARGIN + 0.15, y: 1.5 + i * 1.0, w: 1.8, h: 0.6, fontSize: 12, color: pri, fontFace: "Microsoft YaHei", bold: true });
     slide.addText(value, { x: MARGIN + 2.0, y: 1.5 + i * 1.0, w: 5.2, h: 0.6, fontSize: 12, color: "333333", fontFace: "Microsoft YaHei" });
@@ -190,17 +190,17 @@ async function renderPptx(sceneImages, brandDNA) {
 
   // Page 4: Design Philosophy
   pn++; slide = pptx.addSlide(); addFrame(slide);
-  slide.addText("02  Éè¼ÆÀíÄî", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
+  slide.addText("02  è®¾è®¡ç†å¿µ", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
   slide.addShape(pptx.ShapeType.rect, { x: MARGIN + 0.15, y: 1.15, w: 1.5, h: 0.03, fill: { color: acc } });
-  slide.addText("ÒÔ»¨Îª»ê£¬ÒÔÑÕÎªÃÀ", { x: MARGIN + 0.15, y: 1.6, w: SW - MARGIN * 2 - 0.15, h: 0.8, fontSize: 20, color: pri, fontFace: "Microsoft YaHei", italic: true });
-  slide.addText("»¨ÑÕÃÀÈİÔºµÄÆ·ÅÆÊÓ¾õÒÔ¡¸»¨°ê¡¹ÎªºËĞÄÉè¼ÆÔªËØ£¬ÈÚºÏ¶«·½Å®ĞÔµÄÈáÃÀÇúÏßÓë×ÔÈ»ÉúÃüÁ¦¡£ÕûÌå·ç¸ñ×·Çó¡¸ĞÂÖĞÊ½ÓÅÑÅ¡¹¡ª¡ª¼È´«³Ğ¹Åµä¶«·½ÃÀÑ§£¬ÓÖ¸³ÓèÏÖ´ú¼òÔ¼ÆøÖÊ¡£\n\nÉ«²ÊÌåÏµÒÔ»¨ÑÕ·ÛÎªÖ÷µ÷£¬´îÅäÇ³Ó£·ÛµÄÈáºÍ¹ı¶ÉÓë°µ½ğµÄ¸ß¼¶µã×º£¬ÓªÔìÎÂÅ¯¡¢ĞÅÀµ¡¢ÓÅÑÅµÄÆ·ÅÆ¸ĞÊÜ¡£", { x: MARGIN + 0.15, y: 2.6, w: SW - MARGIN * 2 - 0.15, h: 5.0, fontSize: 12, color: "555555", fontFace: "Microsoft YaHei", lineSpacingMultiple: 1.8 });
+  slide.addText("ä»¥èŠ±ä¸ºé­‚ï¼Œä»¥é¢œä¸ºç¾", { x: MARGIN + 0.15, y: 1.6, w: SW - MARGIN * 2 - 0.15, h: 0.8, fontSize: 20, color: pri, fontFace: "Microsoft YaHei", italic: true });
+  slide.addText("èŠ±é¢œç¾å®¹é™¢çš„å“ç‰Œè§†è§‰ä»¥ã€ŒèŠ±ç“£ã€ä¸ºæ ¸å¿ƒè®¾è®¡å…ƒç´ ï¼Œèåˆä¸œæ–¹å¥³æ€§çš„æŸ”ç¾æ›²çº¿ä¸è‡ªç„¶ç”Ÿå‘½åŠ›ã€‚æ•´ä½“é£æ ¼è¿½æ±‚ã€Œæ–°ä¸­å¼ä¼˜é›…ã€â€”â€”æ—¢ä¼ æ‰¿å¤å…¸ä¸œæ–¹ç¾å­¦ï¼Œåˆèµ‹äºˆç°ä»£ç®€çº¦æ°”è´¨ã€‚\n\nè‰²å½©ä½“ç³»ä»¥èŠ±é¢œç²‰ä¸ºä¸»è°ƒï¼Œæ­é…æµ…æ¨±ç²‰çš„æŸ”å’Œè¿‡æ¸¡ä¸æš—é‡‘çš„é«˜çº§ç‚¹ç¼€ï¼Œè¥é€ æ¸©æš–ã€ä¿¡èµ–ã€ä¼˜é›…çš„å“ç‰Œæ„Ÿå—ã€‚", { x: MARGIN + 0.15, y: 2.6, w: SW - MARGIN * 2 - 0.15, h: 5.0, fontSize: 12, color: "555555", fontFace: "Microsoft YaHei", lineSpacingMultiple: 1.8 });
   addPn(slide, pn, TOTAL);
 
   // Page 5: Logo Interpretation
   pn++; slide = pptx.addSlide(); addFrame(slide);
-  slide.addText("03  ±êÊ¶ÊÍÒå", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
+  slide.addText("03  æ ‡è¯†é‡Šä¹‰", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
   slide.addShape(pptx.ShapeType.rect, { x: MARGIN + 0.15, y: 1.15, w: 1.5, h: 0.03, fill: { color: acc } });
-  slide.addText("»¨ÑÕ±êÊ¶ÒÔ¡¸»¨°ê¡¹Óë¡¸Å®ĞÔ²àÁ³ÂÖÀª¡¹ÎªºËĞÄÔªËØ£¬²ÉÓÃÔ²ĞÎ»ÕÕÂ¹¹Í¼£¬´«´ïÍêÂú¡¢ºÍĞ³µÄÆ·ÅÆ¾«Éñ¡£»¨°ê²ãµşÊæÕ¹£¬Ô¢Òâ¼¡·ôÈç»¨°ã×ÔÈ»ÕÀ·Å£»²àÁ³ÏßÌõÈáÃÀÁ÷³©£¬ÌåÏÖ¶«·½Å®ĞÔÓÅÑÅÆøÖÊ¡£ÕûÌåÔìĞÍ¼òÔ¼¿ËÖÆ£¬ÔÚÏÖ´ú¸ĞÓë´«Í³ÔÏÎ¶Ö®¼äÈ¡µÃ¾«ÃîÆ½ºâ¡£", { x: MARGIN + 0.15, y: 1.6, w: SW - MARGIN * 2 - 0.15, h: 3.5, fontSize: 12, color: "555555", fontFace: "Microsoft YaHei", lineSpacingMultiple: 1.8 });
+  slide.addText("èŠ±é¢œæ ‡è¯†ä»¥ã€ŒèŠ±ç“£ã€ä¸ã€Œå¥³æ€§ä¾§è„¸è½®å»“ã€ä¸ºæ ¸å¿ƒå…ƒç´ ï¼Œé‡‡ç”¨åœ†å½¢å¾½ç« æ„å›¾ï¼Œä¼ è¾¾å®Œæ»¡ã€å’Œè°çš„å“ç‰Œç²¾ç¥ã€‚èŠ±ç“£å±‚å èˆ’å±•ï¼Œå¯“æ„è‚Œè‚¤å¦‚èŠ±èˆ¬è‡ªç„¶ç»½æ”¾ï¼›ä¾§è„¸çº¿æ¡æŸ”ç¾æµç•…ï¼Œä½“ç°ä¸œæ–¹å¥³æ€§ä¼˜é›…æ°”è´¨ã€‚æ•´ä½“é€ å‹ç®€çº¦å…‹åˆ¶ï¼Œåœ¨ç°ä»£æ„Ÿä¸ä¼ ç»ŸéŸµå‘³ä¹‹é—´å–å¾—ç²¾å¦™å¹³è¡¡ã€‚", { x: MARGIN + 0.15, y: 1.6, w: SW - MARGIN * 2 - 0.15, h: 3.5, fontSize: 12, color: "555555", fontFace: "Microsoft YaHei", lineSpacingMultiple: 1.8 });
   if (brandDNA?.logo_pure_prompt) {
     slide.addText("Visual DNA:", { x: MARGIN + 0.15, y: 5.5, w: 2, h: 0.5, fontSize: 11, color: pri, fontFace: "Arial", bold: true });
     slide.addText(brandDNA.logo_pure_prompt, { x: MARGIN + 0.15, y: 5.9, w: SW - MARGIN * 2 - 0.15, h: 1.2, fontSize: 10, color: "777777", fontFace: "Arial", italic: true });
@@ -209,21 +209,21 @@ async function renderPptx(sceneImages, brandDNA) {
 
   // Page 6: Logo Specs
   pn++; slide = pptx.addSlide(); addFrame(slide);
-  slide.addText("04  ±êÊ¶¹æ·¶", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
+  slide.addText("04  æ ‡è¯†è§„èŒƒ", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
   slide.addShape(pptx.ShapeType.rect, { x: MARGIN + 0.15, y: 1.15, w: 1.5, h: 0.03, fill: { color: acc } });
   slide.addShape(pptx.ShapeType.rect, { x: SW * 0.2, y: 1.8, w: SW * 0.6, h: SW * 0.6, fill: { color: "F5F5F5" }, rectRadius: 0.1 });
-  slide.addText("Æ·ÅÆ±êÊ¶\nÕ¹Ê¾ÇøÓò", { x: SW * 0.2, y: 2.5, w: SW * 0.6, h: 1.0, fontSize: 14, color: "CCCCCC", align: "center", fontFace: "Microsoft YaHei" });
-  slide.addText("×îĞ¡Ê¹ÓÃ³ß´ç£º¸ß¶È²»µÍÓÚ 20mm\n±£»¤¿Õ¼ä£º±êÊ¶ËÄÖÜ±£Áô 1/4 ±êÊ¶¸ß¶ÈµÄ¿Õ°×ÇøÓò\n±³¾°¿ØÖÆ£ºÇ³É«±³¾°Ê¹ÓÃ±ê×¼°æ£¬ÉîÉ«±³¾°Ê¹ÓÃ·´°×°æ", { x: MARGIN + 0.15, y: 6.2, w: SW - MARGIN * 2 - 0.15, h: 2.0, fontSize: 11, color: "555555", fontFace: "Microsoft YaHei", lineSpacingMultiple: 1.6 });
+  slide.addText("å“ç‰Œæ ‡è¯†\nå±•ç¤ºåŒºåŸŸ", { x: SW * 0.2, y: 2.5, w: SW * 0.6, h: 1.0, fontSize: 14, color: "CCCCCC", align: "center", fontFace: "Microsoft YaHei" });
+  slide.addText("æœ€å°ä½¿ç”¨å°ºå¯¸ï¼šé«˜åº¦ä¸ä½äº 20mm\nä¿æŠ¤ç©ºé—´ï¼šæ ‡è¯†å››å‘¨ä¿ç•™ 1/4 æ ‡è¯†é«˜åº¦çš„ç©ºç™½åŒºåŸŸ\nèƒŒæ™¯æ§åˆ¶ï¼šæµ…è‰²èƒŒæ™¯ä½¿ç”¨æ ‡å‡†ç‰ˆï¼Œæ·±è‰²èƒŒæ™¯ä½¿ç”¨åç™½ç‰ˆ", { x: MARGIN + 0.15, y: 6.2, w: SW - MARGIN * 2 - 0.15, h: 2.0, fontSize: 11, color: "555555", fontFace: "Microsoft YaHei", lineSpacingMultiple: 1.6 });
   addPn(slide, pn, TOTAL);
 
   // Page 7: Color System
   pn++; slide = pptx.addSlide(); addFrame(slide);
-  slide.addText("05  É«²ÊÏµÍ³", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
+  slide.addText("05  è‰²å½©ç³»ç»Ÿ", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
   slide.addShape(pptx.ShapeType.rect, { x: MARGIN + 0.15, y: 1.15, w: 1.5, h: 0.03, fill: { color: acc } });
   [
-    { hex: pri, name: "»¨ÑÕ·Û", role: "Ö÷É« / Primary", usage: "Æ·ÅÆºËĞÄÊ¶±ğÉ«£¬ÓÃÓÚLogoÖ÷É«µ÷¡¢ÖØÒª±êÌâ¡¢Æ·ÅÆ×°ÊÎÌõ" },
-    { hex: sec, name: "Ç³Ó£·Û", role: "¸¨ÖúÉ« / Secondary", usage: "±³¾°É«¡¢´óÃæ»ıµ×É«¡¢ÈáºÍ¹ı¶ÉÇøÓò" },
-    { hex: acc, name: "°µ½ğ", role: "Ç¿µ÷É« / Accent", usage: "µã×ºÏßÌõ¡¢Í¼±ê¸ßÁÁ¡¢¸ß¶ËÖÊ¸Ğ±í´ï" },
+    { hex: pri, name: "èŠ±é¢œç²‰", role: "ä¸»è‰² / Primary", usage: "å“ç‰Œæ ¸å¿ƒè¯†åˆ«è‰²ï¼Œç”¨äºLogoä¸»è‰²è°ƒã€é‡è¦æ ‡é¢˜ã€å“ç‰Œè£…é¥°æ¡" },
+    { hex: sec, name: "æµ…æ¨±ç²‰", role: "è¾…åŠ©è‰² / Secondary", usage: "èƒŒæ™¯è‰²ã€å¤§é¢ç§¯åº•è‰²ã€æŸ”å’Œè¿‡æ¸¡åŒºåŸŸ" },
+    { hex: acc, name: "æš—é‡‘", role: "å¼ºè°ƒè‰² / Accent", usage: "ç‚¹ç¼€çº¿æ¡ã€å›¾æ ‡é«˜äº®ã€é«˜ç«¯è´¨æ„Ÿè¡¨è¾¾" },
   ].forEach((c, i) => {
     const y = 1.6 + i * 2.5;
     slide.addShape(pptx.ShapeType.rect, { x: MARGIN + 0.15, y: y, w: 1.5, h: 1.8, fill: { color: c.hex }, rectRadius: 0.05 });
@@ -235,12 +235,12 @@ async function renderPptx(sceneImages, brandDNA) {
 
   // Page 8: Typography
   pn++; slide = pptx.addSlide(); addFrame(slide);
-  slide.addText("06  ×ÖÌåÏµÍ³", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
+  slide.addText("06  å­—ä½“ç³»ç»Ÿ", { x: MARGIN + 0.15, y: 0.5, w: 6, h: 0.7, fontSize: 22, color: pri, fontFace: "Microsoft YaHei", bold: true });
   slide.addShape(pptx.ShapeType.rect, { x: MARGIN + 0.15, y: 1.15, w: 1.5, h: 0.03, fill: { color: acc } });
-  slide.addText("Æ·ÅÆ×¨ÓÃ×ÖÌå", { x: MARGIN + 0.15, y: 1.6, w: 4, h: 0.5, fontSize: 14, color: pri, fontFace: "Microsoft YaHei", bold: true });
-  slide.addText("±êÌâ×ÖÌå£ºË¼Ô´ºÚÌå Bold / Noto Sans SC Bold\nÕıÎÄ×ÖÌå£ºË¼Ô´ºÚÌå Regular / Noto Sans SC Regular\n×°ÊÎ×ÖÌå£ºË¼Ô´ËÎÌå / Noto Serif SC£¨½öÓÃÓÚÆ·ÅÆÀíÄîµÈÌØÊâÒ³Ãæ£©", { x: MARGIN + 0.15, y: 2.2, w: SW - MARGIN * 2 - 0.15, h: 2.5, fontSize: 11, color: "555555", fontFace: "Microsoft YaHei", lineSpacingMultiple: 1.8 });
-  slide.addText("×ÖÌå²ã¼¶¹æ·¶", { x: MARGIN + 0.15, y: 4.8, w: 4, h: 0.5, fontSize: 14, color: pri, fontFace: "Microsoft YaHei", bold: true });
-  [["·âÃæ±êÌâ","42pt","Bold"],["ÕÂ½Ú±êÌâ","22pt","Bold"],["Ğ¡±êÌâ","16pt","Bold"],["ÕıÎÄ","12pt","Regular"],["×¢ÊÍ/Ò³Âë","8pt","Regular"]].forEach((row, i) => {
+  slide.addText("å“ç‰Œä¸“ç”¨å­—ä½“", { x: MARGIN + 0.15, y: 1.6, w: 4, h: 0.5, fontSize: 14, color: pri, fontFace: "Microsoft YaHei", bold: true });
+  slide.addText("æ ‡é¢˜å­—ä½“ï¼šæ€æºé»‘ä½“ Bold / Noto Sans SC Bold\næ­£æ–‡å­—ä½“ï¼šæ€æºé»‘ä½“ Regular / Noto Sans SC Regular\nè£…é¥°å­—ä½“ï¼šæ€æºå®‹ä½“ / Noto Serif SCï¼ˆä»…ç”¨äºå“ç‰Œç†å¿µç­‰ç‰¹æ®Šé¡µé¢ï¼‰", { x: MARGIN + 0.15, y: 2.2, w: SW - MARGIN * 2 - 0.15, h: 2.5, fontSize: 11, color: "555555", fontFace: "Microsoft YaHei", lineSpacingMultiple: 1.8 });
+  slide.addText("å­—ä½“å±‚çº§è§„èŒƒ", { x: MARGIN + 0.15, y: 4.8, w: 4, h: 0.5, fontSize: 14, color: pri, fontFace: "Microsoft YaHei", bold: true });
+  [["å°é¢æ ‡é¢˜","42pt","Bold"],["ç« èŠ‚æ ‡é¢˜","22pt","Bold"],["å°æ ‡é¢˜","16pt","Bold"],["æ­£æ–‡","12pt","Regular"],["æ³¨é‡Š/é¡µç ","8pt","Regular"]].forEach((row, i) => {
     slide.addText(row[0], { x: MARGIN + 0.15, y: 5.4 + i * 0.5, w: 2, h: 0.4, fontSize: 11, color: "333333", fontFace: "Microsoft YaHei" });
     slide.addText(row[1], { x: MARGIN + 2.3, y: 5.4 + i * 0.5, w: 1.5, h: 0.4, fontSize: 11, color: "888888", fontFace: "Arial" });
     slide.addText(row[2], { x: MARGIN + 3.8, y: 5.4 + i * 0.5, w: 1.5, h: 0.4, fontSize: 11, color: "888888", fontFace: "Arial" });
@@ -249,11 +249,11 @@ async function renderPptx(sceneImages, brandDNA) {
 
   // Page 9-13: Scene Application Pages
   const scenePages = [
-    { title: "07  Æ·ÅÆÎïÁÏ", sub: "Brand Stationery", desc: "ÃÀÈİ²úÆ·Æ¿ÉíÓë°ü×°Ì××°£¬ÑÓĞø»¨ÑÕ·ÛÖ÷É«µ÷£¬ÓªÔìÍ³Ò»ÓÅÑÅµÄ²úÆ·³ÂÁĞĞ§¹û¡£" },
-    { title: "08  °ü×°ÏµÍ³", sub: "Packaging System", desc: "Æ·ÅÆÀñÆ·´ü²ÉÓÃÇ³Ó£·Û»ùµ÷´îÅä°µ½ğ¶Ğ´ø£¬¾«ÖÂ»¨»ÜÑ¹ÎÆ¹¤ÒÕ£¬ÌåÏÖ¸ß¶ËÃÀÈİ»áËùÆ·ÅÆÖÊ¸Ğ¡£" },
-    { title: "09  ²úÆ·°ü×°", sub: "Product Packaging", desc: "²úÆ·¹Ş×°²ÉÓÃ»¨ÑÕ·Û±êÇ©´îÅäÃµ¹å½ğÆ¿¸Ç£¬Ö²ÎïÔªËØµã×ºÆä¼ä£¬´«´ïÌìÈ»»¤·ôÀíÄî¡£" },
-    { title: "10  Ğû´«º£±¨", sub: "Promotional Poster", desc: "Æ·ÅÆĞû´«º£±¨ÈÚºÏÖĞÊ½ÃÀÑ§Óë»¨»ÜÔªËØ£¬Å¯µ÷µÆ¹âÓªÔìÎÂÜ°ÊæÊÊµÄÃÀÈİ¿Õ¼ä·ÕÎ§¡£" },
-    { title: "11  »áÔ±¿¨Éè¼Æ", sub: "VIP Membership Card", desc: "VIP»áÔ±¿¨²ÉÓÃ°µ½ğÌÌÓ¡¹¤ÒÕ£¬»¨»ÜÎÆÀí´îÅä¸ß¼¶ÎÆÀíÖ½£¬ÕÃÏÔ×ğ¹ó»áÔ±Éí·İ¡£" },
+    { title: "07  å“ç‰Œç‰©æ–™", sub: "Brand Stationery", desc: "ç¾å®¹äº§å“ç“¶èº«ä¸åŒ…è£…å¥—è£…ï¼Œå»¶ç»­èŠ±é¢œç²‰ä¸»è‰²è°ƒï¼Œè¥é€ ç»Ÿä¸€ä¼˜é›…çš„äº§å“é™ˆåˆ—æ•ˆæœã€‚" },
+    { title: "08  åŒ…è£…ç³»ç»Ÿ", sub: "Packaging System", desc: "å“ç‰Œç¤¼å“è¢‹é‡‡ç”¨æµ…æ¨±ç²‰åŸºè°ƒæ­é…æš—é‡‘ç¼å¸¦ï¼Œç²¾è‡´èŠ±å‰å‹çº¹å·¥è‰ºï¼Œä½“ç°é«˜ç«¯ç¾å®¹ä¼šæ‰€å“ç‰Œè´¨æ„Ÿã€‚" },
+    { title: "09  äº§å“åŒ…è£…", sub: "Product Packaging", desc: "äº§å“ç½è£…é‡‡ç”¨èŠ±é¢œç²‰æ ‡ç­¾æ­é…ç«ç‘°é‡‘ç“¶ç›–ï¼Œæ¤ç‰©å…ƒç´ ç‚¹ç¼€å…¶é—´ï¼Œä¼ è¾¾å¤©ç„¶æŠ¤è‚¤ç†å¿µã€‚" },
+    { title: "10  å®£ä¼ æµ·æŠ¥", sub: "Promotional Poster", desc: "å“ç‰Œå®£ä¼ æµ·æŠ¥èåˆä¸­å¼ç¾å­¦ä¸èŠ±å‰å…ƒç´ ï¼Œæš–è°ƒç¯å…‰è¥é€ æ¸©é¦¨èˆ’é€‚çš„ç¾å®¹ç©ºé—´æ°›å›´ã€‚" },
+    { title: "11  ä¼šå‘˜å¡è®¾è®¡", sub: "VIP Membership Card", desc: "VIPä¼šå‘˜å¡é‡‡ç”¨æš—é‡‘çƒ«å°å·¥è‰ºï¼ŒèŠ±å‰çº¹ç†æ­é…é«˜çº§çº¹ç†çº¸ï¼Œå½°æ˜¾å°Šè´µä¼šå‘˜èº«ä»½ã€‚" },
   ];
 
   for (let i = 0; i < scenePages.length; i++) {
@@ -270,11 +270,11 @@ async function renderPptx(sceneImages, brandDNA) {
         slide.addImage({ data: `image/${ext};base64,${imgBuf.toString("base64")}` }, { x: MARGIN + 0.15, y: 1.8, w: SW - MARGIN * 2 - 0.15, h: 5.5, sizing: { type: "contain", w: SW - MARGIN * 2 - 0.15, h: 5.5 } });
       } catch (e) {
         slide.addShape(pptx.ShapeType.rect, { x: MARGIN + 0.15, y: 1.8, w: SW - MARGIN * 2 - 0.15, h: 5.5, fill: { color: "F5F5F5" } });
-        slide.addText("[ ³¡¾°Í¼¼ÓÔØÊ§°Ü ]", { x: MARGIN + 0.15, y: 4.2, w: SW - MARGIN * 2 - 0.15, h: 0.5, fontSize: 12, color: "CCCCCC", align: "center", fontFace: "Microsoft YaHei" });
+        slide.addText("[ åœºæ™¯å›¾åŠ è½½å¤±è´¥ ]", { x: MARGIN + 0.15, y: 4.2, w: SW - MARGIN * 2 - 0.15, h: 0.5, fontSize: 12, color: "CCCCCC", align: "center", fontFace: "Microsoft YaHei" });
       }
     } else {
       slide.addShape(pptx.ShapeType.rect, { x: MARGIN + 0.15, y: 1.8, w: SW - MARGIN * 2 - 0.15, h: 5.5, fill: { color: "F5F5F5" } });
-      slide.addText("[ ´ıÇ¶Èë³¡¾°Í¼ ]", { x: MARGIN + 0.15, y: 4.2, w: SW - MARGIN * 2 - 0.15, h: 0.5, fontSize: 12, color: "CCCCCC", align: "center", fontFace: "Microsoft YaHei" });
+      slide.addText("[ å¾…åµŒå…¥åœºæ™¯å›¾ ]", { x: MARGIN + 0.15, y: 4.2, w: SW - MARGIN * 2 - 0.15, h: 0.5, fontSize: 12, color: "CCCCCC", align: "center", fontFace: "Microsoft YaHei" });
     }
     slide.addText(cfg.desc, { x: MARGIN + 0.15, y: 7.5, w: SW - MARGIN * 2 - 0.15, h: 1.0, fontSize: 10, color: "777777", fontFace: "Microsoft YaHei" });
     addPn(slide, pn, TOTAL);
@@ -283,14 +283,14 @@ async function renderPptx(sceneImages, brandDNA) {
   // Back Cover
   pn++; slide = pptx.addSlide();
   slide.background = { fill: pri };
-  slide.addText("»¨ÑÕÃÀÈİÔº", { x: MARGIN, y: SH * 0.38, w: SW - MARGIN * 2, h: 0.8, fontSize: 32, color: "FFFFFF", align: "center", fontFace: "Microsoft YaHei", bold: true });
+  slide.addText("èŠ±é¢œç¾å®¹é™¢", { x: MARGIN, y: SH * 0.38, w: SW - MARGIN * 2, h: 0.8, fontSize: 32, color: "FFFFFF", align: "center", fontFace: "Microsoft YaHei", bold: true });
   slide.addText("HUA YAN BEAUTY", { x: MARGIN, y: SH * 0.48, w: SW - MARGIN * 2, h: 0.5, fontSize: 14, color: "FFFFFF", align: "center", fontFace: "Arial", charSpacing: 6 });
   slide.addShape(pptx.ShapeType.rect, { x: SW * 0.35, y: SH * 0.56, w: SW * 0.3, h: 0.01, fill: { color: "FFFFFF" } });
-  slide.addText("ÊÓ¾õÊ¶±ğÏµÍ³¹æ·¶ÊÖ²á", { x: MARGIN, y: SH * 0.60, w: SW - MARGIN * 2, h: 0.5, fontSize: 12, color: "FFFFFF", align: "center", fontFace: "Microsoft YaHei" });
-  slide.addText("BrandBrain  ¡¤  Æ·ÅÆ´óÄÔ", { x: MARGIN, y: SH * 0.85, w: SW - MARGIN * 2, h: 0.4, fontSize: 9, color: "FFFFFF", align: "center", fontFace: "Arial", charSpacing: 4 });
+  slide.addText("è§†è§‰è¯†åˆ«ç³»ç»Ÿè§„èŒƒæ‰‹å†Œ", { x: MARGIN, y: SH * 0.60, w: SW - MARGIN * 2, h: 0.5, fontSize: 12, color: "FFFFFF", align: "center", fontFace: "Microsoft YaHei" });
+  slide.addText("BrandBrain  Â·  å“ç‰Œå¤§è„‘", { x: MARGIN, y: SH * 0.85, w: SW - MARGIN * 2, h: 0.4, fontSize: 9, color: "FFFFFF", align: "center", fontFace: "Arial", charSpacing: 4 });
 
   await fs.mkdir(OUTPUT_DIR, { recursive: true });
-  const pptxPath = path.join(OUTPUT_DIR, "»¨ÑÕÃÀÈİÔº-VIÊÖ²á.pptx");
+  const pptxPath = path.join(OUTPUT_DIR, "èŠ±é¢œç¾å®¹é™¢-VIæ‰‹å†Œ.pptx");
   const buf = await pptx.write({ outputType: "nodebuffer" });
   await fs.writeFile(pptxPath, buf);
   console.log(`  PPTX saved: ${pptxPath}`);
@@ -301,7 +301,7 @@ async function renderPptx(sceneImages, brandDNA) {
 // ===== MAIN =====
 async function main() {
   console.log("=".repeat(60));
-  console.log("BrandBrain VI Pipeline ¡ª »¨ÑÕÃÀÈİÔº (Ms. Yang)");
+  console.log("BrandBrain VI Pipeline â€” èŠ±é¢œç¾å®¹é™¢ (Ms. Yang)");
   console.log("=".repeat(60));
   const startTime = Date.now();
 

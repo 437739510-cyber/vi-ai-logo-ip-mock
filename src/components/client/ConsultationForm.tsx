@@ -23,11 +23,12 @@ import { PROVINCE_CITY_DATA, PROVINCE_OPTIONS } from "@/lib/core/province-city-d
 import { LogoUploadArea, MascotUploadArea, ReferenceUploadArea } from "./FileUploadArea";
 import { Loader2, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { supabase } from "@/lib/core/supabase";
+import { STORAGE_BUCKET } from "@/config/storage";
 
 const MAX_LOGO_SIZE = 20 * 1024 * 1024;
 const MAX_MASCOT_SIZE = 20 * 1024 * 1024;
 const MAX_PDF_SIZE = 50 * 1024 * 1024;
-const STORAGE_BUCKET = "brand-brain-generated";
+const STORAGE_BUCKET = STORAGE_BUCKET;
 const STORAGE_PREFIX = "uploads/form-assets";
 
 const STEPS = [

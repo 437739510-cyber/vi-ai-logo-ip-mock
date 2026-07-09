@@ -1,0 +1,1 @@
+admin_auth=true; admin_role=admin; admin_user_id=admin

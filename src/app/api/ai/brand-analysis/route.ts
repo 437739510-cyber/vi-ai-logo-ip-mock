@@ -14,7 +14,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
+import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 
 
 export const maxDuration = 120;
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     // 调用 DeepSeek
     const resp = await guardedDeepSeekCall({
       route: "ai/brand-analysis",
-      body: {model: "deepseek-v4-flash",
+      body: {model: DEEPSEEK_MODEL,
         messages: [
           {
             role: "system",

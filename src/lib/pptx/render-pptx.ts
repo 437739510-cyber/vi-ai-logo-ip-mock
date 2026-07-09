@@ -19,6 +19,8 @@ import { cleanDirtyWords, filterMaterialsByIndustry } from "@/lib/vi-manual/dirt
 import { COLOR_NAME_MAP } from "@/lib/vi-manual/color-name-map";
 
 import { renderTypographyPng, renderColorSpecPng } from "./spec-page-renderer";
+const _DEV = process.env.NODE_ENV === "development";
+
 
 const SW = 8.27;
 const SH = 11.69;
@@ -118,7 +120,7 @@ function resolveBC(opts: RenderPptxOptions, blueprints: PageBlueprint[]): BC {
   const industry = getIndustryType(opts.industry);
   const def = getIndustryDefaults(industry);
   const pri = hx(def.primary);
-  console.log(`[resolveBC] Using industry defaults for ${industry}: ${pri}`);
+  _DEV && console.log(`[resolveBC] Using industry defaults for ${industry}: ${pri}`);
   return {
     pri, sec: hx(def.secondary), acc: hx(def.accent),
     priDark: darken(pri), priLight: lighten(pri),
@@ -248,7 +250,7 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
   // V32: 压缩图片减小PPTX/PDF体积
   // PptxGenJS内部会将所有图片重新编码为PNG，所以需要缩小像素而非靠JPEG压缩
   if (options.compressImages) {
-    console.log("[render-pptx] Compressing images...");
+    _DEV && console.log("[render-pptx] Compressing images...");
     const compressedScenes: Record<string, string> = {};
     for (const [key, imgData] of Object.entries(sceneImages)) {
       compressedScenes[key] = await compressImage(imgData, { maxWidth: 640, quality: 85, isLogo: false });
@@ -258,10 +260,10 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
     if (options.logoData) options.logoData = await compressImage(options.logoData, { maxWidth: 1024, isLogo: true });
     if (options.mascotData) options.mascotData = await compressImage(options.mascotData, { maxWidth: 1024, isLogo: true });
     if (options.aiLogoData) options.aiLogoData = await compressImage(options.aiLogoData, { maxWidth: 1024, isLogo: true });
-    console.log("[render-pptx] Image compression done");
+    _DEV && console.log("[render-pptx] Image compression done");
   }
 
-  console.log(`[render-pptx] V6 | ${blueprints.length} pages | industry=${industry} | sceneImages=${Object.keys(sceneImages).length}`);
+  _DEV && console.log(`[render-pptx] V6 | ${blueprints.length} pages | industry=${industry} | sceneImages=${Object.keys(sceneImages).length}`);
 
   for (const bp of blueprints) {
     const slide = pptx.addSlide();
@@ -413,7 +415,7 @@ function fitBrandText(text: string, fs: number, cs: number, availW: number): { t
   const minFs = Math.ceil(fs * 0.3);
   const maxFs = Math.floor((availW * 0.95 * 72) / (text.length * 1.35));
   const finalFs = Math.max(minFs, maxFs);
-  console.log("[fitBrandText] \"" + text + "\" at " + fs + "pt -> reduced to " + finalFs + "pt");
+  _DEV && console.log("[fitBrandText] \"" + text + "\" at " + fs + "pt -> reduced to " + finalFs + "pt");
   return { text, fontSize: finalFs, charSpacing: 0 };
 }
 

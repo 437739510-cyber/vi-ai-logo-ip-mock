@@ -8,7 +8,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { analysisToDesignSystem, createTemplate, findBestMatchingTemplates } from "@/lib/vi-manual/template-library";
 import fs from "fs";
-import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
+import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 
 const execAsync = promisify(exec);
 
@@ -133,7 +133,7 @@ IMPORTANT:
 
       const resp = await guardedDeepSeekCall({
       route: "ai/analyze-reference-pdf",
-      body: {model: "deepseek-v4-flash",
+      body: {model: DEEPSEEK_MODEL,
           messages: [
             {
               role: "system",

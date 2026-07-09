@@ -10,7 +10,8 @@ import { renderProfessionalPage } from "@/lib/pptx/vi-page-renderer";
 import { buildKBInjection, getIndustryFontContext } from "@/lib/knowledge/kb-injector";
 import { buildColorNameConstraint } from "@/lib/vi-manual/color-name-map";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
+import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
+import { STORAGE_BUCKET } from "@/config/storage";
 
 // ===== V4: 14页 PAGE_DEFS =====
 const PAGE_DEFS = [
@@ -204,7 +205,7 @@ async function generateDesignDecision(
   try {
     const resp = await guardedDeepSeekCall({
       route: "ai/generate-manual-pages-stream",
-      body: {model: "deepseek-v4-flash",
+      body: {model: DEEPSEEK_MODEL,
         messages: [
           { role: "system", content: DESIGN_DIRECTOR_PROMPT },
           { role: "user", content: `请为以下品牌生成VI设计决策：\n\n${brief}` },
@@ -471,14 +472,14 @@ async function uploadToSupabaseStorage(
   try {
     const filePath = `${projectId}/${fileName}`;
     const { data, error } = await supabaseAdmin.storage
-      .from("brand-brain-generated")
+      .from(STORAGE_BUCKET)
       .upload(filePath, buffer, { contentType: "image/png", upsert: true });
     if (error) {
       console.warn(`[supabase] Upload failed:`, error.message);
       return null;
     }
     const { data: urlData } = supabaseAdmin.storage
-      .from("brand-brain-generated")
+      .from(STORAGE_BUCKET)
       .getPublicUrl(filePath);
     return urlData.publicUrl;
   } catch (e) {

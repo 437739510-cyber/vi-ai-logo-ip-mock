@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DeepSeek API 璋冪敤瀹堝崼 (V55: 澶嶇敤supabaseAdmin鍗曚緥锛屼慨澶峞nv鍙橀噺鍛藉悕)
  * - 璁板綍姣忔璋冪敤鐨勮矾鐢便€乼oken鐢ㄩ噺銆佽垂鐢ㄣ€佹椂闂存埑鍒?api_usage_log
  * - 姣忔棩棰勭畻涓婇檺锛堥粯璁?鍏冿級锛岃秴鍑鸿嚜鍔ㄦ嫤鎴? * - 鎵€鏈?DeepSeek 璋冪敤蹇呴』閫氳繃姝ゆā鍧? * 
@@ -9,8 +9,12 @@
  */
 
 import { supabaseAdmin } from "@/lib/core/supabase";
+// DeepSeek API configuration constants
+export const DEEPSEEK_MODEL = "deepseek-chat";
+export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 
-// DeepSeek deepseek-v4-flash pricing (CNY per 1K tokens)
+
+// DeepSeek deepseek-chat pricing (CNY per 1K tokens)
 // Input: 楼0.001/1K, Output: 楼0.002/1K, Cached input: 楼0.0001/1K
 const PRICE_INPUT_PER_1K = 0.001;
 const PRICE_OUTPUT_PER_1K = 0.002;
@@ -179,7 +183,7 @@ export async function guardedDeepSeekCall(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    const response = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,

@@ -21,7 +21,7 @@ import { planPages } from "@/lib/vi-manual/page-planner";
 import { renderPptxToBuffer } from "@/lib/pptx/render-pptx";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
-import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
+import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
 import { validateAndBlockAsync } from "@/lib/vi-manual/quality-check";
 
@@ -618,7 +618,7 @@ export async function POST(req: NextRequest) {
 
           const analysisResp = await guardedDeepSeekCall({
       route: "ai/generate-manual-pptx",
-      body: {model: "deepseek-v4-flash",
+      body: {model: DEEPSEEK_MODEL,
               messages: [
                 { role: "system", content: BRAND_ANALYSIS_SYSTEM_PROMPT },
                 { role: "user", content: analysisPrompt },

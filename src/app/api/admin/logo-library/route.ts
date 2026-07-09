@@ -10,6 +10,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { STORAGE_BUCKET } from "@/config/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -187,7 +188,7 @@ export async function POST(req: NextRequest) {
         const storagePath = `library/${projectId}/logo-${logo.index}-${timestamp}.png`;
 
         const { error: uploadErr } = await supabaseAdmin.storage
-          .from("brand-brain-generated")
+          .from(STORAGE_BUCKET)
           .upload(storagePath, imgBuffer, { contentType: "image/png", upsert: true });
 
         if (uploadErr) {
@@ -196,7 +197,7 @@ export async function POST(req: NextRequest) {
         }
 
         const permanentUrl = supabaseAdmin.storage
-          .from("brand-brain-generated")
+          .from(STORAGE_BUCKET)
           .getPublicUrl(storagePath).data.publicUrl;
 
         // 提取风格标签
@@ -261,7 +262,7 @@ export async function DELETE(req: NextRequest) {
       // 删除Storage文件
       if (logo.storage_path) {
         await supabaseAdmin.storage
-          .from("brand-brain-generated")
+          .from(STORAGE_BUCKET)
           .remove([logo.storage_path]);
       }
 
@@ -311,7 +312,7 @@ async function cleanupOldest(targetFreeMB: number): Promise<{ deleted: number; f
     // 从Storage删除文件
     if (logo.storage_path) {
       await supabaseAdmin.storage
-        .from("brand-brain-generated")
+        .from(STORAGE_BUCKET)
         .remove([logo.storage_path]);
     }
 

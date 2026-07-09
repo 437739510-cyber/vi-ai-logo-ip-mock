@@ -9,7 +9,10 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { guardedDeepSeekCall } from '@/lib/core/billing/deepseek-guard';
+import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
+import { STORAGE_BUCKET } from "@/config/storage";
+const _DEV = process.env.NODE_ENV === "development";
+
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 interface LogoCandidate {
@@ -34,7 +37,7 @@ Logo方案：${logos.map((l, i) => `\n方案${i + 1}：设计提示词 - ${l.pro
 {"scores":[分数1,分数2,...],"best":最佳方案序号(从1开始),"reasoning":"简短说明选择理由(50字以内)"}`;
   const resp = await guardedDeepSeekCall({
       route: "ai/select-logo",
-      body: {model: "deepseek-v4-flash",
+      body: {model: DEEPSEEK_MODEL,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
       max_tokens: 200,},
@@ -97,7 +100,7 @@ export async function POST(req: NextRequest) {
     const submissionId = project?.submission_id;
     // === AI智能选优模式 ===
     if (autoSelect) {
-      console.log("[select-logo] Auto-select mode activated");
+      _DEV && console.log("[select-logo] Auto-select mode activated");
       const brandProfileLocal = clientInfo.brandProfile || {};  // used locally in autoSelect
       const logoResults = brandProfileLocal.logoGenerationResults || [];
       const candidates: LogoCandidate[] = logoResults
@@ -115,7 +118,7 @@ export async function POST(req: NextRequest) {
           scores = result.scores;
           reasoning = result.reasoning;
           selectionMethod = "ai-scored";
-          console.log(`[select-logo] AI scores: ${scores.join(",")} → best=#${selectedIndex + 1} (${reasoning})`);
+          _DEV && console.log(`[select-logo] AI scores: ${scores.join(",")} → best=#${selectedIndex + 1} (${reasoning})`);
         } catch (err: any) {
           console.warn("[select-logo] AI scoring failed, fallback to first:", err.message);
           selectedIndex = 0;
@@ -134,14 +137,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "projectId and logoImageUrl required" }, { status: 400 });
     }
     // Step 1: 下载Logo图片
-    console.log(`[select-logo] Downloading logo from: ${selectedLogoUrl.substring(0, 80)}...`);
+    _DEV && console.log(`[select-logo] Downloading logo from: ${selectedLogoUrl.substring(0, 80)}...`);
     const imgResp = await fetch(selectedLogoUrl);
     if (!imgResp.ok) {
       return NextResponse.json({ error: "Failed to download logo image" }, { status: 400 });
     }
     const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
     const imgSize = imgBuffer.length;
-    console.log(`[select-logo] Downloaded: ${imgSize} bytes`);
+    _DEV && console.log(`[select-logo] Downloaded: ${imgSize} bytes`);
     // Step 2: 并行上传到两个Storage桶
     const timestamp = Date.now();
     const logoFileName = `logo-${timestamp}.png`;
@@ -156,12 +159,12 @@ export async function POST(req: NextRequest) {
         .upload(processedPath, imgBuffer, { contentType: "image/png", upsert: true }),
     ]);
     if (uploadRes1.status === "fulfilled" && !uploadRes1.value.error) {
-      console.log("[select-logo] Uploaded to form-assets:", formAssetsPath);
+      _DEV && console.log("[select-logo] Uploaded to form-assets:", formAssetsPath);
     } else {
       console.warn("[select-logo] form-assets upload failed:", uploadRes1.status === "fulfilled" ? uploadRes1.value.error?.message : "rejected");
     }
     if (uploadRes2.status === "fulfilled" && !uploadRes2.value.error) {
-      console.log("[select-logo] Uploaded to processed-assets:", processedPath);
+      _DEV && console.log("[select-logo] Uploaded to processed-assets:", processedPath);
     } else {
       console.warn("[select-logo] processed-assets upload failed:", uploadRes2.status === "fulfilled" ? uploadRes2.value.error?.message : "rejected");
     }
@@ -183,7 +186,7 @@ export async function POST(req: NextRequest) {
       if (subErr) {
         console.warn("[select-logo] Submission update failed:", subErr.message);
       } else {
-        console.log("[select-logo] Updated submission logo_assets");
+        _DEV && console.log("[select-logo] Updated submission logo_assets");
       }
     }
     // Step 4: 更新 project.client_info
@@ -206,7 +209,7 @@ export async function POST(req: NextRequest) {
       .from("projects")
       .update({ client_info: updatedInfo, status: "manual_pending", updated_at: new Date().toISOString() })
       .eq("id", projectId);
-    console.log("[select-logo] Done! Logo saved and linked to project.");
+    _DEV && console.log("[select-logo] Done! Logo saved and linked to project.");
     // === Auto-collect unselected logos to library ===
     (async () => {
       try {
@@ -234,10 +237,10 @@ export async function POST(req: NextRequest) {
               const imgBuf = Buffer.from(await imgResp.arrayBuffer());
               const ts = Date.now();
               const sp = `library/${projectId}/logo-${logo.index}-${ts}.png`;
-              const { error: upErr } = await supabaseAdmin.storage.from("brand-brain-generated")
+              const { error: upErr } = await supabaseAdmin.storage.from(STORAGE_BUCKET)
                 .upload(sp, imgBuf, { contentType: "image/png", upsert: true });
               if (upErr) continue;
-              const permUrl = supabaseAdmin.storage.from("brand-brain-generated").getPublicUrl(sp).data.publicUrl;
+              const permUrl = supabaseAdmin.storage.from(STORAGE_BUCKET).getPublicUrl(sp).data.publicUrl;
               const styleTags = extractLibStyleTags(logo.prompt || "");
               await supabaseAdmin.from("logo_library").insert({
                 project_id: projectId, company_name: companyName, industry,
@@ -246,7 +249,7 @@ export async function POST(req: NextRequest) {
                 style_tags: styleTags, brand_colors: brandProfile.brand_colors || null,
                 file_size: imgBuf.length,
               });
-              console.log(`[select-logo] Collected unselected logo #${logo.index} to library`);
+              _DEV && console.log(`[select-logo] Collected unselected logo #${logo.index} to library`);
             } catch (e: any) { console.warn("[select-logo] Failed to collect logo:", e.message); }
           }
         }
