@@ -16,6 +16,7 @@ import type { PageBlueprint } from "@/lib/vi-manual/page-planner";
 import { compressImage } from "./compress-image";
 import { type IndustryType, getIndustryType, getIndustryMaterials } from "@/lib/brand/industry-types";
 import { cleanDirtyWords, filterMaterialsByIndustry } from "@/lib/vi-manual/dirty-word-cleaner";
+import { COLOR_NAME_MAP } from "@/lib/vi-manual/color-name-map";
 
 import { renderTypographyPng, renderColorSpecPng } from "./spec-page-renderer";
 
@@ -935,12 +936,22 @@ function renderLogoBackgrounds(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
 }
 
 // ---- 辅助图形 ----
+
+
+// P0-2: replace hex codes in text with COLOR_NAME_MAP names (post-processing)
+function sanitizeColorNames(text: string): string {
+  if (!text) return text;
+  return text.replace(/#?([0-9A-Fa-f]{6})\b/g, (match, hex) => {
+    const name = COLOR_NAME_MAP[hex.toUpperCase()];
+    return name ? name + " " + match : match;
+  });
+}
 function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, bp.label || "辅助图形", bc);
   const cx = MARGIN + LEFT_BAR_W;
 
   // V103: 辅助图形说明加入品牌色依据
-  const auxIntro = sanitizeText(opts.auxGraphicsIntro || `辅助图形提取自品牌主色(${bc.pri})与辅助色(${bc.sec})，用于丰富视觉层次、强化品牌识别。条纹组合呼应品牌节奏感，点阵组合传递精致秩序。`).replace(/。。/g, '。');
+  const auxIntro = sanitizeColorNames(sanitizeText(opts.auxGraphicsIntro || `辅助图形提取自品牌主色(${bc.pri})与辅助色(${bc.sec})，用于丰富视觉层次、强化品牌识别。条纹组合呼应品牌节奏感，点阵组合传递精致秩序。`).replace(/。。/g, '。');
   slide.addText(auxIntro, {
     x: cx, y: 2.187, w: CONTENT_W, h: 0.6,
     fontSize: 14, color: "666666", lineSpacingMultiple: 1.4,
@@ -1963,7 +1974,7 @@ function renderColorTaboos(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
   let y = 1.5;
 
   const rules = [
-    { title: "主色禁用大面积铺满", desc: "玫瑰红 #" + bc.pri + " 仅作点缀色（LOGO、装饰线、强调文字），占画面比例不超过20%。大面积红色产生压迫感，与「温柔治愈」品牌调性冲突。", icon: "⚠" },
+    { title: "主色禁用大面积铺满", desc: (COLOR_NAME_MAP[bc.pri] || "品牌主色") + " #" + bc.pri + " 仅作点缀色（LOGO、装饰线、强调文字），占画面比例不超过20%。大面积红色产生压迫感，与「温柔治愈」品牌调性冲突。", icon: "⚠" },
     { title: "三色搭配比例", desc: "主色 10-25% / 辅助色 15-30% / 背景留白 50-70%。保持视觉呼吸感与层次。", icon: "📐" },
     { title: "禁止搭配色", desc: "避免与高饱和度绿色、荧光色、纯黑 #000000 混搭，破坏品牌温柔轻奢质感。", icon: "🚫" },
     { title: "单色印刷规范", desc: "黑白/单色印刷时使用灰度版本，保留品牌色明度阶梯。主色→70%灰、辅助色→50%灰、强调色→30%灰。", icon: "🖨" },
