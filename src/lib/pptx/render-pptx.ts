@@ -951,7 +951,7 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   const cx = MARGIN + LEFT_BAR_W;
 
   // V103: 辅助图形说明加入品牌色依据
-  const auxIntro = sanitizeColorNames(sanitizeText(opts.auxGraphicsIntro || `辅助图形提取自品牌主色(${bc.pri})与辅助色(${bc.sec})，用于丰富视觉层次、强化品牌识别。条纹组合呼应品牌节奏感，点阵组合传递精致秩序。`).replace(/。。/g, '。');
+  const auxIntro = sanitizeColorNames(sanitizeText(opts.auxGraphicsIntro || `辅助图形提取自品牌主色(${bc.pri})与辅助色(${bc.sec})，用于丰富视觉层次、强化品牌识别。条纹组合呼应品牌节奏感，点阵组合传递精致秩序。`).replace(/。。/g, '。'));
   slide.addText(auxIntro, {
     x: cx, y: 2.187, w: CONTENT_W, h: 0.6,
     fontSize: 14, color: "666666", lineSpacingMultiple: 1.4,
