@@ -24,6 +24,8 @@ import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/b
 import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
 import { validateAndBlockAsync } from "@/lib/vi-manual/quality-check";
+const _DEV = process.env.NODE_ENV === "development";
+
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -430,7 +432,7 @@ export async function POST(req: NextRequest) {
       const existingCi = (existingProject?.client_info as Record<string, any>) || {};
       const existingResult = existingCi.pptxResult;
       if (existingProject?.status === 'completed' && existingResult?.url && existingResult?.storageUrl) {
-        console.log(`[generate-pptx] V88: Project ${projectId} already has completed result, skipping. Use force=true to override.`);
+        _DEV && console.log(`[generate-pptx] V88: Project ${projectId} already has completed result, skipping. Use force=true to override.`);
         return NextResponse.json({
           status: "already_completed",
           message: "该项目已有完成的VI手册，无需重复生成",
@@ -529,9 +531,9 @@ export async function POST(req: NextRequest) {
     let realColors = normalizeColors(rawColors, industry);
 
     const industryType = getIndustryType(industry);
-    console.log("[generate-pptx] ===== BRAND DATA =====");
-    console.log("[generate-pptx] Company:", companyName, "| Industry:", industry, "| Type:", industryType);
-    console.log("[generate-pptx] Colors:", JSON.stringify(realColors));
+    _DEV && console.log("[generate-pptx] ===== BRAND DATA =====");
+    _DEV && console.log("[generate-pptx] Company:", companyName, "| Industry:", industry, "| Type:", industryType);
+    _DEV && console.log("[generate-pptx] Colors:", JSON.stringify(realColors));
 
     sendProgress("analyzing", "正在进行AI品牌分析...", 15);
     // ===== Step 2.5: AI 品牌分析 =====
@@ -581,14 +583,14 @@ export async function POST(req: NextRequest) {
               zh: m,
               en: filledPrompts[m],
             }));
-            console.log(`[generate-pptx] DNA pipeline OK: ${materials.length} scenes for ${industry}`);
+            _DEV && console.log(`[generate-pptx] DNA pipeline OK: ${materials.length} scenes for ${industry}`);
           }
         } catch (dnaErr) {
           console.warn("[generate-pptx] DNA extraction failed, will fallback:", dnaErr);
         }
       }
       if (brandProfile.logoDesignSuggestions) {
-        console.log("[generate-pptx] Reusing brand analysis, logo suggestions available:", brandProfile.logoDesignSuggestions.style);
+        _DEV && console.log("[generate-pptx] Reusing brand analysis, logo suggestions available:", brandProfile.logoDesignSuggestions.style);
         // V103-fix2: 复用路径也需要logoPhilosophy fallback
         if (!logoPhilosophy && brandProfile.logoDesignSuggestions.concept) {
           const parts = [brandProfile.logoDesignSuggestions.concept];
@@ -601,7 +603,7 @@ export async function POST(req: NextRequest) {
           logoPhilosophy = brandProfile.designPhilosophy;
         }
       }
-      console.log("[generate-pptx] Reusing existing brand analysis — skipped DeepSeek call");
+      _DEV && console.log("[generate-pptx] Reusing existing brand analysis — skipped DeepSeek call");
       sendProgress("analyzed", "品牌分析完成(复用)", 30);
     } else {
       // 无已有分析 — 执行DeepSeek品牌分析
@@ -634,7 +636,7 @@ export async function POST(req: NextRequest) {
             try {
               const cleaned = analysisContent.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
               brandProfile = JSON.parse(cleaned);
-              console.log("[generate-pptx] Brand analysis OK:", brandProfile.brandToneKeywords);
+              _DEV && console.log("[generate-pptx] Brand analysis OK:", brandProfile.brandToneKeywords);
               sendProgress("analyzed", "品牌分析完成", 30);
 
               if (brandProfile.refinedBrandVision) effectiveBrandVision = brandProfile.refinedBrandVision;
@@ -642,7 +644,7 @@ export async function POST(req: NextRequest) {
               if (brandProfile.refinedTargetMarket) effectiveTargetMarket = brandProfile.refinedTargetMarket;
               if (brandProfile.brandStory) effectiveBrandStory = brandProfile.brandStory;
               if (brandProfile.logoDesignSuggestions) {
-                console.log("[generate-pptx] Logo design suggestions available:", brandProfile.logoDesignSuggestions.style);
+                _DEV && console.log("[generate-pptx] Logo design suggestions available:", brandProfile.logoDesignSuggestions.style);
                 // V103: logoPhilosophy fallback到AI分析的concept+elements+style
                 if (!logoPhilosophy && brandProfile.logoDesignSuggestions.concept) {
                   const parts = [brandProfile.logoDesignSuggestions.concept];
@@ -686,7 +688,7 @@ export async function POST(req: NextRequest) {
                       zh: m,
                       en: filledPrompts[m],
                     }));
-                    console.log(`[generate-pptx] DNA pipeline OK: ${materials.length} scenes for ${industry}`);
+                    _DEV && console.log(`[generate-pptx] DNA pipeline OK: ${materials.length} scenes for ${industry}`);
                   }
                 } catch (dnaErr) {
                   console.warn("[generate-pptx] DNA extraction failed, will fallback:", dnaErr);
@@ -788,7 +790,7 @@ export async function POST(req: NextRequest) {
       if (cpPri) realColors.primary = cpPri.replace('#', '');
       if (cpSec) realColors.secondary = cpSec.replace('#', '');
       if (cpAcc) realColors.accent = cpAcc.replace('#', '');
-      console.log("[generate-pptx] V103: Using AI colorPalette:", JSON.stringify(realColors));
+      _DEV && console.log("[generate-pptx] V103: Using AI colorPalette:", JSON.stringify(realColors));
     }
 
     sendProgress("loading_assets", "正在加载品牌素材...", 40);
@@ -806,14 +808,14 @@ export async function POST(req: NextRequest) {
       try {
         const savedProfile = ((project.client_info as Record<string, any>)?.brandProfile) as Record<string, any> | undefined;
         if (savedProfile?.selectedLogo?.imageUrl) {
-          console.log("[generate-pptx] Using customer-selected logo from brandProfile.selectedLogo");
+          _DEV && console.log("[generate-pptx] Using customer-selected logo from brandProfile.selectedLogo");
           logoData = await loadImg(savedProfile.selectedLogo.imageUrl);
         }
         // V105: 客户未选Logo时，使用第一个生成的Logo
         if (!logoData && savedProfile && savedProfile.logoGenerationResults && savedProfile.logoGenerationResults.length > 0) {
           const firstLogoUrl = savedProfile.logoGenerationResults[0].imageUrl;
           if (firstLogoUrl) {
-            console.log("[generate-pptx] No selectedLogo, using first generated logo");
+            _DEV && console.log("[generate-pptx] No selectedLogo, using first generated logo");
             logoData = await loadImg(firstLogoUrl);
           }
         }
@@ -826,7 +828,7 @@ export async function POST(req: NextRequest) {
       const logoAssets = (submission as any).logo_assets || [];
       if (logoAssets.length > 0) {
         const lastLogo = logoAssets[logoAssets.length - 1];
-        console.log("[generate-pptx] Using logo from submission.logo_assets:", lastLogo.fileName);
+        _DEV && console.log("[generate-pptx] Using logo from submission.logo_assets:", lastLogo.fileName);
         logoData = await loadImg(lastLogo.url);
       }
     }
@@ -845,7 +847,7 @@ export async function POST(req: NextRequest) {
     if (!mascotData) mascotData = await findFromStorage(projectId, "mascot");
     if (mascotData) mascotSplitViews = await findSplitViews(projectId);
 
-    console.log("[generate-pptx] Logo:", logoData ? "OK" : "null", "| Mascot:", mascotData ? "OK" : "null");
+    _DEV && console.log("[generate-pptx] Logo:", logoData ? "OK" : "null", "| Mascot:", mascotData ? "OK" : "null");
 
     // V83: 保存checkpoint — 品牌分析+Logo加载完成，如果后续超时可从此续传
     try {
@@ -854,7 +856,7 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from("projects").update({
         client_info: { ...ckPrev, generationCheckpoint: 'assets_loaded', generationPercent: 45 },
       }).eq("id", projectId!);
-      console.log("[generate-pptx] Checkpoint saved: assets_loaded");
+      _DEV && console.log("[generate-pptx] Checkpoint saved: assets_loaded");
     } catch (e: any) { console.warn("[generate-pptx] Checkpoint save error:", e.message); }
 
     // V29: 用视觉AI读取Logo图片，生成英文描述用于场景图prompt
@@ -862,14 +864,14 @@ export async function POST(req: NextRequest) {
     if (logoData) {
       logoVisualDesc = await describeLogoForScene(logoData);
       if (logoVisualDesc) arkUsageLog.push({ model: 'qwen-vl-max', type: 'vision', cost: 0.01, timestamp: new Date().toISOString() });
-      console.log("[generate-pptx] Logo visual desc:", logoVisualDesc ? "OK" : "EMPTY");
+      _DEV && console.log("[generate-pptx] Logo visual desc:", logoVisualDesc ? "OK" : "EMPTY");
     }
 
     // V17: 无Logo时用通义万相AI生图Logo（替代DeepSeek SVG）
     let aiLogoData: string | null = null;
     if (!logoData && companyName !== "品牌") {
       try {
-        console.log("[generate-pptx] Generating AI logo via 通义万相 for", companyName);
+        _DEV && console.log("[generate-pptx] Generating AI logo via 通义万相 for", companyName);
         sendProgress("ai_logo", "正在用AI生成Logo方案...", 45);
         const industryLabel: Record<string, string> = {
           beauty: "beauty salon / nail art", restaurant: "Chinese restaurant / noodle shop", fastfood: "fast food burger shop / snack stall", beverage: "bubble tea / coffee shop",
@@ -882,7 +884,7 @@ export async function POST(req: NextRequest) {
         let logoPrompt = "";
         if (brandProfile?.logoDesignSuggestions?.prompts?.length > 0) {
           logoPrompt = brandProfile.logoDesignSuggestions.prompts[0];
-          console.log("[generate-pptx] Using brand-analysis logo prompt:", logoPrompt.substring(0, 80));
+          _DEV && console.log("[generate-pptx] Using brand-analysis logo prompt:", logoPrompt.substring(0, 80));
         } else {
           // Fallback: 根据行业和品牌信息构建高质量prompt
           logoPrompt = `Professional minimalist logo icon design for "${companyName}", a ${industryEn}. ` +
@@ -896,7 +898,7 @@ export async function POST(req: NextRequest) {
         aiLogoData = await generateLogoImage(logoPrompt, realColors);
         if (aiLogoData) {
           // V120: Free ComfyUI, no cost tracking needed
-          console.log("[generate-pptx] AI logo generated OK! base64 length:", aiLogoData.length);
+          _DEV && console.log("[generate-pptx] AI logo generated OK! base64 length:", aiLogoData.length);
         } else {
           console.warn("[generate-pptx] AI logo generation failed, will use fallback icon");
         }
@@ -936,7 +938,7 @@ export async function POST(req: NextRequest) {
     // V83: 如果checkpoint=scenes_done且有sceneStorageUrls，尝试从Storage恢复场景图
     const existingSceneUrls = ((prev as any)?.sceneStorageUrls) as Record<string, string> | undefined;
     if (existingSceneUrls && Object.keys(existingSceneUrls).length >= 3 && step === 'resume') {
-      console.log("[generate-pptx] Resuming: loading scene images from Storage...");
+      _DEV && console.log("[generate-pptx] Resuming: loading scene images from Storage...");
       let restoredCount = 0;
       for (const [key, url] of Object.entries(existingSceneUrls)) {
         try {
@@ -950,7 +952,7 @@ export async function POST(req: NextRequest) {
       }
       if (restoredCount >= 3) {
         imgSuccess = restoredCount;
-        console.log(`[generate-pptx] Restored ${restoredCount} scene images from Storage, skipping generation`);
+        _DEV && console.log(`[generate-pptx] Restored ${restoredCount} scene images from Storage, skipping generation`);
         sendProgress("rendering", `场景图已恢复(${restoredCount}张)，正在渲染PPTX...`, 75);
         // Skip to rendering
         goto_rendering = true;
@@ -959,8 +961,8 @@ export async function POST(req: NextRequest) {
 
     if (!goto_rendering) {
     sendProgress("images", "正在生成场景图...", 50);
-    console.log("[generate-pptx] ===== AI IMAGE GENERATION =====");
-    console.log("[generate-pptx] Industry:", industryType, "| Images:", imgDefs.length, "| Dynamic:", !!dynamicScenePrompts);
+    _DEV && console.log("[generate-pptx] ===== AI IMAGE GENERATION =====");
+    _DEV && console.log("[generate-pptx] Industry:", industryType, "| Images:", imgDefs.length, "| Dynamic:", !!dynamicScenePrompts);
 
 
     // V29: 场景图用文生图（不是图生图），把Logo外观描述写进prompt
@@ -973,7 +975,7 @@ export async function POST(req: NextRequest) {
     const logoDesc = logoVisualDesc || (brandProfile as any)?.logoDesignSuggestions?.prompts?.[0] || "";
     const logoConcept = logoVisualDesc ? "" : ((brandProfile as any)?.logoDesignSuggestions?.concept || "");
     if (logoDesc && !goto_rendering) {
-      console.log(`[generate-pptx] Logo description available (source: ${logoVisualDesc ? "visual AI" : "brand analysis"}), injecting into scene prompts`);
+      _DEV && console.log(`[generate-pptx] Logo description available (source: ${logoVisualDesc ? "visual AI" : "brand analysis"}), injecting into scene prompts`);
       // V29c: 把"company logo"等模糊词替换为精确的Logo视觉描述
       const descSnippet = logoDesc.substring(0, 300);
       for (const def of imgDefs) {
@@ -990,7 +992,7 @@ export async function POST(req: NextRequest) {
     }
 
     const provider = await getDefaultRegistry().getActive();
-    console.log(`[generate-pptx] Engine: ${provider.name}, ${imgDefs.length} images, Logo desc: ${!!logoDesc}`);
+    _DEV && console.log(`[generate-pptx] Engine: ${provider.name}, ${imgDefs.length} images, Logo desc: ${!!logoDesc}`);
 
     for (let i = 0; i < imgDefs.length; i += 2) {
       const batch = imgDefs.slice(i, i + 2);
@@ -999,7 +1001,7 @@ export async function POST(req: NextRequest) {
           // V121: using provider from registry
           try {
             const result = await provider.generateImage({ brandContext: { brandName: companyName, industry: industryType, brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "scene", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: def.key, label: def.page, description: def.rawPrompt }, prompt: def.rawPrompt, negativePrompt: "text, watermark, ugly, distorted, low quality", output: { width: 2048, height: 2048, format: "png" } });
-            console.log(`[generate-pptx] ${provider.name} OK for ${def.key} (${result.durationMs}ms)`);
+            _DEV && console.log(`[generate-pptx] ${provider.name} OK for ${def.key} (${result.durationMs}ms)`);
             return { def, imgData: result.imageUrl };
           } catch (e: any) {
             console.error(`[generate-pptx] ${provider.name} FAILED for ${def.key}: ${e.message}`);
@@ -1032,7 +1034,7 @@ export async function POST(req: NextRequest) {
       }
     }
     } // end if (!goto_rendering) — V83: skip scene generation on resume
-    console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success`);
+    _DEV && console.log(`[generate-pptx] Images: ${imgSuccess}/${imgDefs.length} success`);
     // V83: 保存场景图到Supabase Storage，防止函数超时后丢失
     const sceneStorageUrls: Record<string, string> = {};
     if (imgSuccess > 0) {
@@ -1057,7 +1059,7 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from("projects").update({
         client_info: { ...ckPrev2, generationCheckpoint: 'scenes_done', generationPercent: 75, sceneStorageUrls },
       }).eq("id", projectId!);
-      console.log("[generate-pptx] Checkpoint saved: scenes_done");
+      _DEV && console.log("[generate-pptx] Checkpoint saved: scenes_done");
     } catch (e: any) { console.warn("[generate-pptx] Checkpoint save error:", e.message); }
 
     // ===== Step 5: 生成蓝图 =====
@@ -1074,7 +1076,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log("[generate-pptx] Blueprints:", blueprints.length, "pages");
+    _DEV && console.log("[generate-pptx] Blueprints:", blueprints.length, "pages");
 
     // ===== QC Gate: 轻量化内容校验（fire-and-forget，不阻塞管线）=====
     const qcMd = blueprints
@@ -1154,7 +1156,7 @@ export async function POST(req: NextRequest) {
         const { unlink } = await import("fs/promises");
         await unlink(tempPptxPath).catch(() => {});
         
-        console.log(`[generate-pptx] PDF converted: ${pdfBuffer.length} bytes`);
+        _DEV && console.log(`[generate-pptx] PDF converted: ${pdfBuffer.length} bytes`);
         
         // Upload PDF to Storage (much smaller, should work)
         let pdfStorageUrl: string | null = null;
@@ -1171,7 +1173,7 @@ export async function POST(req: NextRequest) {
           } else {
             const { data: urlData } = supabaseAdmin.storage.from("manuals").getPublicUrl(storagePath);
             pdfStorageUrl = urlData?.publicUrl || null;
-            console.log("[generate-pptx] PDF Storage upload OK:", pdfStorageUrl);
+            _DEV && console.log("[generate-pptx] PDF Storage upload OK:", pdfStorageUrl);
           }
         } catch (e: any) { console.warn("[generate-pptx] PDF Storage error:", e.message); }
 
@@ -1223,7 +1225,7 @@ export async function POST(req: NextRequest) {
         if (ue) { console.warn("[generate-pptx] Storage upload failed:", ue.message); return; }
         const { data: ud } = supabaseAdmin.storage.from("manuals").getPublicUrl(sp);
         const url = ud?.publicUrl || null;
-        console.log("[generate-pptx] Storage upload OK:", url);
+        _DEV && console.log("[generate-pptx] Storage upload OK:", url);
         if (url) {
           await supabaseAdmin.from("projects").update({
             client_info: { pptxResult: { url: `/api/ai/download-pptx/${fileName}`, storageUrl: url, pageCount: blueprints.length, fileName } }
@@ -1232,7 +1234,7 @@ export async function POST(req: NextRequest) {
       } catch (e: any) { console.warn("[generate-pptx] Storage upload error:", e?.message); }
     })();
 
-    console.log("[generate-pptx] ===== DONE =====", fileName, `(${imgSuccess} images, ${blueprints.length} pages)`);
+    _DEV && console.log("[generate-pptx] ===== DONE =====", fileName, `(${imgSuccess} images, ${blueprints.length} pages)`);
     // V85-fix: 合并所有DB更新为一次写入，避免竞态覆盖pptxResult
     // 之前sendComplete写pptxResult → history更新用旧快照覆盖 → pptxResult丢失
     try {
@@ -1306,7 +1308,7 @@ async function describeLogoForScene(logoBase64: string): Promise<string> {
     if (!resp.ok) return "";
     const data = await resp.json();
     const desc = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) ? data.choices[0].message.content.trim() : "";
-    console.log("[generate-pptx] Logo visual description:", desc.substring(0, 100));
+    _DEV && console.log("[generate-pptx] Logo visual description:", desc.substring(0, 100));
     return desc;
   } catch (e) {
     console.warn("[generate-pptx] Logo description failed:", e);
