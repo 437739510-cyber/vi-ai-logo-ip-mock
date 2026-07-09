@@ -1,4 +1,4 @@
-﻿// V120: Switched to ComfyUI local (free) -- ARK/DashScope cloud APIs removed
+// V120: Switched to ComfyUI local (free) -- ARK/DashScope cloud APIs removed
 /**
  * API: POST /api/ai/generate-logo
  *
@@ -73,9 +73,9 @@ export async function POST(req: NextRequest) {
 
     if (!logoSuggestions?.prompts || logoSuggestions.prompts.length === 0) {
       const analysisStatus = brandProfile.analysisStatus;
-      let errorMsg = "请先完成品牌分析";
+      let errorMsg = "�������Ʒ�Ʒ���";
       if (analysisStatus === "analyzing") {
-        errorMsg = "AI分析正在进行中";
+        errorMsg = "AI�������ڽ�����";
       }
 
       // Already have logos, not forcing -> return existing
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       if (!forceRegenerate && existingLogos && existingLogos.length >= 4 && clientInfo.logoGenerationStatus?.completed >= 4) {
         return NextResponse.json({
           status: "already_completed",
-          message: "已有4个Logo，无需重复生成",
+          message: "����4��Logo�������ظ�����",
           logos: existingLogos,
         }, { status: 200 });
       }
@@ -94,12 +94,12 @@ export async function POST(req: NextRequest) {
     if (clientInfo.generationStatus === "logo_generating") {
       return NextResponse.json({
         success: true,
-        message: "Logo生成已经在进行中",
+        message: "Logo�����Ѿ��ڽ�����",
         status: "logo_generating"
       }, { status: 202 });
     }
 
-    const companyName = clientInfo.companyName || "品牌";
+    const companyName = clientInfo.companyName || "Ʒ��";
     const prompts: string[] = logoSuggestions.prompts;
 
     // M1.4: Read unified param package for font + color
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
       client_info: {
         ...clientInfo,
         generationStatus: "logo_generating",
-        generationMessage: `正在生成Logo (0/${prompts.length})...`,
+        generationMessage: `��������Logo (0/${prompts.length})...`,
         logoGenerationStatus: {
           total: prompts.length, completed: 0, results: [],
           startedAt: new Date().toISOString(),
@@ -128,8 +128,7 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     }).eq("id", projectId);
 
-    // Fire-and-forget: background generation via provider registry
-    void (async () => {
+    // V121: synchronous generation for Zeabur serverless compatibility
       try {
       const logoResults: any[] = [];
       const provider = await getDefaultRegistry().getActive();
@@ -201,7 +200,7 @@ export async function POST(req: NextRequest) {
         try {
           const cachedInfo: any = { ...clientInfo };
           cachedInfo.generationStatus = "logo_generating";
-          cachedInfo.generationMessage = `正在生成Logo (${i+1}/${prompts.length})...`;
+          cachedInfo.generationMessage = `��������Logo (${i+1}/${prompts.length})...`;
           cachedInfo.logoGenerationStatus = {
             total: prompts.length, completed: i + 1,
             results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
@@ -241,7 +240,7 @@ export async function POST(req: NextRequest) {
             client_info: {
               ...finalInfo,
               generationStatus: "logo_generated",
-              generationMessage: "Logo生成完成 (" + successCount + "/" + prompts.length + ")",
+              generationMessage: "Logo������� (" + successCount + "/" + prompts.length + ")",
               brandProfile: {
                 ...finalBrandProfile,
                 logoGenerationResults: logoResults.map(r => ({
@@ -268,7 +267,7 @@ export async function POST(req: NextRequest) {
             client_info: {
               ...finalInfo,
               generationStatus: "failed",
-              generationMessage: "Logo生成全部失败，请重试",
+              generationMessage: "Logo����ȫ��ʧ�ܣ�������",
               logoGenerationStatus: {
                 total: prompts.length, completed: prompts.length,
                 results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
@@ -281,8 +280,17 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.error("[generate-logo] Final update failed:", e);
       }
-      } catch (fatalErr: any) {
-        console.error("[generate-logo] FATAL background error:", fatalErr.message, fatalErr.stack?.slice(0, 300));
+      // V121: synchronous return �� Zeabur serverless kills fire-and-forget
+      const generatedCount = logoResults.filter((r: any) => r.imageUrl).length;
+      return NextResponse.json({
+        success: generatedCount > 0,
+        message: `Logo generation complete (${generatedCount}/${prompts.length})`,
+        projectId, companyName, totalLogos: prompts.length,
+        logos: logoResults,
+        generatedCount,
+      });
+    } catch (fatalErr: any) {
+        console.error("[generate-logo] FATAL error:", fatalErr.message, fatalErr.stack?.slice(0, 300));
         try {
           const { data: fatalProj } = await supabaseAdmin
             .from("projects").select("client_info").eq("id", projectId).single();
@@ -305,14 +313,13 @@ export async function POST(req: NextRequest) {
         } catch (e2) {
           console.error("[generate-logo] Failed to update fatal error status:", e2);
         }
-      }
-    })();
-
-    return NextResponse.json({
-      success: true,
-      message: "Logo生成已启动，请稍候",
-      projectId, companyName, totalLogos: prompts.length,
-    }, { status: 202 });
+      return NextResponse.json({
+        success: false,
+        message: "Logo generation failed: " + (fatalErr.message || "unknown error"),
+        projectId, companyName,
+        error: fatalErr.message || "unknown",
+      }, { status: 500 });
+    }
 
   } catch (error: any) {
     console.error("[generate-logo] Error:", error);
