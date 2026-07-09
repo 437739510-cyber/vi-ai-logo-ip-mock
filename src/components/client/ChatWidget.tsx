@@ -5,9 +5,7 @@ import { supabase } from "@/lib/core/supabase";
 import { Loader2, MessageCircle, X, Send, ImageUp, Check, ChevronRight } from "lucide-react";
 import { STORAGE_BUCKET } from "@/config/storage";
 
-// ===== 常量 =====
-const STORAGE_BUCKET = STORAGE_BUCKET;
-const STORAGE_PREFIX = "uploads/form-assets";
+// ===== 常量 =====const STORAGE_PREFIX = "uploads/form-assets";
 const MAX_PHOTO_SIZE = 20 * 1024 * 1024;
 
 // 常见行业快捷选择（前8个）

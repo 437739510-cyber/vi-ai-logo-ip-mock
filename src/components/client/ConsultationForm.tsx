@@ -27,9 +27,7 @@ import { STORAGE_BUCKET } from "@/config/storage";
 
 const MAX_LOGO_SIZE = 20 * 1024 * 1024;
 const MAX_MASCOT_SIZE = 20 * 1024 * 1024;
-const MAX_PDF_SIZE = 50 * 1024 * 1024;
-const STORAGE_BUCKET = STORAGE_BUCKET;
-const STORAGE_PREFIX = "uploads/form-assets";
+const MAX_PDF_SIZE = 50 * 1024 * 1024;const STORAGE_PREFIX = "uploads/form-assets";
 
 const STEPS = [
   { id: 1, title: "基本信息", subtitle: "店铺和联系方式" },

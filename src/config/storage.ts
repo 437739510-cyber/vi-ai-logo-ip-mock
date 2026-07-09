@@ -1,2 +1,2 @@
-/** Storage bucket names — single source of truth */
-export const STORAGE_BUCKET = STORAGE_BUCKET;
+/** Storage bucket names 鈥?single source of truth */
+export const STORAGE_BUCKET = "brand-brain-generated";
