@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API: Generate VI Manual PPTX via PptxGenJS Engine V120 (ComfyUI local only)
  *
  * V7 核心改动（在V6基础上）：
@@ -511,6 +511,11 @@ export async function POST(req: NextRequest) {
     // V83: 从client_info.discoveryData补充数据，不再丢失
     const ci = (project?.client_info as Record<string, any>) || {};
     const dd = (ci?.discoveryData) as Record<string, any> || {};
+// V120: extract contact info for business card
+    const clientPhone = body.clientInfo?.phone || submission?.phone || ci?.phone || "";
+    const clientCity = body.clientInfo?.city || submission?.city || ci?.city || "";
+    const clientProvince = body.clientInfo?.province || submission?.province || ci?.province || "";
+
     // V105: companyName取值链 — 加client_info.companyName兜底
     const companyName = body.clientInfo?.companyName || submission?.company_name || submission?.companyName || project?.client_name || ci?.companyName || body.clientInfo?.clientName || dd.storeName || "品牌";
     const industry = body.clientInfo?.industry || submission?.industry || project?.industry || "";
@@ -1105,6 +1110,9 @@ export async function POST(req: NextRequest) {
       auxGraphicsIntro: buildAuxGraphicsIntro(brandProfile, realColors, industry),
       colorMeaning: buildColorMeaning(brandProfile, realColors, industry),
       brandStory: effectiveBrandStory || composeBrandStory(companyName, industry, effectiveBrandVision, effectiveCoreValues, effectiveTargetMarket, brandProfile),
+      phone: clientPhone,
+      city: clientCity,
+      province: clientProvince,
     });
 
     sendProgress("saving", "正在保存文件...", 90);

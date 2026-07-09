@@ -68,6 +68,9 @@ export interface RenderPptxOptions {
   modificationAuthority?: string;
   materialPriorityList?: Array<{priority: string; category: string; description: string}>;
   closingCustomerPerception?: string;
+  phone?: string;
+  city?: string;
+  province?: string;
   fullBrandName?: string;
   englishName?: string;
 }
@@ -1200,7 +1203,10 @@ function renderLogoStandardDemo(
     slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 4, offset: 2, color: "000000", opacity: 0.08 }, line: { color: "E0E0E0", width: 0.3 } });
     slide.addShape("rect", { x: nx, y: ny, w: 0.10, h: nh, fill: { color: bc.pri } });
     if (logoData) slide.addImage({ data: normImg(logoData), x: nx + 0.25, y: ny + 0.2, w: 0.8, h: 0.8, sizing: { type: "contain", w: 0.8, h: 0.8 } });
-    slide.addText(cn, { x: nx + 1.7, y: ny + 0.25, w: 2.0, h: 0.35, fontSize: 14, bold: true, color: "333333" });
+    slide.addText(cn, { x: nx + 1.7, y: ny + 0.25, w: 2.0, h: 0.30, fontSize: 13, bold: true, color: "333333" });
+    const locInfo = [opts.city, opts.province].filter(Boolean).join(" · ");
+    if (locInfo) slide.addText(locInfo, { x: nx + 1.7, y: ny + 0.55, w: 2.0, h: 0.22, fontSize: 10, color: "666666" });
+    if (opts.phone) slide.addText("TEL " + opts.phone, { x: nx + 1.7, y: ny + 0.78, w: 2.0, h: 0.22, fontSize: 10, color: "666666" });
     slide.addShape("rect", { x: nx + 0.25, y: ny + nh - 0.35, w: nw - 0.5, h: 0.03, fill: { color: bc.acc } });
     slide.addText("名片（正面）", { x: nx, y: ny + nh + 0.05, w: nw, h: 0.22, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
