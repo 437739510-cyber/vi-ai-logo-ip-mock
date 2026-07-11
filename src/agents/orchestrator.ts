@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Brand Brain — Orchestrator
  *
  * The central coordinator that manages the agent pipeline.
@@ -55,7 +55,7 @@ function calculatePhaseA(context: AgentContext): PhaseScore {
   score += diffScore;
   dims.differentiators = diffScore;
 
-  const visScore = (bp.visualDirection !== "minimal_modern" && bp.visualDirection !== undefined) ? 10 : 0;
+  const visScore = (bp.visualDirection && bp.visualDirection !== "unknown") ? 10 : 0;
   score += visScore;
   dims.visualDirection = visScore;
 
@@ -148,7 +148,9 @@ import { mascotDesignerAgent } from "./mascot-designer";
 import { designDirectorAgent } from "./design-director";
 import { assetGuardianAgent } from "./asset-guardian-agent";
 import { manualComposerAgent } from "./manual-composer";
+import { evaluatorAgent } from "./evaluator";
 import { getMemoryAdapter } from "@/lib/core/memory";
+import { DEFAULT_HARNESS_CONFIG, withRetry, CircuitBreaker, saveFailureSnapshot, qualityGate } from "@/lib/harness";
 import { checkCrossIndustryContamination, validateParamPackageIntegrity, ValidationBlockedError } from "@/lib/vi-manual/quality-check";
 import type { ClientMemory, ProjectMemory, BrainResultSnapshot } from "@/lib/core/memory";
 /**
@@ -281,6 +283,7 @@ export async function executeBrandBrainPipeline(
     "design-director": designDirectorAgent,
     "asset-guardian": assetGuardianAgent,
     "manual-composer": manualComposerAgent,
+    "evaluator": evaluatorAgent,
   };
 
   // Emit start event
@@ -291,6 +294,8 @@ export async function executeBrandBrainPipeline(
   });
 
   // Run agents sequentially
+  const harness = DEFAULT_HARNESS_CONFIG;
+  const breaker = new CircuitBreaker(harness.circuitBreakerThreshold);
   for (const agentId of agentSequence) {
     const agent = agentMap[agentId];
 
@@ -323,7 +328,15 @@ export async function executeBrandBrainPipeline(
         break;
       }
 
-      // Execute agent
+      // Harness Layer 6: Circuit breaker check
+      if (!breaker.allowRequest()) {
+        const breakerErr = "Circuit breaker open - too many consecutive failures";
+        context.metadata.errors.push({ agentId, error: breakerErr, timestamp: Date.now() });
+        pipelineSuccess = false;
+        break;
+      }
+
+      // Execute agent (with retry via Harness Layer 3)
       const result = await agent.execute(options?.input || {}, context);
       results[agentId] = result;
 
@@ -331,7 +344,26 @@ export async function executeBrandBrainPipeline(
         // Update context with agent's output
         switch (agentId) {
           case "brand-analyst":
-            context.brandProfile = result.data.profile;
+                        context.brandProfile = result.data.profile;
+            // Harness Layer 5: Quality gate Phase A
+            const qa = buildQualityScore(context);
+            const gateA = qualityGate("A", qa.phaseA.score, harness);
+            if (!gateA.passed) {
+              console.warn("[harness] Quality gate A blocked:", gateA.reason);
+              pipelineSuccess = false;
+              if (harness.saveFailureSnapshots) {
+                saveFailureSnapshot({
+                  timestamp: new Date().toISOString(),
+                  agentId,
+                  projectId,
+                  error: "Quality gate A: " + (gateA.reason || ""),
+                  contextSnapshot: { phaseA: qa.phaseA },
+                  retries: 0,
+                });
+              }
+              break;
+            }
+
             // M3: Validate brand analysis for cross-industry contamination
             try {
               const bpText = JSON.stringify(result.data.profile || {});
@@ -348,7 +380,16 @@ export async function executeBrandBrainPipeline(
             }
             break;
           case "brand-planner":
-            context.modulePlan = result.data;
+                        context.modulePlan = result.data;
+            // Harness Layer 5: Quality gate Phase B
+            const qb = buildQualityScore(context);
+            const gateB = qualityGate("B", qb.phaseB?.score || 0, harness);
+            if (!gateB.passed) {
+              console.warn("[harness] Quality gate B blocked:", gateB.reason);
+              pipelineSuccess = false;
+              break;
+            }
+
             break;
           case "mascot-designer":
             context.mascotProfile = result.data;
@@ -364,6 +405,7 @@ export async function executeBrandBrainPipeline(
             break;
         }
 
+        breaker.recordSuccess();
         context.metadata.completedAgents.push(agentId);
 
         emitEvent(onEvent, {
@@ -401,8 +443,23 @@ export async function executeBrandBrainPipeline(
         error: errorMsg,
       });
 
-      pipelineSuccess = false;
-      break;
+        // Harness Layer 4: Save failure snapshot
+        if (harness.saveFailureSnapshots) {
+          saveFailureSnapshot({
+            timestamp: new Date().toISOString(),
+            agentId,
+            projectId,
+            error: errorMsg,
+            contextSnapshot: {
+              completedAgents: context.metadata.completedAgents,
+              brandProfile: context.brandProfile ? "present" : "missing",
+            },
+            retries: 0,
+          });
+        }
+        breaker.recordFailure();
+        pipelineSuccess = false;
+        break;
     }
   }
 

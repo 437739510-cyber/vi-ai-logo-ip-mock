@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Brand Brain — Agent Architecture
  *
  * Common types for all agents in the Brand Brain system.
@@ -13,7 +13,7 @@ export type AgentId =
   | "mascot-designer"
   | "design-director"
   | "asset-guardian"
-  | "manual-composer";
+  | "manual-composer" | "evaluator";
 
 export interface AgentIdentity {
   id: AgentId;
@@ -131,8 +131,7 @@ export const DEFAULT_AGENT_SEQUENCE: AgentId[] = [
   "brand-planner",
   "mascot-designer",
   "design-director",
-  "asset-guardian",
-  "manual-composer",
+  "asset-guardian", "manual-composer", "evaluator",
 ];
 
 export const AGENT_IDENTITIES: Record<AgentId, AgentIdentity> = {
@@ -171,5 +170,12 @@ export const AGENT_IDENTITIES: Record<AgentId, AgentIdentity> = {
     name: "手册合成师",
     description: "编排页面生成任务，调用通义万相和 SVG 合成输出最终图片",
     version: "1.0.0",
+  },
+
+  "evaluator": {
+    id: "evaluator",
+    name: "独立验收官",
+    description: "独立评估VI手册输出质量，P0不通过阻断交付",
+    version: "2.0.0",
   },
 };

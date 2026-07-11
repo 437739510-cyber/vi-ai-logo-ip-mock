@@ -1,5 +1,5 @@
-/**
- * Brand Brain — Agents Index
+﻿/**
+ * Brand Brain 鈥?Agents Index
  *
  * Central export point for all agents and the orchestrator.
  */
@@ -19,4 +19,6 @@ export {
   type OrchestratorEventType,
   type OrchestratorCallback,
 } from "./orchestrator";
+export { evaluatorAgent, evaluatorIdentity } from "./evaluator";
 export { mascotDesignerAgent, mascotDesignerIdentity, type MascotProfile, type MascotDesignMode, recommendMascot } from "./mascot-designer";
+
