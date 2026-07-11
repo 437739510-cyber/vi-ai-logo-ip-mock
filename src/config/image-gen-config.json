@@ -1,86 +1,43 @@
-{
-    "version":  1,
-    "models":  {
-                   "ponyXL":  "ponyDiffusionV6XL_v6StartWithThisOne.safetensors",
-                   "dreamshaperXL":  "dreamshaperXL_alpha2Xl10.safetensors",
-                   "realvisXL":  "RealVisXL_V5.0_fp16.safetensors",
-                   "juggernautXL":  "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
-               },
-    "logo":  {
-                 "width":  1024,
-                 "height":  1024,
-                 "cfg":  3.5,
-                 "max_loras":  2,
-                 "negative_prompt":  "deformed, blurry, low quality, distorted, 3d render, shadow, gradient, complex background, watermark, text, extra limbs, bad anatomy",
-                 "loras":  [
-                               {
-                                   "name":  "LogoRedmondV2-Logo-LogoRedmAF.safetensors",
-                                   "weight":  0.5
-                               }
-                           ],
-                 "model":  "dreamshaperXL",
-                 "sampler":  "euler",
-                 "steps":  20,
-                 "scheduler":  "normal"
-             },
-    "scene":  {
-                  "width":  1024,
-                  "height":  1024,
-                  "cfg":  6,
-                  "negative_prompt":  "deformed, blurry, low quality, distorted, extra limbs, bad anatomy",
-                  "loras":  [
-                                {
-                                    "name":  "LogoRedmondV2-Logo-LogoRedmAF.safetensors",
-                                    "weight":  0.3
-                                }
-                            ],
-                  "model":  "dreamshaperXL",
-                  "sampler":  "dpmpp_2m_sde",
-                  "steps":  25,
-                  "scheduler":  "karras"
-              },
-    "scene_workflows":  {
-                            "packaging":  "comfyui-workflows/vi-scene-packaging.json",
-                            "marketing":  "comfyui-workflows/vi-scene-marketing.json",
-                            "stationery":  "comfyui-workflows/vi-scene-stationery.json",
-                            "application":  "comfyui-workflows/vi-scene-marketing.json"
-                        },
-    "lora":  {
-                 "brush_lora":  {
-                                    "name":  "rough_chinese_brush_sdxl.safetensors",
-                                    "weight":  0.4,
-                                    "enabled":  false
-                                },
-                 "chinese_fix_lora":  {
-                                          "name":  "sharp_chinese_text_fix_sdxl.safetensors",
-                                          "weight":  0.4,
-                                          "enabled":  false
-                                      },
-                 "woodcut_lora":  {
-                                      "name":  "woodcut_xl.safetensors",
-                                      "weight":  0.45,
-                                      "enabled":  false
-                                  },
-                 "max_loras":  2,
-                 "logo_loras":  [
-                                    {
-                                        "name":  "LogoRedmondV2-Logo-LogoRedmAF.safetensors",
-                                        "weight":  0.5
-                                    },
-                                    {
-                                        "name":  "sharp_chinese_text_fix_sdxl.safetensors",
-                                        "weight":  0.4
-                                    }
-                                ]
-             },
-    "vae":  {
-                "name":  "sdxl_fp16_fix.safetensors"
-            },
-    "notes":  [
-                  "Pony XL V6: best for Chinese text. DO NOT use DreamShaperXL for Chinese logos.",
-                  "Chinese LoRA weight max 0.6; higher = text-only, lose graphics.",
-                  "Max 2 LoRAs at once; 3+ causes OOM on 16GB RAM.",
-                  "ControlNet: 1 lightweight model only (LLLite/small), full ControlNet doubles VRAM.",
-                  "Recommended: Pony XL + LogoRedmondV2(0.5) + ntc_nice_hands(0.3), Euler A, 20 steps, CFG 3.5"
-              ]
+﻿{
+    "version": 2,
+    "models": {
+        "zturbo_q4": "z-image-turbo-Q4_K_M.gguf",
+        "zturbo_q3": "z-image-turbo-Q3_K_M.gguf"
+    },
+    "text_encoder": "qwen_3_4b_fp8_mixed.safetensors",
+    "vae": "ae.safetensors",
+    "clip_type": "qwen_image",
+    "logo": {
+        "width": 1024,
+        "height": 1024,
+        "model": "zturbo_q4",
+        "steps": 4,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_prompt": "blurry, low quality, distorted text, photorealistic, 3d render, shadows, messy, watermark"
+    },
+    "scene": {
+        "width": 1024,
+        "height": 1024,
+        "model": "zturbo_q4",
+        "steps": 4,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_prompt": "blurry, low quality, distorted, deformed, ugly, watermark, text errors, bad typography"
+    },
+    "scene_workflows": {
+        "storefront": "workflows/z_turbo_gguf_vi_scene.json",
+        "packaging": "workflows/z_turbo_gguf_vi_scene.json",
+        "menu": "workflows/z_turbo_gguf_vi_scene.json",
+        "businesscard": "workflows/z_turbo_gguf_vi_scene.json",
+        "lightbox": "workflows/z_turbo_gguf_vi_scene.json"
+    },
+    "notes": [
+        "Z-Image Turbo GGUF primary engine. Chinese text 90/100.",
+        "SDXL (DreamShaperXL/PonyXL) deprecated for Chinese — garbled text.",
+        "ComfyUI must start with: python main.py --gpu-only --lowvram --port 8188",
+        "Without --lowvram: VRAM maxes out (12007/12288 MB), generation hangs.",
+        "4 steps sufficient for turbo model. ~15s/image on RTX 3060 12GB.",
+        "Q3_K_M (4.19 GB) available as fallback if VRAM still tight."
+    ]
 }

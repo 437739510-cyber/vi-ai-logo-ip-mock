@@ -9,6 +9,7 @@
 
 import { readFile, writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
+import fs from "fs";
 import sharp from "sharp";
 import { createHash } from "crypto";
 
@@ -223,6 +224,11 @@ export async function processAndCacheImage(
 ): Promise<CacheEntry> {
   const fullPath = path.join(process.cwd(), "public", originalPath.replace(/^\//, ""));
   const key = cacheKey(originalPath);
+
+  // Check if file exists — old projects may reference Supabase URLs or deleted paths
+  if (!fs.existsSync(fullPath)) {
+    throw new Error("FILE_NOT_FOUND: " + fullPath);
+  }
 
   await mkdir(PROCESSED_DIR, { recursive: true });
 

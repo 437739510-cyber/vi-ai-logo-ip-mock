@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,7 +27,8 @@ import { STORAGE_BUCKET } from "@/config/storage";
 
 const MAX_LOGO_SIZE = 20 * 1024 * 1024;
 const MAX_MASCOT_SIZE = 20 * 1024 * 1024;
-const MAX_PDF_SIZE = 50 * 1024 * 1024;
+const MAX_PDF_SIZE = 50 * 1024 * 1024;
+
 const STORAGE_PREFIX = "uploads/form-assets";
 
 const STEPS = [
@@ -61,6 +62,8 @@ export function ConsultationForm() {
   const [mascotFileList, setMascotFileList] = useState<File[]>([]);
   const [referenceFileList, setReferenceFileList] = useState<File[]>([]);
   const [storePhotoList, setStorePhotoList] = useState<File[]>([]);
+  const [formConfig, setFormConfig] = useState<Record<string, boolean>>({});
+  const [formConfigLoaded, setFormConfigLoaded] = useState(false);
   const [mascotNames, setMascotNames] = useState<string[]>([]);
   const [mascotPersonalities, setMascotPersonalities] = useState<string[]>([]);
   const [referenceEnabled, setReferenceEnabled] = useState(true);
@@ -109,6 +112,21 @@ export function ConsultationForm() {
   };
   const goPrev = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
+  // V79+: Fetch form field config for dynamic required/optional toggles
+  useEffect(() => {
+    fetch('/api/admin/form-config')
+      .then(r => r.json())
+      .then(d => {
+        if (d.fields) {
+          const config: Record<string, boolean> = {};
+          d.fields.forEach((f: any) => { config[f.field_key] = f.required; });
+          setFormConfig(config);
+        }
+        setFormConfigLoaded(true);
+      })
+      .catch(() => setFormConfigLoaded(true));
+  }, []);
+
   useEffect(() => {
     // 预填功能已移除（旧版interview/discovery页面已删除）
     setPrefillLoading(false);
@@ -133,12 +151,22 @@ export function ConsultationForm() {
 
   const onSubmit = async (data: ConsultationFormData) => {
     setIsSubmitting(true); setSubmitError(null);
-    try {
-      // V79+: 店内照片（必填）校验 — 流动摊1张，其他含门头5张
-      const minPhotos = data.businessForm === "路边摊/档口" ? 1 : 5;
-      if (storePhotoList.length < minPhotos) {
-        throw new Error(`请上传至少${minPhotos}张店内照片${minPhotos > 1 ? "（含门头）" : ""}`);
+    // V79+: Dynamic required-field validation based on admin config
+    if (formConfigLoaded) {
+      const fieldLabels: Record<string, string> = {
+        clientName: '联系人姓名', phone: '联系电话', companyName: '公司名/店铺名',
+        wechat: '微信号', email: '邮箱', province: '所在省份', city: '所在城市',
+        industry: '所属行业', businessForm: '经营形态', mainProducts: '主营产品',
+        businessYears: '经营年限',
+      };
+      for (const [key, label] of Object.entries(fieldLabels)) {
+        if (formConfig[key] && !data[key as keyof ConsultationFormData]) {
+          throw new Error(`请填写${label}`);
+        }
       }
+    }
+    try {
+      // V79+: 店内照片（选填）— 用于AI分析店铺风格和配色
       const [logoAssets, mascotAssetsList, refAssets, storeAssets] = await Promise.all([
         uploadFiles(logoFileList, "logo"),
         uploadFiles(mascotFileList, "mascot"),
@@ -214,38 +242,38 @@ export function ConsultationForm() {
       {currentStep === 1 && (
         <section className="space-y-5">
           <h3 className="text-lg font-semibold text-neutral-900">基本信息</h3>
-          <p className="text-xs text-neutral-500">带 * 为必填，其余选填但越详细效果越好</p>
+          <p className="text-xs text-neutral-500">带 <span className="text-danger">*</span> 为必填，其余选填但越详细效果越好</p>
           <p className="text-xs text-neutral-400 italic mt-1">✦ 填写越详实，DeepSeek生成的设计方案跳过修改环节的概率越高（据统计，详实订单首稿通过率提升73%）</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">联系人姓名 <span className="text-danger">*</span></label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">联系人姓名 {formConfig.clientName !== false && <span className="text-danger">*</span>}</label>
               <input {...register("clientName")} placeholder="您的姓名" className={ic} />
               {errors.clientName && <p className="mt-1 text-xs text-danger">{errors.clientName.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">联系电话 <span className="text-danger">*</span></label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">联系电话 {formConfig.phone !== false && <span className="text-danger">*</span>}</label>
               <input {...register("phone")} placeholder="11位手机号" className={ic} />
               {errors.phone && <p className="mt-1 text-xs text-danger">{errors.phone.message}</p>}
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">公司名/店铺名 <span className="text-danger">*</span></label>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">公司名/店铺名 {formConfig.companyName !== false && <span className="text-danger">*</span>}</label>
             <input {...register("companyName")} placeholder="您的品牌名或店铺名" className={ic} />
             {errors.companyName && <p className="mt-1 text-xs text-danger">{errors.companyName.message}</p>}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">微信号 <span className="text-neutral-400 text-xs">（选填）</span></label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">微信号 {formConfig.wechat ? <span className="text-danger">*</span> : <span className="text-neutral-400 text-xs">（选填）</span>}</label>
               <input {...register("wechat")} placeholder="方便联系" className={ic} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">邮箱 <span className="text-neutral-400 text-xs">（选填）</span></label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">邮箱 {formConfig.email ? <span className="text-danger">*</span> : <span className="text-neutral-400 text-xs">（选填）</span>}</label>
               <input {...register("email")} placeholder="your@email.com" className={ic} />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">所在省份 <span className="text-danger">*</span></label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">所在省份 {formConfig.province !== false && <span className="text-danger">*</span>}</label>
               <select value={selectedProvince} onChange={(e) => handleProvinceChange(e.target.value)} className={sc}>
                 <option value="">请选择省份</option>
                 {PROVINCE_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -254,7 +282,7 @@ export function ConsultationForm() {
               {errors.province && <p className="mt-1 text-xs text-danger">{errors.province.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">所在城市 <span className="text-danger">*</span></label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">所在城市 {formConfig.city !== false && <span className="text-danger">*</span>}</label>
               <select {...register("city")} className={sc} disabled={!selectedProvince}>
                 <option value="">{selectedProvince ? "请选择城市" : "先选省份"}</option>
                 {cityOptions.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -263,7 +291,7 @@ export function ConsultationForm() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">所属行业 <span className="text-danger">*</span></label>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">所属行业 {formConfig.industry !== false && <span className="text-danger">*</span>}</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <select value={selectedIndustryCategory} onChange={(e) => { setSelectedIndustryCategory(e.target.value); setSelectedIndustrySub(""); setSelectedIndustry(""); setShowIndustryCustom(false); setHighlightTags([]); setVisionTags([]); }} className={sc}>
                 <option value="">选择大类</option>
@@ -280,7 +308,7 @@ export function ConsultationForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1"
-              >经营形态 <span className="text-danger">*</span></label>
+              >经营形态 {formConfig.businessForm !== false && <span className="text-danger">*</span>}</label>
             <select value={selectedBusinessForm} onChange={(e) => { setSelectedBusinessForm(e.target.value); setValue("businessForm", e.target.value, { shouldValidate: true }); }} className={sc}>
               <option value="">请选择经营形态</option>
               {BUSINESS_FORM_OPTIONS.map((form) => (<option key={form} value={form}>{form}</option>))}
@@ -290,20 +318,20 @@ export function ConsultationForm() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">主营产品 <span className="text-danger">*</span></label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">主营产品 {formConfig.mainProducts !== false && <span className="text-danger">*</span>}</label>
               <input {...register("mainProducts")} placeholder="如：汉堡、炸鸡、手冲咖啡" className={ic} />
               {errors.mainProducts && <p className="mt-1 text-xs text-danger">{errors.mainProducts.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">经营年限 <span className="text-danger">*</span></label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">经营年限 {formConfig.businessYears !== false && <span className="text-danger">*</span>}</label>
               <input type="number" {...register("businessYears", { valueAsNumber: true })} placeholder="如：5" className={ic} min={0} />
               {errors.businessYears && <p className="mt-1 text-xs text-danger">{errors.businessYears.message}</p>}
             </div>
           </div>
           {/* V79+: 店内照片（必填）含门头 — 供Hermes看图分析品牌色。流动摊1张起步 */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">店内照片 <span className="text-danger">*</span> <span className="text-neutral-400 text-xs">（必填）</span></label>
-            <p className="text-xs text-amber-600 mb-2">📸 {watch("businessForm") === "路边摊/档口" ? "请上传1张档口/摊位照片，AI将据此匹配配色风格" : "请上传含门头在内的5张店内照片，AI将据此分析您的店铺风格和配色，确保品牌色与店内装修协调统一"}</p>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">店内照片 <span className="text-neutral-400 text-xs">（选填，上传后AI配色更精准）</span></label>
+            <p className="text-xs text-neutral-500 mb-2">📸 上传店内照片可帮助AI分析店铺风格和配色，生成与装修风格协调的品牌视觉方案。路边摊传1张档口照，其他业态传含门头的3-5张效果更佳。</p>
             {storePhotoList.length > 0 && (
               <div className="mb-3 space-y-1.5">
                 {storePhotoList.map((f, i) => (
@@ -336,7 +364,7 @@ export function ConsultationForm() {
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 </div>
                 <p className="text-sm font-medium text-neutral-700">点击上传店内照片</p>
-                <p className="text-xs text-neutral-400">{watch("businessForm") === "路边摊/档口" ? "支持 JPG、PNG、HEIC，至少1张，每张最大20MB" : "支持 JPG、PNG、HEIC，含门头共5张，每张最大20MB"}</p>
+                <p className="text-xs text-neutral-400">支持 JPG、PNG、HEIC，最多5张，每张最大20MB</p>
               </div>
             </button>
           </div>

@@ -1,5 +1,30 @@
 [
   {
+    "id": "VI-20260711-77CM",
+    "submissionId": "SBM-20260711-0077",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "4444",
+    "companyName": "����ʱ�������",
+    "industry": "����",
+    "brandVision": "��Ϊ��������ů���ֹ����Ʒ��",
+    "coreValues": "��Ȼ�����ġ���ů",
+    "targetMarket": "25-45��׷��Ʒ������Ķ��а���ͼ�ͥ",
+    "mainProducts": "ŷʽ artisan �������ʽ���������ʽ���",
+    "businessForm": "ʵ���",
+    "createdAt": "2026-07-11T15:56:30.077Z",
+    "updatedAt": "2026-07-11T15:56:30.077Z",
+    "created_at": "2026-07-11T15:56:30.077Z",
+    "updated_at": "2026-07-11T15:56:30.077Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-11T15:56:30.077Z"
+      }
+    ]
+  },
+  {
     "id": "VI-20260709-NQUQ",
     "submissionId": "SBM-20260709-2080",
     "status": "submitted",

@@ -1000,7 +1000,7 @@ export async function POST(req: NextRequest) {
         batch.map(async (def) => {
           // V121: using provider from registry
           try {
-            const result = await provider.generateImage({ brandContext: { brandName: companyName, industry: industryType, brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "scene", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: def.key, label: def.page, description: def.rawPrompt }, prompt: def.rawPrompt, negativePrompt: "text, watermark, ugly, distorted, low quality", output: { width: 2048, height: 2048, format: "png" } });
+            const result = await provider.generateImage({ brandContext: { brandName: companyName, industry: industryType, brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "scene", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: def.key, label: def.page, description: def.rawPrompt }, prompt: def.rawPrompt, negativePrompt: "text, watermark, ugly, distorted, low quality", output: { width: 1024, height: 1024, format: "png" } });
             _DEV && console.log(`[generate-pptx] ${provider.name} OK for ${def.key} (${result.durationMs}ms)`);
             return { def, imgData: result.imageUrl };
           } catch (e: any) {

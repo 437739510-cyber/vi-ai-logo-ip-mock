@@ -22,6 +22,7 @@ export const NAV_CONFIG: NavItem[] = [
   { href: "/admin/logo-library", label: "Logo素材库", icon: "Palette", roles: ["admin"] },
   { href: "/admin/billing", label: "消耗明细", icon: "Wallet", roles: ["admin"] },
   { href: "/admin/pricing", label: "定价管理", icon: "Tag", roles: ["admin"] },
+  { href: "/admin/basic-info", label: "基本信息", icon: "Settings", roles: ["admin"] },
   { href: "/admin/workspace", label: "我的客户", icon: "Briefcase", roles: ["student"] },
   { href: "/admin/earnings", label: "我的收入", icon: "Coins", roles: ["student"] },
 ];

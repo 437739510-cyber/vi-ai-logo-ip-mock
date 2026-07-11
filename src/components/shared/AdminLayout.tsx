@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FolderKanban, Star, Users, Grid3X3,
   Wallet, Tag, GraduationCap, ChevronLeft, Menu, X, Palette,
-  Briefcase, Coins, LogOut,
+  Briefcase, Coins, LogOut, Settings,
 } from "lucide-react";
 import { cn } from "@/lib/core/utils";
 import type { AdminRole } from "@/lib/core/admin-roles";
@@ -14,7 +14,7 @@ import { getNavForRole } from "@/lib/core/admin-roles";
 
 const ICON_MAP: Record<string, any> = {
   LayoutDashboard, FolderKanban, Star, Users, Grid3X3,
-  Wallet, Tag, GraduationCap, Briefcase, Coins, Palette,
+  Wallet, Tag, GraduationCap, Briefcase, Coins, Palette, Settings,
 };
 
 const ROLE_LABEL: Record<AdminRole, string> = {

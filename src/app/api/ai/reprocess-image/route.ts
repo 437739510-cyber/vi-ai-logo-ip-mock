@@ -22,7 +22,13 @@ export async function POST(req: NextRequest) {
       processedPath,
     });
   } catch (error) {
+    const msg = error instanceof Error ? error.message : "Reprocess failed";
+    // File not found: return soft-failure instead of 500 to avoid blocking the flow
+    if (msg.startsWith("FILE_NOT_FOUND:")) {
+      console.warn("[reprocess-image] File not found, skipping:", msg);
+      return NextResponse.json({ success: true, skipped: true, reason: "Image file not found, skipped" });
+    }
     console.error("[reprocess-image] Error:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Reprocess failed" }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -403,6 +403,7 @@ function checkPackageC(md: string, dict: IndustryDict): ValidationIssue[] {
 
 function checkPackageD(round2Md: string, params: ParamPackage): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
+  if (!params) return issues;  // Guard: QC gate called without param package (fire-and-forget mode)
 
   // D01: color consistency
   const r2Hexes = new Set(round2Md.match(/#[A-Fa-f0-9]{6}/g)?.map(h => h.toUpperCase()) || []);
