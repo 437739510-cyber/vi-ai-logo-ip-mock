@@ -336,8 +336,12 @@ export async function executeBrandBrainPipeline(
         break;
       }
 
-      // Execute agent (with retry via Harness Layer 3)
-      const result = await agent.execute(options?.input || {}, context);
+      // Execute agent with Harness Layer 3: retry with exponential backoff
+      const { result, retries } = await withRetry<AgentResult>(
+        () => agent.execute(options?.input || {}, context),
+        harness,
+        agentId,
+      );
       results[agentId] = result;
 
       if (result.success && result.data) {
@@ -429,6 +433,7 @@ export async function executeBrandBrainPipeline(
           error,
         });
 
+        breaker.recordFailure();
         pipelineSuccess = false;
         if (true) break; // Stop on error by default
       }
