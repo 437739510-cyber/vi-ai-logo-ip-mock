@@ -369,6 +369,34 @@ export const evaluatorAgent: Agent<EvaluatorInput, EvaluatorOutput> = {
     checkResults.push(checkHexFormat(genResult, designDir));
     checkResults.push(checkFontCopyright(designDir));
     checkResults.push(checkCategoryMismatch(brandProfile));
+    // ===== P1: Geo-color consistency (Hermes 2026-07-11) =====
+
+    if (brandProfile?.geoContext?.inferred && designDir?.colorStrategy) {
+      const gcs = brandProfile.geoContext;
+      const dcs = designDir.colorStrategy;
+      // Parse color hints from geo context (format: "森林绿#227338,阳光黄#FFCC33...")
+      const hexPattern = /#([0-9A-Fa-f]{6})/g;
+      const geoColors: string[] = [];
+      let match;
+      const colorHintText = gcs.colorHint || '';
+      while ((match = hexPattern.exec(colorHintText)) !== null) {
+        geoColors.push(match[0]);
+      }
+
+      if (geoColors.length > 0 && dcs.primary?.hex) {
+        const primaryDist = rgbDistance(geoColors[0], dcs.primary.hex);
+        if (primaryDist > 120) {
+          checkResults.push({
+            checkId: "P1-04",
+            name: "地理色彩-设计色彩一致性",
+            passed: false,
+            severity: "P1",
+            detail: `Geo color ${geoColors[0]} vs DD primary ${dcs.primary.hex} — RGB距离=${primaryDist.toFixed(0)} (>120)`,
+            fixSuggestion: `地理推断主色为${geoColors[0]}，设计总监选了${dcs.primary.hex}，差异过大。请检查是否忽略了地理色彩灵感。`,
+          });
+        }
+      }
+    }
 
     // ===== Compute verdict =====
 
@@ -421,3 +449,21 @@ export const evaluatorAgent: Agent<EvaluatorInput, EvaluatorOutput> = {
     };
   },
 };
+
+// ========== Helpers ==========
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace("#", "");
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+}
+
+function rgbDistance(hex1: string, hex2: string): number {
+  if (!hex1 || !hex2) return 0;
+  const c1 = hexToRgb(hex1);
+  const c2 = hexToRgb(hex2);
+  return Math.sqrt((c1.r - c2.r) ** 2 + (c1.g - c2.g) ** 2 + (c1.b - c2.b) ** 2);
+}
