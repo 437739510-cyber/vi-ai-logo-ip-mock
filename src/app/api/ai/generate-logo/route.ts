@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
     const projectId: string = body.projectId || "";
     const regenerate = body.regenerate;
     const forceRegenerate = body.force === true || regenerate === true;
+    const requestedProvider: string = (body.provider || "comfyui").toLowerCase();
 
     if (!projectId) {
       return NextResponse.json({ error: "projectId required" }, { status: 400 });
@@ -76,9 +77,9 @@ export async function POST(req: NextRequest) {
 
     if (!logoSuggestions?.prompts || logoSuggestions.prompts.length === 0) {
       const analysisStatus = brandProfile.analysisStatus;
-      let errorMsg = "�������Ʒ�Ʒ���";
+      let errorMsg = "请先完成品牌分析";
       if (analysisStatus === "analyzing") {
-        errorMsg = "AI�������ڽ�����";
+        errorMsg = "AI品牌分析进行中";
       }
 
       // Already have logos, not forcing -> return existing
@@ -134,9 +135,20 @@ export async function POST(req: NextRequest) {
     // V121: synchronous generation for Zeabur serverless compatibility
       try {
       const logoResults: any[] = [];
-      const provider = await getDefaultRegistry().getActive();
-      _DEV && console.log("[generate-logo] Generating " + prompts.length + " logos for: " + companyName + " via " + provider.name);
-      _DEV && console.log("[generate-logo] Provider details: name=" + provider.name + ", type=" + (provider.constructor?.name || "unknown"));
+      let actualProvider = await getDefaultRegistry().getActive();
+      if (requestedProvider === "comfyui") {
+        const comfy = getDefaultRegistry().get("comfyui");
+        if (comfy && await comfy.isAvailable()) {
+          actualProvider = comfy;
+        } else {
+          return NextResponse.json({ error: "Local ComfyUI not available" }, { status: 503 });
+        }
+      } else if (requestedProvider === "ark") {
+        const ark = getDefaultRegistry().get("ark-seedream");
+        if (ark && await ark.isAvailable()) actualProvider = ark;
+      }
+      _DEV && console.log("[generate-logo] Generating " + prompts.length + " logos for: " + companyName + " via " + actualProvider.name);
+      _DEV && console.log("[generate-logo] Provider details: name=" + actualProvider.name + ", type=" + (actualProvider.constructor?.name || "unknown"));
 
       for (let i = 0; i < prompts.length; i++) {
         const rawPrompt = prompts[i];
@@ -151,8 +163,8 @@ export async function POST(req: NextRequest) {
         _DEV && console.log("[generate-logo] Prompt " + (i+1) + "/" + prompts.length);
 
         try {
-          const result = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-${i+1}`, label: "Logo", description: rawPrompt }, prompt: finalPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
-          _DEV && console.log("[generate-logo] " + provider.name + " logo " + (i+1) + " OK (" + result.durationMs + "ms)");
+          const result = await actualProvider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-${i+1}`, label: "Logo", description: rawPrompt }, prompt: finalPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
+          _DEV && console.log("[generate-logo] " + actualProvider.name + " logo " + (i+1) + " OK (" + result.durationMs + "ms)");
           // Log ARK usage
           void logArkUsage({ route: "ai/generate-logo", model: String(result.providerMeta?.model || "seedream"), imageCount: 1, projectId, durationMs: result.durationMs, success: true });
           // V121: Overlay Chinese brand name on logo (SDXL/Star-3 can''t do Chinese)
@@ -178,14 +190,14 @@ export async function POST(req: NextRequest) {
             stack: err.stack?.slice(0, 300),
             code: err.code,
             name: err.name,
-            providerName: provider?.name || "unknown",
+            providerName: actualProvider.name || "unknown",
           };
           console.error("[generate-logo] Failed prompt " + (i+1) + ":", JSON.stringify(errDetail, null, 2));
           // P2-02: 1 retry on failure
           let retried = false;
           try {
             _DEV && console.log("[generate-logo] Retrying prompt " + (i+1) + "...");
-            const retryResult = await provider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-retry-${i+1}`, label: "Logo Retry", description: rawPrompt }, prompt: finalPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
+            const retryResult = await actualProvider.generateImage({ brandContext: { brandName: companyName, industry: brandProfile?.industry || "", brandPositioning: brandProfile?.brandPositioning || "", brandPersona: brandProfile?.brandToneKeywords || [], visualDirection: brandProfile?.visualStyleSuggestion || "" }, ipProfile: { type: "logo", personality: [], visualTraits: [], colorDirection: [] }, step: { stepId: `logo-retry-${i+1}`, label: "Logo Retry", description: rawPrompt }, prompt: finalPrompt, negativePrompt, output: { width: 1024, height: 1024, format: "png" } });
             let retryUrl: string = retryResult.imageUrl || "";
             try { retryUrl = await overlayChineseText(retryResult.imageUrl, companyName, headingFont); } catch (e: any) {}
             logoResults.push({ index: i, prompt: rawPrompt, imageUrl: retryUrl, model: retryResult.providerMeta?.model || retryResult.providerName, durationMs: retryResult.durationMs });

@@ -1,5 +1,230 @@
 [
   {
+    "id": "VI-20260709-NQUQ",
+    "submissionId": "SBM-20260709-2080",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "9999",
+    "companyName": "老碗香社区面馆",
+    "industry": "美食",
+    "brandVision": "成为社区最温暖的面馆",
+    "coreValues": "传承、温暖、匠心",
+    "targetMarket": "25-55岁社区居民和上班族",
+    "mainProducts": "手擀面、刀削面、臊子面",
+    "businessForm": "实体店",
+    "createdAt": "2026-07-09T23:43:22.080Z",
+    "updatedAt": "2026-07-09T23:43:22.080Z",
+    "created_at": "2026-07-09T23:43:22.080Z",
+    "updated_at": "2026-07-09T23:43:22.080Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-09T23:43:22.080Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260709-DE8D",
+    "submissionId": "SBM-20260709-5852",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "8888",
+    "companyName": "老碗香社区面馆",
+    "industry": "美食",
+    "brandVision": "成为社区最温暖的面馆",
+    "coreValues": "传承、温暖、匠心",
+    "targetMarket": "25-55岁社区居民和上班族",
+    "mainProducts": "手擀面、刀削面、臊子面",
+    "businessForm": "实体店",
+    "createdAt": "2026-07-09T14:35:45.852Z",
+    "updatedAt": "2026-07-09T14:35:45.852Z",
+    "created_at": "2026-07-09T14:35:45.852Z",
+    "updated_at": "2026-07-09T14:35:45.852Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-09T14:35:45.852Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260709-0VY8",
+    "submissionId": "SBM-20260709-3919",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "3333",
+    "companyName": "老碗香社区面馆",
+    "industry": "美食",
+    "brandVision": "成为社区最温暖的面馆",
+    "coreValues": "传承、温暖、匠心",
+    "targetMarket": "25-55岁社区居民和上班族",
+    "mainProducts": "手擀面、刀削面、臊子面",
+    "businessForm": "实体店",
+    "createdAt": "2026-07-09T14:31:13.919Z",
+    "updatedAt": "2026-07-09T14:31:13.919Z",
+    "created_at": "2026-07-09T14:31:13.919Z",
+    "updated_at": "2026-07-09T14:31:13.919Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-09T14:31:13.919Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260709-HFZY",
+    "submissionId": "SBM-20260709-7882",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "2222",
+    "companyName": "����ʱ�������",
+    "industry": "����",
+    "brandVision": "��Ϊ��������ů���ֹ����Ʒ��",
+    "coreValues": "��Ȼ�����ġ���ů",
+    "targetMarket": "25-45��׷��Ʒ������Ķ��а���ͼ�ͥ",
+    "mainProducts": "ŷʽ artisan �������ʽ���������ʽ���",
+    "businessForm": "ʵ���",
+    "createdAt": "2026-07-09T13:16:47.882Z",
+    "updatedAt": "2026-07-09T13:16:47.882Z",
+    "created_at": "2026-07-09T13:16:47.882Z",
+    "updated_at": "2026-07-09T13:16:47.882Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-09T13:16:47.882Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260709-1PNJ",
+    "submissionId": "SBM-20260709-9877",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "9999",
+    "companyName": "����ʱ�������",
+    "industry": "����",
+    "brandVision": "��Ϊ��������ů���ֹ����Ʒ��",
+    "coreValues": "��Ȼ�����ġ���ů",
+    "targetMarket": "25-45��׷��Ʒ������Ķ��а���ͼ�ͥ",
+    "mainProducts": "ŷʽ artisan �������ʽ���������ʽ���",
+    "businessForm": "ʵ���",
+    "createdAt": "2026-07-09T13:14:49.877Z",
+    "updatedAt": "2026-07-09T13:14:49.877Z",
+    "created_at": "2026-07-09T13:14:49.877Z",
+    "updated_at": "2026-07-09T13:14:49.877Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-09T13:14:49.877Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260709-8USE",
+    "submissionId": "SBM-20260709-0729",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "8888",
+    "companyName": "����ʱ�������",
+    "industry": "����",
+    "brandVision": "��Ϊ��������ů���ֹ����Ʒ��",
+    "coreValues": "��Ȼ�����ġ���ů",
+    "targetMarket": "25-45��׷��Ʒ������Ķ��а���ͼ�ͥ",
+    "mainProducts": "ŷʽ artisan �������ʽ���������ʽ���",
+    "businessForm": "ʵ���",
+    "createdAt": "2026-07-09T13:13:00.729Z",
+    "updatedAt": "2026-07-09T13:13:00.729Z",
+    "created_at": "2026-07-09T13:13:00.729Z",
+    "updated_at": "2026-07-09T13:13:00.729Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-09T13:13:00.729Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260709-DKQN",
+    "submissionId": "SBM-20260709-3726",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "1111",
+    "companyName": "����ʱ�������",
+    "industry": "����",
+    "brandVision": "��Ϊ��������ů���ֹ����Ʒ��",
+    "coreValues": "��Ȼ�����ġ���ů",
+    "targetMarket": "25-45��׷��Ʒ������Ķ��а���ͼ�ͥ",
+    "mainProducts": "ŷʽ artisan �������ʽ���������ʽ���",
+    "businessForm": "ʵ���",
+    "createdAt": "2026-07-09T13:11:23.725Z",
+    "updatedAt": "2026-07-09T13:11:23.725Z",
+    "created_at": "2026-07-09T13:11:23.725Z",
+    "updated_at": "2026-07-09T13:11:23.725Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-09T13:11:23.725Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260709-BCCP",
+    "submissionId": "SBM-20260709-2785",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "6666",
+    "companyName": "����ʱ�������",
+    "industry": "����",
+    "brandVision": "��Ϊ��������ů���ֹ����Ʒ��",
+    "coreValues": "��Ȼ�����ġ���ů",
+    "targetMarket": "25-45��׷��Ʒ������Ķ��а���ͼ�ͥ",
+    "mainProducts": "ŷʽ artisan �������ʽ���������ʽ���",
+    "businessForm": "ʵ���",
+    "createdAt": "2026-07-09T13:09:42.785Z",
+    "updatedAt": "2026-07-09T13:09:42.785Z",
+    "created_at": "2026-07-09T13:09:42.785Z",
+    "updated_at": "2026-07-09T13:09:42.785Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-09T13:09:42.785Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260709-0JDV",
+    "submissionId": "SBM-20260709-8154",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "7777",
+    "companyName": "麦香时光面包坊",
+    "industry": "餐饮",
+    "brandVision": "成为社区最温暖的手工面包品牌",
+    "coreValues": "天然、匠心、温暖",
+    "targetMarket": "25-45岁追求品质生活的都市白领和家庭",
+    "mainProducts": "欧式 artisan 面包、日式软面包、法式甜点",
+    "businessForm": "实体店",
+    "createdAt": "2026-07-09T13:06:18.153Z",
+    "updatedAt": "2026-07-09T13:06:18.153Z",
+    "created_at": "2026-07-09T13:06:18.153Z",
+    "updated_at": "2026-07-09T13:06:18.153Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-09T13:06:18.153Z"
+      }
+    ]
+  },
+  {
     "id": "VI-20260705-5PH6",
     "submissionId": "SBM-20260705-0252",
     "status": "submitted",

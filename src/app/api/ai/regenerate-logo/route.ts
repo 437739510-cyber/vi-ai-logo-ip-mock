@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { phone, viewPassword, feedback } = body;
+    const { phone, viewPassword, feedback, provider } = body;
 
     if (!phone || !viewPassword) {
       return NextResponse.json({ error: "Phone and view password required" }, { status: 400 });
@@ -91,15 +91,31 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", project.id);
 
-    // Step 5: Delegate to local worker — Zeabur cannot reach local ComfyUI
+    // Step 5: Trigger actual generation (internal call to generate-logo)
     const projectId = project.id;
+    const genProvider = provider || "comfyui";
 
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      const genRes = await fetch(`${baseUrl}/api/ai/generate-logo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, provider: genProvider, force: true }),
+      });
+      const genData = await genRes.json().catch(() => ({}));
+      if (!genRes.ok) {
+        return NextResponse.json({ error: genData.error || "Generation failed" }, { status: 500 });
+      }
+    } catch (e: any) {
+      console.error("[regenerate-logo] Internal generate call failed:", e);
+    }
 
     return NextResponse.json({
       success: true,
       projectId,
       status: "logo_regenerating",
-      message: "Logo regeneration started",
+      provider: genProvider,
+      message: genProvider === "ark" ? "AI paid upgrade started" : "Logo regeneration started",
     });
   } catch (error: any) {
     console.error("[regenerate-logo] Error:", error);

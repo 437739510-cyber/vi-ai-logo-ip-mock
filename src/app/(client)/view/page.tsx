@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useState, useEffect } from "react";
-import { Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon, Phone, Key, RefreshCw, History, ChevronLeft, ChevronRight } from "lucide-react";
+import { Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon, Phone, Key, RefreshCw, History, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 interface LogoItem {
@@ -202,6 +202,44 @@ export default function ViewLogoPage() {
         setTimeout(() => handleView(), 10000);
       } else {
         setError(data.error || "重新生成失败");
+      }
+    } catch {
+      setError("网络错误");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const handleUpgradeToArk = async () => {
+    if (!projectData) return;
+    const cost = "0.80";
+    if (!window.confirm(`✨ 生成中文LOGO — 豆包 Seedream 4.0
+
+成本: ￥${cost}（4张 Logo x ￥0.20）
+
+原生中文 Logo，效果更精美。确定要生成吗？`)) {
+      return;
+    }
+    setRegenerating(true);
+    try {
+      const res = await fetch("/api/ai/regenerate-logo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: phone.trim(),
+          viewPassword: viewPassword.trim(),
+          feedback: feedback.trim(),
+          provider: "ark",
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setProjectData({ ...projectData, generationStatus: "logo_generating" });
+        setHistoryRound(null);
+        setSelectedIdx(null);
+        setTimeout(() => handleView(), 10000);
+      } else {
+        setError(data.error || "升级失败");
       }
     } catch {
       setError("网络错误");
@@ -474,6 +512,25 @@ export default function ViewLogoPage() {
                       )}
                     </button>
                   </div>
+
+                  {/* V121: Logo省钱策略 — 生成拼音(本地免费) / 生成中文(ARK付费) */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleRegenerate}
+                      disabled={regenerating}
+                      className="flex-1 py-2.5 border-2 border-primary text-primary text-sm font-medium rounded-xl hover:bg-primary/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                    >
+                      {regenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> 生成中...</> : "生成拼音LOGO"}
+                    </button>
+                    <button
+                      onClick={handleUpgradeToArk}
+                      disabled={regenerating}
+                      className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-medium rounded-xl hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                    >
+                      {regenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> 生成中...</> : "生成中文LOGO"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-neutral-400 text-center pt-1">拼音免费 · 中文 ¥0.80/组（豆包AI云端生成，原生中文效果）</p>
 
                   {/* 意见反馈 + 重新生成 */}
                   <div className="space-y-3">

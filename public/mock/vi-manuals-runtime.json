@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "id": "manual-VI-20260709-0JDV",
+    "projectId": "VI-20260709-0JDV",
+    "status": "draft",
+    "pages": [],
+    "generatedAt": "2026-07-09T13:12:34.331Z"
+  },
+  {
+    "id": "manual-VI-20260709-8USE",
+    "projectId": "VI-20260709-8USE",
+    "status": "draft",
+    "pages": [],
+    "generatedAt": "2026-07-09T13:14:15.515Z"
+  },
+  {
+    "id": "manual-VI-20260709-1PNJ",
+    "projectId": "VI-20260709-1PNJ",
+    "status": "draft",
+    "pages": [],
+    "generatedAt": "2026-07-09T13:15:56.409Z"
+  },
+  {
+    "id": "manual-VI-20260709-HFZY",
+    "projectId": "VI-20260709-HFZY",
+    "status": "draft",
+    "pages": [],
+    "generatedAt": "2026-07-09T13:17:59.608Z"
+  }
+]
