@@ -139,7 +139,12 @@ const DESIGN_DIRECTOR_PROMPT = `你是品牌VI设计总监，拥有20年专业�
 11. 避免低饱和度全灰配色
 12. 中文字体优先选择思源黑体/思源宋体系列
 
-## 行业色彩倾向
+## 地理色彩优先
+如果 brief 中包含"色彩灵感"字段，必须优先采用地理环境色彩而非行业通用色。
+地理色彩来自真实自然环境（如椰子林的森林绿、热带阳光的金黄），比行业规则更有品牌叙事价值。
+当 brief 提供了色彩灵感时，以地理色彩为基准微调，行业规则仅作为补充参考。
+
+## 行业色彩倾向（地理色彩未提供时使用）
 - 餐饮/食品：暖色系(红橙黄)，传递食欲与温暖
 - 科技/互联网：冷色系(蓝紫)，传递专业与创新
 - 金融/保险：深色系(深蓝/深绿)，传递稳重与信赖
@@ -200,6 +205,11 @@ async function generateDesignDecision(
     `IP理念：${clientInfo?.mascotPhilosophy || "无"}`,
     `是否有IP公仔：${hasMascot ? "是" : "否"}`,
     brandColors?.primary ? `已有主色：${brandColors.primary.hex}` : "无已有色彩",
+    ...(clientInfo?.geoContext?.inferred ? [
+      `地理环境：${clientInfo.geoContext.geoInsight || clientInfo.geoContext.region || ""}`,
+      `色彩灵感：${clientInfo.geoContext.colorHint || ""}`,
+      `物料建议：${clientInfo.geoContext.materialHint || ""}`,
+    ] : []),
   ].join("\n");
 
   try {

@@ -15,6 +15,7 @@ import type { Agent, AgentResult, AgentContext } from "./types";
 import { AGENT_IDENTITIES } from "./types";
 import { analyzeBrand } from "@/lib/brand/brand-analyzer";
 import { inferGeoContext } from "@/lib/brand/geo-context";
+import { enhanceBrandPositioning } from "@/lib/brand/brand-positioning-enhancer";
 
 export const brandAnalystIdentity = AGENT_IDENTITIES["brand-analyst"];
 
@@ -51,6 +52,29 @@ export const brandAnalystAgent: Agent<any, any> = {
         }
       } catch (geoErr) {
         console.warn("[brand-analyst] Geo inference failed, continuing:", geoErr);
+      }
+
+      // V3: LLM positioning enhancement (consumes geo context)
+      const isFallbackPositioning = profile.brandPositioning.includes(" — ") || profile.brandPositioning.length < 10;
+      if (profile.geoContext?.inferred && isFallbackPositioning) {
+        try {
+          const enhanced = await enhanceBrandPositioning({
+            companyName: context.clientInfo.companyName || "",
+            industry: context.clientInfo.industry || "",
+            mainProducts: (context.clientInfo as any).mainProducts,
+            brandVision: context.clientInfo.brandVision,
+            targetMarket: context.clientInfo.targetMarket,
+            brandType: profile.brandType,
+            brandPersona: profile.brandPersona,
+            geoContext: profile.geoContext,
+          });
+          if (enhanced.enhanced && enhanced.positioning) {
+            profile.brandPositioning = enhanced.positioning;
+            console.log("[brand-analyst] Positioning enhanced:", enhanced.positioning);
+          }
+        } catch (posErr) {
+          console.warn("[brand-analyst] Positioning enhancement failed, keeping fallback:", posErr);
+        }
       }
 
       // If confidence is low, add a warning
