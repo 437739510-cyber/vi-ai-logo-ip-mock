@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Brand Brain — Brand Analyst Agent
  *
  * Wraps the existing brand-analyzer.ts and brand-dictionary.ts into
@@ -14,6 +14,7 @@
 import type { Agent, AgentResult, AgentContext } from "./types";
 import { AGENT_IDENTITIES } from "./types";
 import { analyzeBrand } from "@/lib/brand/brand-analyzer";
+import { inferGeoContext } from "@/lib/brand/geo-context";
 
 export const brandAnalystIdentity = AGENT_IDENTITIES["brand-analyst"];
 
@@ -36,6 +37,21 @@ export const brandAnalystAgent: Agent<any, any> = {
 
     try {
       const profile = analyzeBrand(context.clientInfo);
+
+      // V3: Infer geo-cultural context via LLM (async, non-blocking)
+      try {
+        const geoCtx = await inferGeoContext({
+          companyName: context.clientInfo.companyName || "",
+          mainProducts: (context.clientInfo as any).mainProducts,
+          city: (context.clientInfo as any).city,
+          industry: context.clientInfo.industry,
+        });
+        if (geoCtx.inferred) {
+          profile.geoContext = geoCtx;
+        }
+      } catch (geoErr) {
+        console.warn("[brand-analyst] Geo inference failed, continuing:", geoErr);
+      }
 
       // If confidence is low, add a warning
       if (profile.confidence < 0.5) {

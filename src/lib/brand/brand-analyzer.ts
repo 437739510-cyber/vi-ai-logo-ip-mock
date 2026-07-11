@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Brand Brain V1 — Brand Analyzer
  *
  * Analyzes brand data (clientInfo / submission) and produces a structured
@@ -9,6 +9,7 @@
  */
 
 import { scanMultipleFields, type KeywordMatchResult } from "./brand-dictionary";
+import type { GeoContext } from "./geo-context";
 
 export interface BrandProfile {
   /** Primary brand archetype / category */
@@ -50,6 +51,9 @@ export interface BrandProfile {
 
   /** 品牌原型（参考：Hero / Explorer / Caregiver / Creator / Sage / Innocent） */
   brandArchetype: string;
+
+  /** V3: Geo-cultural context (LLM-inferred at runtime) */
+  geoContext?: GeoContext;
 
   // =====================
 
