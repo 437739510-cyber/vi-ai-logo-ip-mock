@@ -11,6 +11,7 @@ interface ApiBalance {
   provider: string;
   balance: number | null;
   currency: string;
+  status?: string;
   error?: string;
   source?: string;
 }
@@ -52,21 +53,30 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [deepseekBalance, setDeepseekBalance] = useState<ApiBalance | null>(null);
   const [arkBalance, setArkBalance] = useState<ApiBalance | null>(null);
+  const [liblibaiBalance, setLiblibaiBalance] = useState<ApiBalance | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [usageLogs, setUsageLogs] = useState<UsageLog[]>([]);
   const [todaySummary, setTodaySummary] = useState<TodaySummary | null>(null);
   const [todayDeepseekSummary, setTodayDeepseekSummary] = useState<ProviderSummary | null>(null);
   const [todayArkSummary, setTodayArkSummary] = useState<ProviderSummary | null>(null);
+  const [todayLiblibaiSummary, setTodayLiblibaiSummary] = useState<ProviderSummary | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
 
   const fetchBalances = useCallback(async () => {
     setBalanceLoading(true);
     try {
-      const [dsRes] = await Promise.allSettled([
+      const [dsRes, libRes] = await Promise.allSettled([
         fetch("/api/billing/deepseek-balance").then(r => r.json()),
+        fetch("/api/billing/liblibai-balance").then(r => r.json()),
       ]);
       if (dsRes.status === "fulfilled") setDeepseekBalance(dsRes.value);
-      setArkBalance({ provider: "ark-seedream", balance: 212.40, currency: "CNY" });
+      if (libRes.status === "fulfilled") setLiblibaiBalance(libRes.value);
+
+      // Fetch real ARK balance from API
+      try {
+        const arkRes = await fetch("/api/ai/ark-balance");
+        if (arkRes.ok) setArkBalance(await arkRes.json());
+      } catch { /* ignore */ }
     } catch { /* ignore */ }
     setBalanceLoading(false);
   }, []);
@@ -81,6 +91,7 @@ export default function DashboardPage() {
         setTodaySummary(data.todaySummary || null);
         setTodayDeepseekSummary(data.todayDeepseekSummary || null);
         setTodayArkSummary(data.todayDashscopeSummary || null);
+        setTodayLiblibaiSummary(data.todayLiblibaiSummary || null);
       }
     } catch { /* ignore */ }
     setLogsLoading(false);
@@ -165,7 +176,7 @@ export default function DashboardPage() {
             刷新
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4 border border-blue-100">
             <p className="text-xs font-medium text-blue-600 mb-1">DeepSeek</p>
             <p className="text-xl font-bold text-neutral-900">
@@ -183,6 +194,18 @@ export default function DashboardPage() {
                 : arkBalance?.error ? "获取失败" : "—"}
             </p>
             {arkBalance?.error && <p className="text-xs text-red-400 mt-1">{arkBalance.error}</p>}
+          </div>
+          <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100">
+            <p className="text-xs font-medium text-emerald-600 mb-1">LiblibAI (Star-3 Alpha)</p>
+            <p className="text-xl font-bold text-neutral-900">
+              {liblibaiBalance?.balance !== null && liblibaiBalance?.balance !== undefined
+                ? `${liblibaiBalance.balance} 积分`
+                : liblibaiBalance?.status === "unavailable" ? "不可用"
+                : liblibaiBalance?.status === "no_key" ? "未配置"
+                : liblibaiBalance?.error ? "获取失败" : "—"}
+            </p>
+            {liblibaiBalance?.status === "unavailable" && <p className="text-xs text-neutral-400 mt-1">API 不提供余额查询</p>}
+            {liblibaiBalance?.error && <p className="text-xs text-red-400 mt-1">{liblibaiBalance.error}</p>}
           </div>
         </div>
       </div>
@@ -282,6 +305,49 @@ export default function DashboardPage() {
             </div>
           )}
           {!todayArkSummary || todayArkSummary.totalCalls === 0 ? (
+            <p className="text-xs text-neutral-400 text-center py-3">今日暂无调用</p>
+          ) : null}
+        </div>
+        {/* 今日 LiblibAI 调用 */}
+        <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12l3 3 5-5"/></svg>
+              <h3 className="text-sm font-bold text-neutral-900">今日 LiblibAI 调用</h3>
+            </div>
+            <span className="text-xs text-neutral-400">
+              {todayLiblibaiSummary?.totalCalls || 0} 次 · ¥{(todayLiblibaiSummary?.totalCost || 0).toFixed(4)}
+            </span>
+          </div>
+          {/* 按模型汇总 */}
+          {todayLiblibaiSummary && Object.keys(todayLiblibaiSummary.byModel).length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs font-medium text-neutral-500 mb-2">模型明细</p>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(todayLiblibaiSummary.byModel).map(([model, info]) => (
+                  <div key={model} className="rounded-lg bg-emerald-50/50 p-2.5 border border-emerald-100/50">
+                    <p className="text-xs font-medium text-neutral-700 truncate" title={model}>{model}</p>
+                    <p className="text-xs text-neutral-400">{info.calls}次 · ¥{info.cost.toFixed(4)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* 按路由汇总 */}
+          {todayLiblibaiSummary && Object.keys(todayLiblibaiSummary.byRoute).length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-neutral-500 mb-2">路由明细</p>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(todayLiblibaiSummary.byRoute).map(([route, info]) => (
+                  <div key={route} className="rounded-lg bg-neutral-50 p-2.5 border border-neutral-100">
+                    <p className="text-xs font-medium text-neutral-700 truncate" title={route}>{route}</p>
+                    <p className="text-xs text-neutral-400">{info.calls}次 · ¥{info.cost.toFixed(4)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {!todayLiblibaiSummary || todayLiblibaiSummary.totalCalls === 0 ? (
             <p className="text-xs text-neutral-400 text-center py-3">今日暂无调用</p>
           ) : null}
         </div>

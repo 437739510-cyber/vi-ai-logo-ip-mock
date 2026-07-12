@@ -10,6 +10,7 @@
  */
 
 import crypto from "crypto";
+import { supabaseAdmin } from "@/lib/core/supabase";
 import type {
   ImageProvider,
   GenerateImageParams,
@@ -131,11 +132,15 @@ export class LiblibAIProvider implements ImageProvider {
       }
 
       const imageDataUrl = await this.downloadAsDataUrl(imageUrl);
+      const durationMs = Date.now() - startTime;
+
+      // fire-and-forget: log usage to api_usage_log
+      this.logUsage(generateUuid, durationMs).catch(() => {});
 
       return {
         imageUrl: imageDataUrl,
-        actualCost: 0, // Trial plan, no credit cost tracking
-        durationMs: Date.now() - startTime,
+        actualCost: 0,
+        durationMs,
         assetId: `liblibai-${generateUuid}`,
         providerName: "liblibai",
         qualityScore: undefined,
@@ -322,6 +327,21 @@ export class LiblibAIProvider implements ImageProvider {
       throw error;
     } finally {
       clearTimeout(timeoutId);
+    }
+  }
+
+  private async logUsage(generateUuid: string, durationMs: number): Promise<void> {
+    try {
+      await supabaseAdmin.from("api_usage_log").insert({
+        route: "liblibai-generate",
+        method: "POST",
+        model: "liblibai-star3-alpha",
+        cost_cny: 0,
+        request_summary: "image",
+        response_status: 200,
+      });
+    } catch {
+      // fire-and-forget, never throw
     }
   }
 

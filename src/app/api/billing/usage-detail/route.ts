@@ -99,7 +99,7 @@ export async function GET() {
           if (!summary.byType['deepseek']) summary.byType['deepseek'] = { count: 0, cost: 0 };
           summary.byType['deepseek'].count++;
           summary.byType['deepseek'].cost += cost;
-        } else if (model.includes('wan') || model.includes('seedream') || model.includes('t2i')) {
+        } else if (model.includes('wan') || model.includes('seedream') || model.includes('t2i') || model.includes('liblibai')) {
           summary.totalImages++;
           summary.totalImageCost += cost;
           if (!summary.byType['image']) summary.byType['image'] = { count: 0, cost: 0 };

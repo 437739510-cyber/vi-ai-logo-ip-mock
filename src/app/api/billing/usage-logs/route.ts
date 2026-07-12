@@ -7,6 +7,8 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const DEEPSEEK_MODELS = ['deepseek'];
 // 通义万相/阿里云模型关键词（含百炼DashScope全家桶）
 const DASHSCOPE_MODELS = ['wan2', 'qwen', 'wanx'];
+// LiblibAI
+const LIBLIBAI_MODELS = ['liblibai'];
 
 interface ProviderSummary {
   totalCost: number;
@@ -17,10 +19,11 @@ interface ProviderSummary {
   byModel: Record<string, { cost: number; calls: number }>;
 }
 
-function classifyModel(model: string): 'deepseek' | 'dashscope' | 'other' {
+function classifyModel(model: string): 'deepseek' | 'dashscope' | 'liblibai' | 'other' {
   const m = (model || '').toLowerCase();
   if (DEEPSEEK_MODELS.some(k => m.includes(k))) return 'deepseek';
   if (DASHSCOPE_MODELS.some(k => m.includes(k))) return 'dashscope';
+  if (LIBLIBAI_MODELS.some(k => m.includes(k))) return 'liblibai';
   return 'other';
 }
 
@@ -79,6 +82,7 @@ export async function GET(req: NextRequest) {
 
     const todayDeepseekSummary = emptySummary();
     const todayDashscopeSummary = emptySummary();
+    const todayLiblibaiSummary = emptySummary();
 
     if (summaryRes.ok) {
       const rows = await summaryRes.json();
@@ -86,6 +90,7 @@ export async function GET(req: NextRequest) {
         const provider = classifyModel(row.model || '');
         const target = provider === 'deepseek' ? todayDeepseekSummary
                      : provider === 'dashscope' ? todayDashscopeSummary
+                     : provider === 'liblibai' ? todayLiblibaiSummary
                      : null;
         if (!target) continue;
 
@@ -108,11 +113,11 @@ export async function GET(req: NextRequest) {
 
     // 兼容旧字段 todaySummary（全部合计）
     const todaySummary = {
-      totalCost: todayDeepseekSummary.totalCost + todayDashscopeSummary.totalCost,
-      totalCalls: todayDeepseekSummary.totalCalls + todayDashscopeSummary.totalCalls,
-      totalInputTokens: todayDeepseekSummary.totalInputTokens + todayDashscopeSummary.totalInputTokens,
-      totalOutputTokens: todayDeepseekSummary.totalOutputTokens + todayDashscopeSummary.totalOutputTokens,
-      byRoute: { ...todayDeepseekSummary.byRoute, ...todayDashscopeSummary.byRoute },
+      totalCost: todayDeepseekSummary.totalCost + todayDashscopeSummary.totalCost + todayLiblibaiSummary.totalCost,
+      totalCalls: todayDeepseekSummary.totalCalls + todayDashscopeSummary.totalCalls + todayLiblibaiSummary.totalCalls,
+      totalInputTokens: todayDeepseekSummary.totalInputTokens + todayDashscopeSummary.totalInputTokens + todayLiblibaiSummary.totalInputTokens,
+      totalOutputTokens: todayDeepseekSummary.totalOutputTokens + todayDashscopeSummary.totalOutputTokens + todayLiblibaiSummary.totalOutputTokens,
+      byRoute: { ...todayDeepseekSummary.byRoute, ...todayDashscopeSummary.byRoute, ...todayLiblibaiSummary.byRoute },
     };
 
     return NextResponse.json({ 
@@ -120,6 +125,7 @@ export async function GET(req: NextRequest) {
       todaySummary,
       todayDeepseekSummary,
       todayDashscopeSummary,
+      todayLiblibaiSummary,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';

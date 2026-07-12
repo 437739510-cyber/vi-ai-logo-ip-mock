@@ -33,6 +33,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: typeof Ch
 export default function BillingPage() {
   const [deepseekBalance, setDeepseekBalance] = useState<ApiBalance | null>(null);
   const [dashscopeBalance, setDashscopeBalance] = useState<ApiBalance | null>(null);
+  const [liblibaiBalance, setLiblibaiBalance] = useState<ApiBalance | null>(null);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [arkUsage, setArkUsage] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -41,14 +42,16 @@ export default function BillingPage() {
   const fetchBalances = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [dsRes, dqRes, usageRes, arkRes] = await Promise.allSettled([
+      const [dsRes, dqRes, libRes, usageRes, arkRes] = await Promise.allSettled([
         fetch("/api/billing/deepseek-balance").then(r => r.json()),
         fetch("/api/billing/dashscope-balance").then(r => r.json()),
+        fetch("/api/billing/liblibai-balance").then(r => r.json()),
         fetch("/api/billing/usage-detail").then(r => r.json()),
         fetch("/api/ai/ark-balance").then(r => r.json()),
       ]);
       if (dsRes.status === "fulfilled") setDeepseekBalance(dsRes.value);
       if (dqRes.status === "fulfilled") setDashscopeBalance(dqRes.value);
+      if (libRes.status === "fulfilled") setLiblibaiBalance(libRes.value);
       if (usageRes.status === "fulfilled") setUsage(usageRes.value);
       if (arkRes.status === "fulfilled") setArkUsage(arkRes.value);
     } catch { /* ignore */ }
@@ -66,7 +69,7 @@ export default function BillingPage() {
     );
   }
 
-  const providers = [deepseekBalance, dashscopeBalance].filter(Boolean) as ApiBalance[];
+  const providers = [deepseekBalance, dashscopeBalance, liblibaiBalance].filter(Boolean) as ApiBalance[];
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -120,58 +123,37 @@ export default function BillingPage() {
         );
       })}
 
-      {/* 豆包 Ark 用量 */}
+      {/* ARK Seedream */}
       {arkUsage && (
         <div className="bg-white rounded-2xl border border-neutral-200 p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center">
               <Cpu className="w-4 h-4 text-purple-500" />
             </div>
-            <span className="text-sm font-medium text-neutral-700">豆包 Ark 用量</span>
-            <span className="text-xs text-neutral-400">（基于本地记账，以火山引擎控制台为准）</span>
+            <span className="text-sm font-medium text-neutral-700">火山 Seedream 4.0</span>
+            <span className="text-xs text-neutral-400">（手动维护，火山引擎控制台核对）</span>
           </div>
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="bg-neutral-50 rounded-xl p-3 text-center">
-              <div className="text-lg font-bold text-neutral-900">{arkUsage.summary?.totalUsed || 0}</div>
-              <div className="text-[10px] text-neutral-400">已用（张）</div>
+              <div className="text-lg font-bold text-green-600">{arkUsage.balance !== null ? "\u00a5" + arkUsage.balance.toFixed(2) : "\u2014"}</div>
+              <div className="text-[10px] text-neutral-400">可用余额</div>
             </div>
             <div className="bg-neutral-50 rounded-xl p-3 text-center">
-              <div className="text-lg font-bold text-green-600">{arkUsage.summary?.totalRemaining || 0}</div>
-              <div className="text-[10px] text-neutral-400">剩余免费额度（张）</div>
+              <div className="text-lg font-bold text-orange-500">{arkUsage.trackedCost != null ? "\u00a5" + arkUsage.trackedCost.toFixed(2) : "\u2014"}</div>
+              <div className="text-[10px] text-neutral-400">平台已追踪消耗</div>
             </div>
             <div className="bg-neutral-50 rounded-xl p-3 text-center">
-              <div className="text-lg font-bold text-neutral-900">{arkUsage.summary?.totalFree || 0}</div>
-              <div className="text-[10px] text-neutral-400">总免费额度（张）</div>
-            </div>
-            <div className="bg-neutral-50 rounded-xl p-3 text-center">
-              <div className="text-lg font-bold text-orange-500">¥{arkUsage.summary?.totalCost?.toFixed(2) || "0.00"}</div>
-              <div className="text-[10px] text-neutral-400">已产生费用</div>
+              <div className="text-lg font-bold text-neutral-900">{arkUsage.status || "\u2014"}</div>
+              <div className="text-[10px] text-neutral-400">状态</div>
             </div>
           </div>
-          {arkUsage.models?.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-neutral-500 mb-2">按模型</p>
-              <div className="space-y-1">
-                {arkUsage.models.map((m: any) => (
-                  <div key={m.model} className="flex items-center justify-between text-xs py-2 px-3 bg-neutral-50 rounded">
-                    <span className="text-neutral-700 flex-1 truncate">{m.model.split("-").slice(3,6).join("-")}</span>
-                    <span className="text-neutral-500 mx-2">{m.used}/{m.freeQuota} 张</span>
-                    <span className={m.remaining > 0 ? "text-green-600 mr-2" : "text-red-500 mr-2"}>{m.remaining > 0 ? `剩余${m.remaining}` : "已用完"}</span>
-                    <span className="font-medium text-orange-600 w-16 text-right">¥{m.totalCost.toFixed(2)}</span>
-                    <div className="w-16 h-1.5 bg-neutral-200 rounded-full ml-2">
-                      <div className={`h-full rounded-full ${m.remaining > 0 ? 'bg-green-400' : 'bg-red-400'}`}
-                        style={{ width: `${Math.min(100, (m.used / Math.max(m.freeQuota, 1)) * 100)}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {arkUsage.note && (
+            <p className="text-xs text-neutral-400 mt-2">{arkUsage.note}</p>
           )}
-          <p className="text-xs text-neutral-400 mt-3">{arkUsage.note}</p>
         </div>
       )}
 
-      {/* 用量追踪 */}
+{/* 用量追踪 */}
       {usage && (
         <div className="bg-white rounded-2xl border border-neutral-200 p-6">
           <div className="flex items-center gap-3 mb-4">
