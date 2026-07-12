@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
         if (comfy && await comfy.isAvailable()) {
           actualProvider = comfy;
         } else {
-          return NextResponse.json({ error: "Local ComfyUI not available" }, { status: 503 });
+          console.warn("[generate-logo] ComfyUI not available, falling back: liblibai -> ark");
         }
       } else if (requestedProvider === "ark") {
         const ark = getDefaultRegistry().get("ark-seedream");
