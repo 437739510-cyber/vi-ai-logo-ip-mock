@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API: POST /api/ai/select-logo
  *
  * V13 Logo选择模块 — 支持人工选择和AI智能选优
@@ -101,8 +101,15 @@ export async function POST(req: NextRequest) {
     // === AI智能选优模式 ===
     if (autoSelect) {
       _DEV && console.log("[select-logo] Auto-select mode activated");
-      const brandProfileLocal = clientInfo.brandProfile || {};  // used locally in autoSelect
-      const logoResults = brandProfileLocal.logoGenerationResults || [];
+      // Try brandProfile.logoGenerationResults first, then fallback to logoGenerationStatus.results
+      let logoResults = (clientInfo.brandProfile || {}).logoGenerationResults || [];
+      if (!logoResults.length) {
+        const logoGenStatus = clientInfo.logoGenerationStatus || {};
+        logoResults = logoGenStatus.results || [];
+        if (logoResults.length) {
+          console.log("[select-logo] Using logoGenerationStatus.results as fallback (" + logoResults.length + " candidates)");
+        }
+      }
       const candidates: LogoCandidate[] = logoResults
         .filter((r: any) => r.imageUrl)
         .map((r: any) => ({ index: r.index, imageUrl: r.imageUrl, prompt: r.prompt }));

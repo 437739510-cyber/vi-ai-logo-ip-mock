@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API Route: POST /api/ai/brand-analysis
  *
  * AI 品牌分析引擎 — 补全"信息断层"的核心层
@@ -249,6 +249,8 @@ export async function POST(req: NextRequest) {
       description: clientInfo.description || existingCI.description,
       // AI品牌档案
       brandProfile: {
+        // Preserve existing brandProfile fields (e.g. logoGenerationResults) before overwriting
+        ...(existingCI.brandProfile || {}),
         industryInsight: profile.industryInsight || "",
         geoEnvironment: profile.geoEnvironment || "",
         competitiveLandscape: profile.competitiveLandscape || "",
@@ -278,6 +280,7 @@ export async function POST(req: NextRequest) {
 
     if (dbError) {
       console.warn("[brand-analysis] DB save failed:", dbError.message);
+      return NextResponse.json({ error: "Failed to save brand analysis to database" }, { status: 500 });
     }
 
     return NextResponse.json({

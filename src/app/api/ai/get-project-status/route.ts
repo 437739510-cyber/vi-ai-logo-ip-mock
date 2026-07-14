@@ -1,7 +1,7 @@
-// API Route: GET /api/ai/get-project-status
+﻿// API Route: GET /api/ai/get-project-status
 // V12: Get project generation status for real-time progress tracking
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/core/supabase";
+import { supabaseAdmin } from "@/lib/core/supabase";
 
 // Generation status workflow
 export type GenerationStatus = 
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Query project from Supabase
-    const { data: project, error } = await supabase
+    const { data: project, error } = await supabaseAdmin
       .from("projects")
       .select("id, status, client_info, updated_at, created_at")
       .eq("id", projectId)
@@ -106,3 +106,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+

@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       if (!forceRegenerate && existingLogos && existingLogos.length >= 4 && clientInfo.logoGenerationStatus?.completed >= 4) {
         return NextResponse.json({
           status: "already_completed",
-          message: "����4��Logo�������ظ�����",
+          message: "已经生成4个Logo，无需重复生成",
           logos: existingLogos,
         }, { status: 200 });
       }
@@ -98,12 +98,12 @@ export async function POST(req: NextRequest) {
     if (clientInfo.generationStatus === "logo_generating") {
       return NextResponse.json({
         success: true,
-        message: "Logo�����Ѿ��ڽ�����",
+        message: "Logo生成已经在进行中",
         status: "logo_generating"
       }, { status: 202 });
     }
 
-    const companyName = clientInfo.companyName || "Ʒ��";
+    const companyName = clientInfo.companyName || "品牌";
     const prompts: string[] = logoSuggestions.prompts;
 
     // M1.4: Read unified param package for font + color
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
       client_info: {
         ...clientInfo,
         generationStatus: "logo_generating",
-        generationMessage: `��������Logo (0/${prompts.length})...`,
+        generationMessage: `正在生成Logo (0/${prompts.length})...`,
         logoGenerationStatus: {
           total: prompts.length, completed: 0, results: [],
           startedAt: new Date().toISOString(),
@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
         try {
           const cachedInfo: any = { ...clientInfo };
           cachedInfo.generationStatus = "logo_generating";
-          cachedInfo.generationMessage = `��������Logo (${i+1}/${prompts.length})...`;
+          cachedInfo.generationMessage = `正在生成Logo (${i+1}/${prompts.length})...`;
           cachedInfo.logoGenerationStatus = {
             total: prompts.length, completed: i + 1,
             results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
             client_info: {
               ...finalInfo,
               generationStatus: "logo_generated",
-              generationMessage: "Logo������� (" + successCount + "/" + prompts.length + ")",
+              generationMessage: "Logo生成完毕 (" + successCount + "/" + prompts.length + ")",
               brandProfile: {
                 ...finalBrandProfile,
                 logoGenerationResults: logoResults.map(r => ({
@@ -282,7 +282,11 @@ export async function POST(req: NextRequest) {
             client_info: {
               ...finalInfo,
               generationStatus: "failed",
-              generationMessage: "Logo����ȫ��ʧ�ܣ�������",
+              brandProfile: {
+                ...(finalInfo.brandProfile || {}),
+                logoGenerationResults: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl || null, error: r.error || null })),
+              },
+              generationMessage: "Logo已全部失败，请重试",
               logoGenerationStatus: {
                 total: prompts.length, completed: prompts.length,
                 results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
@@ -295,7 +299,7 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.error("[generate-logo] Final update failed:", e);
       }
-      // V121: synchronous return �� Zeabur serverless kills fire-and-forget
+      // V121: synchronous return — Zeabur serverless kills fire-and-forget
       const generatedCount = logoResults.filter((r: any) => r.imageUrl).length;
       return NextResponse.json({
         success: generatedCount > 0,
