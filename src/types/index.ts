@@ -1,30 +1,51 @@
 // ========== 枚举 / 常量 ==========
 
 export type ProjectStatus =
-  | "submitted"      // 已提交
-  | "payment_uploaded" // 已上传付款截图
-  | "paid"           // 已付款
-  | "confirmed"      // 需求已确认
-  | "ai_analysis"    // AI 分析中
-  | "designing"      // 设计制作中
-  | "reviewing"      // 审核中
-  | "brand_analyzed"  // 品牌分析完成
-  | "logo_generated"  // Logo生成完成
-  | "completed"       // 全部完成（VI手册已生成）
-  | "delivered";      // 已交付
-
+  | "submitted"        // ???
+  | "payment_uploaded" // ???????
+  | "paid"             // ???
+  | "confirmed"        // ?????
+  | "ai_analysis"      // AI ???
+  | "designing"        // ?????
+  | "reviewing"        // ???
+  | "brand_analyzed"   // ??????
+  | "brand_analyzing"  // ?????
+  | "logo_generated"   // Logo????
+  | "logo_generating"  // Logo???
+  | "manual_pending"   // ?????
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
-  submitted: "已提交",
-  payment_uploaded: "待确认付款",
-  paid: "已付款",
-  confirmed: "需求已确认",
-  ai_analysis: "AI 分析中",
-  designing: "设计制作中",
-  reviewing: "审核中",
-  delivered: "已交付",
-  brand_analyzed: "品牌分析完成",
-  logo_generated: "Logo生成完成",
-  completed: "已完成",
+  submitted: "???",
+  payment_uploaded: "?????",
+  paid: "???",
+  confirmed: "?????",
+  ai_analysis: "AI ???",
+  designing: "?????",
+  reviewing: "???",
+  delivered: "???",
+  brand_analyzed: "??????",
+  brand_analyzing: "?????",
+  logo_generated: "Logo????",
+  logo_generating: "Logo???",
+  manual_pending: "?????",
+export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
+  submitted: "bg-neutral-100 text-neutral-700",
+  payment_uploaded: "bg-yellow-100 text-yellow-700",
+  paid: "bg-green-100 text-green-700",
+  confirmed: "bg-blue-100 text-blue-700",
+  ai_analysis: "bg-purple-100 text-purple-700",
+  designing: "bg-amber-100 text-amber-700",
+  reviewing: "bg-orange-100 text-orange-700",
+  delivered: "bg-green-100 text-green-700",
+  brand_analyzed: "bg-blue-100 text-blue-700",
+  brand_analyzing: "bg-purple-100 text-purple-700",
+  logo_generated: "bg-amber-100 text-amber-700",
+  logo_generating: "bg-purple-100 text-purple-700",
+  manual_pending: "bg-sky-100 text-sky-700",
+  manual_generating: "bg-purple-100 text-purple-700",
+  scene_rendering: "bg-indigo-100 text-indigo-700",
+  pptx_assembling: "bg-violet-100 text-violet-700",
+  completed: "bg-green-100 text-green-700",
+  failed: "bg-red-100 text-red-700",
 };
 
 export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
