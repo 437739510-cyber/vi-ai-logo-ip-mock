@@ -60,6 +60,24 @@ export default function ProjectDetailPage({
   const [arkBalance, setArkBalance] = useState<any>(null);  // V32: 方舟余额
   const [pptxResult, setPptxResult] = useState<{url: string; downloadUrl?: string; storageUrl?: string; pageCount: number; fileName: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const handleDeleteLogo = async (fileName: string) => {
+    if (!project || !window.confirm(`确定删除 ${fileName} 吗？`)) return;
+    try {
+      const res = await fetch('/api/admin/delete-logo', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({projectId: project.id, fileName}),
+      });
+      if (res.ok) { window.location.reload(); }
+      else { alert('删除失败'); }
+    } catch { alert('删除失败'); }
+  };
+
+
+
+
+
+
+
 
   // V7: AI分析面板状态
   const [analyzing, setAnalyzing] = useState(false);
@@ -1159,17 +1177,7 @@ export default function ProjectDetailPage({
       </section>
 
       {/* brand assets */}
-  const handleDeleteLogo = async (fileName: string) => {
-    if (!project || !window.confirm(`确定删除 ${fileName} 吗？`)) return;
-    try {
-      const res = await fetch('/api/admin/delete-logo', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({projectId: project.id, fileName}),
-      });
-      if (res.ok) { window.location.reload(); }
-      else { alert('删除失败'); }
-    } catch { alert('删除失败'); }
-  };
+
       {submission && (
         <section className="bg-white rounded-xl border border-neutral-100 p-5 space-y-5">
           <h3 className="text-sm font-semibold text-neutral-700">品牌素材</h3>
