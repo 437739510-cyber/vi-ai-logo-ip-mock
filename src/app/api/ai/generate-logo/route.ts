@@ -238,7 +238,13 @@ export async function POST(req: NextRequest) {
       for (const r of logoResults) {
         if (r.imageUrl && r.imageUrl.startsWith("data:")) {
           const permanentUrl = await persistLogoBase64(projectId, r.index, r.imageUrl);
-          if (permanentUrl) r.imageUrl = permanentUrl;
+          if (permanentUrl) {
+            r.imageUrl = permanentUrl;
+          } else {
+            // Persist failed - clear base64 to avoid bloating client_info
+            console.warn("[generate-logo] Persist failed for logo " + r.index + ", clearing base64");
+            r.imageUrl = "";
+          }
         }
       }
 
