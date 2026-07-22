@@ -409,6 +409,12 @@ export default function ProjectDetailPage({
                     brandProfileStatus: freshData.project.client_info.brandProfile.analysisStatus,
                   }));
                 }
+              // Auto-trigger logo generation after brand analysis completes
+              if (bp?.analysisStatus === "completed" && statusData.details?.brandProfile?.logoDesignSuggestions && !statusData.details?.logoGenerated) {
+                if (!generatingLogo) {
+                  handleGenerateLogo();
+                }
+              }
               }
             } catch (e) {
               // Silently retry
@@ -1153,13 +1159,24 @@ export default function ProjectDetailPage({
       </section>
 
       {/* brand assets */}
+  const handleDeleteLogo = async (fileName: string) => {
+    if (!project || !window.confirm(`确定删除 ${fileName} 吗？`)) return;
+    try {
+      const res = await fetch('/api/admin/delete-logo', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({projectId: project.id, fileName}),
+      });
+      if (res.ok) { window.location.reload(); }
+      else { alert('删除失败'); }
+    } catch { alert('删除失败'); }
+  };
       {submission && (
         <section className="bg-white rounded-xl border border-neutral-100 p-5 space-y-5">
           <h3 className="text-sm font-semibold text-neutral-700">品牌素材</h3>
           <div className="flex items-start gap-3">
             <div className="flex-1">
               <div className="space-y-2">
-              <AssetPreview label="LOGO" files={submission?.logoAssets?.length ? submission.logoAssets : ((project as any)?.client_info?.selectedLogo ? [{url: (project as any).client_info.selectedLogo, fileName: (project as any).client_info.selectedLogoName || "logo.png", size: 0}] : [])} emptyText="未上传 LOGO" />
+              <AssetPreview label="LOGO" files={submission?.logoAssets?.length ? submission.logoAssets : ((project as any)?.client_info?.selectedLogo ? [{url: (project as any).client_info.selectedLogo, fileName: (project as any).client_info.selectedLogoName || "logo.png", size: 0}] : [])} emptyText="未上传 LOGO" onDelete={(fn) => handleDeleteLogo(fn)} />
               <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs cursor-pointer hover:bg-red-100 transition">
                 <span>+ 上传Logo</span>
                 <input type="file" accept="image/png,image/jpeg" className="hidden"

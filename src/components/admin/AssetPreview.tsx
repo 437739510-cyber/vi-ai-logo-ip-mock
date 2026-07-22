@@ -1,11 +1,12 @@
 "use client";
 
-import { Eye, Download } from "lucide-react";
+import { Eye, Download, Trash2 } from "lucide-react";
 
 interface AssetPreviewProps {
   label: string;
   files: { fileName: string; url: string; size: number }[];
   emptyText?: string;
+  onDelete?: (fileName: string) => void;
 }
 
 function formatSize(bytes: number): string {
@@ -14,22 +15,19 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Check if URL is displayable as image (regular URL with image extension OR data URL) */
 function isImageUrl(url: string): boolean {
   return /\.(png|jpg|jpeg|svg|gif|webp)$/i.test(url) || /^data:image\//i.test(url);
 }
 
-/** Estimate file size from data URL (base64 length → bytes) */
 function estimateSizeFromDataUrl(url: string): number {
   if (!/^data:/.test(url)) return 0;
   const commaIdx = url.indexOf(",");
   if (commaIdx < 0) return 0;
   const base64 = url.slice(commaIdx + 1);
-  // base64 length × 0.75 ≈ original bytes (rough estimate)
   return Math.round(base64.length * 0.75);
 }
 
-export function AssetPreview({ label, files, emptyText = "暂无素材" }: AssetPreviewProps) {
+export function AssetPreview({ label, files, emptyText = "暂无素材", onDelete }: AssetPreviewProps) {
   if (files.length === 0) {
     return (
       <div>
@@ -81,6 +79,15 @@ export function AssetPreview({ label, files, emptyText = "暂无素材" }: Asset
               >
                 <Download className="w-3.5 h-3.5" />
               </a>
+              {onDelete && (
+                <button
+                  onClick={() => onDelete(file.fileName)}
+                  className="p-1.5 rounded hover:bg-red-100 text-neutral-400 hover:text-red-600 transition-colors"
+                  title="删除"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         ))}
