@@ -14,6 +14,21 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Check if URL is displayable as image (regular URL with image extension OR data URL) */
+function isImageUrl(url: string): boolean {
+  return /\.(png|jpg|jpeg|svg|gif|webp)$/i.test(url) || /^data:image\//i.test(url);
+}
+
+/** Estimate file size from data URL (base64 length → bytes) */
+function estimateSizeFromDataUrl(url: string): number {
+  if (!/^data:/.test(url)) return 0;
+  const commaIdx = url.indexOf(",");
+  if (commaIdx < 0) return 0;
+  const base64 = url.slice(commaIdx + 1);
+  // base64 length × 0.75 ≈ original bytes (rough estimate)
+  return Math.round(base64.length * 0.75);
+}
+
 export function AssetPreview({ label, files, emptyText = "暂无素材" }: AssetPreviewProps) {
   if (files.length === 0) {
     return (
@@ -36,7 +51,7 @@ export function AssetPreview({ label, files, emptyText = "暂无素材" }: Asset
             className="flex items-center gap-3 px-3 py-2 bg-neutral-50 rounded-lg text-sm"
           >
             <div className="w-12 h-12 bg-neutral-200 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
-              {/\.(png|jpg|jpeg|svg|gif|webp)$/i.test(file.url) ? (
+              {isImageUrl(file.url) ? (
                 <img src={file.url} alt={file.fileName} className="w-full h-full object-contain" />
               ) : (
                 <span className="text-xs font-semibold text-neutral-500">
@@ -46,7 +61,9 @@ export function AssetPreview({ label, files, emptyText = "暂无素材" }: Asset
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-neutral-700 truncate">{file.fileName}</p>
-              <p className="text-xs text-neutral-400">{formatSize(file.size)}</p>
+              <p className="text-xs text-neutral-400">
+                {formatSize(file.size || estimateSizeFromDataUrl(file.url))}
+              </p>
             </div>
             <div className="flex gap-1">
               <button
