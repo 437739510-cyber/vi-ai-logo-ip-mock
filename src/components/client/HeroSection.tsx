@@ -61,7 +61,7 @@ export function HeroSection() {
               transition={{ duration: 0.5, delay: 0.2 }}
             >
               不是你的错，是没人帮你。我们用 AI 生成 LOGO、IP 公仔、VI 手册，
-              低至 ¥39，让小巷深处的老店变成整条街最靓的铺。
+              低至 ¥49，让小巷深处的老店变成整条街最靓的铺。
             </motion.p>
 
             {/* CTAs */}

@@ -32,7 +32,7 @@ export function BottomCtaSection() {
               href="/member/login"
               className="inline-flex items-center px-8 py-3.5 border border-primary text-primary text-base font-medium rounded-xl hover:bg-primary/5 transition-colors"
             >
-              提交设计需求 ¥99起
+              提交设计需求 ¥49起
             </Link>
             <Link
               href="/partner"

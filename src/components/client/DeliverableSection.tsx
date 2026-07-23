@@ -9,7 +9,7 @@ const DELIVERABLES = [
   { icon: Type, title: "字体规范", desc: "中英文字体搭配、字号层级、行距规范" },
   { icon: Image, title: "品牌Logo", desc: "主标志+横版+竖版+单色版+最小使用规范" },
   { icon: Frame, title: "Logo安全区", desc: "最小尺寸、安全间距、禁用示例" },
-  { icon: PenTool, title: "IP公仔形象", desc: "标准版(标准版含)、表情包、应用场景" },
+  { icon: PenTool, title: "IP公仔形象", desc: "标准版含、表情包、应用场景" },
   { icon: Layout, title: "名片模板", desc: "横竖双版本，含排版+色彩+字体规范" },
   { icon: Grid3X3, title: "社交媒体模板", desc: "小红书/朋友圈/抖音三套品牌化模板" },
   { icon: Ruler, title: "应用规范", desc: "门头、菜单、打包袋、工牌等延展" },
