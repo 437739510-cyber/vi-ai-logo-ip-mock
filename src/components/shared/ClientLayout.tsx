@@ -14,7 +14,20 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-neutral-100">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/brandbrain-logo.png" alt="Brand Brain · 品牌顾问" className="h-8 w-auto" />
+            <img
+              src="/brandbrain-icon.png"
+              alt=""
+              className="h-9 w-9"
+              aria-hidden="true"
+            />
+            <div className="flex flex-col leading-none">
+              <span className="text-base font-bold text-neutral-900 tracking-tight">
+                Brand Brain
+              </span>
+              <span className="text-[11px] text-neutral-500 mt-0.5">
+                品牌顾问
+              </span>
+            </div>
           </Link>
 
           {/* 桌面端导航 */}
@@ -72,7 +85,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <span className="text-neutral-200">|</span>
             <Link href="/consultation" className="hover:text-neutral-600 transition-colors">联系我们</Link>
           </div>
-          <img src="/brandbrain-logo.png" alt="Brand Brain" className="h-6 mx-auto mb-2" />
+          <img
+            src="/brandbrain-logo.png"
+            alt="Brand Brain · 品牌顾问"
+            className="h-8 w-auto mx-auto mb-2"
+          />
           <p className="text-xs text-neutral-400">&copy; 2026 Brand Brain · 品牌顾问. All rights reserved.</p>
         </div>
       </footer>
