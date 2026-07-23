@@ -1,32 +1,45 @@
 // ========== 枚举 / 常量 ==========
 
 export type ProjectStatus =
-  | "submitted"        // ???
-  | "payment_uploaded" // ???????
-  | "paid"             // ???
-  | "confirmed"        // ?????
-  | "ai_analysis"      // AI ???
-  | "designing"        // ?????
-  | "reviewing"        // ???
-  | "brand_analyzed"   // ??????
-  | "brand_analyzing"  // ?????
-  | "logo_generated"   // Logo????
-  | "logo_generating"  // Logo???
-  | "manual_pending"   // ?????
+  | "submitted"
+  | "payment_uploaded"
+  | "paid"
+  | "confirmed"
+  | "ai_analysis"
+  | "designing"
+  | "reviewing"
+  | "delivered"
+  | "brand_analyzed"
+  | "brand_analyzing"
+  | "logo_generated"
+  | "logo_generating"
+  | "manual_pending"
+  | "manual_generating"
+  | "scene_rendering"
+  | "pptx_assembling"
+  | "completed"
+  | "failed";
+
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
-  submitted: "???",
-  payment_uploaded: "?????",
-  paid: "???",
-  confirmed: "?????",
-  ai_analysis: "AI ???",
-  designing: "?????",
-  reviewing: "???",
-  delivered: "???",
-  brand_analyzed: "??????",
-  brand_analyzing: "?????",
-  logo_generated: "Logo????",
-  logo_generating: "Logo???",
-  manual_pending: "?????",
+  submitted: "已提交",
+  payment_uploaded: "待确认付款",
+  paid: "已付款",
+  confirmed: "需求确认中",
+  ai_analysis: "AI分析中",
+  designing: "设计制作中",
+  reviewing: "审核中",
+  delivered: "已交付",
+  brand_analyzed: "品牌分析完成",
+  brand_analyzing: "品牌分析中",
+  logo_generated: "Logo已生成",
+  logo_generating: "Logo生成中",
+  manual_pending: "待人工处理",
+  manual_generating: "人工生成中",
+  scene_rendering: "场景渲染中",
+  pptx_assembling: "PPTX组装中",
+  completed: "已完成",
+  failed: "失败",
+};
 export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
   submitted: "bg-neutral-100 text-neutral-700",
   payment_uploaded: "bg-yellow-100 text-yellow-700",
@@ -46,20 +59,6 @@ export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
   pptx_assembling: "bg-violet-100 text-violet-700",
   completed: "bg-green-100 text-green-700",
   failed: "bg-red-100 text-red-700",
-};
-
-export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
-  submitted: "bg-neutral-100 text-neutral-700",
-  payment_uploaded: "bg-yellow-100 text-yellow-700",
-  paid: "bg-green-100 text-green-700",
-  confirmed: "bg-blue-100 text-blue-700",
-  ai_analysis: "bg-purple-100 text-purple-700",
-  designing: "bg-amber-100 text-amber-700",
-  reviewing: "bg-orange-100 text-orange-700",
-  delivered: "bg-green-100 text-green-700",
-  brand_analyzed: "bg-blue-100 text-blue-700",
-  logo_generated: "bg-amber-100 text-amber-700",
-  completed: "bg-green-100 text-green-700",
 };
 
 export type ReferenceMode = "strong" | "weak" | "none";

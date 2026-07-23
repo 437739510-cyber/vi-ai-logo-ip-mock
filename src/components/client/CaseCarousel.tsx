@@ -1,123 +1,182 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { CaseCard } from "./CaseCard";
 
-const CASES = [
+interface FilterOption {
+  key: string;
+  label: string;
+}
+
+interface CaseItem {
+  id: string;
+  company: string;
+  industry: string;        // 用于筛选
+  industryLabel: string;   // 显示标签
+  deliverables: string[];  // 亮点标签
+  pageCount: number;       // 手册页数
+  coverImage: string;      // 主缩略图
+  images: string[];        // 更多截图（后续 lightbox 用）
+}
+
+
+const CASES: CaseItem[] = [
   {
-    company: "星云科技",
-    industry: "科技 / AI",
-    style: "极简科技蓝",
-    description: "从零搭建完整 VI 体系，AI 参考客户提供的竞品风格文档，生成了 3 套方案，最终选定科技蓝+霓虹紫的撞色方案。",
+    id: "bailiaocui-manual",
+    company: "百疗萃",
+    industry: "beauty",
+    industryLabel: "美容养生",
+    deliverables: ["VI 手册", "23 页完整设计"],
+    pageCount: 23,
+    coverImage: "/cases/bailiaocui/01-logo-primary.png",
+    images: [],
   },
   {
-    company: "茶语品牌",
-    industry: "餐饮 / 茶饮",
-    style: "清新国潮",
-    description: "客户上传了品牌 Logo 和 IP 公仔「茶小语」，AI 提取了茶绿色为主色，配合国潮插画风格完成整套设计。",
+    id: "bailiaocui-bottle",
+    company: "百疗萃",
+    industry: "beauty",
+    industryLabel: "美容养生",
+    deliverables: ["产品包装", "精油瓶贴设计"],
+    pageCount: 23,
+    coverImage: "/cases/bailiaocui/06-mockup-oil-bottle.jpg",
+    images: [],
   },
   {
-    company: "启航教育",
-    industry: "教育 / 培训",
-    style: "活力橙",
-    description: "集团旗下三个子品牌需要统一 VI，AI 协助梳理了品牌层级关系，生成了可扩展的模块化 VI 系统。",
+    id: "bailiaocui-gift",
+    company: "百疗萃",
+    industry: "beauty",
+    industryLabel: "美容养生",
+    deliverables: ["包装设计", "礼盒包装"],
+    pageCount: 23,
+    coverImage: "/cases/bailiaocui/07-mockup-gift-box.jpg",
+    images: [],
+  },
+  {
+    id: "bailiaocui-card",
+    company: "百疗萃",
+    industry: "beauty",
+    industryLabel: "美容养生",
+    deliverables: ["会员体系", "会员卡设计"],
+    pageCount: 23,
+    coverImage: "/cases/bailiaocui/05-mockup-membership-card.jpg",
+    images: [],
+  },
+  {
+    id: "bailiaocui-nail",
+    company: "百疗萃",
+    industry: "beauty",
+    industryLabel: "美容养生",
+    deliverables: ["物料设计", "美甲色板卡"],
+    pageCount: 23,
+    coverImage: "/cases/bailiaocui/04-mockup-nail-card.jpg",
+    images: [],
+  },
+  {
+    id: "bailiaocui-palette",
+    company: "百疗萃",
+    industry: "beauty",
+    industryLabel: "美容养生",
+    deliverables: ["VI 体系", "品牌色彩规范"],
+    pageCount: 23,
+    coverImage: "/cases/bailiaocui/02-color-palette.png",
+    images: [],
   },
 ];
 
+
+const FILTERS = [
+  { key: "all", label: "全部" },
+  { key: "beauty", label: "美容养生" },
+  { key: "food", label: "餐饮" },
+  { key: "education", label: "教育" },
+  { key: "tech", label: "科技" },
+];
+
+// ======== COMPONENT ========
 export function CaseCarousel() {
-  const [current, setCurrent] = useState(0);
-  const [direction, setDirection] = useState(0);
+  const [activeFilter, setActiveFilter] = useState("all");
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setDirection(1);
-      setCurrent((prev) => (prev + 1) % CASES.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
+  const filteredCases = useMemo(() => {
+    if (activeFilter === "all") return CASES;
+    return CASES.filter((c) => c.industry === activeFilter);
+  }, [activeFilter]);
 
-  const goTo = (index: number) => {
-    setDirection(index > current ? 1 : -1);
-    setCurrent(index);
-  };
-
-  const prev = () => {
-    setDirection(-1);
-    setCurrent((prev) => (prev - 1 + CASES.length) % CASES.length);
-  };
-
-  const next = () => {
-    setDirection(1);
-    setCurrent((prev) => (prev + 1) % CASES.length);
-  };
-
-  const variants = {
-    enter: (dir: number) => ({ x: dir > 0 ? 200 : -200, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (dir: number) => ({ x: dir > 0 ? -200 : 200, opacity: 0 }),
-  };
+  const isEmpty = filteredCases.length === 0;
 
   return (
-    <section className="py-20 bg-neutral-50">
-      <div className="max-w-4xl mx-auto px-4">
-        <h2 className="text-3xl font-bold text-neutral-900 text-center mb-4">成功案例</h2>
-        <p className="text-center text-neutral-500 mb-12">已为多家企业完成 VI 手册交付</p>
+    <section className="py-20 md:py-28 bg-neutral-50">
+      <div className="max-w-6xl mx-auto px-4">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-3">
+            客户案例
+          </h2>
+          <p className="text-neutral-500 max-w-lg mx-auto">
+            看看我们交付的真实 VI 手册——不是模板套出来的，每一个品牌都独一无二
+          </p>
+        </div>
 
-        <div className="relative bg-white rounded-2xl border border-neutral-100 p-8 md:p-12 min-h-[280px]">
-          {/* 案例卡片 */}
-          <div className="overflow-hidden">
-            <AnimatePresence mode="wait" custom={direction}>
-              <motion.div
-                key={current}
-                custom={direction}
-                variants={variants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.35, ease: "easeInOut" }}
+        {/* Filter tabs */}
+        <div className="flex justify-center gap-1.5 mb-10 overflow-x-auto pb-1">
+          {FILTERS.map((f) => {
+            const isActive = activeFilter === f.key;
+            const hasItems = f.key === "all" || CASES.some((c) => c.industry === f.key);
+            return (
+              <button
+                key={f.key}
+                onClick={() => setActiveFilter(f.key)}
+                disabled={!hasItems}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  isActive
+                    ? "bg-brand-500 text-white shadow-sm"
+                    : hasItems
+                    ? "bg-white text-neutral-600 border border-neutral-200 hover:border-brand-200 hover:text-brand-700"
+                    : "bg-white text-neutral-300 border border-neutral-100 cursor-not-allowed"
+                }`}
               >
-                <div className="flex items-start gap-2 mb-3">
-                  <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                    {CASES[current].industry}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-accent/20 text-amber-800 text-xs font-medium">
-                    {CASES[current].style}
-                  </span>
-                </div>
-                <h3 className="text-2xl font-bold text-neutral-900 mb-3">{CASES[current].company}</h3>
-                <p className="text-neutral-600 leading-relaxed">{CASES[current].description}</p>
-              </motion.div>
-            </AnimatePresence>
+                {f.label}
+                {!hasItems && f.key !== "all" && (
+                  <span className="ml-1 text-xs opacity-50">即将上线</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Case grid */}
+        {isEmpty ? (
+          <div className="text-center py-20 text-neutral-400">
+            <p className="text-lg mb-2">该行业案例即将上线</p>
+            <p className="text-sm">我们正在收集更多真实客户的 VI 手册</p>
           </div>
-
-          {/* 左右箭头 */}
-          <button
-            onClick={prev}
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition-colors shadow-sm"
-          >
-            <ChevronLeft className="w-4 h-4 text-neutral-600" />
-          </button>
-          <button
-            onClick={next}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition-colors shadow-sm"
-          >
-            <ChevronRight className="w-4 h-4 text-neutral-600" />
-          </button>
-        </div>
-
-        {/* 指示点 */}
-        <div className="flex justify-center gap-2 mt-6">
-          {CASES.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goTo(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === current ? "bg-primary w-6" : "bg-neutral-300"
-              }`}
-            />
-          ))}
-        </div>
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeFilter}
+              className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.3 }}
+            >
+              {filteredCases.map((c) => (
+                <CaseCard
+                  key={c.id}
+                  company={c.company}
+                  industryLabel={c.industryLabel}
+                  deliverables={c.deliverables}
+                  pageCount={c.pageCount}
+                  coverImage={c.coverImage}
+                  onClick={() => {
+                    // 后续可接 lightbox/详情 Modal
+                    // 当前版本点击无操作，hover 有提示
+                  }}
+                />
+              ))}
+            </motion.div>
+          </AnimatePresence>
+        )}
       </div>
     </section>
   );

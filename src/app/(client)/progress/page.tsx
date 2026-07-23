@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, FileQuestion, Eye, Phone, Key, Loader2 } from "lucide-react";
+import { Search, FileQuestion, Eye, Phone, Key, Loader2, Clock } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { CardSkeleton } from "@/components/shared/Skeleton";
 
 const STATUS_STEPS: { key: string; label: string }[] = [
   { key: "submitted", label: "已提交" },
@@ -44,12 +45,45 @@ function ProgressPageContent() {
   const [project, setProject] = useState<ProjectResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [estimatedTime, setEstimatedTime] = useState("");
 
-  const handleSearch = async () => {
+  // Auto-refresh every 30s after successful query
+  useEffect(() => {
+    if (!project) return;
+    const status = project.generationStatus || project.status;
+    if (status === "delivered") return;
+
+    const timer = setInterval(() => {
+      handleSearch(true);
+    }, 30000);
+
+    return () => clearInterval(timer);
+  }, [project?.id, project?.generationStatus, project?.status]);
+
+  // Calculate estimated time
+  useEffect(() => {
+    if (!project) { setEstimatedTime(""); return; }
+    const status = project.generationStatus || project.status;
+    if (status === "delivered") { setEstimatedTime(""); return; }
+
+    const map: Record<string, string> = {
+      submitted: "预计 1-2 小时内开始分析",
+      paid: "预计 30 分钟内开始分析",
+      confirmed: "预计 30 分钟内开始分析",
+      brand_analyzing: "预计 10-20 分钟",
+      logo_generating: "预计 3-5 分钟",
+      logo_generated: "预计 3-5 分钟",
+      logo_selected: "预计 4-8 小时（VI 手册生成）",
+      designing: "预计 1-2 小时",
+    };
+    setEstimatedTime(map[status] || "");
+  }, [project?.generationStatus, project?.status]);
+
+  const handleSearch = async (silent = false) => {
     if (phone.length < 11 || viewPassword.length < 4) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
-    setProject(null);
+    if (!silent) setProject(null);
 
     try {
       // V84: 带重试的fetch，解决Zeabur冷启动超时问题
@@ -164,7 +198,7 @@ function ProgressPageContent() {
             />
           </div>
           <button
-            onClick={handleSearch}
+            onClick={() => handleSearch()}
             disabled={phone.length < 11 || viewPassword.length < 4 || loading}
             className="w-full py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
@@ -189,7 +223,9 @@ function ProgressPageContent() {
       </div>
 
       {/* 查询结果 */}
-      {project && (
+      {loading && !project ? (
+        <CardSkeleton />
+      ) : project ? (
         <div className="bg-white border border-neutral-100 rounded-2xl p-6 md:p-8 shadow-sm">
           {/* 项目信息 */}
           <div className="flex items-center justify-between mb-6">
@@ -200,6 +236,12 @@ function ProgressPageContent() {
             <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
               {STATUS_STEPS.find(s => s.key === statusForSteps)?.label || statusForSteps}
             </span>
+            {estimatedTime && (
+              <div className="mt-3 flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">
+                <Clock className="w-3.5 h-3.5" />
+                {estimatedTime}
+              </div>
+            )}
           </div>
 
           {/* 进度时间线 */}
@@ -257,7 +299,7 @@ function ProgressPageContent() {
             </p>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

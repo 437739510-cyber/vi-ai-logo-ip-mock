@@ -1,5 +1,105 @@
 [
   {
+    "id": "VI-20260714-G00W",
+    "submissionId": "SBM-20260714-8375",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "2222",
+    "companyName": "����ʱ�������",
+    "industry": "����",
+    "brandVision": "��Ϊ��������ů���ֹ����Ʒ��",
+    "coreValues": "��Ȼ�����ġ���ů",
+    "targetMarket": "25-45��׷��Ʒ������Ķ��а���ͼ�ͥ",
+    "mainProducts": "ŷʽ artisan �������ʽ���������ʽ���",
+    "businessForm": "ʵ���",
+    "createdAt": "2026-07-14T12:41:28.375Z",
+    "updatedAt": "2026-07-14T12:41:28.375Z",
+    "created_at": "2026-07-14T12:41:28.375Z",
+    "updated_at": "2026-07-14T12:41:28.375Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-14T12:41:28.375Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260714-Z7XX",
+    "submissionId": "SBM-20260714-8005",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "4444",
+    "companyName": "����ʱ�������",
+    "industry": "����",
+    "brandVision": "��Ϊ��������ů���ֹ����Ʒ��",
+    "coreValues": "��Ȼ�����ġ���ů",
+    "targetMarket": "25-45��׷��Ʒ������Ķ��а���ͼ�ͥ",
+    "mainProducts": "ŷʽ artisan �������ʽ���������ʽ���",
+    "businessForm": "ʵ���",
+    "createdAt": "2026-07-14T12:40:58.005Z",
+    "updatedAt": "2026-07-14T12:40:58.005Z",
+    "created_at": "2026-07-14T12:40:58.005Z",
+    "updated_at": "2026-07-14T12:40:58.005Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-14T12:40:58.005Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260714-CC6V",
+    "submissionId": "SBM-20260714-6124",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "8888",
+    "companyName": "老街坊川菜馆",
+    "industry": "餐饮-中餐",
+    "brandVision": "传承三代人记忆的老成都川菜味道，让每道菜都有故事",
+    "coreValues": "地道食材、传统工艺、家的味道、实惠亲民",
+    "targetMarket": "30-55岁社区居民及家庭聚餐，喜欢传统川菜的美食爱好者",
+    "mainProducts": "红油抄手、水煮鱼、宫保鸡丁、麻婆豆腐、夫妻肺片、毛血旺",
+    "businessForm": "街边老店",
+    "createdAt": "2026-07-14T12:28:36.119Z",
+    "updatedAt": "2026-07-14T12:28:36.119Z",
+    "created_at": "2026-07-14T12:28:36.119Z",
+    "updated_at": "2026-07-14T12:28:36.119Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-14T12:28:36.119Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260714-SLQJ",
+    "submissionId": "SBM-20260714-1226",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "3333",
+    "companyName": "老城面包坊",
+    "industry": "餐饮-烘焙",
+    "brandVision": "做全城最温暖的手工面包店，用传统发酵工艺唤醒城市人的味蕾记忆",
+    "coreValues": "匠心手作、天然无添加、社区温度",
+    "targetMarket": "25-45岁社区家庭用户，注重健康饮食的中产阶层",
+    "mainProducts": "手工欧包、天然酵母吐司、法式可颂、全麦面包、节日礼盒",
+    "businessForm": "社区门店",
+    "createdAt": "2026-07-14T11:36:11.226Z",
+    "updatedAt": "2026-07-14T11:36:11.226Z",
+    "created_at": "2026-07-14T11:36:11.226Z",
+    "updated_at": "2026-07-14T11:36:11.226Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-14T11:36:11.226Z"
+      }
+    ]
+  },
+  {
     "id": "VI-20260711-77CM",
     "submissionId": "SBM-20260711-0077",
     "status": "submitted",

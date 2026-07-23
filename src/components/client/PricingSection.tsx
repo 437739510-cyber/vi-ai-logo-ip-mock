@@ -22,34 +22,24 @@ type PricingData = Record<string, PlanConfig>;
 // 默认（API不可用时的fallback）
 const FALLBACK_PLANS: PlanConfig[] = [
   {
-    name: "基础版", price: "49", period: "一次性", desc: "品牌基建，适合新店起步", enabled: true,
-    features: ["AI 生成品牌 Logo", "品牌色板 + 字体规范", "基础 VI 手册（10-12页）", "3 个工作日交付", "商用版权全归您"],
-    cta: "提交设计需求", href: "/consultation?plan=basic", highlight: false,
+    name: "VI 手册", price: "39", period: "一次性", desc: "AI 生成品牌 VI，新店老店都能用", enabled: true,
+    features: ["AI 生成品牌 Logo（多方案可选）", "品牌色板 + 字体规范", "完整 VI 手册（22+ 页）", "Logo 场景预览（白底/深色底/名片）", "PDF + PPTX 可编辑源文件", "商用版权全归你", "3 个工作日交付"],
+    cta: "提交设计需求", href: "/consultation?plan=vi", highlight: true,
   },
   {
-    name: "标准版", price: "99", period: "一次性", desc: "全套打包，适合老店焕新", enabled: true,
-    features: ["品牌故事 + Logo + 场景延展", "完整 VI 手册（16-20页）", "宣传物料 + 社媒模板", "1 次设计师精修", "PDF + PPTX 可编辑源文件", "5 个工作日交付", "商用版权全归您"],
-    cta: "提交设计需求", href: "/consultation?plan=standard", highlight: true,
-  },
-  {
-    name: "品牌管家", price: "299", period: "/月", desc: "持续运营，拍照我们搞定", enabled: false,
-    features: ["每月 12 条品牌化内容", "每条 3-6 张成品图 + 文案", "AI 套品牌模板自动生成", "大学生代发小红书/抖音", "内容日历 + 排期管理", "停发即停费，不绑定"],
+    name: "品牌管家", price: "99", period: "/月", desc: "持续运营，拍照我们搞定", enabled: true,
+    features: ["每月 12 条品牌化内容", "每条 3-6 张成品图 + 文案", "AI 套品牌模板自动生成", "大学生代发小红书/抖音", "内容日历 + 排期管理", "停发即停费，不绑死"],
     cta: "开通品牌管家", href: "/member/login", highlight: false,
   },
 ];
-
 // key到features/cta/href的映射
 const PLAN_EXTRAS: Record<string, { features: string[]; cta: string; href: string; highlight: boolean }> = {
-  basic: {
-    features: ["AI 生成品牌 Logo", "品牌色板 + 字体规范", "基础 VI 手册（10-12页）", "3 个工作日交付", "商用版权全归您"],
-    cta: "提交设计需求", href: "/consultation?plan=basic", highlight: false,
-  },
-  standard: {
-    features: ["品牌故事 + Logo + 场景延展", "完整 VI 手册（16-20页）", "宣传物料 + 社媒模板", "1 次设计师精修", "PDF + PPTX 可编辑源文件", "5 个工作日交付", "商用版权全归您"],
-    cta: "提交设计需求", href: "/consultation?plan=standard", highlight: true,
+  vi: {
+    features: ["AI 生成品牌 Logo（多方案可选）", "品牌色板 + 字体规范", "完整 VI 手册（22+ 页）", "Logo 场景预览（白底/深色底/名片）", "PDF + PPTX 可编辑源文件", "商用版权全归你", "3 个工作日交付"],
+    cta: "提交设计需求", href: "/consultation?plan=vi", highlight: true,
   },
   manager: {
-    features: ["每月 12 条品牌化内容", "每条 3-6 张成品图 + 文案", "AI 套品牌模板自动生成", "大学生代发小红书/抖音", "内容日历 + 排期管理", "停发即停费，不绑定"],
+    features: ["每月 12 条品牌化内容", "每条 3-6 张成品图 + 文案", "AI 套品牌模板自动生成", "大学生代发小红书/抖音", "内容日历 + 排期管理", "停发即停费，不绑死"],
     cta: "开通品牌管家", href: "/member/login", highlight: false,
   },
 };
@@ -92,7 +82,7 @@ export function PricingSection() {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-6">
           {plans.map((plan, index) => (
             <motion.div
               key={plan.name}

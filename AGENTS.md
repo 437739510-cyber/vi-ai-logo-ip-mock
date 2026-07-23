@@ -1,79 +1,113 @@
-﻿# 项目协作规则（Agent Rules）
-
-> 本文件约定 AI 助手（Codex）在本项目中的工作规范，确保协作安全、可控、可追溯。
-
----
-
-## 1. 先出计划，再改文件
-
-每次接到需求后，**必须先输出执行计划再动手**。计划需包含：
-- 本次要改 / 新建哪些文件（路径 + 简要目的）
-- 改动类型：新增 / 修改 / 删除
-- 预估影响范围（是否会牵连其他页面、API、类型定义等）
-
-**例外**：修正拼写错误、CSS 微调、简单文档修改等单行级改动，可直接执行，但要在 commentary 中说明。
+# BrandBrain Project Rules
+> Extracted from global AGENTS.md on 2026-07-21 to reduce context pollution.
+> Loaded only when working on the bb-clean project.
 
 ---
 
-## 2. 大改前提提醒提交 Git
+# Zeabur Pre-Deploy Check
+## Core Rule
+Before any git push to master, run the pre-deploy check script locally.
+All FAIL items must be zero before pushing.
 
-涉及以下任意一种情况，**必须先提醒用户提交当前 Git 变更**，获得确认后再继续：
+## Trigger
+- About to git push to BrandBrain repo
+- User says "push", "deploy", "push to Zeabur"
+- User says "commit and push"
 
-- 新建页面或模块（超过 1 个文件）
-- 重构现有组件 / 路由结构
-- 修改数据模型或 Mock 数据结构
-- 修改构建配置（next.config / tsconfig / tailwind.config 等）
-- 新增或更换依赖包
-- 删除已有文件
+## Steps
+1. cd D:\disk\HermesDisk\bb-clean
+2. powershell -ExecutionPolicy Bypass -File scripts/pre-deploy-check.ps1
+3. FAIL = 0 -> can push. Any FAIL -> fix first.
 
----
-
-## 3. 禁止将 API Key 写入代码
-
-- 所有 API Key、Secret、Token 必须通过环境变量注入，**不得硬编码**在任何源文件中
-- 环境变量统一放在项目根目录的 `.env.local`（已加入 `.gitignore`）
-- 若需要演示或 Mock，创建 `env.example` 文件，用占位符说明（如 `DEEPSEEK_API_KEY=sk-your-key-here`）
-- 代码中通过 `process.env.NEXT_PUBLIC_XXX` 或服务端 `process.env.XXX` 读取
-- 若误将 Key 写入代码，立即提醒用户撤销变更并轮换 Key
-
----
-
-## 4. Blocking API 必须使用流式响应
-
-对于耗时长、涉及 AI 推理的服务端 API（如方案生成、手册生成、图像生成等）：
-
-- 必须使用 Server-Sent Events (SSE) 流式响应，而非等待完整结果后一次性返回
-- 客户端在流式传输期间应展示实时进度反馈（进度条、步骤提示等）
-- 流式消息使用标准 SSE 格式：`data: {"type": "...", "content": "...", ...}\n\n`
-- 流结束标识：`data: {"type": "done"}\n\n` 或 `data: {"type": "error", "message": "..."}\n\n`
+## 8 Checks
+1. Node.js >= 18.x
+2. Dependencies (node_modules, package-lock.json)
+3. TypeScript (tsc --noEmit)
+4. Build config (tsconfig, next.config, build command)
+5. Historical issues (hardcoded model/bucket names, debug routes)
+6. Environment variables
+7. Local build (npm run build)
+8. Git commit status
 
 ---
 
-## 5. 修改后必须提供验证方法
+# Test & Visual Regression
+## Triggers
+- Codex modified any src/ .ts/.tsx/.css file
+- User says "push", "deploy", "screenshot", "verify"
+- Hermes sends a fix .task, Codex finishes
 
-每次完成改动后，需提供明确的本地验证步骤。按改动类型选用：
+## Flow
+1. Run UI snapshots: npm run test:ui-snapshot
+2. Write handoff message to MESSAGE/codex-to-hermes-snapshot-YYYYMMDD-HHMM.md
+3. Run pre-deploy-check before pushing
 
-| 改动类型 | 验证方法 |
-|---|---|
-| 前端页面 / 组件 | `npm run dev` 启动后访问对应路由，截图确认 |
-| 构建配置 / 依赖 | `npm run build` 确保无 TypeScript / ESLint 错误 |
-| API 路由 / 服务端逻辑 | `npm run dev` 后用 curl 或浏览器访问接口 |
-| 数据模型 / Mock | 检查类型定义无报错 + 页面数据正常渲染 |
-| SSE 流式接口 | 浏览器访问端点验证逐块输出，确认 `done` 事件正确触发 |
+## When Hermes responds
+- .task file -> claim -> fix -> re-snapshot -> write .done
+- Approved -> can push
+- Diff report -> fix if needed, then re-snapshot
 
 ---
 
-## 附录：项目已知信息速查
+# Full Flow Test (API + E2E)
+## Two tests, both required
+Before pushing: run API test first, then E2E test.
 
-| 项目 | 值 |
-|---|---|
-| 前端框架 | Next.js 15 (React 19, App Router) |
-| 样式方案 | Tailwind CSS |
-| UI 组件库 | shadcn/ui |
-| 包管理器 | npm |
-| 项目目录 | C:\Users\Administrator\Documents\Codex\vi-ai-logo-ip-mock |
-| 部署平台 | Vercel |
-| 产品规划文档 | PRODUCT-PLAN.md |
-| PRD | PRD.md |
-| 当前阶段 | 客户端页面已完成（首页 / 咨询留资 / 确认页 / 进度查询），管理端 + API 开发中 |
-| 统一档案目录 | D:\disk\HERMES&CODEX\BRAND_BRAIN_new\ (PROJECT_MASTER.md 主线索引) |
+## API Full-Flow (fast, 3-5 min)
+cd D:\disk\HermesDisk\bb-clean
+npm run test:api-full-flow
+
+## E2E Full-Flow (slow, 5-15 min)
+cd D:\disk\HermesDisk\bb-clean
+npm run test:e2e
+
+## After running
+1. Write API test result to MESSAGE
+2. Write E2E screenshot paths to same message
+3. Both PASS -> can push. Either FAIL -> fix and retest.
+
+---
+
+# Vision Review & VQA
+## Available Vision Solutions
+### Gemini 2.0 Flash (free, needs proxy)
+- Script: scripts/playwright/vision-review.py
+- Must confirm Kevin has proxy running (127.0.0.1:22307)
+
+### ARK Doubao Vision (paid, China direct)
+- Script: scripts/playwright/vision-review.py
+- Key status: INVALID since 2026-07-09, waiting for Kevin to update
+
+## Auto Review Flow
+After UI snapshots, try:
+1. Gemini first
+2. ARK if Gemini unavailable
+3. Handoff to Hermes if both unavailable
+
+## VQA Scoring
+- API: ark.cn-beijing.volces.com/api/v3/chat/completions
+- Model: doubao-1-5-vision-pro-32k-250115
+- 7 dimensions: clarity/lighting/noise/color/aesthetics/text_quality/realism
+- Force independent scoring per dimension, use full 0-100 range
+
+---
+
+# Image Generation Engines (Reference)
+| Engine | Cost | Use | Status |
+|--------|------|-----|--------|
+| ARK Seedream 4.0 | ¥0.20 | Logo | OK |
+| ARK Seedream 4.5 | ¥0.25 | Logo refine | OK |
+| ARK Seedream 5.0 | ¥0.22 | Logo/scene | OK |
+| ComfyUI local | Free | Logo/scene | OK :8188 |
+| LiblibAI | Metered | Logo | OK |
+| Tongyi Qianwen | - | Image | OVERDUE |
+| HY-Image (Tencent) | 1 credit | Image | Chinese unreliable |
+
+## LiblibAI Templates
+Star-3 Alpha: 5d7e67009b344550bc1aa6ccbfa1d7f4
+Realistic XL: 7d0cdfd2e23047a19f1e064d04031fc3
+
+## Tencent TokenHub
+- hy-image-lite / hy-image-v3.0: 1 credit each
+- Chinese unreliable for brand VI
+- Use only for non-Chinese generic scene images

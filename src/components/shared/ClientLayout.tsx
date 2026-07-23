@@ -13,8 +13,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       {/* 导航栏 */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-neutral-100">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold text-neutral-900">
-            官氏VI手册生成
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/brandbrain-logo.png" alt="Brand Brain · 品牌顾问" className="h-8 w-auto" />
           </Link>
 
           {/* 桌面端导航 */}
@@ -72,7 +72,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <span className="text-neutral-200">|</span>
             <Link href="/consultation" className="hover:text-neutral-600 transition-colors">联系我们</Link>
           </div>
-          <p className="text-xs text-neutral-400">&copy; 2026 官氏VI手册生成服务. All rights reserved.</p>
+          <img src="/brandbrain-logo.png" alt="Brand Brain" className="h-6 mx-auto mb-2" />
+          <p className="text-xs text-neutral-400">&copy; 2026 Brand Brain · 品牌顾问. All rights reserved.</p>
         </div>
       </footer>
     </div>

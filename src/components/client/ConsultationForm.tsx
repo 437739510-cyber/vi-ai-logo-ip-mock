@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -22,6 +22,8 @@ import {
 import { PROVINCE_CITY_DATA, PROVINCE_OPTIONS } from "@/lib/core/province-city-data";
 import { LogoUploadArea, MascotUploadArea, ReferenceUploadArea } from "./FileUploadArea";
 import { Loader2, ChevronRight, ChevronLeft, Check } from "lucide-react";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { supabase } from "@/lib/core/supabase";
 import { STORAGE_BUCKET } from "@/config/storage";
 
@@ -56,6 +58,8 @@ export function ConsultationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [prefillLoading, setPrefillLoading] = useState(false);
+  const [showDraftRestore, setShowDraftRestore] = useState(false);
+  const [draftData, setDraftData] = useState<Partial<ConsultationFormData> | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
 
   const [logoFileList, setLogoFileList] = useState<File[]>([]);
@@ -89,7 +93,7 @@ export function ConsultationForm() {
   const [selectedProvince, setSelectedProvince] = useState("");
   const [cityOptions, setCityOptions] = useState<string[]>([]);
 
-  const { register, handleSubmit, watch, formState: { errors }, setValue, trigger } = useForm<ConsultationFormData>({
+  const { register, handleSubmit, watch, formState: { errors, isDirty }, setValue, trigger, reset } = useForm<ConsultationFormData>({
     resolver: zodResolver(consultationSchema),
   });
 
@@ -98,6 +102,28 @@ export function ConsultationForm() {
     setValue("province", province);
     setValue("city", "");
     setCityOptions(province ? (PROVINCE_CITY_DATA[province] || []) : []);
+  };
+
+  const formValues = watch();
+  const { checkDraft, clearDraft } = useFormDraft(formValues as Record<string, unknown>, isDirty, true);
+
+  // Check for saved draft on mount
+  useEffect(() => {
+    const saved = checkDraft();
+    if (saved) {
+      setDraftData(saved as Partial<ConsultationFormData>);
+      setShowDraftRestore(true);
+    }
+  }, []);
+
+  const restoreDraft = () => {
+    if (!draftData) return;
+    Object.entries(draftData).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        setValue(key as keyof ConsultationFormData, value as never);
+      }
+    });
+    setShowDraftRestore(false);
   };
 
   const stepFields: Record<number, (keyof ConsultationFormData)[]> = {
@@ -517,6 +543,23 @@ export function ConsultationForm() {
         )}
       </div>
       {submitError && <div className="mt-4 p-3 bg-danger/10 text-danger text-sm rounded-lg">{submitError}</div>}
+
+      <ConfirmDialog
+        isOpen={showDraftRestore}
+        onClose={() => {
+          setShowDraftRestore(false);
+          clearDraft();
+        }}
+        onConfirm={() => {
+          restoreDraft();
+          clearDraft();
+        }}
+        title="恢复草稿"
+        description="检测到未完成的表单草稿，是否恢复？"
+        confirmLabel="恢复"
+        cancelLabel="丢弃"
+      />
+
     </form>
   );
 }

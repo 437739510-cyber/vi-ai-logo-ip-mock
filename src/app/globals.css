@@ -1,30 +1,63 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #1a73e8;
-  --color-primary-dark: #1557b0;
-  --color-primary-light: #4a90e6;
-  --color-primary-lighter: #e8f0fe;
-  --color-secondary: #34a853;
-  --color-secondary-light: #e6f4ea;
-  --color-accent: #fbbc04;
-  --color-accent-light: #fef7e0;
-  --color-accent-dark: #e8a800;
-  --color-neutral-50: #f8f9fa;
-  --color-neutral-100: #f1f3f4;
-  --color-neutral-200: #e8eaed;
-  --color-neutral-300: #dadce0;
-  --color-neutral-400: #9aa0a6;
-  --color-neutral-500: #80868b;
-  --color-neutral-600: #5f6368;
-  --color-neutral-700: #3c4043;
-  --color-neutral-800: #202124;
-  --color-neutral-900: #1a1c1e;
-  --color-danger: #ea4335;
-  --color-danger-light: #fce8e6;
-  --color-success: #34a853;
-  --color-success-light: #e6f4ea;
+  /* === Brand Colors === */
+  --color-brand-50: #f0f4f8;
+  --color-brand-100: #dce5ee;
+  --color-brand-200: #b8c9d9;
+  --color-brand-300: #8aa6be;
+  --color-brand-400: #5b83a3;
+  --color-brand-500: #2B5F8A;
+  --color-brand-600: #234c70;
+  --color-brand-700: #1b3957;
+  --color-brand-800: #13273d;
+  --color-brand-900: #0b1624;
 
+  /* === Accent Colors === */
+  --color-accent-50: #fef5f0;
+  --color-accent-100: #fde5d6;
+  --color-accent-200: #fbc9aa;
+  --color-accent-300: #f7a174;
+  --color-accent-400: #f0804d;
+  --color-accent-500: #E8783A;
+  --color-accent-600: #c4612b;
+  --color-accent-700: #9b4a20;
+  --color-accent-800: #733316;
+  --color-accent-900: #4a1d0a;
+
+  /* === Neutral Grays === */
+  --color-neutral-50: #faf9f7;
+  --color-neutral-100: #f3f1ed;
+  --color-neutral-200: #e8e4dd;
+  --color-neutral-300: #d4cfc6;
+  --color-neutral-400: #a9a297;
+  --color-neutral-500: #8a8377;
+  --color-neutral-600: #6b655b;
+  --color-neutral-700: #4d4840;
+  --color-neutral-800: #2D2D2D;
+  --color-neutral-900: #1a1a18;
+
+  /* === Semantic Colors === */
+  --color-success: #2d8a56;
+  --color-success-light: #edf7f1;
+  --color-warning: #d4912a;
+  --color-warning-light: #fef8ee;
+  --color-danger: #c43a31;
+  --color-danger-light: #fdf0ef;
+  --color-info: #2B5F8A;
+  --color-info-light: #f0f4f8;
+
+  /* === Transition aliases (keep backward compat) === */
+  --color-primary: #2B5F8A;
+  --color-primary-dark: #234c70;
+  --color-primary-light: #5b83a3;
+  --color-primary-lighter: #dce5ee;
+  --color-secondary: #2d8a56;
+  --color-secondary-light: #edf7f1;
+  --color-accent-old: #d4912a;
+  --color-accent-light: #fef8ee;
+
+  /* === Typography === */
   --font-sans: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
   --font-display: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -40,17 +73,17 @@ body {
 /* Beautiful gradient background utility */
 .bg-grid-pattern {
   background-image:
-    linear-gradient(rgba(26, 115, 232, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(26, 115, 232, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(43, 95, 138, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(43, 95, 138, 0.03) 1px, transparent 1px);
   background-size: 64px 64px;
 }
 
 .bg-glow-blue {
-  background: radial-gradient(ellipse 600px 400px at 20% 50%, rgba(26,115,232,0.08) 0%, transparent 70%);
+  background: radial-gradient(ellipse 600px 400px at 20% 50%, rgba(43,95,138,0.08) 0%, transparent 70%);
 }
 
 .bg-glow-amber {
-  background: radial-gradient(ellipse 400px 400px at 80% 20%, rgba(251,188,4,0.06) 0%, transparent 70%);
+  background: radial-gradient(ellipse 400px 400px at 80% 20%, rgba(212,145,42,0.06) 0%, transparent 70%);
 }
 
 /* Glassmorphism */
@@ -80,14 +113,14 @@ body {
 
 /* Gradient text */
 .text-gradient {
-  background: linear-gradient(135deg, #1a73e8 0%, #4a90e6 50%, #34a853 100%);
+  background: linear-gradient(135deg, #2B5F8A 0%, #5b83a3 50%, #2d8a56 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-warm {
-  background: linear-gradient(135deg, #1a73e8 0%, #fbbc04 100%);
+  background: linear-gradient(135deg, #2B5F8A 0%, #E8783A 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -104,7 +137,7 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(26,115,232,0.3), rgba(52,168,83,0.3));
+  background: linear-gradient(135deg, rgba(43,95,138,0.3), rgba(45,138,86,0.3));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -130,6 +163,6 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(26, 115, 232, 0.15);
+  background: rgba(43, 95, 138, 0.15);
   color: var(--color-neutral-900);
 }

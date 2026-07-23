@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { StatCard } from "@/components/admin/StatCard";
@@ -6,6 +6,7 @@ import { RecentActivityList } from "@/components/admin/RecentActivityList";
 import { getProjects } from "@/lib/core/mock";
 import { FolderKanban, Clock, CheckCircle, AlertCircle, Wallet, RefreshCw, FileText, AlertTriangle, ImageIcon } from "lucide-react";
 import type { Project } from "@/types";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 interface ApiBalance {
   provider: string;
@@ -119,6 +120,65 @@ export default function DashboardPage() {
   const completedCount = projects.filter((p) => p.status === "completed").length;
   const deliveredCount = projects.filter((p) => p.status === "delivered").length;
   const totalCount = projects.length;
+
+  // Chart data: derive from projects and usageLogs
+  const dayLabels = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().slice(0, 10);
+  });
+  const orderTrend = dayLabels.map((date) => ({
+    date: date.slice(5),
+    orders: projects.filter((p) => p.createdAt && p.createdAt.slice(0, 10) === date).length,
+  }));
+
+  const statusColors: Record<string, string> = {
+    submitted: "#F59E0B", paid: "#3B82F6", confirmed: "#8B5CF6",
+    brand_analyzing: "#EC4899", logo_generating: "#06B6D4",
+    designing: "#10B981", delivered: "#22C55E", completed: "#22C55E",
+    ai_analysis: "#F97316", brand_analyzed: "#A855F7", pending: "#9CA3AF",
+  };
+  const statusLabels: Record<string, string> = {
+    submitted: "已提交", paid: "已付款", confirmed: "确认中",
+    brand_analyzing: "分析中", logo_generating: "Logo生成", designing: "手册生成",
+    delivered: "已交付", completed: "已完成", ai_analysis: "AI分析",
+    brand_analyzed: "分析完成", pending: "待处理",
+  };
+
+  const statusCount = {} as Record<string, number>;
+  projects.forEach((p) => {
+    const s = p.client_info?.generationStatus || p.status || "pending";
+    statusCount[s] = (statusCount[s] || 0) + 1;
+  });
+  const statusDist = Object.entries(statusCount).map(([key, value]) => ({
+    name: statusLabels[key] || key,
+    value,
+    color: statusColors[key] || "#9CA3AF",
+  }));
+
+  const industryCount = {} as Record<string, number>;
+  projects.forEach((p) => {
+    const ind = p.industry || p.client_info?.businessForm || "其他";
+    industryCount[ind] = (industryCount[ind] || 0) + 1;
+  });
+  const industryDist = Object.entries(industryCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([name, value], i) => ({
+      name: name.length > 6 ? name.slice(0, 6) + "..." : name,
+      value,
+      color: ["#2B5F8A", "#E8783A", "#06B6D4", "#8B5CF6", "#22C55E", "#F59E0B", "#EC4899", "#9CA3AF"][i],
+    }));
+
+  const apiTrendDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dayStr = d.toISOString().slice(0, 10);
+    return {
+      date: dayStr.slice(5),
+      calls: usageLogs.filter((log) => log.created_at && log.created_at.slice(0, 10) === dayStr).length,
+    };
+  });
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);
@@ -350,6 +410,79 @@ export default function DashboardPage() {
           {!todayLiblibaiSummary || todayLiblibaiSummary.totalCalls === 0 ? (
             <p className="text-xs text-neutral-400 text-center py-3">今日暂无调用</p>
           ) : null}
+        </div>
+      </div>
+
+      {/* 数据可视化 */}
+      <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
+        <h3 className="text-sm font-bold text-neutral-900 mb-4">📊 数据看板</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 7天订单趋势 */}
+          <div>
+            <p className="text-xs font-medium text-neutral-500 mb-2">7天订单趋势</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={orderTrend.length > 0 ? orderTrend : [{ date: "-", orders: 0 }]}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#a3a3a3" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#a3a3a3" />
+                <Tooltip />
+                <Line type="monotone" dataKey="orders" stroke="#2B5F8A" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          {/* API调用趋势 */}
+          <div>
+            <p className="text-xs font-medium text-neutral-500 mb-2">7天API调用趋势</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={apiTrendDays.length > 0 ? apiTrendDays : [{ date: "-", calls: 0 }]}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#a3a3a3" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#a3a3a3" />
+                <Tooltip />
+                <Bar dataKey="calls" fill="#E8783A" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          {/* 行业分布（饼图） */}
+          <div>
+            <p className="text-xs font-medium text-neutral-500 mb-2">行业分布</p>
+            {industryDist.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={industryDist} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value">
+                    {industryDist.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-neutral-400 py-8 text-center">暂无行业数据</p>
+            )}
+          </div>
+          {/* 状态分布（柱状图） */}
+          <div>
+            <p className="text-xs font-medium text-neutral-500 mb-2">状态分布</p>
+            {statusDist.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={statusDist}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#a3a3a3" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#a3a3a3" />
+                  <Tooltip />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {statusDist.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-neutral-400 py-8 text-center">暂无项目状态数据</p>
+            )}
+          </div>
         </div>
       </div>
 

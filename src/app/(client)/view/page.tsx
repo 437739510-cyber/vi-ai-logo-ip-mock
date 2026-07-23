@@ -1,7 +1,9 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon, Phone, Key, RefreshCw, History, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { LogoLightbox } from "@/components/client/LogoLightbox";
 import Link from "next/link";
 
 interface LogoItem {
@@ -51,6 +53,12 @@ export default function ViewLogoPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false);
+  const [regenConfirmType, setRegenConfirmType] = useState<"no_selection" | "has_selection">("no_selection");
+  const [showChineseConfirm, setShowChineseConfirm] = useState(false);
+  const [chineseConfirmCost, setChineseConfirmCost] = useState("0");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -169,83 +177,19 @@ export default function ViewLogoPage() {
     if (!projectData) return;
     // 未选择Logo时的强提醒
     if (selectedIdx === null) {
-      if (!window.confirm("⚠️ 您还没有选择偏好的Logo方案。\n\n建议先点击一个喜欢的Logo，这样下一轮刷新后仍可在「历史轮次」中找回。\n\n确定跳过选择直接刷新吗？")) {
-        return;
-      }
-    } else {
-      // 已选择Logo时的普通确认
-      if (!window.confirm("⚠️ 重新生成后，当前4个Logo方案将被替换。\n\n已选方案会保留在「历史轮次」中，可随时找回。\n\n确定要继续吗？")) {
-        return;
-      }
+      setRegenConfirmType("no_selection");
+      setShowRegenConfirm(true);
+      return;
     }
-    setRegenerating(true);
-    try {
-      const res = await fetch("/api/ai/regenerate-logo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: phone.trim(),
-          viewPassword: viewPassword.trim(),
-          feedback: feedback.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        // Switch to generating state
-        setProjectData({
-          ...projectData,
-          generationStatus: "logo_generating",
-        });
-        setHistoryRound(null);
-        setSelectedIdx(null);
-        // Auto-refresh to check progress
-        setTimeout(() => handleView(), 10000);
-      } else {
-        setError(data.error || "重新生成失败");
-      }
-    } catch {
-      setError("网络错误");
-    } finally {
-      setRegenerating(false);
-    }
+    setRegenConfirmType("has_selection");
+    setShowRegenConfirm(true);
   };
 
   const handleUpgradeToArk = async () => {
     if (!projectData) return;
     const cost = "0.80";
-    if (!window.confirm(`✨ 生成中文LOGO — 豆包 Seedream 4.0
-
-成本: ￥${cost}（4张 Logo x ￥0.20）
-
-原生中文 Logo，效果更精美。确定要生成吗？`)) {
-      return;
-    }
-    setRegenerating(true);
-    try {
-      const res = await fetch("/api/ai/regenerate-logo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: phone.trim(),
-          viewPassword: viewPassword.trim(),
-          feedback: feedback.trim(),
-          provider: "ark",
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setProjectData({ ...projectData, generationStatus: "logo_generating" });
-        setHistoryRound(null);
-        setSelectedIdx(null);
-        setTimeout(() => handleView(), 10000);
-      } else {
-        setError(data.error || "升级失败");
-      }
-    } catch {
-      setError("网络错误");
-    } finally {
-      setRegenerating(false);
-    }
+    setChineseConfirmCost(cost);
+    setShowChineseConfirm(true);
   };
 
   const getStatusText = (status: string) => {
@@ -454,7 +398,7 @@ export default function ViewLogoPage() {
                       setSelectedIdx(logo.index);
                       setSaveSuccess(false);
                     }}
-                    className={`relative cursor-pointer rounded-xl border-2 overflow-hidden transition-all ${
+                    className={`relative group cursor-pointer rounded-xl border-2 overflow-hidden transition-all ${
                       selectedIdx === logo.index
                         ? "border-primary ring-2 ring-primary/30"
                         : "border-neutral-200 hover:border-primary/50"
@@ -466,6 +410,17 @@ export default function ViewLogoPage() {
                         alt={`Logo方案 ${i + 1}`}
                         className="max-w-full max-h-full object-contain"
                       />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxIndex(i);
+                          setLightboxOpen(true);
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-lg shadow-sm hover:bg-white transition-colors opacity-0 group-hover:opacity-100"
+                        title="放大查看"
+                      >
+                        <Eye className="w-4 h-4 text-neutral-600" />
+                      </button>
                     </div>
                     <div className="p-3 border-t border-neutral-100">
                       <div className="flex items-center justify-between">
@@ -527,12 +482,9 @@ export default function ViewLogoPage() {
                       disabled={regenerating}
                       className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-medium rounded-xl hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                     >
-                      {regenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> 生成中...</> : "生成中文LOGO"}
+                      {regenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> 升级中...</> : "升级ARK中文版"}
                     </button>
                   </div>
-                  <p className="text-xs text-neutral-400 text-center pt-1">拼音免费 · 中文 ¥0.80/组（豆包AI云端生成，原生中文效果）</p>
-
-                  {/* 意见反馈 + 重新生成 */}
                   <div className="space-y-3">
                     <button
                       onClick={() => setShowFeedback(!showFeedback)}
@@ -621,8 +573,102 @@ export default function ViewLogoPage() {
           </div>
         </div>
       )}
+      <LogoLightbox
+        logos={displayLogos.map(l => l.imageUrl)}
+        initialIndex={lightboxIndex}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
+
+      {/* Confirm Dialogs */}
+      <ConfirmDialog
+        isOpen={showRegenConfirm}
+        onClose={() => setShowRegenConfirm(false)}
+        onConfirm={async () => {
+          if (!projectData) return;
+          setShowRegenConfirm(false);
+          setRegenerating(true);
+          try {
+            const res = await fetch("/api/ai/regenerate-logo", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                phone: phone.trim(),
+                viewPassword: viewPassword.trim(),
+                feedback: feedback.trim(),
+              }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+              setProjectData({
+                ...projectData,
+                generationStatus: "logo_generating",
+              });
+              setHistoryRound(null);
+              setSelectedIdx(null);
+              setTimeout(() => handleView(), 10000);
+            } else {
+              setError(data.error || "重新生成失败");
+            }
+          } catch {
+            setError("网络错误");
+          } finally {
+            setRegenerating(false);
+          }
+        }}
+        title={regenConfirmType === "no_selection" ? "跳过选择？" : "确认重新生成？"}
+        description={regenConfirmType === "no_selection"
+          ? "⚠️ 您还没有选择偏好的Logo方案。\n\n建议先点击一个喜欢的Logo，这样下一轮刷新后仍可在「历史轮次」中找回。\n\n确定跳过选择直接刷新吗？"
+          : "⚠️ 重新生成后，当前4个Logo方案将被替换。\n\n已选方案会保留在「历史轮次」中，可随时找回。\n\n确定要继续吗？"
+        }
+        confirmLabel="确定"
+        cancelLabel="取消"
+        variant={regenConfirmType === "no_selection" ? "danger" : "default"}
+      />
+
+      <ConfirmDialog
+        isOpen={showChineseConfirm}
+        onClose={() => setShowChineseConfirm(false)}
+        onConfirm={async () => {
+          if (!projectData) return;
+          setShowChineseConfirm(false);
+          setRegenerating(true);
+          try {
+            const res = await fetch("/api/ai/regenerate-logo", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                phone: phone.trim(),
+                viewPassword: viewPassword.trim(),
+                feedback: "",
+                arkMode: true,
+                payCost: chineseConfirmCost,
+              }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+              setProjectData({
+                ...projectData,
+                generationStatus: "logo_generating",
+              });
+              setHistoryRound(null);
+              setSelectedIdx(null);
+              setTimeout(() => handleView(), 10000);
+            } else {
+              setError(data.error || "生成失败");
+            }
+          } catch {
+            setError("网络错误");
+          } finally {
+            setRegenerating(false);
+          }
+        }}
+        title="生成中文LOGO"
+        description={`✨ 生成中文LOGO — 豆包 Seedream 4.0\n\n成本: ￥${chineseConfirmCost}（4张 Logo x ￥0.20）\n\n原生中文 Logo，效果更精美。确定要生成吗？`}
+        confirmLabel="确定生成"
+        cancelLabel="取消"
+      />
+
     </div>
   );
 }
-
-

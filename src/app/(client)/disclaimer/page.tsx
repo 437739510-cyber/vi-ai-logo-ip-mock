@@ -9,7 +9,7 @@ export default function DisclaimerPage() {
         <section>
           <h2 className="text-lg font-semibold text-neutral-900">一、关于品牌素材与信息</h2>
           <p>
-            本平台（官氏VI手册生成服务）所生成的品牌视觉识别系统（VI手册）、Logo方案、品牌名称及相关设计内容，均基于用户自行提交的品牌信息、素材及需求描述生成。用户对其提交的所有信息、素材的合法性、真实性及原创性承担全部责任。
+            本平台（Brand Brain · 品牌顾问）所生成的品牌视觉识别系统（VI手册）、Logo方案、品牌名称及相关设计内容，均基于用户自行提交的品牌信息、素材及需求描述生成。用户对其提交的所有信息、素材的合法性、真实性及原创性承担全部责任。
           </p>
         </section>
 
@@ -69,7 +69,7 @@ export default function DisclaimerPage() {
 
         <section className="pt-4 border-t border-neutral-200">
           <p className="text-neutral-500 text-xs">
-            本免责声明的最终解释权归官氏VI手册生成服务所有。如有疑问，请通过平台咨询渠道与我们联系。
+            本免责声明的最终解释权归Brand Brain · 品牌顾问所有。如有疑问，请通过平台咨询渠道与我们联系。
             <br />
             最后更新：2026年6月
           </p>

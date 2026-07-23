@@ -33,7 +33,7 @@ export function DeliverableSection() {
             交付什么，一目了然
           </h2>
           <p className="mt-3 text-neutral-500">
-            VI手册15页内容全覆盖，拿到就能用
+            22+ 页专业 VI 手册，拿到就能用
           </p>
         </motion.div>
 
