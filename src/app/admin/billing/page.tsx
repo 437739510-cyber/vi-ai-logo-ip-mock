@@ -116,8 +116,8 @@ export default function BillingPage() {
                 </div>
               </div>
             </div>
-            {(p.detail || p.error) && (
-              <p className="text-xs text-neutral-400 bg-neutral-50 rounded-lg p-2">{p.detail || p.error}</p>
+            {p.error && (
+              <p className="text-xs text-neutral-400 bg-neutral-50 rounded-lg p-2">数据暂不可用</p>
             )}
           </div>
         );

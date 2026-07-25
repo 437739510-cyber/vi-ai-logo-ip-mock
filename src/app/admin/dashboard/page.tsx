@@ -242,18 +242,20 @@ export default function DashboardPage() {
             <p className="text-xl font-bold text-neutral-900">
               {deepseekBalance?.balance !== null && deepseekBalance?.balance !== undefined
                 ? `¥${deepseekBalance.balance.toFixed(2)}`
-                : deepseekBalance?.error ? "获取失败" : "—"}
+                : deepseekBalance?.error || deepseekBalance?.status === "error"
+                    ? "数据暂不可用，请稍后重试"
+                    : "—"}
             </p>
-            {deepseekBalance?.error && <p className="text-xs text-red-400 mt-1">{deepseekBalance.error}</p>}
           </div>
           <div className="rounded-xl bg-gradient-to-br from-red-50 to-rose-50 p-4 border border-red-100">
             <p className="text-xs font-medium text-red-600 mb-1">火山 Seedream 4.0</p>
             <p className="text-xl font-bold text-neutral-900">
               {arkBalance?.balance !== null && arkBalance?.balance !== undefined
                 ? `¥${arkBalance.balance.toFixed(2)}`
-                : arkBalance?.error ? "获取失败" : "—"}
+                : arkBalance?.error || arkBalance?.status === "error"
+                    ? "数据暂不可用，请稍后重试"
+                    : "—"}
             </p>
-            {arkBalance?.error && <p className="text-xs text-red-400 mt-1">{arkBalance.error}</p>}
           </div>
           <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100">
             <p className="text-xs font-medium text-emerald-600 mb-1">LiblibAI (Star-3 Alpha)</p>
@@ -262,10 +264,11 @@ export default function DashboardPage() {
                 ? `${liblibaiBalance.balance} 积分`
                 : liblibaiBalance?.status === "unavailable" ? "不可用"
                 : liblibaiBalance?.status === "no_key" ? "未配置"
-                : liblibaiBalance?.error ? "获取失败" : "—"}
+                : liblibaiBalance?.error || liblibaiBalance?.status === "error"
+                    ? "数据暂不可用，请稍后重试"
+                    : "—"}
             </p>
             {liblibaiBalance?.status === "unavailable" && <p className="text-xs text-neutral-400 mt-1">API 不提供余额查询</p>}
-            {liblibaiBalance?.error && <p className="text-xs text-red-400 mt-1">{liblibaiBalance.error}</p>}
           </div>
         </div>
       </div>

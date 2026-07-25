@@ -107,7 +107,7 @@ export async function GET() {
         balance: null,
         currency: "积分",
         status: "unavailable",
-        error: body.msg || ("API code " + body.code),
+        error: "API 不提供余额查询",
       },
       { status: 200 }
     );
@@ -119,7 +119,7 @@ export async function GET() {
         balance: null,
         currency: "积分",
         status: "error",
-        error: (err as Error).message,
+        error: "接口请求失败",
       },
       { status: 503 }
     );

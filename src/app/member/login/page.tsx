@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Phone, Lock, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 type LoginMode = "otp" | "password";
 
 export default function MemberLoginPage() {
-  const [mode, setMode] = useState<LoginMode>("otp");
+  const [mode, setMode] = useState<LoginMode>("password");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +18,11 @@ export default function MemberLoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [agreed, setAgreed] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("memberLoginMode");
+    if (saved === "otp" || saved === "password") setMode(saved);
+  }, []);
 
   const handleSendOtp = async () => {
     if (!phone.match(/^1[3-9]\d{9}$/)) {
@@ -99,20 +104,20 @@ export default function MemberLoginPage() {
             <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Phone className="w-6 h-6 text-primary" />
             </div>
-            <h1 className="text-xl font-bold text-neutral-900">手机号验证码登录/注册</h1>
+            <h1 className="text-xl font-bold text-neutral-900">会员登录</h1>
             <p className="text-sm text-neutral-400 mt-1">新用户自动开通账号，立享2条免费体验</p>
           </div>
 
           {/* 切换模式 */}
           <div className="flex bg-neutral-100 rounded-lg p-1 mb-6">
             <button
-              onClick={() => setMode("otp")}
+              onClick={() => { setMode("otp"); localStorage.setItem("memberLoginMode", "otp"); }}
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${mode === "otp" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"}`}
             >
               验证码登录
             </button>
             <button
-              onClick={() => setMode("password")}
+              onClick={() => { setMode("password"); localStorage.setItem("memberLoginMode", "password"); }}
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${mode === "password" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"}`}
             >
               密码登录

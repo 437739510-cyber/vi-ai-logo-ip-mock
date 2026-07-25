@@ -36,6 +36,22 @@ function getScoreColor(score: number): string {
   if (score >= 50) return "text-amber-600 bg-amber-50 border-amber-200";
   return "text-neutral-600 bg-neutral-50 border-neutral-200";
 }
+// 中英标签映射表
+const TAG_TRANSLATION: Record<string, string> = {
+  tropical: "热带", energizing: "活力", natural: "自然",
+  minimal: "极简", modern: "现代", classic: "经典",
+  elegant: "优雅", luxurious: "奢华", vintage: "复古",
+  playful: "趣味", bold: "大胆", soft: "柔和",
+  clean: "简洁", warm: "温暖", cool: "冷色",
+  vibrant: "鲜艳", muted: "低调", professional: "专业",
+  artistic: "艺术", trendy: "时尚", traditional: "传统",
+  organic: "有机", geometric: "几何", floral: "花卉",
+  abstract: "抽象", minimalism: "极简主义",
+  corporate: "商务", youthful: "年轻", premium: "高端",
+  fresh: "清新", sophisticated: "精致", edgy: "前卫",
+};
+const translateTag = (tag: string): string => TAG_TRANSLATION[tag.toLowerCase()] || tag;
+
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
@@ -157,10 +173,18 @@ export default function TemplatesPage() {
           <Grid3X3 className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
           <p className="text-sm text-neutral-400">暂无模板</p>
           <p className="text-xs text-neutral-300 mt-1">上传并分析参考 VI 手册后将自动生成模板</p>
+          <Link href="/admin/upload" className="inline-flex items-center gap-1 mt-4 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors">
+            去新增模板
+          </Link>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(tpl => (
+      ) : filtered.length === 1 ? (
+        <div>
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
+            <p className="text-sm text-blue-700">目前仅有 1 个模板</p>
+            <Link href="/admin/upload" className="text-xs text-primary underline mt-1 inline-block">去新增模板 →</Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map(tpl => (
             <div
               key={tpl.templateId}
               onClick={() => loadDetail(tpl.templateId)}
@@ -187,8 +211,51 @@ export default function TemplatesPage() {
 
               {tpl.styleTags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-2">
-                  {tpl.styleTags.slice(0, 4).map(tag => (
-                    <span key={tag} className="text-[9px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full">{tag}</span>
+                  {tpl.styleTags.map(tag => (
+                    <span key={tag} className="text-[9px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full">{translateTag(tag)}</span>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-[10px] text-neutral-400">
+                <span>{new Date(tpl.createdAt).toLocaleDateString("zh-CN")}</span>
+                <span>{tpl.templateId?.slice(0, 16)}...</span>
+              </div>
+            </div>
+          ))}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map(tpl => (
+            <div
+              key={tpl.templateId}
+              onClick={() => loadDetail(tpl.templateId)}
+              className={`bg-white rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${
+                detail?.templateId === tpl.templateId ? "border-purple-300 ring-2 ring-purple-200" : "border-neutral-200"
+              }`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-4 h-4 text-purple-600 shrink-0" />
+                  <span className="text-xs font-medium text-neutral-700 truncate">{tpl.sourceFile}</span>
+                </div>
+                <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${getScoreColor(tpl.qualityScore)}`}>
+                  {tpl.qualityScore}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded">{tpl.industry}</span>
+                {tpl.moodSummary && (
+                  <span className="text-[10px] text-neutral-400 truncate">{tpl.moodSummary}</span>
+                )}
+              </div>
+
+              {tpl.styleTags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {tpl.styleTags.map(tag => (
+                    <span key={tag} className="text-[9px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full">{translateTag(tag)}</span>
                   ))}
                 </div>
               )}
@@ -202,7 +269,7 @@ export default function TemplatesPage() {
         </div>
       )}
 
-      {/* Detail panel */}
+{/* Detail panel */}
       {detailLoading && (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
