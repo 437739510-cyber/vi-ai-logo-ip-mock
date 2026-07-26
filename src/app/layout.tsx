@@ -3,6 +3,7 @@ import "./globals.css";
 import { ToastProvider } from "@/components/shared/ToastProvider";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://brandbrain.zeabur.app"),
   title: {
     template: "Brand Brain · %s",
     default: "Brand Brain · AI品牌VI手册自动生成",
