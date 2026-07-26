@@ -82,6 +82,16 @@ const CASES: CaseItem[] = [
     coverImage: "/cases/bailiaocui/02-color-palette.png",
     images: [],
   },
+  {
+    id: "bailiaocui-mascot",
+    company: "百疗萃",
+    industry: "beauty",
+    industryLabel: "美容养生",
+    deliverables: ["IP 公仔", "品牌角色设计"],
+    pageCount: 23,
+    coverImage: "/cases/bailiaocui/09-mascot.png",
+    images: [],
+  },
 ];
 
 
