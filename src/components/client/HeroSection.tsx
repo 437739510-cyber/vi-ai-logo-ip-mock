@@ -6,8 +6,8 @@ import { Sparkles, ArrowRight, CheckCircle } from "lucide-react";
 import { HeroVisual } from "./HeroVisual";
 
 const TRUST_ITEMS = [
-  "已服务 200+ 店铺",
-  "3 工作日出方案",
+  "已交付真实 VI 手册",
+  "最快 3 工作日出方案",
   "无需注册",
 ];
 

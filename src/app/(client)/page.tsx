@@ -1,3 +1,9 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "AI品牌VI手册自动生成",
+};
+
 import { HeroSection } from "@/components/client/HeroSection";
 import { ProcessSection } from "@/components/client/ProcessSection";
 import { CaseCarousel } from "@/components/client/CaseCarousel";

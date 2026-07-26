@@ -88,9 +88,6 @@ const CASES: CaseItem[] = [
 const FILTERS = [
   { key: "all", label: "全部" },
   { key: "beauty", label: "美容养生" },
-  { key: "food", label: "餐饮" },
-  { key: "education", label: "教育" },
-  { key: "tech", label: "科技" },
 ];
 
 // ======== COMPONENT ========
@@ -136,9 +133,6 @@ export function CaseCarousel() {
                 }`}
               >
                 {f.label}
-                {!hasItems && f.key !== "all" && (
-                  <span className="ml-1 text-xs opacity-50">即将上线</span>
-                )}
               </button>
             );
           })}
@@ -147,8 +141,8 @@ export function CaseCarousel() {
         {/* Case grid */}
         {isEmpty ? (
           <div className="text-center py-20 text-neutral-400">
-            <p className="text-lg mb-2">该行业案例即将上线</p>
-            <p className="text-sm">我们正在收集更多真实客户的 VI 手册</p>
+            <p className="text-lg mb-2">该行业暂未收录案例</p>
+            <p className="text-sm">更多真实客户 VI 手册正在整理中</p>
           </div>
         ) : (
           <AnimatePresence mode="wait">

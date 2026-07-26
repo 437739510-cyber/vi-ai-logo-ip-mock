@@ -85,7 +85,7 @@ export function TrustSection() {
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <p className="text-sm text-neutral-400">
-            已服务 <span className="font-semibold text-neutral-600">200+</span> 家实体店铺品牌 ｜ 客户满意度 <span className="font-semibold text-neutral-600">98%</span>
+            已交付真实 VI 手册 ｜ 7 天不满意全额退款，零风险
           </p>
         </motion.div>
       </div>
