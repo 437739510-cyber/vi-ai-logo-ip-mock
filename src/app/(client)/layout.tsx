@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { ClientLayout } from "@/components/shared/ClientLayout";
 
 export default function ClientRootLayout({

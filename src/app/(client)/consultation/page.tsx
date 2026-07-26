@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import { ConsultationForm } from "@/components/client/ConsultationForm";
 
