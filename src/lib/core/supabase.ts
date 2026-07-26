@@ -1,8 +1,12 @@
-// Supabase 客户端 - 服务端用 service_role，客户端用 anon
+﻿// Supabase 客户端 - 服务端用 service_role，客户端用 anon
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// During EdgeOne build, env vars are not injected into the build sandbox,
+// so "supabaseUrl is required" crashes at module load time.
+// We use placeholder values at build time; at runtime the server injects real env vars
+// and the module is evaluated fresh per-request in serverless environments.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || "";
 
 // 客户端用（浏览器端安全）

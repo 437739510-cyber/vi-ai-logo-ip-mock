@@ -1,3 +1,5 @@
+﻿export const dynamic = "force-dynamic";
+
 import { MemberLayout } from "@/components/shared/MemberLayout";
 
 export default function MemberRootLayout({
