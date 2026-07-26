@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, FileQuestion, Eye, Phone, Key, Loader2, Clock } from "lucide-react";

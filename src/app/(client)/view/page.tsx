@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon, Phone, Key, RefreshCw, History, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
