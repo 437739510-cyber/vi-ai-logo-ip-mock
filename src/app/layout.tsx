@@ -1,6 +1,4 @@
-export const dynamic = "force-dynamic";
-
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/shared/ToastProvider";
 
