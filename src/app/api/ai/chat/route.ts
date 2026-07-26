@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: POST /api/ai/chat
 // 编辑器内的 AI 设计助手，使用 DeepSeek 进行实时对话
 import { NextRequest, NextResponse } from "next/server";

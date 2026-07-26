@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: POST /api/ai/generate-scheme
 // 基于客户素材 + 参考 VI 手册分析 + 行业分析生成多套 VI 方案建议（使用 DeepSeek API）
 import { NextRequest, NextResponse } from "next/server";

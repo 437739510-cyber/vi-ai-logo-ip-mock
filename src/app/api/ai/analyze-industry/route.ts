@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: POST /api/ai/analyze-industry
 // 使用 DeepSeek 分析客户行业信息，生成设计方向建议总结
 import { NextRequest, NextResponse } from "next/server";

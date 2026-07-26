@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: POST /api/member/generate
 // AI文案生成：照片识别(qwen-vl) + 品牌数据 + DeepSeek生成社交媒体文案
 import { NextRequest, NextResponse } from "next/server";

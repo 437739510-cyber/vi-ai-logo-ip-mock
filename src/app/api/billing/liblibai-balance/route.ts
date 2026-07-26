@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 ﻿/**
  * LiblibAI Account Balance Query
  * GET /api/billing/liblibai-balance

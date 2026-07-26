@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 ﻿// API Route: POST /api/ai/reprocess-image
 // Force reprocess a cached image (LOGO or mascot) with optional method override.
 import { NextRequest, NextResponse } from "next/server";

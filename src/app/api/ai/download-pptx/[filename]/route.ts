@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 ﻿/**
  * API: Download generated PPTX file
  * V25: Relaxed filename validation, projectId query param support, broader regex

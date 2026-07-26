@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: POST /api/admin/student-generate
 // 大学生为老板的内容触发AI文案生成
 import { NextRequest, NextResponse } from "next/server";

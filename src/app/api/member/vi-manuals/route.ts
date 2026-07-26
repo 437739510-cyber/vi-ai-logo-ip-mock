@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: GET /api/member/vi-manuals
 // Member views their VI manuals (linked via phone)
 import { NextResponse } from "next/server";

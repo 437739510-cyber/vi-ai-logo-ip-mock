@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 ﻿// API Route: GET /api/ai/get-project-status
 // V12: Get project generation status for real-time progress tracking
 import { NextRequest, NextResponse } from "next/server";

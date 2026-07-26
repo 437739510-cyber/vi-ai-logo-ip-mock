@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: POST /api/admin/student-upload
 // 大学生为客户上传照片到已有内容记录
 import { NextRequest, NextResponse } from "next/server";

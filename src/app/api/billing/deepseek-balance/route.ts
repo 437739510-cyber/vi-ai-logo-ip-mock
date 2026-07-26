@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 /**
  * DeepSeek Account Balance Query V2
  * 浣跨敤 DeepSeek 瀹樻柟浣欓鏌ヨAPI

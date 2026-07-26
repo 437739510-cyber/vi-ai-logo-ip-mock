@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: DELETE /api/delete-project
 // Remove a project from Supabase + local JSON
 import { NextRequest, NextResponse } from "next/server";

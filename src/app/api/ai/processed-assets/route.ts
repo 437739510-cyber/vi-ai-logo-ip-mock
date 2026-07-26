@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 ﻿// API Route: GET /api/ai/processed-assets
 // Returns all cached processed image entries for visualization.
 import { NextRequest, NextResponse } from "next/server";

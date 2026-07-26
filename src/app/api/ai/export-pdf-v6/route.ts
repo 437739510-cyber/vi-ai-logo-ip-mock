@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: POST /api/ai/export-pdf-v6
 // V6: Support V4 14-page + return PDF as binary stream
 import { NextRequest, NextResponse } from "next/server";

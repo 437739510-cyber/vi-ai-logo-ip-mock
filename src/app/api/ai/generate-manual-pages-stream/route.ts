@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: POST /api/ai/generate-manual-pages-stream
 // V4: 设计决策引擎(DeepSeek) + 写实图生成(万相2.7) + 14页A4竖版渲染
 import { writeFile, mkdir, readFile } from "fs/promises";

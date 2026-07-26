@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 /**
  * GET /api/config/pricing — 获取前端定价配置
  * PUT /api/config/pricing — 更新定价配置（管理后台）

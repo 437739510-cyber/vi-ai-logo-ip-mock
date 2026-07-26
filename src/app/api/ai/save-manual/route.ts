@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: POST /api/ai/save-manual
 // Save to Supabase + local JSON fallback
 import { NextRequest, NextResponse } from "next/server";

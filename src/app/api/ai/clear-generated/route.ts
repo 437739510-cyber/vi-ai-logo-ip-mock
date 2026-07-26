@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 // API Route: POST /api/ai/clear-generated
 // Delete generated manual pages and their data file
 import { NextRequest, NextResponse } from "next/server";
