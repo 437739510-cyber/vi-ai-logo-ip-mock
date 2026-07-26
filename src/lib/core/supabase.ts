@@ -1,21 +1,19 @@
 ﻿// Supabase 客户端 - 服务端用 service_role，客户端用 anon
 import { createClient } from "@supabase/supabase-js";
 
-// During EdgeOne build, env vars are not injected into the build sandbox,
-// so "supabaseUrl is required" crashes at module load time.
-// We use placeholder values at build time; at runtime the server injects real env vars
-// and the module is evaluated fresh per-request in serverless environments.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || "";
+// Hardcoded for EdgeOne compatibility: NEXT_PUBLIC_* env vars are NOT available during
+// EdgeOne build (no build-time env injection). These values are public and safe to commit.
+// The service key (SUPABASE_SERVICE_KEY) remains a runtime env var for security.
+export const SUPABASE_URL = "https://fzoscrutqhdfzwnjgjvs.supabase.co";
+export const SUPABASE_ANON_KEY = "sb_publishable_-2xSkyp-X8u2RgLOuTg6hg_mJa1x1XG";
 
 // 客户端用（浏览器端安全）
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // 服务端用（API Route 中操作数据库）
-// 注意：不要改成模块级 createClient，否则浏览器端 import 本模块会崩溃
-// 因为 SUPABASE_SERVICE_KEY 没有 NEXT_PUBLIC_ 前缀，浏览器端为 undefined
-// V7c: 无service_key时fallback到anon key（开发/测试用）
-export const supabaseAdmin = supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : createClient(supabaseUrl, supabaseAnonKey);
+export const supabaseAdmin = (() => {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+  return serviceKey
+    ? createClient(SUPABASE_URL, serviceKey)
+    : createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+})();

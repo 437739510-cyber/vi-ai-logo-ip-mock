@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     const genProvider = provider || "comfyui";
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      const baseUrl = "https://vi-ai-logo-ip-mock.edgeone.dev";
       const genRes = await fetch(`${baseUrl}/api/ai/generate-logo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

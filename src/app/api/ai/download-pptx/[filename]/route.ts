@@ -61,9 +61,8 @@ export async function GET(
   // Proxy from Supabase Storage (not redirect) to force download with Content-Disposition
   if (projectId) {
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const storagePath = `${projectId}/`;
-      const storageUrl = `${supabaseUrl}/storage/v1/object/public/manuals/`;
+      const storageUrl = `${"https://fzoscrutqhdfzwnjgjvs.supabase.co"}/storage/v1/object/public/manuals/`;
 
       console.log(`[download-pptx] Local file not found, proxying from Storage: ${storageUrl}`);
       

@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from 'next/server';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+import { SUPABASE_URL } from "@/lib/core/supabase";
+
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!;
 
 export async function POST(req: NextRequest) {

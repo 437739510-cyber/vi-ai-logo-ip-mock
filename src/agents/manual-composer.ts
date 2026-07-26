@@ -133,7 +133,7 @@ export const manualComposerAgent: Agent<ManualComposerInput, ManualComposerOutpu
 
       // Call the existing generation API
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3003";
+        const baseUrl = "https://vi-ai-logo-ip-mock.edgeone.dev";
         const res = await fetch(`${baseUrl}/api/ai/generate-manual-pages-stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

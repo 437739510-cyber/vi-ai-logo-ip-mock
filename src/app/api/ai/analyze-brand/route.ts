@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       void (async () => {
         try {
           console.log("[analyze-brand BG] Delegating to /api/ai/brand-analysis for:", companyName);
-          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://brandbrain.zeabur.app";
+          const baseUrl = "https://vi-ai-logo-ip-mock.edgeone.dev";
           const analysisResp = await fetch(`${baseUrl}/api/ai/brand-analysis`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

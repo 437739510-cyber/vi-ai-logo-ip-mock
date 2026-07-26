@@ -34,7 +34,7 @@ export async function POST() {
       let totalCollected = 0;
       for (const project of withSelection) {
         try {
-          const resp = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('.supabase.co', '') || 'http://localhost:3000'}/api/admin/logo-library`, {
+          const resp = await fetch(`${"https://fzoscrutqhdfzwnjgjvs.supabase.co".replace(".supabase.co", "") || "http://localhost:3000"}/api/admin/logo-library`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ projectId: project.id }),
