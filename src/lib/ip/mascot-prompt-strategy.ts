@@ -157,7 +157,9 @@ function buildNegativePrompt(
 function buildCreateNewImagePrompt(
   mascotProfile: MascotProfile,
   brandProfile: BrandProfile,
-  industryProfile?: IndustryProfile
+  industryProfile?: IndustryProfile,
+  brandColors?: { primary?: string | { hex?: string; name?: string }; accent?: string | { hex?: string; name?: string }; secondary?: string | { hex?: string; name?: string } },
+  clientPreferences?: { mascotTypePref?: string[]; mascotStylePref?: string[]; mascotPersonalityPref?: string[]; mascotUsageScenes?: string[]; mascotColorHint?: string; mascotRefIdea?: string; mascotSceneCount?: number }
 ): string {
   const parts: string[] = [];
 
@@ -201,6 +203,40 @@ function buildCreateNewImagePrompt(
   if (typeRef) {
     parts.push(`style descriptors: ${typeRef.styleDescriptors.join(", ")}`);
     parts.push(`visual details: ${typeRef.visualKeywords.join(", ")}`);
+  }
+
+  // 9a. Brand color injection (闭环缺口 #6)
+  const brandPrimary = brandColors?.primary
+    ? typeof brandColors.primary === "string" ? brandColors.primary : (brandColors.primary as any)?.hex
+    : undefined;
+  const brandAccent = brandColors?.accent
+    ? typeof brandColors.accent === "string" ? brandColors.accent : (brandColors.accent as any)?.hex
+    : undefined;
+  if (brandPrimary) {
+    parts.push(`brand primary color: ${brandPrimary}`);
+  }
+  if (brandAccent) {
+    parts.push(`brand accent color: ${brandAccent}`);
+  }
+  if (brandPrimary || brandAccent) {
+    parts.push(`color scheme must follow brand palette, main colors: ${brandPrimary || "brand primary"} and ${brandAccent || "brand accent"}`);
+  }
+
+  // 9b. Client preference injection (type/style/personality)
+  if (clientPreferences?.mascotTypePref && clientPreferences.mascotTypePref.length > 0) {
+    parts.push(`preferred mascot types: ${clientPreferences.mascotTypePref.join(", ")}`);
+  }
+  if (clientPreferences?.mascotStylePref && clientPreferences.mascotStylePref.length > 0) {
+    parts.push(`preferred visual style: ${clientPreferences.mascotStylePref.join(", ")}`);
+  }
+  if (clientPreferences?.mascotPersonalityPref && clientPreferences.mascotPersonalityPref.length > 0) {
+    parts.push(`personality traits: ${clientPreferences.mascotPersonalityPref.join(", ")}`);
+  }
+  if (clientPreferences?.mascotUsageScenes && clientPreferences.mascotUsageScenes.length > 0) {
+    parts.push(`designed for usage: ${clientPreferences.mascotUsageScenes.join(", ")}`);
+  }
+  if (clientPreferences?.mascotColorHint) {
+    parts.push(`color hint from client: ${clientPreferences.mascotColorHint}`);
   }
 
   // 9. Character role
@@ -333,6 +369,22 @@ export interface MascotPromptInput {
   brandProfile: BrandProfile;
   businessProfile?: BusinessProfile;
   industryProfile?: IndustryProfile;
+  /** Brand colors from client submission (primary/accent for prompt injection) */
+  brandColors?: {
+    primary?: string | { hex?: string; name?: string };
+    accent?: string | { hex?: string; name?: string };
+    secondary?: string | { hex?: string; name?: string };
+  };
+  /** Client's mascot preferences from consultation form */
+  clientPreferences?: {
+    mascotTypePref?: string[];
+    mascotStylePref?: string[];
+    mascotPersonalityPref?: string[];
+    mascotUsageScenes?: string[];
+    mascotColorHint?: string;
+    mascotRefIdea?: string;
+    mascotSceneCount?: number;
+  };
 }
 
 /**
@@ -368,8 +420,8 @@ export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptS
 
   // Mode: create_new or optional_recommend → build full prompt set
   const imagePrompt = mascotProfile.mode === "create_new"
-    ? buildCreateNewImagePrompt(mascotProfile, brandProfile, input.industryProfile)
-    : buildCreateNewImagePrompt(mascotProfile, brandProfile, input.industryProfile);
+    ? buildCreateNewImagePrompt(mascotProfile, brandProfile, input.industryProfile, input.brandColors, input.clientPreferences)
+    : buildCreateNewImagePrompt(mascotProfile, brandProfile, input.industryProfile, input.brandColors, input.clientPreferences);
 
   return {
     mode: mascotProfile.mode,

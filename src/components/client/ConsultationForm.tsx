@@ -1,4 +1,4 @@
-"use client";
+﻿﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -71,6 +71,14 @@ export function ConsultationForm() {
   const [mascotNames, setMascotNames] = useState<string[]>([]);
   const [mascotPersonalities, setMascotPersonalities] = useState<string[]>([]);
   const [referenceEnabled, setReferenceEnabled] = useState(true);
+  // === IP 公仔偏好（Step 3.5）===
+  const [wantMascot, setWantMascot] = useState<string>("");
+  const [mascotTypePref, setMascotTypePref] = useState<string[]>([]);
+  const [mascotStylePref, setMascotStylePref] = useState<string[]>([]);
+  const [mascotPersonalityPref, setMascotPersonalityPref] = useState<string[]>([]);
+  const [mascotUsageScenes, setMascotUsageScenes] = useState<string[]>([]);
+  const [mascotSceneCount, setMascotSceneCount] = useState<number>(6);
+
 
   const [selectedIndustryCategory, setSelectedIndustryCategory] = useState("");
   const [selectedIndustrySub, setSelectedIndustrySub] = useState("");
@@ -502,6 +510,106 @@ export function ConsultationForm() {
             <label className="block text-sm font-medium text-neutral-700 mb-1">补充说明</label>
             <textarea {...register("description")} rows={3} placeholder="有任何额外想法，请写在这里（选填）" className={tc} />
           </div>
+        </section>
+      )}
+
+      {/* ===== Step 3.5: IP 公仔需求 ===== */}
+      {currentStep === 3 && (
+        <section className="space-y-5 border-t border-neutral-100 pt-6 mt-6">
+          <h3 className="text-lg font-semibold text-neutral-900">是否希望 AI 为品牌设计 IP 公仔角色？</h3>
+          <p className="text-xs text-neutral-500">IP 公仔（品牌吉祥物）能让您的品牌更有记忆点，适合门头、包装、社交媒体等场景。</p>
+          <div className="flex flex-wrap gap-3">
+            {["yes", "no", "not_sure"].map((opt) => (
+              <button key={opt} type="button" onClick={() => { setWantMascot(opt); setValue("wantMascot" as any, opt as any); }}
+                className={`px-5 py-2.5 text-sm font-medium rounded-xl border transition-all ${
+                  wantMascot === opt
+                    ? "bg-primary text-white border-primary shadow-sm"
+                    : "bg-white text-neutral-600 border-neutral-200 hover:border-primary/50"
+                }`}>
+                {opt === "yes" ? "\u2728 \u8981\uFF01" : opt === "no" ? "\u274C \u4E0D\u9700\u8981" : "\uD83D\uDE39 \u4E0D\u786E\u5B9A\uFF0C\u5148\u770B\u770B\u63A8\u8350"}
+              </button>
+            ))}
+            <input type="hidden" {...register("wantMascot" as any)} />
+          </div>
+          {(wantMascot === "yes" || wantMascot === "not_sure") && (
+            <div className="space-y-5 pl-2 border-l-2 border-primary/20">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">角色类型 <span className="text-neutral-400 text-xs">（最多选 2 个）</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {["animal", "character", "food", "plant", "object", "abstract", "hybrid"].map((tag) => (
+                    <TagBtn key={tag} label={{"animal":"\u52A8\u7269","character":"\u4EBA\u7269","food":"\u98DF\u7269","plant":"\u690D\u7269","object":"\u7269\u4F53","abstract":"\u62BD\u8C61\u56FE\u5F62","hybrid":"\u6DF7\u5408\u5143\u7D20"}[tag]||tag}
+                      selected={mascotTypePref.includes(tag)}
+                      onClick={() => {{
+                        const nxt = mascotTypePref.includes(tag) ? mascotTypePref.filter(t=>t!==tag) : mascotTypePref.length<2 ? [...mascotTypePref, tag] : mascotTypePref;
+                        setMascotTypePref(nxt); setValue("mascotTypePref" as any, nxt as any);
+                      }}} />
+                  ))}
+                </div>
+                <input type="hidden" {...register("mascotTypePref" as any)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">视觉风格 <span className="text-neutral-400 text-xs">（最多选 2 个）</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {[{"id":"pixar_3d","label":"3D Pixar\u98CE"},{"id":"flat_cute","label":"\u6241\u5E73\u53EF\u7231"},{"id":"chinese_trendy","label":"\u56FD\u6F6E\u624B\u7ED8"},{"id":"minimalist","label":"\u6781\u7B80\u73B0\u4EE3"},{"id":"tech_sleek","label":"\u79D1\u6280\u611F"}].map((tag) => (
+                    <TagBtn key={tag.id} label={tag.label}
+                      selected={mascotStylePref.includes(tag.id)}
+                      onClick={() => {{
+                        const nxt = mascotStylePref.includes(tag.id) ? mascotStylePref.filter(t=>t!==tag.id) : mascotStylePref.length<2 ? [...mascotStylePref, tag.id] : mascotStylePref;
+                        setMascotStylePref(nxt); setValue("mascotStylePref" as any, nxt as any);
+                      }}} />
+                  ))}
+                </div>
+                <input type="hidden" {...register("mascotStylePref" as any)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">性格关键词 <span className="text-neutral-400 text-xs">（选 2-3 个）</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {["\u53EF\u7231","\u9177\u72E0","\u6E29\u67D4","\u641E\u602A","\u7A33\u91CD","\u6CBB\u6108","\u6D3B\u529B","\u9AD8\u8D35","\u4EB2\u6C11","\u4E13\u4E1A"].map((tag) => (
+                    <TagBtn key={tag} label={tag}
+                      selected={mascotPersonalityPref.includes(tag)}
+                      onClick={() => {{
+                        const nxt = mascotPersonalityPref.includes(tag) ? mascotPersonalityPref.filter(t=>t!==tag) : mascotPersonalityPref.length>=3 ? mascotPersonalityPref : [...mascotPersonalityPref, tag];
+                        setMascotPersonalityPref(nxt); setValue("mascotPersonalityPref" as any, nxt as any);
+                      }}} />
+                  ))}
+                </div>
+                <input type="hidden" {...register("mascotPersonalityPref" as any)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">使用场景 <span className="text-neutral-400 text-xs">（可多选）</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {[{"id":"storefront","label":"\u95E8\u5934\u62DB\u724C"},{"id":"packaging","label":"\u4EA7\u54C1\u5305\u88C5"},{"id":"social_media","label":"\u793E\u4EA4\u5A92\u4F53"},{"id":"membership_card","label":"\u4F1A\u5458\u5361"},{"id":"merchandise","label":"\u5468\u8FB9\u4EA7\u54C1"},{"id":"interior_decor","label":"\u5E97\u5185\u88C5\u9970"},{"id":"app_icon","label":"App\u56FE\u6807"},{"id":"ads","label":"\u5E7F\u544A\u7D20\u6750"}].map((tag) => (
+                    <TagBtn key={tag.id} label={tag.label}
+                      selected={mascotUsageScenes.includes(tag.id)}
+                      onClick={() => {{
+                        const nxt = mascotUsageScenes.includes(tag.id) ? mascotUsageScenes.filter(t=>t!==tag.id) : [...mascotUsageScenes, tag.id];
+                        setMascotUsageScenes(nxt); setValue("mascotUsageScenes" as any, nxt as any);
+                      }}} />
+                  ))}
+                </div>
+                <input type="hidden" {...register("mascotUsageScenes" as any)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">颜色方向 <span className="text-neutral-400 text-xs">（选填）</span></label>
+                <input type="text" {...register("mascotColorHint" as any)} placeholder="例：延续品牌色系，粉色为主" className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">参考灵感 <span className="text-neutral-400 text-xs">（选填）</span></label>
+                <textarea {...register("mascotRefIdea" as any)} rows={2} placeholder="例：类似 Line Friends 那种风格" className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">场景图数量 <span className="text-neutral-400 text-xs">（影响生成时间和手册页数）</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {[3, 4, 6, 8, 12, 16].map((n) => (
+                    <TagBtn key={n} label={String(n)}
+                      selected={mascotSceneCount === n}
+                      onClick={() => {{ setMascotSceneCount(n); setValue("mascotSceneCount" as any, n as any); }}} />
+                  ))}
+                </div>
+                <input type="hidden" {...register("mascotSceneCount" as any)} />
+              </div>
+            </div>
+          )}
         </section>
       )}
 

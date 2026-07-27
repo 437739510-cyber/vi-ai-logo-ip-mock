@@ -11,6 +11,10 @@ export type GenerationStatus =
   | "logo_generating"   // Logo生成中
   | "logo_generated"    // Logo生成完成
   | "logo_selecting"    // Logo选择中
+  | "mascot_pending"    // 等待公仔生成
+  | "mascot_generating" // 公仔后台生成中
+  | "mascot_generated"  // 公仔16张完成
+  | "mascot_failed"     // 公仔生成失败
   | "scene_rendering"   // 场景渲染中
   | "pptx_assembling"   // PPTX组装中
   | "completed"         // 完成
@@ -22,6 +26,10 @@ const STATUS_LABELS: Record<GenerationStatus, string> = {
   logo_generating: "Logo生成中",
   logo_generated: "Logo生成完成",
   logo_selecting: "Logo选择中",
+  mascot_pending: "等待公仔生成",
+  mascot_generating: "公仔生成中（16张）",
+  mascot_generated: "公仔生成完成",
+  mascot_failed: "公仔生成失败",
   scene_rendering: "场景图渲染中",
   pptx_assembling: "手册组装中",
   completed: "已完成",
@@ -34,6 +42,10 @@ const STATUS_PROGRESS: Record<GenerationStatus, number> = {
   logo_generating: 40,
   logo_generated: 50,
   logo_selecting: 50,
+  mascot_pending: 45,
+  mascot_generating: 55,
+  mascot_generated: 65,
+  mascot_failed: 0,
   scene_rendering: 70,
   pptx_assembling: 90,
   completed: 100,

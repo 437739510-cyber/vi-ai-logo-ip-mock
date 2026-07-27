@@ -279,6 +279,17 @@ export interface MascotRecommendationInput {
   mascotAssetsCount?: number;
   businessGoal?: string;
   businessStage?: string;
+  /** Client's mascot preferences from consultation form */
+  clientPreferences?: {
+    wantMascot?: "yes" | "no" | "not_sure";
+    mascotTypePref?: string[];
+    mascotStylePref?: string[];
+    mascotPersonalityPref?: string[];
+    mascotUsageScenes?: string[];
+    mascotColorHint?: string;
+    mascotRefIdea?: string;
+    mascotSceneCount?: number;
+  };
 }
 
 /**
@@ -289,9 +300,28 @@ export function recommendMascot(input: MascotRecommendationInput): MascotProfile
   const {
     hasMascot, industryCategory, brandPersona, brandType,
     businessGoal, businessStage, mascotName, mascotAssetsCount,
+    clientPreferences,
   } = input;
 
-  // === Mode A: Client already has a mascot → protect_existing ===
+  // === Client preference override ===
+  const wantMascot = clientPreferences?.wantMascot;
+
+  // Mode: Client explicitly said NO and has no mascot assets
+  if (wantMascot === "no" && !hasMascot) {
+    return {
+      mode: "not_needed",
+      confidence: 1.0,
+      hasMascot: false,
+      personality: brandPersona.slice(0, 3),
+      visualTraits: [],
+      colorDirection: [],
+      usageScenarios: [],
+      reason: "客户明确表示不需要IP公仔，跳过IP设计流程。",
+      recommendedModules: [],
+    };
+  }
+
+  // Mode: Client has mascot assets or said NO with assets
   if (hasMascot) {
     return {
       mode: "protect_existing",
@@ -303,15 +333,19 @@ export function recommendMascot(input: MascotRecommendationInput): MascotProfile
       visualTraits: ["保持原始形象", "保护品牌资产"],
       colorDirection: ["品牌原色", "不做AI改色"],
       usageScenarios: ["Logo搭配", "产品包装", "社交媒体", "门店展示"],
-      reason: `品牌已有IP公仔"${mascotName || "品牌IP"}"，应保护原始形象，禁止AI重绘。建议进入IP规范/场景延展/应用模块，而非重新设计。`,
+      reason: "品牌已有IP公仔" + (mascotName || "品牌IP") + "，应保护原始形象，禁止AI重绘。建议进入IP规范/场景延展/应用模块，而非重新设计。",
       recommendedModules: getModulesForDepth(businessStage || "", "protect_existing"),
     };
   }
 
-  // === Mode B: No mascot — decide if needed ===
+  // Mode: Client said YES to mascot — use their preferences
+  if (wantMascot === "yes") {
+    return buildFromClientPreferences(input);
+  }
+
+  // Mode: Client said NOT_SURE or no preference — use AI analysis
   let needScore = 0;
   const reasons: string[] = [];
-
   // Factor 1: Industry tendency (max 35 points)
   const industryTendency = INDUSTRY_MASCOT_MAP[industryCategory];
   if (industryTendency) {
@@ -392,6 +426,86 @@ export function recommendMascot(input: MascotRecommendationInput): MascotProfile
 }
 
 // ========== Profile builders ==========
+
+
+// ========== Client preference-based profile builder ==========
+
+function buildFromClientPreferences(input: MascotRecommendationInput): MascotProfile {
+  const { brandPersona, industryCategory, clientPreferences, businessStage, businessGoal } = input;
+  const prefs = clientPreferences || {};
+
+  // Use client's type preferences or fall back to AI suggestion
+  const typePref = (prefs.mascotTypePref || [])[0] as MascotType | undefined;
+  const industrySuggest = INDUSTRY_VISUAL_SUGGESTIONS[industryCategory] || {
+    type: "character" as MascotType,
+    traits: ["简约现代", "品牌色为主"],
+    colors: ["品牌主色"],
+  };
+  const suggestedType = typePref || industrySuggest.type;
+
+  // Build personality from client's personality pref + brand persona
+  const personalityPrefs = (prefs.mascotPersonalityPref || []).slice(0, 3);
+  const mergedPersonality = [...new Set([...personalityPrefs, ...brandPersona.slice(0, 2)])].slice(0, 4);
+
+  // Build visual traits from style preference
+  const stylePref = prefs.mascotStylePref || [];
+  const styleMap: Record<string, string> = {
+    pixar_3d: "3D皮克斯风格，立体质感",
+    flat_cute: "扁平可爱风格，简洁明快",
+    chinese_trendy: "国潮风格，传统元素",
+    minimalist: "极简风格，干净利落",
+    tech_sleek: "科技感，光滑精致",
+  };
+  const visualTraits = stylePref.length > 0
+    ? stylePref.map((s: string) => styleMap[s] || s).slice(0, 2)
+    : industrySuggest.traits.slice(0, 2);
+
+  // Build usage scenes from client preference
+  const sceneLabels: Record<string, string> = {
+    storefront: "门店招牌/门头",
+    packaging: "产品包装",
+    social_media: "社交媒体",
+    membership_card: "会员卡",
+    merchandise: "周边商品",
+    interior_decor: "室内装饰",
+    app_icon: "App图标",
+    ads: "广告素材",
+  };
+  const usageScenes: string[] = (prefs.mascotUsageScenes || []).length > 0
+    ? (prefs.mascotUsageScenes || []).map((s: string) => sceneLabels[s] || s)
+    : generateUsageScenarios(input);
+
+  // Scenario count
+  const sceneCount = prefs.mascotSceneCount || 6;
+
+  // Color hint from client
+  const colorDirection = prefs.mascotColorHint
+    ? [prefs.mascotColorHint, ...industrySuggest.colors.slice(0, 2)]
+    : industrySuggest.colors.slice(0, 3);
+
+  // Story summary with reference idea
+  const refNote = prefs.mascotRefIdea ? "（客户参考：）" : "";
+    const story = `基于客户偏好的品牌IP角色，类型为${suggestedType || "character"}${refNote}。性格特征：${mergedPersonality.join("、")}。`;
+
+  const depth = determineDepth(businessStage, businessGoal, "create_new");
+
+  return {
+    mode: "create_new",
+    confidence: 0.95,
+    hasMascot: false,
+    suggestedName: generateMascotName(brandPersona, industryCategory),
+    suggestedType,
+    suggestedRole: "品牌形象代言人",
+    personality: mergedPersonality,
+    visualTraits,
+    colorDirection,
+    storySummary: story,
+    usageScenarios: usageScenes,
+    reason: "客户已明确需要IP公仔，根据客户偏好生成IP设计方案。" + (refNote || ""),
+    recommendedModules: getModulesForDepth(businessStage || "", "create_new"),
+  };
+}
+
 
 function buildCreateNewProfile(
   input: MascotRecommendationInput,
@@ -603,6 +717,16 @@ export const mascotDesignerAgent: Agent<any, MascotProfile> = {
         mascotAssetsCount,
         businessGoal,
         businessStage,
+        clientPreferences: {
+          wantMascot: (clientInfo as any)?.wantMascot,
+          mascotTypePref: (clientInfo as any)?.mascotTypePref,
+          mascotStylePref: (clientInfo as any)?.mascotStylePref,
+          mascotPersonalityPref: (clientInfo as any)?.mascotPersonalityPref,
+          mascotUsageScenes: (clientInfo as any)?.mascotUsageScenes,
+          mascotColorHint: (clientInfo as any)?.mascotColorHint,
+          mascotRefIdea: (clientInfo as any)?.mascotRefIdea,
+          mascotSceneCount: (clientInfo as any)?.mascotSceneCount,
+        },
       });
 
       if (result.mode === "optional_recommend" && result.confidence < 0.5) {

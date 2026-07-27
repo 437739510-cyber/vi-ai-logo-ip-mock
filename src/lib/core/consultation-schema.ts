@@ -90,6 +90,28 @@ export const consultationSchema = z.object({
     .max(500, "IP 公仔设计理念不超过 500 个字符")
     .optional()
     .or(z.literal("")),
+  // === IP 公仔需求（2026-07-27 新增，选项 A）===
+  wantMascot: z.enum(["yes", "no", "not_sure"]).optional(),
+  mascotTypePref: z
+    .array(z.enum(["animal", "character", "food", "plant", "object", "abstract", "hybrid"]))
+    .max(2, "最多选 2 个类型")
+    .optional(),
+  mascotStylePref: z
+    .array(z.enum(["pixar_3d", "flat_cute", "chinese_trendy", "minimalist", "tech_sleek"]))
+    .max(2, "最多选 2 个风格")
+    .optional(),
+  mascotPersonalityPref: z
+    .array(z.string())
+    .min(1, "至少选 1 个性格关键词")
+    .max(3, "最多选 3 个性格关键词")
+    .optional(),
+  mascotUsageScenes: z
+    .array(z.enum(["storefront", "packaging", "social_media", "membership_card", "merchandise", "interior_decor", "app_icon", "ads"]))
+    .optional(),
+  mascotColorHint: z.string().max(200).optional().or(z.literal("")),
+  mascotRefIdea: z.string().max(500).optional().or(z.literal("")),
+  mascotSceneCount: z.number().int().min(3).max(16).default(6).optional(),
+
   // V58: 品牌个性与视觉偏好
   brandPersonality: z
     .string()

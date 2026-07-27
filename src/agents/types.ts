@@ -47,6 +47,15 @@ export interface AgentContext {
     };
     referenceManual?: { url: string; fileName?: string };
     businessProfile?: { businessStage?: string; businessGoal?: string; budgetLevel?: string };
+    // === IP 公仔需求字段（2026-07-27）===
+    wantMascot?: "yes" | "no" | "not_sure";
+    mascotTypePref?: string[];
+    mascotStylePref?: string[];
+    mascotPersonalityPref?: string[];
+    mascotUsageScenes?: string[];
+    mascotColorHint?: string;
+    mascotRefIdea?: string;
+    mascotSceneCount?: number;
   };
 
   /** Project identifier */
