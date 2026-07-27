@@ -22,6 +22,12 @@ import type { MascotRecommendationInput } from "@/agents/mascot-designer";
 import { generateMascotPromptSet, type MascotPromptInput } from "@/lib/ip/mascot-prompt-strategy";
 import { estimateArkCost } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
 import { LiblibAIProvider } from "@/lib/ip/ip-image-provider/liblibai-provider";
+// 本地 ComfyUI 优先（免费），与 LOGO 路由同源
+import { comfyGenerateImage, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
+
+// 公仔是否允许回退到付费 ARK：默认关闭，避免未获 Kevin 点头前烧钱。
+// 上线放量时由 Kevin 在 Zeabur 环境变量设 MASCOT_ARK_PAID=1 开启。
+const MASCOT_ARK_PAID_ENABLED = process.env.MASCOT_ARK_PAID === "1";
 
 const _DEV = process.env.NODE_ENV === "development";
 
@@ -178,11 +184,30 @@ async function composeThreeView(front: Buffer, side: Buffer, back: Buffer): Prom
   } catch (e) { console.error("[mascot] Sharp fail: " + (e as Error).message); return null; }
 }
 
-/** Generate one image: LiblibAI (free) -> download -> upload; fallback to ark if LiblibAI unavailable/fails */
+/** Generate one image: ComfyUI(local,free) -> LiblibAI(free) -> Ark(paid, opt-in) */
 async function genOne(projectId: string, fileName: string, prompt: string, negativePrompt: string, size?: string):
   Promise<{ url: string | null; cost: number; model: string | null }> {
+  const dim = (size || "1024x1024").split("x").map(Number);
+  const w = dim[0] || 1024, h = dim[1] || 1024;
+
+  // 0) ComfyUI 本地优先（免费，不烧钱）
+  try {
+    if (await isComfyUIAvailable()) {
+      const c = await comfyGenerateImage({ prompt, negativePrompt: negativePrompt || "", width: w, height: h });
+      if (c?.imageUrl) {
+        const buf = await downloadImage(c.imageUrl);
+        if (buf) {
+          const url = await uploadToStorage(projectId, fileName, buf);
+          if (url) return { url, cost: 0, model: "comfyui-z-image-turbo" };
+        }
+      }
+    }
+  } catch (e: any) {
+    console.warn("[mascot] ComfyUI failed, fallback:", e?.message);
+  }
+
+  // 1) LiblibAI free tier -> 2) Ark paid fallback（默认关闭，需 MASCOT_ARK_PAID=1）
   for (let i = 0; i < 2; i++) {
-    // 1) LiblibAI free tier (preferred)
     const li = await generateViaLiblibAI(prompt, negativePrompt, size);
     if (li?.imageUrl) {
       const buf = await downloadImage(li.imageUrl);
@@ -191,8 +216,13 @@ async function genOne(projectId: string, fileName: string, prompt: string, negat
         if (url) return { url, cost: 0, model: "liblibai-star3-alpha" };
       }
     }
-    // 2) Ark paid fallback
-    const r = await arkGenerate({ prompt, negativePrompt, size });
+    // Ark 付费回退：默认禁用，避免未获授权烧钱
+    let r = null as null | { imageUrl: string; durationMs: number; model: string };
+    if (MASCOT_ARK_PAID_ENABLED) {
+      r = await arkGenerate({ prompt, negativePrompt, size });
+    } else if (i === 0) {
+      console.warn("[mascot] Ark paid fallback disabled (MASCOT_ARK_PAID != 1); skip to avoid cost");
+    }
     if (!r) continue;
     const buf = await downloadImage(r.imageUrl);
     if (!buf) continue;
@@ -224,8 +254,16 @@ export async function POST(req: NextRequest) {
     if (!projectId) return NextResponse.json({ error: "projectId required" }, { status: 400 });
 
     const { data: project, error: projErr } = await supabaseAdmin
-      .from("projects").select("id, client_info").eq("id", projectId).single();
+      .from("projects").select("id, status, client_info").eq("id", projectId).single();
     if (projErr || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+
+    // 💰 收款门禁：未标记「已收款」一律拒绝生图（与 LOGO 的 mark-paid 触发逻辑一致）
+    if (project.status !== "paid") {
+      return NextResponse.json(
+        { error: "请先标记「已收款」后再生成公仔", code: "PAYMENT_REQUIRED" },
+        { status: 402 }
+      );
+    }
 
     const ci = (project.client_info as Record<string, any>) || {};
     if (ci.wantMascot !== "yes") return NextResponse.json({ error: 'wantMascot !== "yes"' }, { status: 400 });

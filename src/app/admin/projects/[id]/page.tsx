@@ -561,6 +561,11 @@ export default function ProjectDetailPage({
   // Phase 3: AI生成IP公仔（异步轮询）
   const handleGenerateMascot = async () => {
     if (!project) return;
+    // 💰 UI 层收款门禁：未标记「已收款」拦截，避免误触烧钱（服务端 route 也有 402 双重保险）
+    if (project?.status !== "paid") {
+      setMascotError("请先点击「已收款」再生成公仔");
+      return;
+    }
     setGeneratingMascot(true);
     setMascotError("");
     setMascotProgress("正在提交生成任务...");
