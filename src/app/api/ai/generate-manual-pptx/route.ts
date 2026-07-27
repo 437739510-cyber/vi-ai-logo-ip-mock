@@ -854,6 +854,20 @@ export async function POST(req: NextRequest) {
     const mascotPersonality = ((ciPrefs.mascotPersonalityPref || [])[0] || (ciPrefs.brandPersona || [])[0] || '');
     const mascotAssets = ciPrefs.mascotAssets as Record<string, any> | undefined;
 
+    // [FIX 2026-07-27] Zeabur 无本地磁盘，findAsset/findFromStorage 取不到云端公仔图；
+    // 改用 client_info.mascotAssets 的云端 public URL 作为回退，确保 PART 8 公仔章节渲染。
+    if (!mascotData && mascotAssets?.front) {
+      try { mascotData = await loadImg(mascotAssets.front); } catch { /* ignore */ }
+    }
+    if (!mascotSplitViews && mascotAssets?.front && mascotAssets?.side && mascotAssets?.back) {
+      try {
+        const [f, s, b] = await Promise.all([
+          loadImg(mascotAssets.front), loadImg(mascotAssets.side), loadImg(mascotAssets.back),
+        ]);
+        if (f && s && b) mascotSplitViews = [f, s, b];
+      } catch { /* ignore */ }
+    }
+
     // Load emotion images from mascotAssets
     let mascotEmotions: Record<string, string> | null = null;
     let mascotScenes: Record<string, string> | null = null;
