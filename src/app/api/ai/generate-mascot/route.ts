@@ -138,10 +138,11 @@ async function generateViaLiblibAI(
       negativePrompt: negativePrompt || "",
       output: { width: w, height: h, format: "png" },
     });
-    // 防止 LiblibAI 接口无响应时永久挂起整批生成；超时则降级 ark（arkGenerate 自带超时）
+    // 防止 LiblibAI 接口无响应时永久挂起整批生成；短超时快速降级 ark（arkGenerate 自带 60s 超时）
+    // Zeabur 函数 maxDuration=300s，LiblibAI 必须快速失败以免整批超时被杀
     const res = await Promise.race([
       genP,
-      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("LiblibAI timeout 60s")), 60000)),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("LiblibAI timeout 15s")), 15000)),
     ]);
     return { imageUrl: res.imageUrl };
   } catch (e: any) {
