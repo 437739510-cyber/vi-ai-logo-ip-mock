@@ -130,7 +130,7 @@ async function generateViaLiblibAI(
     if (!_liblibai) _liblibai = new LiblibAIProvider();
     const dim = (size || "1024x1024").split("x").map(Number);
     const w = dim[0] || 1024, h = dim[1] || 1024;
-    const res = await _liblibai.generateImage({
+    const genP = _liblibai.generateImage({
       brandContext: { brandName: "", industry: "", brandPositioning: "", brandPersona: [], visualDirection: "" },
       ipProfile: { type: "mascot", personality: [], visualTraits: [], colorDirection: [] },
       step: { stepId: "mascot", label: "mascot", description: "" },
@@ -138,6 +138,11 @@ async function generateViaLiblibAI(
       negativePrompt: negativePrompt || "",
       output: { width: w, height: h, format: "png" },
     });
+    // 防止 LiblibAI 接口无响应时永久挂起整批生成；超时则降级 ark（arkGenerate 自带超时）
+    const res = await Promise.race([
+      genP,
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("LiblibAI timeout 60s")), 60000)),
+    ]);
     return { imageUrl: res.imageUrl };
   } catch (e: any) {
     console.warn("[mascot] LiblibAI failed, fallback ark: " + (e?.message || "unknown"));
