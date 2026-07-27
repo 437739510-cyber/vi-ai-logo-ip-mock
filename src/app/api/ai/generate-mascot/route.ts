@@ -232,10 +232,21 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     }).eq("id", projectId);
 
-    // Fire background
-    performGeneration(projectId, ci);
 
-    return NextResponse.json({ success: true, message: "公仔生成已启动", status: "mascot_generating", projectId }, { status: 202 });
+    // Await generation synchronously
+    const genResult = await performGeneration(projectId, ci);
+
+    return NextResponse.json({
+      success: true,
+      status: genResult.status,
+      message: genResult.status === "mascot_generated" ? "公仔生成完成" : "公仔生成失败",
+      projectId,
+      mascotAssets: genResult.mascotAssets,
+      mascotPartial: genResult.mascotPartial,
+      mascotName: genResult.mascotName,
+      mascotError: genResult.mascotError || undefined,
+      summary: genResult.summary,
+    }, { status: 200 });
   } catch (e: any) {
     console.error("[mascot] POST err:", e);
     return NextResponse.json({ error: e.message || "Mascot generation failed" }, { status: 500 });
@@ -244,7 +255,15 @@ export async function POST(req: NextRequest) {
 
 // ========== Background ==========
 
-async function performGeneration(projectId: string, ci: Record<string, any>) {
+async function performGeneration(projectId: string, ci: Record<string, any>): Promise<{
+  success: boolean;
+  status: string;
+  mascotAssets: any;
+  mascotPartial: boolean;
+  mascotName: string;
+  mascotError?: string;
+  summary: { completed: number; failed: number; total: number };
+}> {
   try {
     const prefs = {
       mascotTypePref: ci.mascotTypePref, mascotStylePref: ci.mascotStylePref,
@@ -297,21 +316,43 @@ async function performGeneration(projectId: string, ci: Record<string, any>) {
       jobs.push({ fn: "mascot-scene-" + k + ".png", p: basePrompt + ", " + s.context + ", " + s.label + " application" + scEnd });
     }
 
+
     const total = jobs.length + 1; // +1 for composite
     let done = 0, fail = 0;
     const usage: any[] = [];
     const results: { url: string | null; fn: string }[] = [];
 
-    for (const j of jobs) {
-      const r = await genOne(projectId, j.fn, j.p, negPrompt);
-      results.push({ url: r.url, fn: j.fn });
-      if (r.url) { done++; if (r.model) usage.push({ model: r.model, type: "mascot", cost: r.cost, timestamp: new Date().toISOString() }); }
-      else fail++;
-      await supabaseAdmin.from("projects").update({
-        client_info: { ...ci, mascotStatus: "mascot_generating", mascotProgress: { completed: done, total } },
-        updated_at: new Date().toISOString(),
-      }).eq("id", projectId);
+    // Concurrent pool (max 4 parallel genOne calls)
+    async function runConcurrentPool<T extends { fn: string }>(
+      items: T[],
+      worker: (item: T) => Promise<{ url: string | null; cost: number; model: string | null }>,
+      concurrency: number = 4
+    ): Promise<{ url: string | null; cost: number; model: string | null }[]> {
+      const poolResults: { url: string | null; cost: number; model: string | null }[] = [];
+      let index = 0;
+      async function enqueue(): Promise<void> {
+        while (index < items.length) {
+          const i = index++;
+          poolResults[i] = await worker(items[i]);
+        }
+      }
+      const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => enqueue());
+      await Promise.all(workers);
+      return poolResults;
     }
+
+    const poolResults = await runConcurrentPool(jobs, (j) => genOne(projectId, j.fn, j.p, negPrompt), 4);
+    poolResults.forEach((r, idx) => {
+      results[idx] = { fn: jobs[idx].fn, ...r };
+      if (r?.url) { done++; if (r.model) usage.push({ model: r.model, type: "mascot", cost: r.cost, timestamp: new Date().toISOString() }); }
+      else fail++;
+    });
+
+    // Single progress update after batch complete
+    await supabaseAdmin.from("projects").update({
+      client_info: { ...ci, mascotStatus: "mascot_generating", mascotProgress: { completed: done, total } },
+      updated_at: new Date().toISOString(),
+    }).eq("id", projectId);
 
     // Composite
     const front = results.find(r => r.fn === "mascot-front.png");
@@ -328,22 +369,39 @@ async function performGeneration(projectId: string, ci: Record<string, any>) {
       } catch { /* composite fail */ }
     }
 
-    const allViewsOk = front?.url != null && side?.url != null && back?.url != null;
+    const threeViewsOk = front?.url != null && side?.url != null && back?.url != null;
+    const emotionOkCount = results.filter((r: { fn: string; url: string | null }) => r.fn.startsWith('mascot-emotion-') && r.url).length;
+    const sceneOkCount = results.filter((r: { fn: string; url: string | null }) => r.fn.startsWith('mascot-scene-') && r.url).length;
+    const isPartial = threeViewsOk && (emotionOkCount < EMOTION_NAMES.length || sceneOkCount < sceneN);
+    const mascotStatus = threeViewsOk ? "mascot_generated" : "mascot_failed";
+    const mascotError = threeViewsOk ? undefined : "三视图生成失败";
+
     const assets = {
       front: front?.url || null, side: side?.url || null, back: back?.url || null, threeView,
-      emotions: results.filter(r => r.fn.startsWith("mascot-emotion-") && r.url).map(r => ({ name: r.fn.replace("mascot-emotion-", "").replace(".png", ""), url: r.url })),
-      scenes: results.filter(r => r.fn.startsWith("mascot-scene-") && r.url).map(r => ({ name: r.fn.replace("mascot-scene-", "").replace(".png", ""), url: r.url })),
+      emotions: results.filter(r => r.fn.startsWith('mascot-emotion-') && r.url).map(r => ({ name: r.fn.replace('mascot-emotion-', '').replace('.png', ''), url: r.url })),
+      scenes: results.filter(r => r.fn.startsWith('mascot-scene-') && r.url).map(r => ({ name: r.fn.replace('mascot-scene-', '').replace('.png', ''), url: r.url })),
     };
 
     const fin = { ...ci }; delete fin.mascotProgress;
     await supabaseAdmin.from("projects").update({
-      client_info: { ...fin, mascotStatus: allViewsOk ? "mascot_generated" : "mascot_failed", mascotError: allViewsOk ? undefined : "三视图生成失败", mascotAssets: assets, mascotName: profile.suggestedName || "品牌公仔", arkUsageLog: [...(fin.arkUsageLog || []), ...usage] },
+      client_info: { ...fin, mascotStatus, mascotError, mascotAssets: assets, mascotPartial: isPartial, mascotName: profile.suggestedName || "品牌公仔", arkUsageLog: [...(fin.arkUsageLog || []), ...usage] },
       updated_at: new Date().toISOString(),
     }).eq("id", projectId);
 
-    _DEV && console.log("[mascot] Done " + projectId + ": " + done + "/" + total + " views=" + allViewsOk);
+    _DEV && console.log('[mascot] Done ' + projectId + ': ' + done + '/' + total + ' views=' + threeViewsOk + ' partial=' + isPartial);
+
+    return {
+      success: threeViewsOk,
+      status: mascotStatus,
+      mascotAssets: assets,
+      mascotPartial: isPartial,
+      mascotName: profile.suggestedName || "品牌公仔",
+      mascotError,
+      summary: { completed: done, failed: fail, total },
+    };
   } catch (e: any) {
     console.error("[mascot] FATAL " + projectId + ": " + e.message);
     try { await supabaseAdmin.from("projects").update({ client_info: { ...ci, mascotStatus: "mascot_failed", mascotError: "异常: " + (e.message || "unknown") }, updated_at: new Date().toISOString() }).eq("id", projectId); } catch {}
+    return { success: false, status: "mascot_failed", mascotAssets: null, mascotPartial: false, mascotName: "brand_mascot", mascotError: e.message || "unknown", summary: { completed: 0, failed: 0, total: 0 } };
   }
 }
