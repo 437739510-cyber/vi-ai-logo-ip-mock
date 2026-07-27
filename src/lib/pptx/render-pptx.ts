@@ -1902,14 +1902,25 @@ async function renderMascotGallery(slide: PptxGenJS.Slide, bp: PageBlueprint, op
     });
   }
 
-  // Scene images (additional slide if needed)
+  // Scene images grid
   if (scKeys.length > 0) {
-    const scPerSlide = 3;
-    for (let si = 0; si < scKeys.length; si += scPerSlide) {
-      const scSlide = si > 0 ? bp : bp;  // Use same bp structure
-      // For additional slides, we'd create new ones but for simplicity use the same slide
-      // PptxGenJS handles multiple slides per page
-    }
+    yPos += 0.3;
+    if (yPos > 6.2) yPos = 2.0;
+    slide.addText('应用场景', { x: MARGIN, y: yPos, w: CONTENT_W, h: 0.35, fontSize: 14, bold: true, color: bc.pri, fontFace: 'Noto Sans SC' });
+    yPos += 0.4;
+    const scSize = 1.5, scGap = 0.15, scStartX = MARGIN;
+    const maxPerRow2 = Math.floor(CONTENT_W / (scSize + scGap));
+    scKeys.slice(0, 6).forEach((key, i) => {
+      const col = i % maxPerRow2;
+      const row = Math.floor(i / maxPerRow2);
+      const ex = scStartX + col * (scSize + scGap);
+      const ey = yPos + row * (scSize + 0.35);
+      const b64 = sc![key];
+      if (b64) {
+        slide.addImage({ data: normImg(b64), x: ex, y: ey, w: scSize, h: scSize, sizing: { type: 'contain', w: scSize, h: scSize } });
+        slide.addText(key, { x: ex, y: ey + scSize + 0.02, w: scSize, h: 0.3, fontSize: 8, color: '666666', align: 'center', fontFace: 'Noto Sans SC' });
+      }
+    });
   }
 }
 

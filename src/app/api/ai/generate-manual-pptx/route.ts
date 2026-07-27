@@ -854,11 +854,9 @@ export async function POST(req: NextRequest) {
     const mascotPersonality = ((ciPrefs.mascotPersonalityPref || [])[0] || (ciPrefs.brandPersona || [])[0] || '');
     const mascotAssets = ciPrefs.mascotAssets as Record<string, any> | undefined;
 
-    // [FIX 2026-07-27] Zeabur 无本地磁盘，findAsset/findFromStorage 取不到云端公仔图；
-    // 改用 client_info.mascotAssets 的云端 public URL 作为回退，确保 PART 8 公仔章节渲染。
-    if (!mascotData && mascotAssets?.front) {
-      try { mascotData = await loadImg(mascotAssets.front); } catch { /* ignore */ }
-    }
+    // [FIX 2026-07-27] Zeabur 无本地磁盘，findAsset/findFromStorage 取不到云端公仔图。
+    // PART 8 公仔章节使用 client_info.mascotAssets 的云端 public URL（emotions/scenes/threeView），
+    // 不依赖 mascotData（mascotData 走 compressImage 在云函数环境易崩，且 PART 8 渲染不需要它）。
     if (!mascotSplitViews && mascotAssets?.front && mascotAssets?.side && mascotAssets?.back) {
       try {
         const [f, s, b] = await Promise.all([
@@ -1123,8 +1121,8 @@ export async function POST(req: NextRequest) {
 
     _DEV && console.log("[generate-pptx] Blueprints:", blueprints.length, "pages");
 
-    // V2026-07-27: Inject mascot PART 8 gallery page if mascot exists
-    if (mascotData && (mascotEmotions || mascotScenes || mascotThreeViewData)) {
+    // V2026-07-27: Inject mascot PART 8 gallery page if mascot assets exist
+    if (mascotEmotions || mascotScenes || mascotThreeViewData) {
       const mascotGalleryPage = {
         pageId: "mascot-gallery",
         label: "公仔表情库与应用场景",
