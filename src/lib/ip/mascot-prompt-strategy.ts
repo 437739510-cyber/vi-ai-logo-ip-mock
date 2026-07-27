@@ -19,6 +19,27 @@ import type { MascotProfile, MascotDesignMode } from "@/agents/mascot-designer";
 import type { BrandProfile } from "@/lib/brand/brand-analyzer";
 import type { BusinessProfile } from "@/lib/brand/business-profile";
 import type { IndustryProfile } from "@/lib/brand/industry-knowledge";
+import {
+  IndustryCategory,
+  BrandArchetype,
+  ThemeTag,
+  StyleTier,
+  SpeciesScoringInput,
+  SpeciesScoringResult,
+  MascotCoreAnchors,
+  PoseTemplate,
+  ExpressionTemplate,
+  ExpressionType,
+  ViewType,
+  scoreAndSelectSpecies,
+  deriveThemeTags,
+  matchStyleTier,
+  matchBestPose,
+  matchDefaultExpression,
+  pickDeterministicSymbols,
+  buildImagePromptBySegments,
+  buildNegativePrompt as buildOptimizedNegativePrompt,
+} from "./mascot-optimization";
 
 // ========== Output Type ==========
 
@@ -44,6 +65,18 @@ export interface MascotPromptSet {
 
   /** Key restrictions */
   restrictions: string[];
+
+  /** Segmented prompt fields for batch regeneration (only for create_new) */
+  promptSegments?: {
+    baseQuality: string;
+    styleRender: string;
+    coreAnchors: string;
+    pose: string;
+    expression: string;
+    viewVariant: string;
+    sceneContext: string;
+    consistencyConstraint: string;
+  };
 }
 
 // ========== Style Reference ==========
@@ -408,6 +441,70 @@ export interface MascotPromptInput {
  * Generate MascotPromptSet from brand analysis results.
  * Pure function — no side effects, no API calls.
  */
+
+// ========== Optimization Pipeline ==========
+
+interface OptimizationResult {
+  speciesResult: SpeciesScoringResult;
+  themeTags: ThemeTag[];
+  styleTier: StyleTier;
+  poseTemplate: PoseTemplate;
+  expressionTemplate: ExpressionTemplate;
+  symbols: string[];
+  coreAnchors: MascotCoreAnchors;
+}
+
+/**
+ * Run full mascot optimization pipeline for create_new mode.
+ * Falls back gracefully if any step fails.
+ */
+function runMascotOptimization(
+  mascotProfile: MascotProfile,
+  brandProfile: BrandProfile,
+  clientPreferences?: MascotPromptInput["clientPreferences"],
+  brandName?: string
+): OptimizationResult | null {
+  try {
+    const industry = brandProfile.industryCategory as unknown as IndustryCategory;
+    const brandArchetype = brandProfile.brandArchetype as unknown as BrandArchetype;
+
+    const personalityKeywords = clientPreferences?.mascotPersonalityPref?.length
+      ? clientPreferences.mascotPersonalityPref
+      : mascotProfile.personality;
+
+    const typePreferences = clientPreferences?.mascotTypePref?.length
+      ? clientPreferences.mascotTypePref
+      : mascotProfile.suggestedType
+        ? [mascotProfile.suggestedType]
+        : ["character"];
+
+    const speciesResult = scoreAndSelectSpecies({
+      industry,
+      brandArchetype,
+      personalityKeywords,
+      typePreferences,
+    });
+
+    const themeTags = deriveThemeTags(personalityKeywords, industry);
+    const styleTier = matchStyleTier(industry, themeTags);
+    const poseTemplate = matchBestPose(themeTags);
+    const expressionTemplate = matchDefaultExpression(themeTags);
+    const symbols = pickDeterministicSymbols(themeTags, brandName || "default", 2);
+
+    const coreAnchors: MascotCoreAnchors = {
+      species: speciesResult.speciesName,
+      bodyColorDesc: "soft " + speciesResult.speciesName.toLowerCase() + " coloring",
+      keyAccessories: symbols,
+      coreTexture: "smooth matte texture",
+    };
+
+    return { speciesResult, themeTags, styleTier, poseTemplate, expressionTemplate, symbols, coreAnchors };
+  } catch (error) {
+    console.warn("[MascotPromptStrategy] Optimization pipeline failed, falling back to legacy logic:", error);
+    return null;
+  }
+}
+
 export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptSet {
   const { mascotProfile, brandProfile } = input;
 
@@ -436,17 +533,85 @@ export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptS
   }
 
   // Mode: create_new or optional_recommend → build full prompt set
-  const imagePrompt = mascotProfile.mode === "create_new"
-    ? buildCreateNewImagePrompt(mascotProfile, brandProfile, input.industryProfile, input.brandColors, input.clientPreferences)
-    : buildCreateNewImagePrompt(mascotProfile, brandProfile, input.industryProfile, input.brandColors, input.clientPreferences);
+  const isCreateNew = mascotProfile.mode === "create_new";
+  const brandName = mascotProfile.suggestedName || brandProfile.brandPositioning || "brand";
+
+  const optimizationResult = isCreateNew
+    ? runMascotOptimization(mascotProfile, brandProfile, input.clientPreferences, brandName)
+    : null;
+
+  let imagePrompt: string | null;
+  let negativePrompt: string;
+  let promptSegments: MascotPromptSet["promptSegments"] | undefined;
+
+  if (isCreateNew && optimizationResult) {
+    const { styleTier, coreAnchors, poseTemplate, expressionTemplate, speciesResult } = optimizationResult;
+
+    // Build prompt using segmented builder
+    const profileLike = {
+      styleTier: styleTier,
+      coreAnchors: coreAnchors,
+      visualDetails: {
+        poseType: poseTemplate.poseType,
+        expressionType: expressionTemplate.expressionType,
+        species: speciesResult.speciesName,
+        pose: poseTemplate.poseDescription,
+        expression: expressionTemplate.expressionDescription,
+        atmosphere: [],
+        accessories: coreAnchors.keyAccessories,
+      },
+      mode: "create_new",
+      confidence: 1,
+      hasMascot: false,
+      suggestedName: brandName,
+      suggestedType: mascotProfile.suggestedType,
+      suggestedRole: mascotProfile.suggestedRole,
+      personality: mascotProfile.personality,
+      visualTraits: mascotProfile.visualTraits,
+      colorDirection: mascotProfile.colorDirection,
+      storySummary: mascotProfile.storySummary || "",
+      usageScenarios: mascotProfile.usageScenarios,
+      themeTags: optimizationResult.themeTags,
+      industry: brandProfile.industryCategory,
+      archetype: brandProfile.brandArchetype,
+    };
+
+    imagePrompt = buildImagePromptBySegments(
+      profileLike as any,
+      ViewType.FRONT,
+      expressionTemplate.expressionType,
+      input.clientPreferences?.mascotUsageScenes?.join(", ")
+    );
+
+    negativePrompt = buildOptimizedNegativePrompt(
+      brandProfile.industryCategory as unknown as IndustryCategory,
+      styleTier,
+      []
+    );
+
+    promptSegments = {
+      baseQuality: "premium quality, highly detailed, professional brand mascot, white background, centered composition",
+      styleRender: styleTier + ", " + poseTemplate.poseDescription,
+      coreAnchors: coreAnchors.species + ", " + coreAnchors.bodyColorDesc + ", " + coreAnchors.keyAccessories.join(", "),
+      pose: poseTemplate.poseDescription,
+      expression: expressionTemplate.expressionDescription,
+      viewVariant: "full body front view, standing upright, looking at viewer",
+      sceneContext: input.clientPreferences?.mascotUsageScenes?.join(", ") || "",
+      consistencyConstraint: "strict character consistency, unified color scheme, complete character design",
+    };
+  } else {
+    imagePrompt = buildCreateNewImagePrompt(mascotProfile, brandProfile, input.industryProfile, input.brandColors, input.clientPreferences);
+    negativePrompt = buildNegativePrompt(mascotProfile.mode, mascotProfile);
+  }
 
   return {
     mode: mascotProfile.mode,
     strategyPrompt: buildStrategyPrompt(mascotProfile, brandProfile),
     imagePrompt,
-    negativePrompt: buildNegativePrompt(mascotProfile.mode, mascotProfile),
+    negativePrompt,
     usageNotes: buildUsageNotes(mascotProfile),
     restrictions: buildRestrictions(mascotProfile),
+    ...(promptSegments ? { promptSegments } : {}),
   };
 }
 

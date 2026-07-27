@@ -21,6 +21,7 @@ import { recommendMascot } from "@/agents/mascot-designer";
 import type { MascotRecommendationInput } from "@/agents/mascot-designer";
 import { generateMascotPromptSet, type MascotPromptInput } from "@/lib/ip/mascot-prompt-strategy";
 import { estimateArkCost } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
+import { LiblibAIProvider } from "@/lib/ip/ip-image-provider/liblibai-provider";
 
 const _DEV = process.env.NODE_ENV === "development";
 
@@ -101,12 +102,47 @@ async function arkGenerate(opts: {
   return null;
 }
 
-/** Download URL -> Buffer */
+/** Download URL -> Buffer (supports both https and data: URLs) */
 async function downloadImage(url: string): Promise<Buffer | null> {
   try {
+    if (url.startsWith("data:")) {
+      const comma = url.indexOf(",");
+      const meta = url.slice(5, comma);
+      const b64 = url.slice(comma + 1);
+      return meta.includes(";base64")
+        ? Buffer.from(b64, "base64")
+        : Buffer.from(decodeURIComponent(b64), "utf-8");
+    }
     const resp = await fetch(url, { signal: AbortSignal.timeout(30_000) });
     return resp.ok ? Buffer.from(await resp.arrayBuffer()) : null;
   } catch { return null; }
+}
+
+// LiblibAI free-tier client (singleton, serial by design). Returns null on any failure so caller falls back to ark.
+let _liblibai: LiblibAIProvider | null = null;
+async function generateViaLiblibAI(
+  prompt: string,
+  negativePrompt: string,
+  size?: string
+): Promise<{ imageUrl: string } | null> {
+  try {
+    if (!process.env.LIBLIBAI_ACCESS_KEY) return null;
+    if (!_liblibai) _liblibai = new LiblibAIProvider();
+    const dim = (size || "1024x1024").split("x").map(Number);
+    const w = dim[0] || 1024, h = dim[1] || 1024;
+    const res = await _liblibai.generateImage({
+      brandContext: { brandName: "", industry: "", brandPositioning: "", brandPersona: [], visualDirection: "" },
+      ipProfile: { type: "mascot", personality: [], visualTraits: [], colorDirection: [] },
+      step: { stepId: "mascot", label: "mascot", description: "" },
+      prompt,
+      negativePrompt: negativePrompt || "",
+      output: { width: w, height: h, format: "png" },
+    });
+    return { imageUrl: res.imageUrl };
+  } catch (e: any) {
+    console.warn("[mascot] LiblibAI failed, fallback ark: " + (e?.message || "unknown"));
+    return null;
+  }
 }
 
 /** Upload Buffer to Supabase Storage: processed-assets/{projectId}/{name} */
@@ -136,10 +172,20 @@ async function composeThreeView(front: Buffer, side: Buffer, back: Buffer): Prom
   } catch (e) { console.error("[mascot] Sharp fail: " + (e as Error).message); return null; }
 }
 
-/** Generate one image: ark -> download -> upload -> public URL, with 1 retry */
+/** Generate one image: LiblibAI (free) -> download -> upload; fallback to ark if LiblibAI unavailable/fails */
 async function genOne(projectId: string, fileName: string, prompt: string, negativePrompt: string, size?: string):
   Promise<{ url: string | null; cost: number; model: string | null }> {
   for (let i = 0; i < 2; i++) {
+    // 1) LiblibAI free tier (preferred)
+    const li = await generateViaLiblibAI(prompt, negativePrompt, size);
+    if (li?.imageUrl) {
+      const buf = await downloadImage(li.imageUrl);
+      if (buf) {
+        const url = await uploadToStorage(projectId, fileName, buf);
+        if (url) return { url, cost: 0, model: "liblibai-star3-alpha" };
+      }
+    }
+    // 2) Ark paid fallback
     const r = await arkGenerate({ prompt, negativePrompt, size });
     if (!r) continue;
     const buf = await downloadImage(r.imageUrl);
@@ -259,7 +305,7 @@ async function performGeneration(projectId: string, ci: Record<string, any>) {
     for (const j of jobs) {
       const r = await genOne(projectId, j.fn, j.p, negPrompt);
       results.push({ url: r.url, fn: j.fn });
-      if (r.url) { done++; if (r.cost > 0 && r.model) usage.push({ model: r.model, type: "mascot", cost: r.cost, timestamp: new Date().toISOString() }); }
+      if (r.url) { done++; if (r.model) usage.push({ model: r.model, type: "mascot", cost: r.cost, timestamp: new Date().toISOString() }); }
       else fail++;
       await supabaseAdmin.from("projects").update({
         client_info: { ...ci, mascotStatus: "mascot_generating", mascotProgress: { completed: done, total } },
