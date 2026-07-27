@@ -892,6 +892,22 @@ export async function POST(req: NextRequest) {
 
     _DEV && console.log("[generate-pptx] Logo:", logoData ? "OK" : "null", "| Mascot:", mascotData ? "OK" : "null", "| Emotions:", mascotEmotions ? Object.keys(mascotEmotions).length : 0, "| Scenes:", mascotScenes ? Object.keys(mascotScenes).length : 0);
 
+    // [DIAG 2026-07-27] 把公仔资源加载结果写回 client_info，便于排查 Zeabur 环境下 loadImg 是否取到图
+    try {
+      const { data: dbgInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
+      const dbgPrev = (dbgInfo?.client_info as Record<string, any>) || {};
+      await supabaseAdmin.from("projects").update({
+        client_info: { ...dbgPrev, mascotDebug: {
+          ciHasMascotAssets: !!ciPrefs.mascotAssets,
+          assetsFront: !!(ciPrefs.mascotAssets && ciPrefs.mascotAssets.front),
+          threeView: !!mascotThreeViewData,
+          emotionsCount: mascotEmotions ? Object.keys(mascotEmotions).length : 0,
+          scenesCount: mascotScenes ? Object.keys(mascotScenes).length : 0,
+          ts: new Date().toISOString(),
+        } },
+      }).eq("id", projectId!);
+    } catch (e: any) { console.warn("[generate-pptx] mascotDebug write error:", e.message); }
+
     // V83: 保存checkpoint — 品牌分析+Logo加载完成，如果后续超时可从此续传
     try {
       const { data: ckInfo } = await supabaseAdmin.from("projects").select("client_info").eq("id", projectId!).single();
