@@ -167,9 +167,26 @@ function buildCreateNewImagePrompt(
   const brandName = mascotProfile.suggestedName || "brand mascot";
   parts.push(`A brand mascot character named "${brandName}"`);
 
-  // 2. Mascot type and concept
-  const typeLabel = getMascotTypeLabel(mascotProfile.suggestedType);
-  parts.push(`designed as a ${typeLabel}`);
+  // 2. Visual details from MascotProfile
+  const vd = mascotProfile.visualDetails;
+  if (vd?.species) {
+    parts.push(`designed as a ${vd.species}`);
+  } else {
+    const typeLabel = getMascotTypeLabel(mascotProfile.suggestedType);
+    parts.push(`designed as a ${typeLabel}`);
+  }
+  if (vd?.pose) {
+    parts.push(vd.pose);
+  }
+  if (vd?.expression) {
+    parts.push(vd.expression);
+  }
+  if (vd?.atmosphere && vd.atmosphere.length > 0) {
+    parts.push(vd.atmosphere.join(", "));
+  }
+  if (vd?.accessories && vd.accessories.length > 0) {
+    parts.push(`wearing ${vd.accessories.join(", ")}`);
+  }
 
   // 3. Brand + industry context
   parts.push(`for ${brandProfile.brandPositioning || brandProfile.industry}`);

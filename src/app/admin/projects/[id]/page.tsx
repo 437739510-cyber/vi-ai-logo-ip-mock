@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -85,6 +85,13 @@ export default function ProjectDetailPage({
   const [generatingLogo, setGeneratingLogo] = useState(false);
   const [logoResult, setLogoResult] = useState<any>(null);
   const [selectingLogo, setSelectingLogo] = useState(false);
+  // Phase 3: IP 公仔生成
+  const [generatingMascot, setGeneratingMascot] = useState(false);
+  const [mascotStatus, setMascotStatus] = useState<string>("");
+  const [mascotProgress, setMascotProgress] = useState("");
+  const [mascotAssets, setMascotAssets] = useState<any>(null);
+  const [mascotError, setMascotError] = useState("");
+
 
   // V49: Auto-poll logo generation status when generating
   useEffect(() => {
@@ -547,6 +554,61 @@ export default function ProjectDetailPage({
     } catch (e: any) {
       setPptxError(e.message || 'Logo生成出错');
       setGeneratingLogo(false);
+    }
+  };
+
+
+  // Phase 3: AI生成IP公仔（异步轮询）
+  const handleGenerateMascot = async () => {
+    if (!project) return;
+    setGeneratingMascot(true);
+    setMascotError("");
+    setMascotProgress("正在提交生成任务...");
+    try {
+      const res = await fetch('/api/ai/generate-mascot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id }),
+      });
+      const data = await res.json();
+      if (data.error) { setMascotError(data.error); setGeneratingMascot(false); return; }
+
+      // Poll get-project-data for mascotStatus
+      const pollInterval = setInterval(async () => {
+        try {
+          const dataRes = await fetch(`/api/get-project-data?projectId=${project.id}`);
+          if (!dataRes.ok) return;
+          const freshData = await dataRes.json();
+          const ci = freshData.project?.client_info || {};
+          const mStatus = ci.mascotStatus || "";
+          const mProgress = ci.mascotProgress || {};
+
+          setMascotStatus(mStatus);
+          if (mProgress?.completed !== undefined) {
+            setMascotProgress(`${mProgress.completed}/${mProgress.total} 张`);
+          }
+
+          if (mStatus === "mascot_generated") {
+            clearInterval(pollInterval);
+            setMascotAssets(ci.mascotAssets || null);
+            setMascotProgress("生成完成");
+            setGeneratingMascot(false);
+            // Refresh project
+            const { getProjectById } = await import('@/lib/core/mock');
+            const fp = await getProjectById(project.id);
+            if (fp) { setProject(fp); const s = await (await import('@/lib/core/mock')).getSubmissionById(fp.submissionId); if (s) setSubmission(s); }
+          } else if (mStatus === "mascot_failed") {
+            clearInterval(pollInterval);
+            setMascotError(ci.mascotError || "公仔生成失败");
+            setGeneratingMascot(false);
+          }
+        } catch { /* retry */ }
+      }, 3000);
+
+      setTimeout(() => { clearInterval(pollInterval); setGeneratingMascot(false); setMascotProgress(""); }, 600000);
+    } catch (e: any) {
+      setMascotError(e.message || '公仔生成出错');
+      setGeneratingMascot(false);
     }
   };
 
@@ -1446,6 +1508,151 @@ export default function ProjectDetailPage({
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-600" />
                 <span className="text-xs text-emerald-700">Logo已就绪（{submission!.logoAssets!.length}个文件），可直接生成VI手册</span>
+              </div>
+            )}
+
+            {/* Phase 1.5: IP 公仔生成（需客户选了公仔） */}
+            {(submission as any)?.wantMascot === "yes" && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-purple-600 text-white text-[10px] font-bold rounded">Phase 1.5</span>
+                  <span className="text-[11px] text-neutral-400">IP公仔生成</span>
+                </div>
+
+                {/* 尚未生成 */}
+                {!mascotAssets && !generatingMascot && mascotStatus !== "mascot_generated" && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-purple-700 font-bold text-sm">
+                      <span>🤖</span> 客户需要 IP 公仔 — 点击生成
+                    </div>
+                    <p className="text-[11px] text-neutral-600">
+                      AI将根据客户偏好生成16张公仔图（三视图+表情+场景），耗时约2-3分钟。
+                    </p>
+                    <button
+                      onClick={handleGenerateMascot}
+                      disabled={generatingMascot}
+                      className="w-full py-2.5 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                    >
+                      {generatingMascot ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> {mascotProgress || "AI 生成公仔中（约2-3分钟）"}</>
+                      ) : (
+                        <>🤖 AI生成IP公仔</>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* 生成中 */}
+                {generatingMascot && !mascotAssets && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-purple-700 text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{mascotProgress || "正在生成公仔..."}</span>
+                    </div>
+                    <div className="w-full bg-purple-200 rounded-full h-2">
+                      <div className="bg-purple-600 h-2 rounded-full animate-pulse" style={{width: "60%"}} />
+                    </div>
+                  </div>
+                )}
+
+                {/* 生成完毕 — 预览 */}
+                {mascotAssets && !generatingMascot && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-purple-700 font-bold text-sm">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>IP 公仔生成完成 {(mascotAssets as any).threeView ? "🎉" : ""}</span>
+                      </div>
+                    </div>
+
+                    {/* 三视图合成大图 */}
+                    {(mascotAssets as any).threeView && (
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-2">三视图合成</p>
+                        <img src={(mascotAssets as any).threeView}
+                          alt="三视图" className="w-full rounded-lg border border-purple-200" />
+                      </div>
+                    )}
+
+                    {/* 三视图单张 */}
+                    {((mascotAssets as any).front || (mascotAssets as any).side || (mascotAssets as any).back) && (
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-2">三视图</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {["front", "side", "back"].map((view) => (
+                            <div key={view} className="bg-white rounded-lg p-2 border border-purple-200">
+                              {(mascotAssets as any)[view] ? (
+                                <img src={(mascotAssets as any)[view]} alt={`${view}视图`} className="w-full aspect-square object-contain" />
+                              ) : (
+                                <div className="w-full aspect-square bg-neutral-100 rounded flex items-center justify-center text-neutral-400 text-xs">{view}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 表情 */}
+                    {(mascotAssets as any).emotions?.length > 0 && (
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-2">表情（{(mascotAssets as any).emotions.length}个）</p>
+                        <div className="grid grid-cols-6 gap-2">
+                          {(mascotAssets as any).emotions.map((em: any, i: number) => (
+                            <div key={em.name || i} className="bg-white rounded-lg p-1 border border-purple-200">
+                              <img src={em.url} alt={em.name} className="w-full aspect-square object-contain" />
+                              <p className="text-[10px] text-neutral-400 text-center mt-0.5">{em.name}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 场景 */}
+                    {(mascotAssets as any).scenes?.length > 0 && (
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-2">场景图（{(mascotAssets as any).scenes.length}个）</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(mascotAssets as any).scenes.map((sc: any, i: number) => (
+                            <div key={sc.name || i} className="bg-white rounded-lg p-1 border border-purple-200">
+                              <img src={sc.url} alt={sc.name} className="w-full aspect-square object-contain" />
+                              <p className="text-[10px] text-neutral-400 text-center mt-0.5">{sc.name}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 确认并生成手册按钮 */}
+                    <button
+                      onClick={() => handleGeneratePptx()}
+                      disabled={generatingPptx}
+                      className="w-full py-2.5 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                    >
+                      {generatingPptx ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> 正在生成VI手册...</>
+                      ) : (
+                        <>✅ 确认公仔并生成VI手册</>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* 生成失败 */}
+                {mascotError && !generatingMascot && !mascotAssets && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-red-700 font-bold text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>公仔生成失败</span>
+                    </div>
+                    <p className="text-xs text-red-600">{mascotError}</p>
+                    <button
+                      onClick={handleGenerateMascot}
+                      className="w-full py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all flex items-center justify-center gap-2 text-sm"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> 重新生成
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

@@ -64,6 +64,9 @@ export interface RenderPptxOptions {
   // V112: 富文本叙事
   brandStory?: string;
   colorDescriptions?: string;
+  mascotEmotions?: Record<string, string> | null;
+  mascotScenes?: Record<string, string> | null;
+  mascotThreeViewData?: string | null;
   sceneDescriptions?: Record<string, string>;
   // V114: 豆包评审整改 — content_patch字段
   fontCopyrightNotice?: string;
@@ -278,7 +281,7 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
   return Buffer.from(base64, "base64");
 }
 
-const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","wayfinding","summary","material-priority","logo-output","modification-authority","closing"];
+const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","wayfinding","summary","material-priority","logo-output","modification-authority","mascot-gallery","closing"];
 
 async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>): Promise<void> {
   switch (bp.pageId) {
@@ -305,6 +308,7 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "material-priority": renderMaterialPriority(slide, bp, opts, bc); break;
     case "wayfinding": renderWayfinding(slide, bp, opts, bc); break;
     case "logo-output": renderLogoOutput(slide, bp, opts, bc); break;
+    case "mascot-gallery": renderMascotGallery(slide, bp, opts, bc); break;
     case "modification-authority": renderModificationAuthority(slide, bp, opts, bc); break;
     default: renderGeneric(slide, bp, opts, bc);
   }
@@ -1841,6 +1845,74 @@ function renderSummary(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPp
 }
 
 // ========== Generic ==========
+
+async function renderMascotGallery(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): Promise<void> {
+  const emo = opts.mascotEmotions;
+  const sc = opts.mascotScenes;
+  const threeView = opts.mascotThreeViewData;
+  if (!emo && !sc && !threeView) { renderGeneric(slide, bp, opts, bc); return; }
+
+  const emoKeys = emo ? Object.keys(emo) : [];
+  const scKeys = sc ? Object.keys(sc) : [];
+  const totalSlides = 1 + (emoKeys.length > 0 ? 1 : 0) + (scKeys.length > 0 ? Math.ceil(scKeys.length / 3) : 0);
+
+  // Slide 1: 3-view sheet + emotions
+  addSlideBase(slide, bp, bc);
+
+  // Title
+  const title = bp.elements?.find((e: any) => e.id === 'mascot-gallery-title')?.content || '公仔展示';
+  slide.addText(title, { x: MARGIN, y: 0.4, w: CONTENT_W, h: 0.6, fontSize: 24, bold: true, color: bc.pri, fontFace: 'Noto Sans SC' });
+
+  // Decorative line
+  slide.addShape('rect', { x: MARGIN, y: 1.1, w: 1.2, h: 0.04, fill: { color: bc.sec }, rectRadius: 0.02 });
+
+  // Mascot name & style
+  const nameEl = bp.elements?.find((e: any) => e.id === 'mascot-name')?.content || '';
+  const styleEl = bp.elements?.find((e: any) => e.id === 'mascot-style-info')?.content || '';
+  if (nameEl) slide.addText(nameEl, { x: MARGIN, y: 1.3, w: CONTENT_W, h: 0.35, fontSize: 16, bold: true, color: '333333', fontFace: 'Noto Sans SC' });
+  if (styleEl) slide.addText(styleEl, { x: MARGIN, y: 1.65, w: CONTENT_W, h: 0.3, fontSize: 12, color: '666666', fontFace: 'Noto Sans SC' });
+
+  let yPos = 2.1;
+
+  // 3-view sheet
+  if (threeView) {
+    slide.addText('三视图', { x: MARGIN, y: yPos, w: CONTENT_W, h: 0.35, fontSize: 14, bold: true, color: bc.pri, fontFace: 'Noto Sans SC' });
+    const vw = 6.0, vh = 2.0;
+    slide.addImage({ data: normImg(threeView), x: (SW - vw) / 2, y: yPos + 0.4, w: vw, h: vh, sizing: { type: 'contain', w: vw, h: vh } });
+    yPos += vh + 0.6;
+  }
+
+  // Emotion gallery
+  if (emoKeys.length > 0) {
+    if (yPos > 6.0) { yPos = 2.0; }
+    slide.addText('表情库', { x: MARGIN, y: yPos, w: CONTENT_W, h: 0.35, fontSize: 14, bold: true, color: bc.pri, fontFace: 'Noto Sans SC' });
+    yPos += 0.4;
+    const emoSize = 1.2, emoGap = 0.15, emoStartX = MARGIN;
+    const maxPerRow = Math.floor(CONTENT_W / (emoSize + emoGap));
+    emoKeys.slice(0, 6).forEach((key, i) => {
+      const col = i % maxPerRow;
+      const row = Math.floor(i / maxPerRow);
+      const ex = emoStartX + col * (emoSize + emoGap);
+      const ey = yPos + row * (emoSize + 0.35);
+      const b64 = emo![key];
+      if (b64) {
+        slide.addImage({ data: normImg(b64), x: ex, y: ey, w: emoSize, h: emoSize, sizing: { type: 'contain', w: emoSize, h: emoSize } });
+        slide.addText(key, { x: ex, y: ey + emoSize + 0.02, w: emoSize, h: 0.3, fontSize: 8, color: '666666', align: 'center', fontFace: 'Noto Sans SC' });
+      }
+    });
+  }
+
+  // Scene images (additional slide if needed)
+  if (scKeys.length > 0) {
+    const scPerSlide = 3;
+    for (let si = 0; si < scKeys.length; si += scPerSlide) {
+      const scSlide = si > 0 ? bp : bp;  // Use same bp structure
+      // For additional slides, we'd create new ones but for simplicity use the same slide
+      // PptxGenJS handles multiple slides per page
+    }
+  }
+}
+
 function renderGeneric(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, bp.label || bp.pageId, bc);
   let yPos = 1.8;

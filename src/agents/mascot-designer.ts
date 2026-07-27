@@ -63,6 +63,15 @@ export interface MascotProfile {
   reason: string;
   /** Recommended modules to add if creating new mascot */
   recommendedModules?: string[];
+
+  /** Detailed visual description for high-quality prompt generation */
+  visualDetails?: {
+    species?: string;
+    pose?: string;
+    expression?: string;
+    atmosphere?: string[];
+    accessories?: string[];
+  };
 }
 
 export type MascotType =
@@ -243,10 +252,122 @@ const INDUSTRY_VISUAL_SUGGESTIONS: Record<string, { type: MascotType; traits: st
     type: "character",
     traits: ["时尚简约", "年轻化", "易于延展"],
     colors: ["品牌主色", "潮流色系"],
+﻿  },
+};
+
+// ========== Visual Detail Map (2026-07-27) ==========
+
+interface VisualDetailProfile {
+  species: string;
+  pose: string;
+  expression: string;
+  atmosphere: string[];
+  accessories: string[];
+}
+
+const INDUSTRY_VISUAL_DETAILS: Record<string, VisualDetailProfile> = {
+  food_beverage: {
+    species: "cute food character",
+    pose: "welcoming pose, arms slightly open",
+    expression: "warm friendly smile",
+    atmosphere: ["warm", "playful", "appetizing"],
+    accessories: ["chef hat", "apron"],
+  },
+  hospitality_tourism: {
+    species: "friendly regional animal",
+    pose: "open arms, welcoming gesture",
+    expression: "warm hospitable smile",
+    atmosphere: ["warm", "inviting", "cultural"],
+    accessories: ["local accessory", "welcome sign"],
+  },
+  retail_ecommerce: {
+    species: "cute modern character",
+    pose: "standing confidently, slight tilt",
+    expression: "bright friendly smile",
+    atmosphere: ["modern", "trendy", "energetic"],
+    accessories: ["shopping bag", "tag"],
+  },
+  education_training: {
+    species: "wise friendly animal",
+    pose: "standing with book, open posture",
+    expression: "kind encouraging smile",
+    atmosphere: ["friendly", "bright", "trustworthy"],
+    accessories: ["glasses", "book"],
+  },
+  healthcare_medical: {
+    species: "gentle soothing animal",
+    pose: "hands gently clasped, caring stance",
+    expression: "warm serene smile",
+    atmosphere: ["gentle", "soothing", "trustworthy"],
+    accessories: ["herbal bundle", "stethoscope"],
+  },
+  technology_it: {
+    species: "sleek futuristic character",
+    pose: "dynamic confident stance",
+    expression: "confident innovative smile",
+    atmosphere: ["modern", "sleek", "innovative"],
+    accessories: ["holographic element", "gear"],
+  },
+  culture_media: {
+    species: "creative artistic character",
+    pose: "expressive open pose",
+    expression: "creative inspired expression",
+    atmosphere: ["artistic", "creative", "vibrant"],
+    accessories: ["paintbrush", "creative prop"],
+  },
+  beauty: {
+    species: "elegant deer or butterfly",
+    pose: "graceful pose, hands together",
+    expression: "serene elegant smile",
+    atmosphere: ["elegant", "graceful", "luxurious"],
+    accessories: ["flower crown", "ribbon"],
+  },
+  fitness: {
+    species: "energetic athletic animal",
+    pose: "active dynamic pose",
+    expression: "energetic determined smile",
+    atmosphere: ["energetic", "dynamic", "motivating"],
+    accessories: ["sports prop", "headband"],
+  },
+  pet: {
+    species: "friendly dog or cat",
+    pose: "playful sitting or standing",
+    expression: "happy playful expression",
+    atmosphere: ["playful", "friendly", "warm"],
+    accessories: ["collar", "tag"],
+  },
+  mother_baby: {
+    species: "soft warm animal",
+    pose: "gentle protective stance",
+    expression: "warm nurturing smile",
+    atmosphere: ["soft", "warm", "nurturing"],
+    accessories: ["baby prop", "heart"],
+  },
+  default: {
+    species: "friendly character",
+    pose: "standing with open posture",
+    expression: "warm friendly smile",
+    atmosphere: ["warm", "friendly", "approachable"],
+    accessories: [],
   },
 };
 
+// Personality-driven refinements (override visual details based on brand personality)
+const PERSONA_POSE_REFINEMENTS: Record<string, { pose?: string; expression?: string; atmosphere?: string[] }> = {
+  亲民温馨: { pose: "hands gently clasped, warm welcoming stance", expression: "warm gentle smile", atmosphere: ["warm", "inviting"] },
+  活泼可爱: { pose: "playful pose, head slightly tilted", expression: "playful happy grin", atmosphere: ["playful", "joyful"] },
+  极简高级: { pose: "elegant standing pose, straight posture", expression: "minimal sophisticated smile", atmosphere: ["elegant", "sophisticated"] },
+  潮流有活力: { pose: "dynamic confident stance, arm raised", expression: "bright energetic smile", atmosphere: ["trendy", "energetic"] },
+  复古怀旧: { pose: "classic poised stance", expression: "timeless gentle smile", atmosphere: ["vintage", "nostalgic"] },
+  专业可靠: { pose: "standing tall, confident posture", expression: "professional confident smile", atmosphere: ["professional", "trustworthy"] },
+  传统经典: { pose: "traditional respectful pose", expression: "graceful classic smile", atmosphere: ["classic", "timeless"] },
+  自然清新: { pose: "relaxed natural stance", expression: "gentle fresh smile", atmosphere: ["natural", "fresh"] },
+  科技未来: { pose: "dynamic futuristic pose", expression: "innovative confident expression", atmosphere: ["futuristic", "sleek"] },
+  手作匠心: { pose: "hands showing craft, warm stance", expression: "proud artisan smile", atmosphere: ["artisan", "warm"] },
+};
+
 // ========== Module depth per business stage for create_new ==========
+
 
 const MODULES_BY_DEPTH: Record<string, { essential: string[]; recommended: string[]; optional: string[] }> = {
   full: {
@@ -488,6 +609,15 @@ function buildFromClientPreferences(input: MascotRecommendationInput): MascotPro
     const story = `基于客户偏好的品牌IP角色，类型为${suggestedType || "character"}${refNote}。性格特征：${mergedPersonality.join("、")}。`;
 
   const depth = determineDepth(businessStage, businessGoal, "create_new");
+  const baseVisual = INDUSTRY_VISUAL_DETAILS[industryCategory] || INDUSTRY_VISUAL_DETAILS["default"];
+  const personaRefinement = brandPersona
+    .map((p: string) => PERSONA_POSE_REFINEMENTS[p])
+    .filter(Boolean)
+    .reduce((acc: any, r: any) => ({
+      pose: r.pose || acc.pose,
+      expression: r.expression || acc.expression,
+      atmosphere: [...new Set([...(acc.atmosphere || []), ...(r.atmosphere || [])])],
+    }), { atmosphere: [] });
 
   return {
     mode: "create_new",
@@ -503,6 +633,13 @@ function buildFromClientPreferences(input: MascotRecommendationInput): MascotPro
     usageScenarios: usageScenes,
     reason: "客户已明确需要IP公仔，根据客户偏好生成IP设计方案。" + (refNote || ""),
     recommendedModules: getModulesForDepth(businessStage || "", "create_new"),
+    visualDetails: {
+      species: baseVisual.species,
+      pose: personaRefinement.pose || baseVisual.pose,
+      expression: personaRefinement.expression || baseVisual.expression,
+      atmosphere: personaRefinement.atmosphere?.length ? personaRefinement.atmosphere.slice(0, 3) : baseVisual.atmosphere.slice(0, 3),
+      accessories: baseVisual.accessories.slice(0, 2),
+    },
   };
 }
 
@@ -523,6 +660,15 @@ function buildCreateNewProfile(
   const scenarios = generateUsageScenarios(input);
   const story = generateStorySummary(brandPersona, industryCategory);
   const depth = determineDepth(businessStage, businessGoal, "create_new");
+  const baseVisual = INDUSTRY_VISUAL_DETAILS[industryCategory] || INDUSTRY_VISUAL_DETAILS["default"];
+  const personaRefinement = brandPersona
+    .map((p: string) => PERSONA_POSE_REFINEMENTS[p])
+    .filter(Boolean)
+    .reduce((acc: any, r: any) => ({
+      pose: r.pose || acc.pose,
+      expression: r.expression || acc.expression,
+      atmosphere: [...new Set([...(acc.atmosphere || []), ...(r.atmosphere || [])])],
+    }), { atmosphere: [] });
 
   return {
     mode: "create_new",
@@ -538,6 +684,13 @@ function buildCreateNewProfile(
     usageScenarios: scenarios,
     reason: `品牌特征分析显示：${reasons.join("；")}。强烈建议创建品牌IP公仔。`,
     recommendedModules: [...MODULES_BY_DEPTH[depth].essential, ...MODULES_BY_DEPTH[depth].recommended],
+    visualDetails: {
+      species: baseVisual.species,
+      pose: personaRefinement.pose || baseVisual.pose,
+      expression: personaRefinement.expression || baseVisual.expression,
+      atmosphere: personaRefinement.atmosphere?.length ? personaRefinement.atmosphere.slice(0, 3) : baseVisual.atmosphere.slice(0, 3),
+      accessories: baseVisual.accessories.slice(0, 2),
+    },
   };
 }
 
@@ -550,6 +703,16 @@ function buildOptionalProfile(
   const mascotTraits = getSuggestedTraits(brandPersona);
   const scenarios = generateUsageScenarios(input);
   const story = generateStorySummary(brandPersona, industryCategory);
+
+  const baseVisual = INDUSTRY_VISUAL_DETAILS[industryCategory] || INDUSTRY_VISUAL_DETAILS["default"];
+  const personaRefinement = brandPersona
+    .map((p: string) => PERSONA_POSE_REFINEMENTS[p])
+    .filter(Boolean)
+    .reduce((acc: any, r: any) => ({
+      pose: r.pose || acc.pose,
+      expression: r.expression || acc.expression,
+      atmosphere: [...new Set([...(acc.atmosphere || []), ...(r.atmosphere || [])])],
+    }), { atmosphere: [] });
 
   return {
     mode: "optional_recommend",
@@ -565,6 +728,13 @@ function buildOptionalProfile(
     usageScenarios: scenarios,
     reason: `品牌特征显示有一定IP潜力（${reasons.join("；")}），但非必需。建议与客户沟通是否需要IP公仔作为品牌升级选项。`,
     recommendedModules: ["mascot-profile", "mascot-visual-direction", "mascot-colors"],
+    visualDetails: {
+      species: baseVisual.species,
+      pose: personaRefinement.pose || baseVisual.pose,
+      expression: personaRefinement.expression || baseVisual.expression,
+      atmosphere: personaRefinement.atmosphere?.length ? personaRefinement.atmosphere.slice(0, 3) : baseVisual.atmosphere.slice(0, 3),
+      accessories: baseVisual.accessories.slice(0, 2),
+    },
   };
 }
 

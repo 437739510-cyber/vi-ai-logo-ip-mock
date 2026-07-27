@@ -847,7 +847,38 @@ export async function POST(req: NextRequest) {
     if (!mascotData) mascotData = await findFromStorage(projectId, "mascot");
     if (mascotData) mascotSplitViews = await findSplitViews(projectId);
 
-    _DEV && console.log("[generate-pptx] Logo:", logoData ? "OK" : "null", "| Mascot:", mascotData ? "OK" : "null");
+    // V2026-07-27: Read mascot metadata from client_info
+    const mascotName = (project?.client_info as Record<string, any>)?.mascotName || (submission as any)?.mascot_name || '品牌公仔';
+    const ciPrefs = (project?.client_info as Record<string, any>) || {};
+    const mascotStyle = ((ciPrefs.mascotStylePref || [])[0] || '').replace(/_/g, ' ');
+    const mascotPersonality = ((ciPrefs.mascotPersonalityPref || [])[0] || (ciPrefs.brandPersona || [])[0] || '');
+    const mascotAssets = ciPrefs.mascotAssets as Record<string, any> | undefined;
+
+    // Load emotion images from mascotAssets
+    let mascotEmotions: Record<string, string> | null = null;
+    let mascotScenes: Record<string, string> | null = null;
+    let mascotThreeViewData: string | null = null;
+    if (mascotAssets) {
+      if (mascotAssets.threeView) {
+        mascotThreeViewData = await loadImg(mascotAssets.threeView);
+      }
+      if (mascotAssets.emotions && Array.isArray(mascotAssets.emotions)) {
+        const loaded: Record<string, string> = {};
+        for (const em of mascotAssets.emotions) {
+          if (em.url) { const b64 = await loadImg(em.url); if (b64) loaded[em.name] = b64; }
+        }
+        if (Object.keys(loaded).length > 0) mascotEmotions = loaded;
+      }
+      if (mascotAssets.scenes && Array.isArray(mascotAssets.scenes)) {
+        const loaded: Record<string, string> = {};
+        for (const sc of mascotAssets.scenes) {
+          if (sc.url) { const b64 = await loadImg(sc.url); if (b64) loaded[sc.name] = b64; }
+        }
+        if (Object.keys(loaded).length > 0) mascotScenes = loaded;
+      }
+    }
+
+    _DEV && console.log("[generate-pptx] Logo:", logoData ? "OK" : "null", "| Mascot:", mascotData ? "OK" : "null", "| Emotions:", mascotEmotions ? Object.keys(mascotEmotions).length : 0, "| Scenes:", mascotScenes ? Object.keys(mascotScenes).length : 0);
 
     // V83: 保存checkpoint — 品牌分析+Logo加载完成，如果后续超时可从此续传
     try {
@@ -1072,11 +1103,29 @@ export async function POST(req: NextRequest) {
       },
       assetAnalysis: {
         logo: { hasLogo: !!logoData, logoUrl: body.logoUrl || "", elements: [], styleTags: [], meaning: logoPhilosophy },
-        mascot: { hasMascot: !!mascotData, mascotUrl: body.mascotUrl || "", isThreeView: !!(mascotSplitViews?.length === 3), splitViews: mascotSplitViews || [], name: "", style: "", personality: "" },
+        mascot: { hasMascot: !!mascotData, mascotUrl: body.mascotUrl || "", isThreeView: !!(mascotSplitViews?.length === 3), splitViews: mascotSplitViews || [], name: mascotName, style: mascotStyle, personality: mascotPersonality },
       },
     });
 
     _DEV && console.log("[generate-pptx] Blueprints:", blueprints.length, "pages");
+
+    // V2026-07-27: Inject mascot PART 8 gallery page if mascot exists
+    if (mascotData && (mascotEmotions || mascotScenes || mascotThreeViewData)) {
+      const mascotGalleryPage = {
+        pageId: "mascot-gallery",
+        label: "公仔表情库与应用场景",
+        background: { primaryColor: "#FFFFFF", secondaryColor: "#F5F5F5" },
+        elements: [
+          { type: "text", id: "mascot-gallery-title", content: "公仔表情库与应用场景", position: "top-center" },
+          { type: "text", id: "mascot-name", content: "角色名称：" + mascotName, position: "top-center" },
+          { type: "text", id: "mascot-style-info", content: "风格：" + (mascotStyle || '待定') + " · 个性：" + (mascotPersonality || '待定'), position: "top-center" },
+        ],
+        appliedRules: [],
+        qualityThreshold: 0,
+      };
+      blueprints.push(mascotGalleryPage as any);
+      _DEV && console.log("[generate-pptx] Injected mascot-gallery page");
+    }
 
     // ===== QC Gate: 轻量化内容校验（fire-and-forget，不阻塞管线）=====
     const qcMd = blueprints
@@ -1109,6 +1158,9 @@ export async function POST(req: NextRequest) {
       aiLogoData: aiLogoData || undefined,
       compressImages: true,  // V30: 压缩图片减小体积
       sceneSectionTitles: brandProfile?.sceneSectionTitles,  // V98: AI场景页标题
+      mascotEmotions: mascotEmotions || undefined,
+      mascotScenes: mascotScenes || undefined,
+      mascotThreeViewData: mascotThreeViewData || undefined,
       auxGraphicsIntro: buildAuxGraphicsIntro(brandProfile, realColors, industry),
       colorMeaning: buildColorMeaning(brandProfile, realColors, industry),
       brandStory: effectiveBrandStory || composeBrandStory(companyName, industry, effectiveBrandVision, effectiveCoreValues, effectiveTargetMarket, brandProfile),
