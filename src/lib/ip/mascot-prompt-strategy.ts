@@ -37,6 +37,7 @@ import {
   matchBestPose,
   matchDefaultExpression,
   pickDeterministicSymbols,
+  translateBrandColors,
   buildImagePromptBySegments,
   buildNegativePrompt as buildOptimizedNegativePrompt,
 } from "./mascot-optimization";
@@ -462,7 +463,8 @@ function runMascotOptimization(
   mascotProfile: MascotProfile,
   brandProfile: BrandProfile,
   clientPreferences?: MascotPromptInput["clientPreferences"],
-  brandName?: string
+  brandName?: string,
+  brandColors?: { primary?: string; accent?: string; background?: string }
 ): OptimizationResult | null {
   try {
     const industry = brandProfile.industryCategory as unknown as IndustryCategory;
@@ -493,7 +495,7 @@ function runMascotOptimization(
 
     const coreAnchors: MascotCoreAnchors = {
       species: speciesResult.speciesName,
-      bodyColorDesc: "soft " + speciesResult.speciesName.toLowerCase() + " coloring",
+      bodyColorDesc: translateBrandColors({ primary: (brandColors?.primary as string) || "", accent: (brandColors?.accent as string) || "" }),
       keyAccessories: symbols,
       coreTexture: "smooth matte texture",
     };
@@ -537,7 +539,7 @@ export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptS
   const brandName = mascotProfile.suggestedName || brandProfile.brandPositioning || "brand";
 
   const optimizationResult = isCreateNew
-    ? runMascotOptimization(mascotProfile, brandProfile, input.clientPreferences, brandName)
+    ? runMascotOptimization(mascotProfile, brandProfile, input.clientPreferences, brandName, input.brandColors as any)
     : null;
 
   let imagePrompt: string | null;
