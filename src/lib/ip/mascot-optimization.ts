@@ -298,7 +298,7 @@ export const SPECIES_GENE_POOL: Record<string, SpeciesGene> = {
   },
 
   human_artisan: {
-    speciesName: 'warm friendly human artisan',
+    speciesName: 'warm friendly human artisan, wearing traditional Chinese hat and long traditional robe, holding handmade craft item',
     speciesNameCn: '人物匠人',
     mentalTags: ['匠心', '亲和', '手工', '传统', '地道', '温暖'],
     adaptedIndustries: [
@@ -876,6 +876,9 @@ export function translateBrandColors(brandColors: {
     '#F0D5A8': 'champagne gold',
     '#FFF9F5': 'creamy off-white',
     '#D4919E': 'rose gold pink',
+    '#1A1A2E': 'deep navy blue',
+    '#C9A96E': 'champagne gold',
+    '#E8D5B7': 'warm cream beige',
   };
 
   const bodyBase = colorNameMap[brandColors.background || ''] || 'soft light color';
