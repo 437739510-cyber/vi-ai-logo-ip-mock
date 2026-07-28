@@ -864,12 +864,22 @@ export function buildNegativePrompt(
  * 品牌色值转自然语言描述（分部位）
  * @param brandColors 品牌色值对象
  */
-export function translateBrandColors(brandColors: {
-  primary: string;
-  secondary?: string;
-  accent?: string;
-  background?: string;
-}): string {
+export function resolveHex(
+  c: string | { hex?: string; name?: string } | undefined
+): string {
+  if (!c) return "";
+  if (typeof c === "string") return c;
+  return c.hex || "";
+}
+
+export function translateBrandColors(
+  brandColors: {
+    primary?: string | { hex?: string; name?: string };
+    secondary?: string | { hex?: string; name?: string };
+    accent?: string | { hex?: string; name?: string };
+    background?: string | { hex?: string; name?: string };
+  }
+): string {
   const colorNameMap: Record<string, string> = {
     '#E8576C': 'soft rose pink',
     '#9B72CF': 'lavender purple',
@@ -881,16 +891,24 @@ export function translateBrandColors(brandColors: {
     '#E8D5B7': 'warm cream beige',
   };
 
-  const bodyBase = colorNameMap[brandColors.background || ''] || 'soft light color';
-  const detailColor = colorNameMap[brandColors.primary] || 'brand primary color';
-  const accentColor = colorNameMap[brandColors.accent || ''] || 'brand accent color';
+  const primaryHex = resolveHex(brandColors.primary);
+  const accentHex = resolveHex(brandColors.accent);
+  const backgroundHex = resolveHex(brandColors.background);
+  const secondaryHex = resolveHex(brandColors.secondary);
+
+  const bodyHex = backgroundHex || primaryHex;
+  const bodyBase = colorNameMap[bodyHex] || (bodyHex ? 'brand primary color' : 'soft light color');
+  const detailColor = backgroundHex
+    ? colorNameMap[backgroundHex] || 'brand background color'
+    : 'natural skin tone, warm complexion';
+  const accentColor = colorNameMap[accentHex] || (accentHex ? 'brand accent color' : '');
 
   return [
     `body main color: ${bodyBase} with matte texture`,
     `facial features and details: ${detailColor}`,
-    `decorative accents: ${accentColor} metallic texture`,
-    `brand color scheme: ${brandColors.primary}, ${brandColors.secondary || ''}, ${brandColors.accent || ''}`,
-  ].join(', ');
+    accentColor ? `decorative accents: ${accentColor} metallic texture` : '',
+    `brand color scheme: ${primaryHex}, ${secondaryHex}, ${accentHex}`,
+  ].filter(Boolean).join(', ');
 }
 
 /** 获取视角描述 */
@@ -916,7 +934,8 @@ export function buildImagePromptBySegments(
   profile: MascotProfileV2,
   view: ViewType,
   expression: ExpressionType,
-  sceneContext?: string
+  sceneContext?: string,
+  brandName?: string
 ): string {
   const style = STYLE_TIER_CONFIG[profile.styleTier];
   const poseDesc = POSE_TEMPLATE_MAP[profile.visualDetails.poseType].poseDescription;
@@ -924,14 +943,17 @@ export function buildImagePromptBySegments(
   const viewDesc = getViewDescription(view);
 
   const baseQuality =
-    'premium quality, highly detailed, professional brand mascot, white background, centered composition';
+    'premium quality, highly detailed, professional brand mascot, white background, centered composition, photorealistic, 8k, cinematic lighting, sharp focus, studio quality, isolated on white, photography, realistic, soft lighting, friendly expression';
   const consistencyConstraint =
     'strict character consistency, unified color scheme, complete character design';
+
+  const brandCtx = brandName ? 'brand mascot for ' + brandName + ', 鞋业零售 brand, humanoid character design, cute creature mascot, 亲民传统匠心温暖 personality, handmade craft heritage' : '';
 
   const segments = [
     baseQuality,
     style.renderKeywords,
     style.lightingKeywords,
+    brandCtx,
     profile.coreAnchors.species,
     profile.coreAnchors.bodyColorDesc,
     profile.coreAnchors.keyAccessories.join(', '),
@@ -944,7 +966,6 @@ export function buildImagePromptBySegments(
 
   return segments.filter(Boolean).join(', ');
 }
-
 /**
  * 推导主题标签（辅助函数）
  * @param personality 品牌性格关键词

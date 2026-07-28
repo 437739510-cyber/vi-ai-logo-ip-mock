@@ -196,6 +196,7 @@ function buildCreateNewImagePrompt(
   clientPreferences?: { mascotTypePref?: string[]; mascotStylePref?: string[]; mascotPersonalityPref?: string[]; mascotUsageScenes?: string[]; mascotColorHint?: string; mascotRefIdea?: string; mascotSceneCount?: number }
 ): string {
   const parts: string[] = [];
+  const headParts: string[] = [];
 
   // 1. Brand context
   const brandName = mascotProfile.suggestedName || "brand mascot";
@@ -258,19 +259,19 @@ function buildCreateNewImagePrompt(
 
   // 9a. Brand color injection (闭环缺口 #6)
   const brandPrimary = brandColors?.primary
-    ? typeof brandColors.primary === "string" ? brandColors.primary : (brandColors.primary as any)?.hex
+    ? typeof brandColors.primary === "string" ? brandColors.primary : (brandColors.primary as any)?.hex || ""
     : undefined;
   const brandAccent = brandColors?.accent
-    ? typeof brandColors.accent === "string" ? brandColors.accent : (brandColors.accent as any)?.hex
+    ? typeof brandColors.accent === "string" ? brandColors.accent : (brandColors.accent as any)?.hex || ""
     : undefined;
   if (brandPrimary) {
-    parts.push(`brand primary color: ${brandPrimary}`);
+    headParts.push("brand primary " + brandPrimary);
   }
   if (brandAccent) {
-    parts.push(`brand accent color: ${brandAccent}`);
+    headParts.push("brand accent " + brandAccent);
   }
-  if (brandPrimary || brandAccent) {
-    parts.push(`color scheme must follow brand palette, main colors: ${brandPrimary || "brand primary"} and ${brandAccent || "brand accent"}`);
+  if (brandPrimary) {
+    headParts.push("brand colors: " + [brandPrimary, brandAccent].filter(Boolean).join(", "));
   }
 
   // 9b. Client preference injection (type/style/personality)
@@ -305,14 +306,13 @@ function buildCreateNewImagePrompt(
     parts.push(`designed for: ${mascotProfile.usageScenarios.slice(0, 4).join(", ")}`);
   }
 
-  // 12. Format constraints
-  parts.push("full body character");
-  parts.push("isolated on white background");
-  parts.push("flat vector illustration style");
-  parts.push("clean scalable design");
-  parts.push("ready for print and digital use");
+  // 12. 3D style head (replaces flat vector)
+  const styleHead = "3D Pixar style, C4D render, octane render, soft studio lighting, professional brand mascot, premium quality, highly detailed, centered composition, white background, full body front view, looking at viewer";
+  const colorSection = headParts.length > 0 ? headParts.join(", ") : "";
+  const bodyContent = parts.map(p => p.replace(/^[a-zA-Z\s]+: /, "").replace(/^"(.*)"$/, "$1")).join(", ");
+  const sceneCon = (brandProfile.industry || "").trim() + " brand mascot";
 
-  return parts.join(". ") + ".";
+  return [styleHead, bodyContent, colorSection, "---", sceneCon].filter(Boolean).join(", ") + ".";
 }
 
 // ========== Helper: Build strategy prompt ==========
@@ -495,10 +495,35 @@ function runMascotOptimization(
 
     const coreAnchors: MascotCoreAnchors = {
       species: speciesResult.speciesName,
-      bodyColorDesc: translateBrandColors({ primary: (brandColors?.primary as string) || "", accent: (brandColors?.accent as string) || "" }),
+      bodyColorDesc: translateBrandColors({ primary: brandColors?.primary, accent: brandColors?.accent }),
       keyAccessories: symbols,
       coreTexture: "smooth matte texture",
     };
+
+    // Brand-specific enrichment: replace generic "holding handmade craft item" with brand-specific prop
+    if (speciesResult.speciesName.includes("human artisan") && clientPreferences?.mascotRefIdea) {
+      const refIdea = clientPreferences.mascotRefIdea;
+      const holdingMatch = refIdea.match(/手持([^，。]+)/);
+      if (holdingMatch) {
+        const holdingItem = holdingMatch[1].trim();
+        // Chinese to English item translation
+        const itemTranslation: Record<string, string> = {
+          '一双千层底布鞋': 'a pair of handmade cloth shoes',
+          '千层底布鞋': 'handmade cloth shoes',
+          '针线': 'needle and thread',
+          '布鞋': 'cloth shoes',
+          '布鞋鞋底': 'cloth shoe soles',
+        };
+        const englishItem = itemTranslation[holdingItem] || holdingItem;
+        coreAnchors.species = coreAnchors.species.replace('holding handmade craft item', 'holding ' + englishItem);
+        const itemKey = 'holding ' + holdingItem;
+        if (!coreAnchors.keyAccessories.includes(itemKey)) {
+          coreAnchors.keyAccessories.push(itemKey);
+        // Change pose to compatible type (not prayer/合掌) when holding items
+        poseTemplate.poseType = 'elegant_poised';
+        }
+      }
+    }
 
     return { speciesResult, themeTags, styleTier, poseTemplate, expressionTemplate, symbols, coreAnchors };
   } catch (error) {
@@ -578,11 +603,15 @@ export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptS
       archetype: brandProfile.brandArchetype,
     };
 
+    const sceneContextEng = (input.clientPreferences?.mascotUsageScenes || [])
+      .map(s => ({门店招牌:'storefront',产品包装:'product packaging',会员卡:'membership card',社交媒体:'social media',周边商品:'merchandise',店内装饰:'interior decor',名片:'business card',手提袋:'shopping bag',宣传册:'brochure'})[s] || s)
+      .filter(Boolean).join(', ');
     imagePrompt = buildImagePromptBySegments(
       profileLike as any,
       ViewType.FRONT,
       expressionTemplate.expressionType,
-      input.clientPreferences?.mascotUsageScenes?.join(", ")
+      sceneContextEng,
+      brandProfile.brandPositioning || brandProfile.industry || ''
     );
 
     negativePrompt = buildOptimizedNegativePrompt(
