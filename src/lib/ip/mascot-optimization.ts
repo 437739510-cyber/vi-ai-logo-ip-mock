@@ -296,6 +296,18 @@ export const SPECIES_GENE_POOL: Record<string, SpeciesGene> = {
     adaptedArchetypes: [BrandArchetype.CREATOR, BrandArchetype.WARRIOR],
     baseWeight: 0.82,
   },
+
+  human_artisan: {
+    speciesName: 'warm friendly human artisan',
+    speciesNameCn: '人物匠人',
+    mentalTags: ['匠心', '亲和', '手工', '传统', '地道', '温暖'],
+    adaptedIndustries: [
+      IndustryCategory.RETAIL,
+      IndustryCategory.CULTURAL_CREATIVE,
+    ],
+    adaptedArchetypes: [BrandArchetype.CAREGIVER, BrandArchetype.EVERYMAN],
+    baseWeight: 0.9,
+  },
 };
 
 /** 2. 姿态模板映射表 */
