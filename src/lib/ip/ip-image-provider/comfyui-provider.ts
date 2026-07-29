@@ -20,7 +20,9 @@ import type {
 const COMFYUI_BASE = process.env.COMFYUI_BASE_URL || "http://127.0.0.1:8188";
 const PROMPT_URL = `${COMFYUI_BASE}/prompt`;
 const HISTORY_URL = `${COMFYUI_BASE}/history`;
-const TIMEOUT_MS = 120_000;
+// 整改：原 120s 硬超时会在 ComfyUI(~150s 才完成) 跑到一半时丢弃 logo/场景图。
+// 改为按 prompt_id 轮询 /history 直到该 prompt 完成再返回，最大等待提到 480s（300–600s 区间）。
+const TIMEOUT_MS = 480_000;
 const POLL_INTERVAL_MS = 2_000;
 
 // ========== Z-Image Turbo GGUF Workflow ==========
@@ -362,7 +364,7 @@ export const comfyGenerateImage = async (options: {
     options.height || 1024,
     seed
   );
-  const { filename, durationMs } = await submitAndWait(wf);
+  const { filename, durationMs } = await submitAndWait(wf, TIMEOUT_MS);
   const imageUrl = await readImageAsBase64(filename);
   return { imageUrl, durationMs };
 };

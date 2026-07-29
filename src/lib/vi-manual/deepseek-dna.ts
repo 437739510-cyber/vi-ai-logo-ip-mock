@@ -32,6 +32,8 @@ export interface BrandDNAInput {
   sceneModules?: string[];
   /** English visual keywords for ComfyUI prompt styling */
   visualKeywords?: string[];
+  /** Main products description (e.g., cloth shoes, beverages, beauty products) */
+  mainProducts?: string;
 }
 
 // ── Doubao VI Prompt Engine types (from doubao_deepseek_pipeline.py) ──
@@ -122,6 +124,8 @@ A set of scene templates (5 items). Choose concrete physical items that best rep
 - template_en: full scene prompt with {{DNA}} as the logo subject
 - Describe specific materials chosen for this industry (e.g. restaurant→menu cover, retail→shopping bag, beauty→product box)
 - Use photorealistic, 8k, cinematic style
+- CRITICAL: Each scene MUST include the brand's Chinese name characters as text in the scene (write the actual brand characters from Brand Name into the template)
+- CRITICAL: Each scene MUST include the brand's actual products (from Main Products) as natural visual elements (e.g., shoes on shelves, food on counter)
 - ALL fields must be in English only
 
 The 5 scene items should be chosen from or inspired by these VI application modules: ${sceneModules ? sceneModules.join(", ") : "手提袋, 招牌, 工服, 名片, 纸杯"}
@@ -157,6 +161,8 @@ function buildDNAUserPrompt(input: BrandDNAInput): string {
   if (input.logoDescription) prompt += `Logo Description: ${input.logoDescription}\n`;
   if (input.logoStyle) prompt += `Logo Style: ${input.logoStyle}\n`;
 
+  if (input.mainProducts) prompt += `Main Products: ${input.mainProducts}
+`;
   if (input.visualKeywords && input.visualKeywords.length > 0) {
     prompt += `Visual Keywords: ${input.visualKeywords.join(", ")}\n`;
   }
@@ -227,6 +233,8 @@ Generate exactly 8 scene images, strictly mapped to VI manual four modules.
 
 4. Scene prompts must describe brand logo/design applied to real-world physical items in photorealistic settings.
    Use "Professional product photography" style, 8k, cinematic lighting.
+5. IMPORTANT: Include the brand's actual products (e.g., shoes, food, beverages) as visual prop elements within each scene.
+6. CRITICAL: Each scene MUST include the brand's Chinese name characters as visible text (e.g., \'李记\' on a signboard) - write the actual brand name characters into the description.
 
 【Output JSON — Fixed Structure】
 {

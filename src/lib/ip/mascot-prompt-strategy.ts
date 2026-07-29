@@ -31,6 +31,7 @@ import {
   ExpressionTemplate,
   ExpressionType,
   ViewType,
+  PoseType,
   scoreAndSelectSpecies,
   deriveThemeTags,
   matchStyleTier,
@@ -520,7 +521,7 @@ function runMascotOptimization(
         if (!coreAnchors.keyAccessories.includes(itemKey)) {
           coreAnchors.keyAccessories.push(itemKey);
         // Change pose to compatible type (not prayer/合掌) when holding items
-        poseTemplate.poseType = 'elegant_poised';
+        poseTemplate.poseType = PoseType.ELEGANT_POISED;
         }
       }
     }
@@ -574,6 +575,40 @@ export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptS
   if (isCreateNew && optimizationResult) {
     const { styleTier, coreAnchors, poseTemplate, expressionTemplate, speciesResult } = optimizationResult;
 
+    // === 角色一致性锚点注入 (2026-07-28 修正) ===
+    // 平台/用户已定义的具体角色外观（visualDetails）必须优先于物种打分结果，
+    // 否则物种打分会自由发挥帽子/服饰/物种，导致三视图、表情、场景角色不一致。
+    const explicitAccessories = mascotProfile.visualDetails?.accessories;
+    if (explicitAccessories && explicitAccessories.length > 0) {
+      coreAnchors.keyAccessories = [
+        ...explicitAccessories,
+        ...coreAnchors.keyAccessories.filter(a => !explicitAccessories.includes(a)),
+      ];
+    }
+    if (mascotProfile.visualDetails?.species) {
+      coreAnchors.species = mascotProfile.visualDetails.species;
+    }
+
+    // === 2026-07-29 李记整改 #1（强化版）：强制传统手工/鞋履品牌角色为「中年男性老北京布鞋匠人」 ===
+    // 不再依赖物种动态打分产出「熊」，直接锁定 human artisan 并覆盖打分结果（相当于跳过动物打分）。
+    if (isTraditionalCraftBrand(brandProfile, input.clientPreferences)) {
+      coreAnchors.species = HUMAN_ARTISAN_SPECIES;
+      // 同步覆盖动态打分产出的 speciesName，避免 profileLike.visualDetails.species 仍带动物名泄露到正文
+      optimizationResult.speciesResult.speciesName = HUMAN_ARTISAN_SPECIES;
+      optimizationResult.speciesResult.speciesNameCn = HUMAN_ARTISAN_SPECIES_CN;
+      // 清除优化器默认（CUTE_PLAYFUL 兜底）注入的「萌化/动物化」配件，如 cute little bow on head / round blush on cheeks
+      coreAnchors.keyAccessories = coreAnchors.keyAccessories.filter(
+        (a) => !/cute|bow|blush|animal|furry|ear|horn|antler|ribbon|knot|panda|bear|deer|fox|rabbit|owl/i.test(a)
+      );
+      const hasShoe = coreAnchors.keyAccessories.some((a) => /cloth.?shoe|布鞋|千层底/i.test(a));
+      if (!hasShoe) {
+        coreAnchors.keyAccessories.push("holding a pair of handmade cloth shoes (千层底布鞋)");
+      }
+      if (!coreAnchors.keyAccessories.some((a) => /melon.?cap|瓜皮帽|gold button|金球/i.test(a))) {
+        coreAnchors.keyAccessories.push("black Chinese melon-cap with a single small gold round button on top");
+      }
+    }
+
     // Build prompt using segmented builder
     const profileLike = {
       styleTier: styleTier,
@@ -610,7 +645,7 @@ export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptS
       profileLike as any,
       ViewType.FRONT,
       expressionTemplate.expressionType,
-      sceneContextEng,
+      "", // 表情/人像图统一纯白背景，不注入场景上下文（场景图后续单独处理）
       brandProfile.brandPositioning || brandProfile.industry || ''
     );
 
@@ -633,6 +668,19 @@ export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptS
   } else {
     imagePrompt = buildCreateNewImagePrompt(mascotProfile, brandProfile, input.industryProfile, input.brandColors, input.clientPreferences);
     negativePrompt = buildNegativePrompt(mascotProfile.mode, mascotProfile);
+  }
+
+  // === 2026-07-29 李记整改 #1（强化版）：传统手工/鞋履品牌强制「老北京布鞋匠人」角色（两条路径均生效）===
+  // 无论物种打分是否成功，统一追加强约束，确保角色=中年男性黑瓜皮帽+帽顶小金球、藏青长衫、香槟金腰带、
+  // 手持千层底布鞋、真人（非动物），并清除优化器内残留的 "cute creature mascot" 等动物化/萌化描述，
+  // negative 追加 bear/teddy bear/panda/animal/furry/cute animal/cartoon animal/beast/animal ears/ears on top。
+  if (isCreateNew && isTraditionalCraftBrand(brandProfile, input.clientPreferences)) {
+    // 清除优化器 buildImagePromptBySegments 中硬编码的 "cute creature mascot / humanoid character design" 等动物化描述
+    imagePrompt = (imagePrompt || "")
+      .replace(/cute creature mascot/gi, "human artisan character")
+      .replace(/humanoid character design/gi, "human artisan character design");
+    imagePrompt = imagePrompt + CRAFT_HUMAN_ARTISAN_SUFFIX;
+    negativePrompt = (negativePrompt || "") + CRAFT_NEGATIVE_APPEND;
   }
 
   return {
@@ -659,6 +707,54 @@ function getMascotTypeLabel(type?: string): string {
     hybrid: "混合元素角色",
   };
   return map[type || "character"] || "品牌IP角色";
+}
+
+/**
+ * 传统手工 / 鞋履品牌的强制「老北京布鞋匠人」角色常量（整改 #1 强化版）。
+ * 直接锁定中年男性真人匠人，杜绝 Z-Image Turbo 等模型把 cute creature mascot 渲染成熊/动物。
+ */
+const HUMAN_ARTISAN_SPECIES =
+  "human artisan cloth-shoe craftsman, a middle-aged Chinese male handmade cloth-shoe craftsman";
+const HUMAN_ARTISAN_SPECIES_CN = "人物匠人（中年男性老北京布鞋匠人）";
+
+/** 正向强约束后缀：明确「真人、非动物、非熊、非吉祥物动物」并描述完整匠人外观 */
+const CRAFT_HUMAN_ARTISAN_SUFFIX =
+  ", 3D Pixar human character, a human artisan cloth-shoe craftsman (a human being, NOT an animal, NOT a bear, NOT a mascot animal): " +
+  "a middle-aged Chinese male handmade cloth-shoe craftsman, " +
+  "plain black Chinese melon-cap (guapi hat) with a single small gold round button on top, " +
+  "dark navy changshan robe, champagne-gold waist belt, " +
+  "holding a pair of handmade cloth shoes (千层底布鞋), " +
+  "friendly artisan expression, full body standing upright, " +
+  "pure white background, isolated, no store interior, no shelves, no shop sign, no scenery, no environment, " +
+  "NO antlers, NO horns, NO branches, NO animal ears, NO fins, NO deer antlers, NO bow, NO ribbon, " +
+  "NO butterfly knot, NO yellow bear, NO pink bow, NO animal, NO furry, NO beast";
+
+/** 负向强约束追加：覆盖熊/熊猫/动物/毛绒/萌动物等所有可能动物化信号 */
+const CRAFT_NEGATIVE_APPEND =
+  ", antlers, horns, branches, animal ears, fins, deer, bear, teddy bear, panda, yellow bear, " +
+  "animal, furry, cute animal, cartoon animal, beast, ears on top, " +
+  "store interior, shelves, shop sign, scenery, environment, complex background, " +
+  "bow, ribbon, butterfly knot, pink bow, hair bow, bowtie, deer antlers, animal nose, cute creature mascot";
+
+/**
+ * 判断品牌是否属于传统手工 / 鞋履类，若是则强制 IP 角色为「老北京布鞋匠人」，
+ * 避免物种动态打分产出「熊」等错误角色（整改 #1）。
+ */
+function isTraditionalCraftBrand(
+  brandProfile: BrandProfile,
+  clientPreferences?: MascotPromptInput["clientPreferences"]
+): boolean {
+  const ind = (
+    (brandProfile.industry as string) ||
+    (brandProfile.industryCategory as unknown as string) ||
+    ""
+  ).toLowerCase();
+  const ref = clientPreferences?.mascotRefIdea || "";
+  const keywords = [
+    "鞋", "布鞋", "千层底", "手工", "传统", "craft", "shoe", "cloth",
+    "artisan", "老北京", "非遗", "匠", "制鞋",
+  ];
+  return keywords.some((k) => ind.includes(k.toLowerCase()) || ref.includes(k));
 }
 
 // ========== Test helper: Quick verification without API ==========

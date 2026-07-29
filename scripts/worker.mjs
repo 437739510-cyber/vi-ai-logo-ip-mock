@@ -153,15 +153,16 @@ const BRAND_ANALYSIS_SYSTEM = `你是一位资深的品牌战略分析师，精�
     {"name": "强调色", "hex": "#RRGGBB", "nameEn": "Accent", "meaning": "该色彩的行业关联，1句话"}
   ],
   "logoDesignSuggestions": {
+    "note": "IMPORTANT: Logo prompts must emphasize the BRAND NAME as the central visual element. Do NOT use location/city name as the brand identifier. The brand name itself is the hero.",
     "concept": "Logo设计理念详述：3-5句话",
     "style": "设计风格",
     "elements": "建议包含的设计元素",
     "colorGuidance": "配色建议",
     "prompts": [
-      "English prompt 1: detailed AI image generation prompt with design style, graphic elements, color scheme, layout",
-      "English prompt 2: style variant of concept 1",
-      "English prompt 3: different creative direction",
-      "English prompt 4: another creative direction"
+      "English logo prompt 1: Chinese seal stamp logo, engraved brand name text in seal script as the central focus, thick double border with fret pattern, navy blue ink on beige paper, flat vector, no 3D, centered composition, emphasize the brand name not location",
+      "English logo prompt 2: square seal chop design, brand name in ancient seal script as the main visual element, thin border with cloud patterns, engraved stamp texture, flat design no gradients, brand name is the centerpiece",
+      "English logo prompt 3: round seal logo, brand name characters carved in bold small seal style at center, surrounded by auspicious cloud and fret patterns, antique gold and deep indigo color scheme, engraved texture, flat vector, brand name dominates",
+      "English logo prompt 4: traditional seal mark with bold brand name characters as the primary visual, double square border with corner ornaments, hand-carved woodblock texture, deep navy blue ink, flat engraving style, brand name is the hero element"
     ]
   },
   "aiGeneratedFields": {

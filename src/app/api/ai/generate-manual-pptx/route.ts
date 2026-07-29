@@ -23,7 +23,7 @@ import { supabaseAdmin } from "@/lib/core/supabase";
 import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
 import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
-import { validateAndBlockAsync } from "@/lib/vi-manual/quality-check";
+import { validateAndBlockAsync, checkColorNarrativeConsistency } from "@/lib/vi-manual/quality-check";
 const _DEV = process.env.NODE_ENV === "development";
 
 
@@ -524,6 +524,7 @@ export async function POST(req: NextRequest) {
     const brandVision = body.clientInfo?.brandVision || submission?.brand_vision || dd.brandSpirit || "";
     const coreValues = body.clientInfo?.coreValues || submission?.core_values || dd.brandSpiritCustom || "";
     const targetMarket = body.clientInfo?.targetMarket || submission?.target_market || submission?.targetMarket || "";
+    const mainProducts = body.clientInfo?.mainProducts || submission?.main_products || submission?.mainProducts || "";
     let logoPhilosophy = body.clientInfo?.logoPhilosophy || submission?.logo_philosophy || submission?.logoPhilosophy || ci?.logoPhilosophy || dd.signatureItem || "";
     const mascotPhilosophy = body.clientInfo?.mascotPhilosophy || submission?.mascot_philosophy || submission?.mascotPhilosophy || "";
 
@@ -573,6 +574,7 @@ export async function POST(req: NextRequest) {
             logoDescription: logoPhilosophy,
             sceneModules: ik.typicalModules,
             visualKeywords: ik.visualKeywords,
+            mainProducts: mainProducts,
           };
           const dnaResult = await extractBrandDNA(dnaInput);
           if (dnaResult?.success && dnaResult.scene_atlas) {
@@ -678,6 +680,7 @@ export async function POST(req: NextRequest) {
                     logoDescription: logoPhilosophy,
                     sceneModules: ik.typicalModules,
                     visualKeywords: ik.visualKeywords,
+                    mainProducts: mainProducts,
                   };
                   const dnaResult = await extractBrandDNA(dnaInput);
                   if (dnaResult?.success && dnaResult.scene_atlas) {
@@ -1137,23 +1140,8 @@ export async function POST(req: NextRequest) {
 
     _DEV && console.log("[generate-pptx] Blueprints:", blueprints.length, "pages");
 
-    // V2026-07-27: Inject mascot PART 8 gallery page if mascot assets exist
-    if (mascotEmotions || mascotScenes || mascotThreeViewData) {
-      const mascotGalleryPage = {
-        pageId: "mascot-gallery",
-        label: "公仔表情库与应用场景",
-        background: { primaryColor: "#FFFFFF", secondaryColor: "#F5F5F5" },
-        elements: [
-          { type: "text", id: "mascot-gallery-title", content: "公仔表情库与应用场景", position: "top-center" },
-          { type: "text", id: "mascot-name", content: "角色名称：" + mascotName, position: "top-center" },
-          { type: "text", id: "mascot-style-info", content: "风格：" + (mascotStyle || '待定') + " · 个性：" + (mascotPersonality || '待定'), position: "top-center" },
-        ],
-        appliedRules: [],
-        qualityThreshold: 0,
-      };
-      blueprints.push(mascotGalleryPage as any);
-      _DEV && console.log("[generate-pptx] Injected mascot-gallery page");
-    }
+    // 整改 #7：完整 IP 公仔章节（5 段）已由 planPages 在 hasMascot=true 时默认追加，
+    // 不再仅在素材存在时塞单页 mascot-gallery。
 
     // ===== QC Gate: 轻量化内容校验（fire-and-forget，不阻塞管线）=====
     const qcMd = blueprints
@@ -1164,6 +1152,16 @@ export async function POST(req: NextRequest) {
       brandName: companyName || "unknown",
       industry: industryType || "general",
     }).catch((e: any) => console.warn("[generate-pptx] QC gate warning:", e.message));
+
+    // 整改 #6：主色叙述幻觉检查（如把深藏青描述成「大面积红色」），非阻塞、仅告警
+    try {
+      const colorIssues = checkColorNarrativeConsistency(qcMd, realColors.primary, (realColors as any).primaryName);
+      if (colorIssues.length > 0) {
+        console.warn("[generate-pptx] QC 主色叙述幻觉:", colorIssues.map((i) => i.message).join("; "));
+      }
+    } catch (e: any) {
+      // 非阻塞
+    }
 
     // ===== Step 6: 渲染 PPTX =====
     // V12: PPTX组装中

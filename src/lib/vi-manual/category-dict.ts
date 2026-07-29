@@ -18,6 +18,8 @@ export interface IndustryDict {
   positive_materials: string[];
   forbidden_words: string[];
   keywords?: string[];
+  /** 场景系统标题（应用/包装/营销/导视），整改 #2 用于鞋履类品牌的精准命名 */
+  scene_categories?: { application: string; packaging: string; marketing: string; wayfinding: string };
 }
 
 export const INDUSTRY_DICTS: IndustryDict[] = [
@@ -148,6 +150,22 @@ export const INDUSTRY_DICTS: IndustryDict[] = [
     positive_materials: ["菜单", "门头招牌", "打包袋", "餐盒", "员工工服", "工牌", "纸巾盒", "价目表", "会员储值卡", "外卖贴纸"],
     forbidden_words: ["美容", "护肤", "医美", "面膜", "精油", "疗程", "美甲", "美睫", "护肤品", "瓶身标签", "口红", "粉底"],
     keywords: ["面馆", "面食", "刀削面", "快餐", "拉面", "拌面", "炒面"]
+  },
+  {
+    category_key: "cloth_shoes",
+    category_name: "老北京布鞋",
+    positive_materials: ["布鞋礼盒", "手提袋", "鞋盒", "门店招牌", "工服", "会员卡", "防尘袋", "鞋拔", "鞋垫包装"],
+    forbidden_words: ["时尚", "服装", "T台", "潮流", "美容", "餐饮", "护肤", "美甲", "奶茶", "烘焙"],
+    keywords: ["布鞋", "千层底", "手工布鞋", "老北京布鞋", "鞋履", "传统布鞋"],
+    scene_categories: { application: "布鞋应用系统", packaging: "布鞋包装系统", marketing: "门店营销系统", wayfinding: "门店导视系统" }
+  },
+  {
+    category_key: "traditional_footwear",
+    category_name: "传统鞋履",
+    positive_materials: ["布鞋礼盒", "手提袋", "鞋盒", "门店招牌", "工服", "会员卡", "防尘袋", "鞋拔", "鞋垫包装"],
+    forbidden_words: ["时尚", "服装", "T台", "潮流", "美容", "餐饮", "护肤", "美甲", "奶茶", "烘焙"],
+    keywords: ["鞋履", "传统手工鞋", "千层底", "布鞋"],
+    scene_categories: { application: "布鞋应用系统", packaging: "布鞋包装系统", marketing: "门店营销系统", wayfinding: "门店导视系统" }
   }
 ];
 
@@ -156,7 +174,8 @@ export function getCategoryDict(mainProduct: string): IndustryDict | null {
   const matched = INDUSTRY_DICTS.find(d =>
     d.positive_materials.some(m => {
       const stem = m.replace(/[卡袋盒贴牌套册签纸布单证表本]$/, "");
-      return mainProduct.includes(stem) ||
+      // 词干过短（如「工」「菜」）易误匹配，要求长度 >= 2
+      return (stem.length >= 2 && mainProduct.includes(stem)) ||
         mainProduct.includes(d.category_name.replace(/店|馆|室|所|吧$/, ""));
     }) ||
     d.keywords?.some(kw => mainProduct.includes(kw))
@@ -171,7 +190,7 @@ function dictToIsolation(dict: IndustryDict): IndustryIsolation {
     keywords: dict.keywords || [],
     forbiddenWords: dict.forbidden_words,
     positiveMaterials: dict.positive_materials,
-    sceneCategories: { application: "应用系统", packaging: "包装系统", marketing: "营销系统", wayfinding: "导视系统" }
+    sceneCategories: dict.scene_categories || { application: "应用系统", packaging: "包装系统", marketing: "营销系统", wayfinding: "导视系统" }
   };
 }
 

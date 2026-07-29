@@ -342,6 +342,56 @@ function checkQC04(md: string): ValidationIssue[] {
   return issues;
 }
 
+// ==================== QC-06: Color Narrative Hallucination (整改 #6) ====================
+
+// 正文叙述中出现「主色为红色」类幻觉的正则
+const RED_NARRATIVE_PATTERNS: RegExp[] = [
+  /大面积红色/,
+  /红色.{0,6}压迫感/,
+  /压迫感.{0,6}红色/,
+  /主色.{0,4}红色/,
+  /红色.{0,4}主色/,
+  /red\s+.{0,12}oppressive/i,
+  /large\s+area\s+of\s+red/i,
+];
+
+// 常见红色 HEX（含玫红/朱红/亮红等暖红），用于判断主色是否确为红色
+const RED_HEXES = new Set<string>([
+  "C62828", "D32F2F", "F44336", "E91E63", "FF5722", "B71C1C", "FF0000",
+  "C0392B", "E74C3C", "CC3333", "D81B60", "AD1457", "FF1744", "FF4081",
+  "EF5350", "E53935", "F0566E",
+]);
+
+/**
+ * 检查正文是否把主色描述成「大面积红色」等，而真实主色并非红色（如深藏青 #1A1A2E）。
+ * 若主色确为红色则视为合理叙述；否则标红（high）以便回退重写。
+ */
+export function checkColorNarrativeConsistency(
+  md: string,
+  primaryHex: string,
+  primaryName?: string
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const hex = (primaryHex || "").replace("#", "").toUpperCase();
+  const isRedPrimary = RED_HEXES.has(hex) || (primaryName || "").includes("红");
+  if (isRedPrimary) return issues; // 主色确为红色，叙述合理
+
+  const hits: string[] = [];
+  for (const re of RED_NARRATIVE_PATTERNS) {
+    const m = md.match(re);
+    if (m) hits.push(m[0]);
+  }
+  if (hits.length > 0) {
+    issues.push({
+      id: "QC06",
+      name: "主色叙述幻觉",
+      message: `主色为 #${hex}${primaryName ? "（" + primaryName + "）" : ""} 而非红色，但正文出现红色叙述幻觉：「${hits.join("；")}」，与真实主色冲突，需回退重写。`,
+      risk: "high",
+    });
+  }
+  return issues;
+}
+
 // ==================== Package C: Industry Compliance Check ====================
 
 const CROSS_INDUSTRY_KEYWORDS = [
@@ -474,9 +524,10 @@ export function validateRound1(md: string): FlowResult {
   return { passed: result.passed, needsRetry: !result.passed, result };
 }
 
-export function validateRound2(md: string, dict: IndustryDict | null): FlowResult {
+export function validateRound2(md: string, dict: IndustryDict | null, brandPrimaryHex?: string): FlowResult {
   const issues = [...checkPackageA(md)];
   if (dict) { issues.push(...checkPackageC(md, dict)); }
+  if (brandPrimaryHex) { issues.push(...checkColorNarrativeConsistency(md, brandPrimaryHex)); }
   const result = makeResult(issues);
   return { passed: result.passed, needsRetry: !result.passed, result };
 }

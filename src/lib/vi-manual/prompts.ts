@@ -65,6 +65,11 @@ export const ROUND1_SYSTEM_PROMPT = `【角色定位】
 6. 禁止使用极限词、虚假承诺类表述
 7. 禁止生成超出本次范围的应用系统等内容
 
+【应用系统品类硬约束 — 主营产品优先（整改 #2）】
+1. 所有应用系统标题（如「XX应用系统」「XX包装系统」「XX营销系统」「XX导视系统」）必须严格基于客户的「{{mainProduct}}」与「{{subIndustry}}」实际内容生成，禁止出现与主营无关的品类词汇。
+2. 禁止在应用系统标题或场景描述中出现「时尚」「服装零售」「服装」「T台」「潮流」「网红」「美妆」等无关词汇。
+3. 若 {{mainProduct}} 包含「布鞋/鞋履/传统手工/非遗」类描述，场景系统标题强制为「布鞋应用系统」「布鞋包装系统」「门店营销系统」「门店导视系统」，物料围绕布鞋礼盒/手提袋/鞋盒/门店招牌/工服/会员卡/防尘袋/鞋拔/鞋垫包装展开。
+
 【输出格式】
 统一使用Markdown格式，一级标题用##，二级标题用###，表格用标准Markdown表格。
 不要输出任何代码块包裹符（即不要在输出中包含反引号代码块标记），仅输出原始Markdown内容。`;
@@ -76,6 +81,11 @@ export const ROUND2_SYSTEM_PROMPT = `【角色定位】
 【核心第一原则】
 1. 所有应用规范必须严格沿用「基础规范文本」中已定义的品牌色值、字体层级、Logo使用规则、辅助图形规则，不得新增、修改任何基础标准
 2. 所有物料、场景、术语必须100%匹配客户的「主营产品」，绝对禁止出现无关品类的内容
+
+【应用系统品类硬约束 — 主营产品优先（整改 #2）】
+1. 所有应用系统标题（如「XX应用系统」「XX包装系统」「XX营销系统」「XX导视系统」）必须严格基于客户的「{{mainProduct}}」与「{{subIndustry}}」实际内容生成，禁止出现与主营无关的品类词汇。
+2. 禁止在应用系统标题或场景描述中出现「时尚」「服装零售」「服装」「T台」「潮流」「网红」「美妆」等无关词汇。
+3. 若 {{mainProduct}} 包含「布鞋/鞋履/传统手工/非遗」类描述，场景系统标题强制为「布鞋应用系统」「布鞋包装系统」「门店营销系统」「门店导视系统」，物料围绕布鞋礼盒/手提袋/鞋盒/门店招牌/工服/会员卡/防尘袋/鞋拔/鞋垫包装展开。
 
 【印刷通用参数 — 所有印刷类物料强制标注】
 每项印刷物料统一标注以下参数：
@@ -125,6 +135,21 @@ Markdown格式，一级标题用##，二级标题用###，表格用标准Markdow
 不要输出任何代码块包裹符（即不要在输出中包含反引号代码块标记），仅输出原始Markdown内容。`;
 
 // Replace the placeholder with actual params JSON
-export function injectRound2Params(paramsJson: string): string {
-  return ROUND2_SYSTEM_PROMPT.replace("{{参数包JSON注入}}", paramsJson);
+export function injectRound2Params(paramsJson: string, ctx?: { mainProduct?: string; subIndustry?: string }): string {
+  let prompt = ROUND2_SYSTEM_PROMPT.replace("{{参数包JSON注入}}", paramsJson);
+  if (ctx) prompt = injectBrandContext(prompt, ctx);
+  return prompt;
+}
+
+/**
+ * Inject the real main product / sub-industry into the {{mainProduct}} / {{subIndustry}}
+ * placeholders used by the 应用系统品类硬约束 rules (整改 #2).
+ */
+export function injectBrandContext(
+  prompt: string,
+  ctx: { mainProduct?: string; subIndustry?: string }
+): string {
+  return prompt
+    .replace(/\{\{mainProduct\}\}/g, ctx.mainProduct || "客户主营产品")
+    .replace(/\{\{subIndustry\}\}/g, ctx.subIndustry || "客户所属行业");
 }

@@ -85,6 +85,61 @@ function mapChapterToPageId(chapter: ParsedChapter): string {
   return CHAPTER_NUMBER_MAP[chapter.number] || "summary";
 }
 
+// ========== 章节标题容错（整改 #3） ==========
+// 标准章节标题映射：当 LLM 输出标题异常（空 / 纯数字 / 过短）时补回正确标题。
+const CHAPTER_TITLE_FALLBACK: Record<string, string> = {
+  "01": "品牌核心理念",
+  "02": "标识设计诠释",
+  "03": "Logo组合规范",
+  "04": "Logo基础使用规范",
+  "05": "Logo误用规范",
+  "06": "标准色彩规范",
+  "07": "辅助图形规范",
+  "08": "字体系统",
+  "09": "核心业务应用系统",
+  "10": "门店与营销应用系统",
+  "11": "VI物料落地清单",
+  "12": "文件输出与权限说明",
+};
+
+// 01-12 章标题白名单：标题须包含至少一个关键词，否则视为异常强制替换。
+const CHAPTER_TITLE_WHITELIST: Record<string, string[]> = {
+  "01": ["品牌", "理念", "核心", "定位"],
+  "02": ["标识", "诠释", "logo", "Logo", "设计"],
+  "03": ["logo", "Logo", "组合", "规范"],
+  "04": ["基础", "使用", "规范", "Logo", "logo"],
+  "05": ["误用", "logo", "Logo", "规范"],
+  "06": ["色彩", "颜色", "标准"],
+  "07": ["辅助", "图形"],
+  "08": ["字体", "字型", "系统"],
+  "09": ["应用", "系统", "业务", "办公"],
+  "10": ["门店", "营销", "应用", "系统"],
+  "11": ["物料", "落地", "清单"],
+  "12": ["文件", "输出", "权限", "说明"],
+};
+
+/**
+ * 规范化章节标题（整改 #3）：
+ * - 空 / 纯数字 / 长度<2 → 使用 CHAPTER_TITLE_FALLBACK。
+ * - 01-12 章若标题不含白名单关键词且明显异常（长度<=3 或含时尚/服装零售等违禁词）→ 强制替换。
+ */
+export function normalizeChapterTitle(number: string, title: string): string {
+  const raw = (title || "").trim();
+  const pureNumber = /^\d+$/.test(raw.replace(/\s/g, ""));
+  if (raw.length === 0 || pureNumber || raw.length < 2) {
+    return CHAPTER_TITLE_FALLBACK[number] || `${number} 章节`;
+  }
+  const wl = CHAPTER_TITLE_WHITELIST[number];
+  if (wl) {
+    const hasKeyword = wl.some((k) => raw.includes(k));
+    const hasFashion = /时尚|服装零售|服装|T台|潮流|网红/.test(raw);
+    if (!hasKeyword && (raw.length <= 3 || hasFashion)) {
+      return CHAPTER_TITLE_FALLBACK[number] || raw;
+    }
+  }
+  return raw;
+}
+
 // ========== Markdown Table Parsing ==========
 
 function parseMarkdownTable(
@@ -153,7 +208,7 @@ function chapterToElements(
   elements.push({
     type: "text",
     id: `md-title-${pageId}`,
-    content: chapter.title,
+    content: normalizeChapterTitle(chapter.number, chapter.title),
     position: "top-center",
     fontSize: 24,
     fontWeight: 700,
@@ -303,7 +358,7 @@ function buildTocBlueprint(
     elements.push({
       type: "text",
       id: `toc-item-${i}`,
-      content: `${ch.number}  ${ch.title}`,
+      content: `${ch.number}  ${normalizeChapterTitle(ch.number, ch.title)}`,
       position: "top-center",
       fontSize: 14,
       fontWeight: 500,
@@ -381,7 +436,7 @@ export async function markdownToBlueprint(
 
   const chapterBlueprints: PageBlueprint[] = chapters.map((chapter) => {
     const pageId = mapChapterToPageId(chapter);
-    const label = chapter.title;
+    const label = normalizeChapterTitle(chapter.number, chapter.title);
     const background = buildBackground(pageId, bgCtx as any);
     const elements = chapterToElements(chapter, pageId, elemCtx, sceneImages);
 

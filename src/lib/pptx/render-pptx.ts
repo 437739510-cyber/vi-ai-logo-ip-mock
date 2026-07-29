@@ -268,9 +268,11 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
 
   _DEV && console.log(`[render-pptx] V6 | ${blueprints.length} pages | industry=${industry} | sceneImages=${Object.keys(sceneImages).length}`);
 
+  const pageNumberMap = computePageNumberMap(blueprints);
+
   for (const bp of blueprints) {
     const slide = pptx.addSlide();
-    await renderSlide(slide, bp, options, bc, industry, sceneImages);
+    await renderSlide(slide, bp, options, bc, industry, sceneImages, pageNumberMap);
   }
   return pptx;
 }
@@ -281,13 +283,29 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
   return Buffer.from(base64, "base64");
 }
 
-const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","wayfinding","summary","material-priority","logo-output","modification-authority","mascot-gallery","closing"];
+const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","wayfinding","summary","material-priority","logo-output","modification-authority","mascot-positioning","mascot-threeview","mascot-emotions","mascot-scenes","mascot-usage","closing"];
 
-async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>): Promise<void> {
+// 计算真实页序页码（整改 #5，Kevin 终选方案）：
+// 封面不编号 (=0)；其余页（目录、正文各页、封底）从 1 连续编号到 27（总蓝图 28 减去封面 1 页）。
+export function computePageNumberMap(blueprints: PageBlueprint[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  let n = 0;
+  for (const bp of blueprints) {
+    if (bp.pageId === "cover") {
+      map[bp.pageId] = 0;
+    } else {
+      n += 1;
+      map[bp.pageId] = n;
+    }
+  }
+  return map;
+}
+
+async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>, pageNumberMap: Record<string, number>): Promise<void> {
   switch (bp.pageId) {
     case "cover": renderCover(slide, bp, opts, bc, industry); break;
     case "closing": renderClosing(slide, bp, opts, bc); break;
-    case "toc": renderTableOfContents(slide, bp, opts, bc, industry); break;
+    case "toc": renderTableOfContents(slide, bp, opts, bc, industry, pageNumberMap); break;
     case "brand-philosophy": renderPhilosophy(slide, bp, opts, bc); break;
     case "logo-interpretation": renderLogoPage(slide, bp, opts, bc, industry); break;
     case "logo-variations": renderLogoVariations(slide, bp, opts, bc, industry); break;
@@ -309,14 +327,21 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "wayfinding": renderWayfinding(slide, bp, opts, bc); break;
     case "logo-output": renderLogoOutput(slide, bp, opts, bc); break;
     case "mascot-gallery": renderMascotGallery(slide, bp, opts, bc); break;
+    case "mascot-positioning":
+    case "mascot-threeview":
+    case "mascot-emotions":
+    case "mascot-scenes":
+    case "mascot-usage":
+      renderMascotChapterPage(slide, bp, opts, bc); break;
     case "modification-authority": renderModificationAuthority(slide, bp, opts, bc); break;
     default: renderGeneric(slide, bp, opts, bc);
   }
-  // 页码（封面/封底/目录不加）
+  // 页码（封面/目录/封底不加；其余按真实页序连续编号，整改 #5）
   if (bp.pageId !== "cover" && bp.pageId !== "closing" && bp.pageId !== "toc") {
-    const idx = PAGE_ORDER.indexOf(bp.pageId);
-    const pageNum = idx - 1;
-    slide.addText(`${pageNum > 0 ? pageNum : ""}`, { x: SW - MARGIN - 0.5, y: SH - 0.55, w: 0.5, h: 0.3, fontSize: 12, color: "BBBBBB", align: "right" });
+    const pageNo = pageNumberMap[bp.pageId] || 0;
+    if (pageNo > 0) {
+      slide.addText(`${pageNo}`, { x: SW - MARGIN - 0.5, y: SH - 0.55, w: 0.5, h: 0.3, fontSize: 12, color: "BBBBBB", align: "right" });
+    }
   }
 }
 
@@ -1753,7 +1778,7 @@ function renderGeneralFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
 }
 
 // ========== Table of Contents — V7新增 ==========
-function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType): void {
+function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, pageNumberMap: Record<string, number>): void {
   addContentFrame(slide, "目录", bc);
   const cn = opts.companyName || "品牌";
   const cx = MARGIN + LEFT_BAR_W + 0.5;
@@ -1772,8 +1797,8 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
     slide.addText(item.title, { x: cx, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 14, color: "333333", fontFace: "Noto Sans SC" });
     // 点线填充
     slide.addText("....................................................................................", { x: cx, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 9, color: "CCCCCC", align: "right" });
-    // 页码
-    const realPageNum = PAGE_ORDER.indexOf(item.pageId) - 1;
+    // 页码（按真实页序，封面/目录/封底为 0 不显示，整改 #5）
+    const realPageNum = pageNumberMap[item.pageId] || 0;
     slide.addText(realPageNum > 0 ? `${realPageNum}` : "", { x: cx + CONTENT_W - 0.6, y: yPos, w: 0.6, h: 0.5, fontSize: 13, color: "999999", align: "right" });
     yPos += 0.6;
   }
@@ -1924,6 +1949,97 @@ async function renderMascotGallery(slide: PptxGenJS.Slide, bp: PageBlueprint, op
   }
 }
 
+// ========== IP 五章页渲染（整改：消费 mascot* 字段，确保各页都有图）==========
+// 文字块沿用 renderGeneric 的排版，图片放在下半区，避免与正文重叠。
+function renderMascotChapterPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  addContentFrame(slide, bp.label || bp.pageId, bc);
+
+  // 文字块（标题/分隔线/正文）
+  let yPos = 1.8;
+  for (const el of bp.elements) {
+    if (el.type === "text" && el.content) {
+      const fs = el.fontSize ? Math.max(11, Math.round(el.fontSize * 0.7)) : 13;
+      slide.addText(el.content, { x: MARGIN + LEFT_BAR_W, y: yPos, w: CONTENT_W, h: 0.5, fontSize: fs, bold: (el.fontWeight || 400) >= 600, color: "333333" });
+      yPos += 0.6;
+    }
+  }
+
+  // 下半区按页面类型渲染对应公仔图
+  const startY = 4.6;
+  if (bp.pageId === "mascot-threeview") {
+    if (opts.mascotThreeViewData) {
+      const vw = 6.2, vh = 2.7;
+      slide.addImage({ data: normImg(opts.mascotThreeViewData), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
+    }
+  } else if (bp.pageId === "mascot-emotions") {
+    renderMascotRecordGrid(slide, opts.mascotEmotions, "表情库", startY, bc);
+  } else if (bp.pageId === "mascot-scenes") {
+    renderMascotRecordGrid(slide, opts.mascotScenes, "场景应用", startY, bc);
+  } else if (bp.pageId === "mascot-usage") {
+    if (opts.mascotSplitViews && opts.mascotSplitViews.length > 0) {
+      renderMascotSplitGrid(slide, opts.mascotSplitViews, "分视图", startY, bc);
+    } else if (opts.mascotData) {
+      const vw = 3.2, vh = 2.6;
+      slide.addImage({ data: normImg(opts.mascotData), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
+    }
+  } else if (bp.pageId === "mascot-positioning") {
+    if (opts.mascotData) {
+      const vw = 3.4, vh = 2.7;
+      slide.addImage({ data: normImg(opts.mascotData), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
+    }
+  }
+}
+
+function renderMascotRecordGrid(
+  slide: PptxGenJS.Slide,
+  rec: Record<string, string> | null | undefined,
+  title: string,
+  yStart: number,
+  bc: BC
+): void {
+  if (!rec) return;
+  const keys = Object.keys(rec).slice(0, 6);
+  if (!keys.length) return;
+  slide.addText(title, { x: MARGIN + LEFT_BAR_W, y: yStart, w: CONTENT_W, h: 0.35, fontSize: 14, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+  const yPos = yStart + 0.4;
+  const size = 1.5, gap = 0.15, startX = MARGIN + LEFT_BAR_W;
+  const maxPerRow = Math.max(1, Math.floor(CONTENT_W / (size + gap)));
+  keys.forEach((key, i) => {
+    const col = i % maxPerRow;
+    const row = Math.floor(i / maxPerRow);
+    const ex = startX + col * (size + gap);
+    const ey = yPos + row * (size + 0.35);
+    const b64 = rec[key];
+    if (b64) {
+      slide.addImage({ data: normImg(b64), x: ex, y: ey, w: size, h: size, sizing: { type: "contain", w: size, h: size } });
+      slide.addText(key, { x: ex, y: ey + size + 0.02, w: size, h: 0.3, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
+    }
+  });
+}
+
+function renderMascotSplitGrid(
+  slide: PptxGenJS.Slide,
+  views: string[] | null | undefined,
+  title: string,
+  yStart: number,
+  bc: BC
+): void {
+  if (!views || !views.length) return;
+  slide.addText(title, { x: MARGIN + LEFT_BAR_W, y: yStart, w: CONTENT_W, h: 0.35, fontSize: 14, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+  const yPos = yStart + 0.4;
+  const size = 1.8, gap = 0.2, startX = MARGIN + LEFT_BAR_W;
+  const maxPerRow = Math.max(1, Math.floor(CONTENT_W / (size + gap)));
+  views.slice(0, 6).forEach((b64, i) => {
+    const col = i % maxPerRow;
+    const row = Math.floor(i / maxPerRow);
+    const ex = startX + col * (size + gap);
+    const ey = yPos + row * (size + 0.35);
+    if (b64) {
+      slide.addImage({ data: normImg(b64), x: ex, y: ey, w: size, h: size, sizing: { type: "contain", w: size, h: size } });
+    }
+  });
+}
+
 function renderGeneric(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, bp.label || bp.pageId, bc);
   let yPos = 1.8;
@@ -2059,7 +2175,7 @@ function renderColorTaboos(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
   let y = 1.5;
 
   const rules = [
-    { title: "主色禁用大面积铺满", desc: (COLOR_NAME_MAP[bc.pri] || "品牌主色") + " #" + bc.pri + " 仅作点缀色（LOGO、装饰线、强调文字），占画面比例不超过20%。大面积红色产生压迫感，与「温柔治愈」品牌调性冲突。", icon: "⚠" },
+    { title: "主色禁用大面积铺满", desc: (COLOR_NAME_MAP[bc.pri] || "品牌主色") + " #" + bc.pri + " 仅作点缀色（LOGO、装饰线、强调文字），占画面比例不超过20%。避免大面积铺满产生压迫感，保持品牌调性统一。", icon: "⚠" },
     { title: "三色搭配比例", desc: "主色 10-25% / 辅助色 15-30% / 背景留白 50-70%。保持视觉呼吸感与层次。", icon: "📐" },
     { title: "禁止搭配色", desc: "避免与高饱和度绿色、荧光色、纯黑 #000000 混搭，破坏品牌温柔轻奢质感。", icon: "🚫" },
     { title: "单色印刷规范", desc: "黑白/单色印刷时使用灰度版本，保留品牌色明度阶梯。主色→70%灰、辅助色→50%灰、强调色→30%灰。", icon: "🖨" },

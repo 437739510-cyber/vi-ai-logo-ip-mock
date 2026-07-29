@@ -176,6 +176,7 @@ function mapIndustryType(industry?: string): string {
   if (/椰|椰子|椰汁|茶|咖啡|饮|奶茶|果汁|酒|酒吧|饮品|奶茶店|气泡|矿泉|纯净水/.test(s)) return "beverage";
   if (/餐|食|面|火锅|烧烤|烘焙|饺子|包子|炒菜|饭店|小吃|饭馆|海鲜|川菜|粤菜|湘菜|鲁菜|馆|外卖/.test(s)) return "restaurant";
   if (/美容|美发|理发|美甲|spa|沙龙|造型|护肤|美体|美睫/.test(s)) return "beauty";
+  if (/鞋|布鞋|千层底|鞋履/.test(s)) return "footwear";
   if (/零售|超市|便利|商店|杂货|服装|鞋|饰品|母婴|数码/.test(s)) return "retail";
   if (/教育|培训|学|课|幼儿园|托管|辅导/.test(s)) return "education";
   return "general";
@@ -188,6 +189,7 @@ const INDUSTRY_SCENE_LABELS: Record<string, { stationery: string; packaging: str
   beauty:      { stationery: "美业应用系统", packaging: "美业包装系统", marketing: "美业营销系统" },
   retail:      { stationery: "零售应用系统", packaging: "零售包装系统", marketing: "零售营销系统" },
   education:   { stationery: "教育应用系统", packaging: "教育包装系统", marketing: "教育营销系统" },
+  footwear:    { stationery: "布鞋应用系统", packaging: "布鞋包装系统", marketing: "门店营销系统" },
   general:     { stationery: "办公应用系统", packaging: "产品包装系统", marketing: "营销展示系统" },
 };
 
@@ -198,6 +200,7 @@ const INDUSTRY_SCENE_DESCS: Record<string, { stationery: string; packaging: stri
   beauty:      { stationery: "品牌在美业场景中的标准化应用", packaging: "美业产品与礼盒的品牌化呈现", marketing: "门店宣传与会员招募物料" },
   retail:      { stationery: "品牌在零售场景中的标准化应用", packaging: "商品包装与手提袋的品牌化呈现", marketing: "促销活动与宣传物料" },
   education:   { stationery: "品牌在教育场景中的标准化应用", packaging: "教材与课程物料的品牌化呈现", marketing: "招生宣传与活动物料" },
+  footwear:    { stationery: "品牌布鞋在门店与商务场景中的标准化应用", packaging: "布鞋礼盒/手提袋/鞋盒的品牌化呈现", marketing: "门店招牌、工服、会员卡与促销物料" },
   general:     { stationery: "品牌在商务场景中的标准化应用", packaging: "产品包装与物料的品牌化呈现", marketing: "宣传与促销物料" },
 };
 
@@ -242,7 +245,131 @@ export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[
     blueprints.push(blueprint);
   }
 
+  // 整改 #7：当 hasMascot 为真（或本流程默认开启）时，默认追加完整 IP 公仔章节（5 段），
+  // 插入到「封底」之前，不再仅塞单页 gallery。
+  const includeMascot =
+    input.assetAnalysis?.mascot?.hasMascot ??
+    (input as any).includeMascotChapter ??
+    false;
+  if (includeMascot) {
+    const mascotPages = buildMascotChapter(input);
+    const closingIdx = blueprints.findIndex((b) => b.pageId === "closing");
+    if (closingIdx >= 0) {
+      blueprints.splice(closingIdx, 0, ...mascotPages);
+    } else {
+      blueprints.push(...mascotPages);
+    }
+  }
+
   return blueprints;
+}
+
+// ========== IP 公仔章节（整改 #7） ==========
+
+const MASCOT_CHAPTER_PAGES = [
+  "mascot-positioning",
+  "mascot-threeview",
+  "mascot-emotions",
+  "mascot-scenes",
+  "mascot-usage",
+];
+
+/**
+ * 构建完整 IP 公仔章节（5 段）：角色定位 / 三视图 / 表情库 / 场景应用 / 使用规范。
+ * 使用最新 mascot-prompt-strategy 约束（无角 / 帽顶小金球 / 手持千层底布鞋）。
+ */
+function buildMascotChapter(input: PagePlannerInput): PageBlueprint[] {
+  const pri = input.brandColors.primary;
+  const sec = input.brandColors.secondary;
+  const acc = input.brandColors.accent;
+  const mascotName = input.assetAnalysis?.mascot?.name || "品牌IP公仔";
+  const hasMascotArt = !!input.assetAnalysis?.mascot?.hasMascot;
+
+  const pages: { pageId: string; label: string; blocks: { title: string; body: string }[] }[] = [
+    {
+      pageId: "mascot-positioning",
+      label: "IP角色定位",
+      blocks: [
+        { title: "角色名称", body: mascotName },
+        { title: "角色设定", body: "老北京布鞋匠人（human artisan mascot）：头戴黑瓜皮帽、帽顶一颗小金球，身着藏青长衫、香槟金腰带，手持千层底布鞋；无角、无鹿角、无蝴蝶结、无动物耳朵。" },
+        { title: "性格与调性", body: "匠心、温厚、专注，与「手工千层底布鞋」品牌内核一致，传递老北京制鞋技艺的传承感。" },
+        { title: "适用场景", body: "手册封面/封底、品牌故事页、门店招牌、会员卡、社交媒体头像、包装礼盒。" },
+      ],
+    },
+    {
+      pageId: "mascot-threeview",
+      label: "IP三视图",
+      blocks: [
+        { title: "三视图规范", body: "提供正面 / 侧面 / 背面三视图，统一比例与配色，确保跨物料一致性。" },
+        { title: "绘制要求", body: "纯白底、无场景；黑瓜皮帽+帽顶小金球、藏青长衫、香槟金腰带、手持千层底布鞋；禁止添加角/鹿角/蝴蝶结。" },
+      ],
+    },
+    {
+      pageId: "mascot-emotions",
+      label: "IP表情库",
+      blocks: [
+        { title: "基础表情", body: "微笑 / 欢迎 / 专注 / 惊喜 / 安心，至少 5 款，保持角色比例与配色一致。" },
+        { title: "使用说明", body: "门店迎宾用「欢迎」，包装说明用「安心」，社媒互动用「微笑」，统一角色设定。" },
+      ],
+    },
+    {
+      pageId: "mascot-scenes",
+      label: "IP场景应用",
+      blocks: [
+        { title: "应用场景", body: "门店招牌与橱窗、工服绣标、会员卡、手提袋与鞋盒、防尘袋、鞋拔与鞋垫包装、线上新媒体配图。" },
+        { title: "落地规范", body: "公仔尺寸占比≤30%，须保留≥15% Logo保护空间，禁止拉伸、改色、旋转。" },
+      ],
+    },
+    {
+      pageId: "mascot-usage",
+      label: "IP使用规范",
+      blocks: [
+        { title: "禁止事项", body: "禁止改色（须使用品牌色系）、禁止改变比例、禁止加角/鹿角/蝴蝶结、禁止AI重绘替换角色设定、禁止低对比背景使用。" },
+        { title: "最小尺寸与留白", body: "印刷最小 15mm，数字最小 48px；公仔四周保留充足留白，与Logo同享保护空间规则。" },
+      ],
+    },
+  ];
+
+  return pages.map((p) => {
+    const elements: PageElement[] = [];
+    elements.push({
+      type: "text", id: `${p.pageId}-title`, content: p.label,
+      position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30,
+    });
+    elements.push({
+      type: "divider", id: `${p.pageId}-divider`, position: "center",
+      widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15,
+    });
+    let y = 120;
+    p.blocks.forEach((b, i) => {
+      elements.push({
+        type: "text", id: `${p.pageId}-h-${i}`, content: b.title,
+        position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex,
+        marginTop: y, marginLeft: 60, params: { align: "left" },
+      });
+      elements.push({
+        type: "text", id: `${p.pageId}-b-${i}`, content: b.body,
+        position: "top-center", fontSize: 12, color: "#444",
+        marginTop: y + 28, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 },
+      });
+      y += 95;
+    });
+    if (hasMascotArt) {
+      elements.push({
+        type: "ip-mascot", id: `${p.pageId}-mascot`,
+        position: "bottom-right", widthPct: 12, heightPct: 15,
+        marginRight: 30, marginBottom: 30, opacity: 0.7,
+      });
+    }
+    return {
+      pageId: p.pageId,
+      label: p.label,
+      background: { type: "solid", primaryColor: "#FFFFFF", secondaryColor: sec.hex },
+      elements,
+      appliedRules: [],
+      qualityThreshold: 70,
+    };
+  });
 }
 
 /**
@@ -343,7 +470,10 @@ export interface BuildContext {
 }
 
 function buildBlueprint(pageId: string, ctx: BuildContext): PageBlueprint {
-  const label = PAGE_LABELS[pageId] || pageId;
+  const label =
+    pageId === "wayfinding" && ctx.industryType === "footwear"
+      ? "门店导视系统"
+      : PAGE_LABELS[pageId] || pageId;
   const appliedRules = ctx.rules.map(r => r.id);
   const qualityThreshold = 70;
 
@@ -1311,10 +1441,27 @@ function buildClosingElements(ctx: BuildContext): PageElement[] {
 }
 
 function buildLogoGridElements(ctx: BuildContext): PageElement[] {
+  const { pri, acc } = ctx;
   const elements: PageElement[] = [];
-  elements.push({ type: "text", id: "lg-title", content: PAGE_LABELS["logo-grid"], style: { fontSize: 24, bold: true, color: ctx.pri.hex } });
-  elements.push({ type: "divider", id: "lg-divider" });
-  elements.push({ type: "custom", id: "logo-grid-content", content: "LOGO网格制图" });
+  elements.push({ type: "text", id: "lg-title", content: PAGE_LABELS["logo-grid"], position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30 });
+  elements.push({ type: "divider", id: "lg-divider", position: "center", widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15 });
+  // 真实 LOGO 网格制图元素（渲染层 renderLogoGrid 将据此绘制 10×10 网格 + Logo + 尺寸标注）
+  elements.push({
+    type: "logo-grid" as any,
+    id: "lg-grid",
+    position: "center",
+    widthPct: 55,
+    heightPct: 55,
+    marginTop: 80,
+    color: pri.hex,
+    params: { gridCols: 10, gridRows: 10, label: "LOGO网格制图规范", showLogo: true, showDimensions: true, showClearSpace: true },
+  });
+  elements.push({
+    type: "text", id: "lg-note",
+    content: "LOGO 居中置于 10×10 标准网格，标注外框比例、坐标与最小尺寸；四周保留 15% 保护空间。",
+    position: "top-center", fontSize: 12, color: "#666", marginTop: 480, marginLeft: 60, marginRight: 60,
+    params: { align: "left", lineHeight: 1.5 },
+  });
   return elements;
 }
 
