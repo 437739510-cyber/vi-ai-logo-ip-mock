@@ -245,12 +245,13 @@ export function ConsultationForm() {
         const errStepMap: Record<string, number> = {};
         stepFields[1] && stepFields[1].forEach(k => errStepMap[k] = 1);
         ["brandHighlight","customerProfile","brandVision","coreValues","targetMarket","brandPersonality","competitorReference"].forEach(k => errStepMap[k] = 2);
-        ["existingBrandColor","logoStyle","logoUsage","avoidElements","existingSignagePain","brandColors","description"].forEach(k => errStepMap[k] = 3);
+        ["existingBrandColor","logoStyle","logoUsage","avoidElements","existingSignagePain","brandColors","description","wantMascot","mascotTypePref","mascotStylePref","mascotPersonalityPref","mascotUsageScenes","mascotColorHint","mascotRefIdea","mascotSceneCount"].forEach(k => errStepMap[k] = 3);
         ["logoPhilosophy","mascotPhilosophy"].forEach(k => errStepMap[k] = 4);
         const firstErrKey = errKeys[0];
         const targetStep = errStepMap[firstErrKey] || 1;
         setCurrentStep(targetStep);
-        setSubmitError(`第${targetStep}步有必填项未填写，请检查后重新提交`);
+        const firstErrMsg = errs[firstErrKey]?.message;
+        setSubmitError(firstErrMsg ? `第${targetStep}步：${firstErrMsg}` : `第${targetStep}步有必填项未填写，请检查后重新提交`);
       }
     })}>
       {/* Progress Bar */}
@@ -643,9 +644,9 @@ export function ConsultationForm() {
           <button type="button" onClick={goPrev} className="flex items-center gap-1 px-5 py-2.5 text-sm font-medium text-neutral-600 border border-neutral-200 rounded-xl hover:bg-neutral-50 transition-colors"><ChevronLeft className="w-4 h-4" />上一步</button>
         ) : <div />}
         {currentStep < 4 ? (
-          <button type="button" onClick={goNext} className="flex items-center gap-1 px-6 py-2.5 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary-dark transition-colors">下一步<ChevronRight className="w-4 h-4" /></button>
+          <button key="step-next" type="button" onClick={goNext} className="flex items-center gap-1 px-6 py-2.5 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary-dark transition-colors">下一步<ChevronRight className="w-4 h-4" /></button>
         ) : (
-          <button type="submit" disabled={isSubmitting} className="flex items-center gap-2 px-8 py-2.5 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          <button key="step-submit" type="submit" disabled={isSubmitting} className="flex items-center gap-2 px-8 py-2.5 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
             {isSubmitting ? (<><Loader2 className="w-4 h-4 animate-spin" />正在上传并提交...</>) : "提交需求"}
           </button>
         )}
