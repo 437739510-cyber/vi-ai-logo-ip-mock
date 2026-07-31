@@ -857,6 +857,14 @@ export async function POST(req: NextRequest) {
     const mascotPersonality = ((ciPrefs.mascotPersonalityPref || [])[0] || (ciPrefs.brandPersona || [])[0] || '');
     const mascotAssets = ciPrefs.mascotAssets as Record<string, any> | undefined;
 
+    // V1.1: 生成前备份项目状态（非阻塞）
+    try {
+      const { execSync } = require("child_process");
+      execSync(`node "D:\\disk\\BrandBrain\\scripts\\backup-project.js" ${projectId} manual`, { timeout: 15000 });
+    } catch (e) {
+      console.warn("[backup] 备份失败（非阻塞）:", String(e));
+    }
+
     // [FIX 2026-07-27] Zeabur 无本地磁盘，findAsset/findFromStorage 取不到云端公仔图。
     // PART 8 公仔章节使用 client_info.mascotAssets 的云端 public URL（emotions/scenes/threeView），
     // 不依赖 mascotData（mascotData 走 compressImage 在云函数环境易崩，且 PART 8 渲染不需要它）。

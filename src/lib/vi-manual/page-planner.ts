@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 /**
  * Page Planner — 设计决策引擎
  *
@@ -14,6 +14,9 @@
 import { getRulesForPage, sortRulesByPriority, applyRuleConstraints, validateBlueprintAgainstRules, type DesignRule } from "./design-rules";
 import { getTemplate, findBestMatchingTemplates, type Template, type PageAnalysis } from "./template-library";
 import { planLayoutWithAI, type AILayoutContext } from "./ai-layout-planner";
+import { generateMascotCharacter, type BrandMascotInfo, type MascotCharacter } from "../../../scripts/mascot-character-prompt";
+import { validateMascotBrandAlignment } from "../../../scripts/mascot-brand-check";
+import { IndustryCategory } from "../ip/mascot-optimization";
 
 // ========== 类型定义 ==========
 
@@ -164,44 +167,53 @@ const PAGE_LABELS: Record<string, string> = {
   summary: "总结",
   "material-priority": "VI物料落地清单",
   closing: "感谢观看",
+  "digital-media": "线上数字应用",
   "wayfinding": "导视系统",
   "logo-output": "LOGO文件输出规范",
+  "file-output": "文件输出规范",
   "modification-authority": "VI修改权限说明",
 };
 
 // 行业类型映射
-function mapIndustryType(industry?: string): string {
-  if (!industry) return "general";
-  const s = industry.toLowerCase();
-  if (/椰|椰子|椰汁|茶|咖啡|饮|奶茶|果汁|酒|酒吧|饮品|奶茶店|气泡|矿泉|纯净水/.test(s)) return "beverage";
-  if (/餐|食|面|火锅|烧烤|烘焙|饺子|包子|炒菜|饭店|小吃|饭馆|海鲜|川菜|粤菜|湘菜|鲁菜|馆|外卖/.test(s)) return "restaurant";
-  if (/美容|美发|理发|美甲|spa|沙龙|造型|护肤|美体|美睫/.test(s)) return "beauty";
-  if (/鞋|布鞋|千层底|鞋履/.test(s)) return "footwear";
-  if (/零售|超市|便利|商店|杂货|服装|鞋|饰品|母婴|数码/.test(s)) return "retail";
-  if (/教育|培训|学|课|幼儿园|托管|辅导/.test(s)) return "education";
-  return "general";
-}
 
 // 行业定制场景页标题
 const INDUSTRY_SCENE_LABELS: Record<string, { stationery: string; packaging: string; marketing: string }> = {
+  general:     { stationery: "办公应用系统", packaging: "产品包装系统", marketing: "营销展示系统" },
   restaurant:  { stationery: "餐饮应用系统", packaging: "餐饮包装系统", marketing: "餐饮营销系统" },
   beverage:    { stationery: "饮品应用系统", packaging: "饮品包装系统", marketing: "饮品营销系统" },
   beauty:      { stationery: "美业应用系统", packaging: "美业包装系统", marketing: "美业营销系统" },
-  retail:      { stationery: "零售应用系统", packaging: "零售包装系统", marketing: "零售营销系统" },
   education:   { stationery: "教育应用系统", packaging: "教育包装系统", marketing: "教育营销系统" },
-  footwear:    { stationery: "布鞋应用系统", packaging: "布鞋包装系统", marketing: "门店营销系统" },
-  general:     { stationery: "办公应用系统", packaging: "产品包装系统", marketing: "营销展示系统" },
+  technology:  { stationery: "科技应用系统", packaging: "科技包装系统", marketing: "科技营销系统" },
+  healthcare:  { stationery: "健康应用系统", packaging: "健康包装系统", marketing: "健康营销系统" },
+  maternal_child: { stationery: "母婴应用系统", packaging: "母婴包装系统", marketing: "母婴营销系统" },
+  retail:      { stationery: "零售应用系统", packaging: "零售包装系统", marketing: "零售营销系统" },
+  cultural:    { stationery: "文创应用系统", packaging: "文创包装系统", marketing: "文创营销系统" },
+  financial:   { stationery: "金融应用系统", packaging: "金融包装系统", marketing: "金融营销系统" },
+  fashion:     { stationery: "时尚应用系统", packaging: "时尚包装系统", marketing: "时尚营销系统" },
+  sports:      { stationery: "运动应用系统", packaging: "运动包装系统", marketing: "运动营销系统" },
+  hospitality: { stationery: "旅宿应用系统", packaging: "旅宿包装系统", marketing: "旅宿营销系统" },
+  real_estate: { stationery: "地产应用系统", packaging: "地产包装系统", marketing: "地产营销系统" },
+  legal:       { stationery: "专业应用系统", packaging: "专业包装系统", marketing: "专业营销系统" },
 };
 
 // 行业定制场景页描述
 const INDUSTRY_SCENE_DESCS: Record<string, { stationery: string; packaging: string; marketing: string }> = {
+  general:     { stationery: "品牌在商务场景中的标准化应用", packaging: "产品包装与物料的品牌化呈现", marketing: "宣传与促销物料" },
   restaurant:  { stationery: "品牌在餐饮场景中的标准化应用", packaging: "餐饮食具与外带物料的品牌化呈现", marketing: "门店宣传与促销物料" },
   beverage:    { stationery: "品牌在饮品场景中的标准化应用", packaging: "饮品杯具与外带物料的品牌化呈现", marketing: "门店宣传与促销物料" },
   beauty:      { stationery: "品牌在美业场景中的标准化应用", packaging: "美业产品与礼盒的品牌化呈现", marketing: "门店宣传与会员招募物料" },
-  retail:      { stationery: "品牌在零售场景中的标准化应用", packaging: "商品包装与手提袋的品牌化呈现", marketing: "促销活动与宣传物料" },
   education:   { stationery: "品牌在教育场景中的标准化应用", packaging: "教材与课程物料的品牌化呈现", marketing: "招生宣传与活动物料" },
-  footwear:    { stationery: "品牌布鞋在门店与商务场景中的标准化应用", packaging: "布鞋礼盒/手提袋/鞋盒的品牌化呈现", marketing: "门店招牌、工服、会员卡与促销物料" },
-  general:     { stationery: "品牌在商务场景中的标准化应用", packaging: "产品包装与物料的品牌化呈现", marketing: "宣传与促销物料" },
+  technology:  { stationery: "品牌在科技场景中的标准化应用", packaging: "科技产品与物料的品牌化呈现", marketing: "科技宣传与促销物料" },
+  healthcare:  { stationery: "品牌在健康场景中的标准化应用", packaging: "健康产品与物料的品牌化呈现", marketing: "健康宣传与促销物料" },
+  maternal_child: { stationery: "品牌在母婴场景中的标准化应用", packaging: "母婴产品与包装的品牌化呈现", marketing: "母婴宣传与促销物料" },
+  retail:      { stationery: "品牌在零售场景中的标准化应用", packaging: "商品包装与手提袋的品牌化呈现", marketing: "促销活动与宣传物料" },
+  cultural:    { stationery: "品牌在文创场景中的标准化应用", packaging: "文创产品与物料的品牌化呈现", marketing: "文创宣传与活动物料" },
+  financial:   { stationery: "品牌在金融场景中的标准化应用", packaging: "金融产品与物料的品牌化呈现", marketing: "金融宣传与促销物料" },
+  fashion:     { stationery: "品牌在时尚场景中的标准化应用", packaging: "时尚产品与包装的品牌化呈现", marketing: "时尚宣传与展示物料" },
+  sports:      { stationery: "品牌在运动场景中的标准化应用", packaging: "运动产品与物料的品牌化呈现", marketing: "运动宣传与活动物料" },
+  hospitality: { stationery: "品牌在旅宿场景中的标准化应用", packaging: "旅宿物料与包装的品牌化呈现", marketing: "旅宿宣传与促销物料" },
+  real_estate: { stationery: "品牌在地产场景中的标准化应用", packaging: "地产物料与包装的品牌化呈现", marketing: "地产宣传与促销物料" },
+  legal:       { stationery: "品牌在专业场景中的标准化应用", packaging: "专业服务物料的品牌化呈现", marketing: "专业服务宣传与促销物料" },
 };
 
 // ========== 核心引擎 ==========
@@ -216,7 +228,7 @@ export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[
     "auxiliary-graphics", "aux-graphics-misuse", "brand-colors",
     "color-taboos",
     "typography", "font-copyright", "basic-spec", "logo-misuse", "stationery", "packaging",
-    "marketing", "wayfinding", "summary", "material-priority", "logo-output", "modification-authority", "closing",
+    "marketing", "digital-media", "wayfinding", "summary", "material-priority", "file-output", "logo-output", "modification-authority", "closing",
   ];
 
   // 加载参考模板（如果有）
@@ -250,9 +262,10 @@ export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[
   const includeMascot =
     input.assetAnalysis?.mascot?.hasMascot ??
     (input as any).includeMascotChapter ??
+    (input.clientInfo as any).wantMascot === 'yes' ??
     false;
   if (includeMascot) {
-    const mascotPages = buildMascotChapter(input);
+    const mascotPages = await buildMascotChapter(input);
     const closingIdx = blueprints.findIndex((b) => b.pageId === "closing");
     if (closingIdx >= 0) {
       blueprints.splice(closingIdx, 0, ...mascotPages);
@@ -272,18 +285,58 @@ const MASCOT_CHAPTER_PAGES = [
   "mascot-emotions",
   "mascot-scenes",
   "mascot-usage",
+  "mascot-misuse",
+  "mascot-merchandise",
+  "mascot-compliance",
 ];
 
 /**
  * 构建完整 IP 公仔章节（5 段）：角色定位 / 三视图 / 表情库 / 场景应用 / 使用规范。
  * 使用最新 mascot-prompt-strategy 约束（无角 / 帽顶小金球 / 手持千层底布鞋）。
  */
-function buildMascotChapter(input: PagePlannerInput): PageBlueprint[] {
+async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprint[]> {
   const pri = input.brandColors.primary;
   const sec = input.brandColors.secondary;
   const acc = input.brandColors.accent;
   const mascotName = input.assetAnalysis?.mascot?.name || "品牌IP公仔";
   const hasMascotArt = !!input.assetAnalysis?.mascot?.hasMascot;
+
+  // Try to get dynamic character data from DeepSeek
+  let setting = "品牌IP公仔，风格与品牌视觉方向一致";
+  let personality = "品牌调性相匹配的个性特征";
+  let usageScenes = "手册封面/封底、品牌故事页、门店招牌、会员卡、社媒头像、包装礼盒";
+  try {
+    const brandInfo: BrandMascotInfo = {
+      companyName: input.clientInfo.companyName,
+      industry: input.clientInfo.industry || "",
+      mainProduct: input.clientInfo.brandVision || "",
+      brandTone: [input.clientInfo.coreValues].filter(Boolean),
+      brandColors: input.brandColors,
+    };
+    const character = await generateMascotCharacter(brandInfo);
+    if (character) {
+      setting = character.setting;
+      personality = character.personality;
+      usageScenes = character.usageScenes;
+    }
+  } catch {
+    // fallback to generic text
+  }
+
+  const misuseRules = [
+    { rule: "禁止拉伸变形（非等比缩放），须保持公仔原始宽高比例", correct: "等比缩放，保持比例协调" },
+    { rule: "禁止更改品牌色，所有公仔配色须严格使用品牌标准色", correct: "严格使用品牌标准色" },
+    { rule: "禁止拆分LOGO或公仔元素单独使用，所有元素需整体呈现", correct: "LOGO+公仔整体呈现" },
+    { rule: "禁止旋转公仔角度超过规范允许范围", correct: "保持正面/标准方向" },
+    { rule: "禁止添加非规范装饰（角、翅膀、道具等额外元素）", correct: "保持简洁原始形象" },
+    { rule: "禁止修改公仔表情超出规范范围", correct: "使用表情库标准表情" },
+    { rule: "禁止AI重绘替换角色设定", correct: "基于原始设定延展" },
+    { rule: "禁止低对比背景使用，公仔与背景色对比度需≥3:1", correct: "确保背景对比度≥3:1" },
+    { rule: "禁止截取五官/肢体单独商用", correct: "公仔完整形象呈现" },
+    { rule: "禁止更换肢体动作拼接", correct: "使用标准姿态和动作" },
+    { rule: "禁止在非授权场景使用趣味衍生形象", correct: "仅限品牌授权渠道" },
+    { rule: "禁止在合同、公章等严肃场景使用公仔形象", correct: "严肃场景使用文字LOGO" },
+  ];
 
   const pages: { pageId: string; label: string; blocks: { title: string; body: string }[] }[] = [
     {
@@ -291,41 +344,78 @@ function buildMascotChapter(input: PagePlannerInput): PageBlueprint[] {
       label: "IP角色定位",
       blocks: [
         { title: "角色名称", body: mascotName },
-        { title: "角色设定", body: "老北京布鞋匠人（human artisan mascot）：头戴黑瓜皮帽、帽顶一颗小金球，身着藏青长衫、香槟金腰带，手持千层底布鞋；无角、无鹿角、无蝴蝶结、无动物耳朵。" },
-        { title: "性格与调性", body: "匠心、温厚、专注，与「手工千层底布鞋」品牌内核一致，传递老北京制鞋技艺的传承感。" },
-        { title: "适用场景", body: "手册封面/封底、品牌故事页、门店招牌、会员卡、社交媒体头像、包装礼盒。" },
+        { title: "角色设定", body: setting },
+        { title: "性格与调性", body: personality },
+        { title: "适用场景", body: usageScenes },
       ],
     },
     {
       pageId: "mascot-threeview",
       label: "IP三视图",
       blocks: [
-        { title: "三视图规范", body: "提供正面 / 侧面 / 背面三视图，统一比例与配色，确保跨物料一致性。" },
-        { title: "绘制要求", body: "纯白底、无场景；黑瓜皮帽+帽顶小金球、藏青长衫、香槟金腰带、手持千层底布鞋；禁止添加角/鹿角/蝴蝶结。" },
+        { title: "三视图规范", body: "提供正面/侧面/背面三视图，统一比例与配色，确保跨物料一致性。角色风格：" + setting },
+        { title: "绘制要求", body: "纯白底、无场景；角色外观基于品牌色系，禁止添加非规范装饰元素。" },
+        { title: "比例规范", body: "头身比建议 1:1.5 ~ 1:2.5，总高度以品牌实际设定为准（约20-35cm）。" },
+        { title: "最小使用尺寸", body: "印刷 15mm / 数字媒介 48px / 小礼品/周边 10mm" },
+        { title: "安全留白", body: "公仔四周保留 ≥ 公仔高度 10% 的留白空间，确保在任何媒介上不被裁切或遮挡。" },
+        { title: "三视图制图要求", body: "正面/侧面/背面需统一比例线，标注头部高度、身体宽度、总高度等关键尺寸。" },
       ],
     },
     {
       pageId: "mascot-emotions",
       label: "IP表情库",
       blocks: [
-        { title: "基础表情", body: "微笑 / 欢迎 / 专注 / 惊喜 / 安心，至少 5 款，保持角色比例与配色一致。" },
-        { title: "使用说明", body: "门店迎宾用「欢迎」，包装说明用「安心」，社媒互动用「微笑」，统一角色设定。" },
+        { title: "基础表情", body: "微笑/欢迎/专注/惊喜/安心/开心/引导/俏皮，至少8款，保持角色比例与配色一致。每款表情需统一眼睛大小、嘴型弧度范围。" },
+        { title: "使用说明", body: "门店迎宾用「欢迎」，包装说明用「安心」，社媒互动用「微笑」，节日促销用「开心」，导航指引用「引导」，节日限定用「俏皮」。" },
       ],
     },
     {
       pageId: "mascot-scenes",
       label: "IP场景应用",
       blocks: [
-        { title: "应用场景", body: "门店招牌与橱窗、工服绣标、会员卡、手提袋与鞋盒、防尘袋、鞋拔与鞋垫包装、线上新媒体配图。" },
-        { title: "落地规范", body: "公仔尺寸占比≤30%，须保留≥15% Logo保护空间，禁止拉伸、改色、旋转。" },
+        { title: "门店场景", body: "迎宾/导购/收银：公仔占比≤30%，站位靠入口或收银台附近。" },
+        { title: "办公场景", body: "会议/协作/客服：公仔占比≤20%，色调柔和，突出专业感。" },
+        { title: "活动场景", body: "促销/节日/新品发布：公仔占比可放大至40%，搭配醒目配色。" },
+        { title: "线上场景", body: "社媒互动/直播/短视频：公仔占比≤25%，配合动态表情使用。" },
       ],
     },
     {
       pageId: "mascot-usage",
       label: "IP使用规范",
       blocks: [
-        { title: "禁止事项", body: "禁止改色（须使用品牌色系）、禁止改变比例、禁止加角/鹿角/蝴蝶结、禁止AI重绘替换角色设定、禁止低对比背景使用。" },
-        { title: "最小尺寸与留白", body: "印刷最小 15mm，数字最小 48px；公仔四周保留充足留白，与Logo同享保护空间规则。" },
+        { title: "色彩规范", body: "IP配色须严格使用品牌标准色，不得自行更改色值。单色/灰度版本按灰度值公式 R*0.299 + G*0.587 + B*0.114 转换，保留明暗层次，不得反转。" },
+        { title: "最小尺寸与留白", body: "印刷最小 15mm，数字最小 48px，小礼品/周边最小 10mm。公仔四周保留充足留白，与Logo同享保护空间规则。" },
+        { title: "单色/灰度版本", body: "适用于报纸广告、印章、单色喷绘等低成本的灰度印刷媒介。灰度值按公式转换，确保灰度版本与彩色版本视觉重量一致。" },
+      ],
+    },
+    {
+      pageId: "mascot-misuse",
+      label: "IP公仔禁用规范",
+      blocks: misuseRules.map((m) => ({
+        title: m.rule,
+        body: "正确: " + m.correct,
+      })),
+    },
+    {
+      pageId: "mascot-merchandise",
+      label: "IP公仔衍生品使用规范",
+      blocks: [
+        { title: "文创类", body: "手办：最小高度30mm，头部比例可适当放大（Q版）。抱枕：公仔形象占比 ≤ 60%，居中或偏左排版。帆布袋：公仔居于袋面上方40%区域，下方留白放LOGO。" },
+        { title: "线下门店", body: "立牌：高度 ≥ 120cm，公仔全身展示。灯箱：公仔占比 ≤ 50%，搭配品牌标语。展架：公仔居于视觉中心位置，辅助信息环绕排版。" },
+        { title: "线上媒介", body: "头像：圆形裁切保留头部+标志性特征。表情包：gif动图时长≤3秒，帧率≥12fps，尺寸统一。视频封面：公仔居于左下1/4区域，右侧留白排版文字。" },
+        { title: "材质适配提示", body: "金属材质：适合蚀刻或浮雕工艺，线条需简化。布艺材质：适合刺绣或印花工艺，颜色对比度可适当提高。亚克力材质：适合背喷或UV印刷，注意透明区域留白处理。" },
+      ],
+    },
+    {
+      pageId: "mascot-compliance",
+      label: "IP公仔使用合规说明",
+      blocks: [
+        { title: "版权归属声明", body: "IP公仔形象版权归 " + (input.clientInfo.companyName || "品牌方") + " 所有，未经授权不得复制、修改、传播或商业使用。" },
+        { title: "授权使用范围", body: "品牌自有渠道（官网、社媒、门店物料）以及书面授权的合作伙伴。任何超出此范围的使用均需另行申请授权。" },
+        { title: "外部修改限制", body: "未经品牌方书面授权，任何个人或组织不得对公仔形象进行修改、变体创作或二次开发。" },
+        { title: "不可商用场景", body: "禁止在竞品品牌宣传、政治活动与选举、宗教传播与仪式、成人内容与不雅场景中使用公仔形象。" },
+        { title: "授权期限与地域", body: "授权使用期限和地域范围以授权协议为准，到期自动终止。" },
+        { title: "违例处理方式", body: "对于违反本合规说明的行为，品牌方保留追究法律责任的权利。" },
       ],
     },
   ];
@@ -333,22 +423,22 @@ function buildMascotChapter(input: PagePlannerInput): PageBlueprint[] {
   return pages.map((p) => {
     const elements: PageElement[] = [];
     elements.push({
-      type: "text", id: `${p.pageId}-title`, content: p.label,
+      type: "text", id: p.pageId + "-title", content: p.label,
       position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30,
     });
     elements.push({
-      type: "divider", id: `${p.pageId}-divider`, position: "center",
+      type: "divider", id: p.pageId + "-divider", position: "center",
       widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15,
     });
     let y = 120;
     p.blocks.forEach((b, i) => {
       elements.push({
-        type: "text", id: `${p.pageId}-h-${i}`, content: b.title,
+        type: "text", id: p.pageId + "-h-" + i, content: b.title,
         position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex,
         marginTop: y, marginLeft: 60, params: { align: "left" },
       });
       elements.push({
-        type: "text", id: `${p.pageId}-b-${i}`, content: b.body,
+        type: "text", id: p.pageId + "-b-" + i, content: b.body,
         position: "top-center", fontSize: 12, color: "#444",
         marginTop: y + 28, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 },
       });
@@ -356,7 +446,7 @@ function buildMascotChapter(input: PagePlannerInput): PageBlueprint[] {
     });
     if (hasMascotArt) {
       elements.push({
-        type: "ip-mascot", id: `${p.pageId}-mascot`,
+        type: "ip-mascot", id: p.pageId + "-mascot",
         position: "bottom-right", widthPct: 12, heightPct: 15,
         marginRight: 30, marginBottom: 30, opacity: 0.7,
       });
@@ -371,6 +461,7 @@ function buildMascotChapter(input: PagePlannerInput): PageBlueprint[] {
     };
   });
 }
+
 
 /**
  * 规划单个页面
@@ -441,7 +532,7 @@ async function planSinglePage(
     rules: sortedRules,
     pageRef,
     aiElements,
-    industryType: mapIndustryType(input.clientInfo.industry),
+    industryType: input.clientInfo.industry || "general",
   });
 
   return blueprint;
@@ -471,7 +562,7 @@ export interface BuildContext {
 
 function buildBlueprint(pageId: string, ctx: BuildContext): PageBlueprint {
   const label =
-    pageId === "wayfinding" && ctx.industryType === "footwear"
+    false
       ? "门店导视系统"
       : PAGE_LABELS[pageId] || pageId;
   const appliedRules = ctx.rules.map(r => r.id);
@@ -630,8 +721,10 @@ function buildElements(pageId: string, ctx: BuildContext): PageElement[] {
     case "marketing": return buildMarketingElements(ctx);
     case "font-copyright": return buildFontCopyrightElements(ctx);
     case "summary": return buildSummaryElements(ctx);
+    case "digital-media": return buildDigitalMediaElements(ctx);
     case "wayfinding": return [{ type: "custom" as const, id: "wayfinding-placeholder", content: PAGE_LABELS["wayfinding"] }];
     case "material-priority": return buildMaterialPriorityElements(ctx);
+    case "file-output": return buildFileOutputElements(ctx);
     case "logo-output": return [{
       type: "custom" as const, id: "logo-output-placeholder",
       content: PAGE_LABELS["logo-output"]
@@ -1229,6 +1322,44 @@ function buildBasicSpecElements(ctx: BuildContext): PageElement[] {
 
 // ---- 办公应用系统 ----
 
+
+function buildDigitalMediaElements(ctx: BuildContext): PageElement[] {
+  const { pri, sec, acc } = ctx;
+  const elements: PageElement[] = [
+    { type: "text", id: "dm-title", content: PAGE_LABELS["digital-media"], position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30 },
+    { type: "divider", id: "dm-divider", position: "center", widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15 },
+    { type: "text", id: "dm-h-0", content: "社媒头像/封面模板规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 100, marginLeft: 60, params: { align: "left" } },
+    { type: "text", id: "dm-b-0", content: "头像采用圆形裁切，公仔头部居中，直径不低于128px。封面模板统一1920×1080分辨率，文字区域须在安全区内。", position: "top-center", fontSize: 12, color: "#444", marginTop: 128, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "dm-h-1", content: "短视频封面排版规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 200, marginLeft: 60, params: { align: "left" } },
+    { type: "text", id: "dm-b-1", content: "封面1080×1920竖版，公仔居左中1/3区域，右上/下留白排版标题。品牌色条置于底部20%区域。", position: "top-center", fontSize: 12, color: "#444", marginTop: 228, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "dm-h-2", content: "网站/App图标使用规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 300, marginLeft: 60, params: { align: "left" } },
+    { type: "text", id: "dm-b-2", content: "图标使用简化版公仔头像，去除复杂细节。最小32×32px，白底或透明底，四周保留4px圆角裁切区域。", position: "top-center", fontSize: 12, color: "#444", marginTop: 328, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "dm-h-3", content: "邮件签名/Banner排版规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 400, marginLeft: 60, params: { align: "left" } },
+    { type: "text", id: "dm-b-3", content: "签名档公仔宽高比1:1，右侧排版姓名+联系方式。Banner采用16:9比例，公仔居中偏左，右侧留白放置品牌标语。", position: "top-center", fontSize: 12, color: "#444", marginTop: 428, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+  ];
+  return elements;
+}
+
+
+function buildFileOutputElements(ctx: BuildContext): PageElement[] {
+  const { pri, sec, acc } = ctx;
+  const elements: PageElement[] = [
+    { type: "text", id: "fo-title", content: PAGE_LABELS["file-output"], position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30 },
+    { type: "divider", id: "fo-divider", position: "center", widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15 },
+    { type: "text", id: "fo-h-0", content: "源文件格式要求", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 100, marginLeft: 60, params: { align: "left" } },
+    { type: "text", id: "fo-b-0", content: "源文件须提供PSD或AI分层格式，保留矢量路径与文字图层。所有图形元素须独立分层，禁止合并栅格化后交付。", position: "top-center", fontSize: 12, color: "#444", marginTop: 128, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "fo-h-1", content: "导出分辨率标准", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 200, marginLeft: 60, params: { align: "left" } },
+    { type: "table", id: "fo-resolution", position: "top-center", widthPct: 50, heightPct: 10, marginTop: 235, marginLeft: 60, params: { headers: ["场景", "分辨率"], rows: [["印刷", "300dpi"], ["喷绘", "150dpi"], ["屏幕", "72dpi"]] } },
+    { type: "text", id: "fo-h-2", content: "色值模式规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 310, marginLeft: 60, params: { align: "left" } },
+    { type: "text", id: "fo-b-2", content: "印刷物料使用CMYK模式，数字屏幕使用RGB模式。Logo与品牌色须同时提供CMYK和RGB两套色值参考。", position: "top-center", fontSize: 12, color: "#444", marginTop: 338, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "fo-h-3", content: "字体转曲/嵌入要求", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 410, marginLeft: 60, params: { align: "left" } },
+    { type: "text", id: "fo-b-3", content: "交付前所有文字须转为轮廓（转曲），或嵌入完整字体文件。禁止使用系统默认字体替代品牌指定字体。", position: "top-center", fontSize: 12, color: "#444", marginTop: 438, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "fo-h-4", content: "文件命名规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 510, marginLeft: 60, params: { align: "left" } },
+    { type: "text", id: "fo-b-4", content: "格式：品牌名_物料类型_版本号_日期（例：BrandName_Logo_v1.0_20260731）。禁止使用默认文件名或含空格的特殊路径。", position: "top-center", fontSize: 12, color: "#444", marginTop: 538, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+  ];
+  return elements;
+}
+
 function buildStationeryElements(ctx: BuildContext): PageElement[] {
   const { pri, sec, hasLogo, hasMascot } = ctx;
   const elements: PageElement[] = [];
@@ -1251,7 +1382,7 @@ function buildStationeryElements(ctx: BuildContext): PageElement[] {
   elements.push({ type: "image", id: "st-scene",
     position: "center", widthPct: 70, heightPct: 35,
     marginTop: 180,
-    params: { sceneType: "stationery" },
+    params: { sceneType: (ctx.industryType || "general") + "-stationery" },
   });
 
   if (hasMascot) {
@@ -1288,7 +1419,7 @@ function buildPackagingElements(ctx: BuildContext): PageElement[] {
   elements.push({ type: "image", id: "pk-scene",
     position: "center", widthPct: 65, heightPct: 35,
     marginTop: 180,
-    params: { sceneType: "packaging" },
+    params: { sceneType: (ctx.industryType || "general") + "-packaging" },
   });
 
   return elements;
@@ -1316,7 +1447,7 @@ function buildMarketingElements(ctx: BuildContext): PageElement[] {
   elements.push({ type: "image", id: "mk-scene",
     position: "center", widthPct: 65, heightPct: 35,
     marginTop: 180,
-    params: { sceneType: "marketing" },
+    params: { sceneType: (ctx.industryType || "general") + "-marketing" },
   });
 
   return elements;

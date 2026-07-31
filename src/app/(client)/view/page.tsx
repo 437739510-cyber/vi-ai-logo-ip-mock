@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon, Phone, Key, RefreshCw, History, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { MascotSection } from "@/components/client/MascotSection";
 import { LogoLightbox } from "@/components/client/LogoLightbox";
 import Link from "next/link";
 
@@ -60,6 +61,15 @@ export default function ViewLogoPage() {
   const [showChineseConfirm, setShowChineseConfirm] = useState(false);
   const [chineseConfirmCost, setChineseConfirmCost] = useState("0");
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [showDeliveryConfirm, setShowDeliveryConfirm] = useState(false);
+  const [deliveryConfirmType, setDeliveryConfirmType] = useState<"logo" | "mascot">("logo");
+  const [ipEnabled, setIpEnabled] = useState(true);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("brandbrain_ip_enabled");
+      if (saved !== null) setIpEnabled(saved === "true");
+    }
+  }, []);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
 
@@ -166,6 +176,13 @@ export default function ViewLogoPage() {
       });
 
       if (res.ok) {
+        // ▼ TASK-009: 无IP版交付承诺弹窗
+        const hasMascot = (projectData as any)?.submission?.wantMascot === "yes";
+        if (!hasMascot) {
+          setDeliveryConfirmType("logo");
+          setShowDeliveryConfirm(true);
+          return;
+        }
         setConfirmSuccess(true);
       }
     } catch {
@@ -200,6 +217,17 @@ export default function ViewLogoPage() {
       brand_analyzing: "AI品牌分析中",
       logo_generating: "Logo生成中",
       logo_generated: "Logo已生成",
+      mascot_generating: "公仔生成中",
+      mascot_generated: "公仔生成完成",
+      mascot_failed: "公仔生成失败",
+      mascot_sample_fail: "公仔样稿生成失败",
+      mascot_full_fail: "公仔全套生成失败",
+      mascot_pending: "等待公仔生成",
+      waiting_manual_review: "人工校准中（3个工作日交付）",
+      manual_review_complete: "人工校验完成",
+      manual_render_fail: "手册渲染失败",
+      scene_rendering: "场景渲染中",
+      pptx_assembling: "手册组装中",
       submitted: "已提交",
       payment_uploaded: "待确认付款",
       paid: "已付款",
@@ -207,6 +235,8 @@ export default function ViewLogoPage() {
       designing: "设计制作中",
       reviewing: "审核中",
       delivered: "已交付",
+      completed: "已完成",
+      failed: "生成失败",
     };
     return map[status] || status;
   };
@@ -555,6 +585,21 @@ export default function ViewLogoPage() {
               </div>
             )}
 
+          {/* ▼ TASK-009: IP公仔区块 */}
+          {ipEnabled && (projectData as any)?.submission?.wantMascot === "yes" && projectData && (
+            <MascotSection
+              generationStatus={projectData.generationStatus}
+              projectId={projectData.id}
+              projectData={projectData}
+              onStatusChange={(newStatus: string) => {
+                if (newStatus === "waiting_manual_review") {
+                  setDeliveryConfirmType("mascot");
+                  setShowDeliveryConfirm(true);
+                }
+              }}
+            />
+          )}
+
           {/* 返回按钮 */}
           <div className="mt-6 text-center">
             <button
@@ -581,6 +626,7 @@ export default function ViewLogoPage() {
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
       />
+
 
       {/* Confirm Dialogs */}
       <ConfirmDialog
@@ -670,6 +716,36 @@ export default function ViewLogoPage() {
         confirmLabel="确定生成"
         cancelLabel="取消"
       />
+
+      {/* ▼ TASK-009: 交付承诺弹窗（不可跳过） */}
+      {showDeliveryConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6 text-center">
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-6 h-6 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold text-neutral-900 mt-3">
+              {deliveryConfirmType === "logo" ? "Logo 确认完成" : "IP 公仔确认完成"}
+            </h3>
+            <p className="mt-3 text-sm text-neutral-600 leading-relaxed whitespace-pre-line">
+              {deliveryConfirmType === "logo"
+                ? "您的 Logo 已确认，我们将人工校准整套品牌视觉规范，3 个工作日内完成 14 页标准 VI 手册并通知您下载，可随时在本页面查看制作进度。"
+                : "您的品牌 Logo 与全套 IP 公仔形象已确认，工作人员会统一校准配色、画风、规范细节，3 个工作日内交付 22 页完整版 IP-VI 手册，进度实时可查。"}
+            </p>
+            <button
+              onClick={() => {
+                setShowDeliveryConfirm(false);
+                if (deliveryConfirmType === "logo") {
+                  setConfirmSuccess(true);
+                }
+              }}
+              className="mt-6 px-8 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-dark transition-colors"
+            >
+              我知道了
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

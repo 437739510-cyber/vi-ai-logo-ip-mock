@@ -176,6 +176,7 @@ function buildNegativePrompt(
     parts.push("no generic clipart style");
     parts.push("no flat vector icon style unless specified");
     parts.push("no complex shading");
+      parts.push("no four legs, no quadruped, no animal on all fours, no four-legged animal pose, must be bipedal standing on two legs like a human");
 
     // Specific avoid keywords based on type
     const typeRef = MASCOT_STYLE_MAP[mascotProfile.suggestedType || "character"];
@@ -639,7 +640,7 @@ export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptS
     };
 
     const sceneContextEng = (input.clientPreferences?.mascotUsageScenes || [])
-      .map(s => ({门店招牌:'storefront',产品包装:'product packaging',会员卡:'membership card',社交媒体:'social media',周边商品:'merchandise',店内装饰:'interior decor',名片:'business card',手提袋:'shopping bag',宣传册:'brochure'})[s] || s)
+      .map(s => ({'storefront':'storefront','product_packaging':'product packaging','membership_card':'membership card','social_media':'social media','merchandise':'merchandise','interior_decor':'interior decor','business_card':'business card','shopping_bag':'shopping bag','brochure':'brochure'})[s] || s)
       .filter(Boolean).join(', ');
     imagePrompt = buildImagePromptBySegments(
       profileLike as any,

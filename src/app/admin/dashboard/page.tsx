@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { StatCard } from "@/components/admin/StatCard";
@@ -51,6 +51,17 @@ interface TodaySummary {
 
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  // TASK-010: IP 公仔模块开关
+  const [ipEnabled, setIpEnabled] = useState(true);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("brandbrain_ip_enabled");
+      if (saved !== null) setIpEnabled(saved === "true");
+    }
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("brandbrain_ip_enabled", String(ipEnabled));
+  }, [ipEnabled]);
   const [loading, setLoading] = useState(true);
   const [deepseekBalance, setDeepseekBalance] = useState<ApiBalance | null>(null);
   const [arkBalance, setArkBalance] = useState<ApiBalance | null>(null);
@@ -212,6 +223,19 @@ export default function DashboardPage() {
           <span className="text-sm font-medium text-neutral-500">共 {totalCount} 个项目</span>
         </div>
       </div>
+
+      <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-neutral-200 mb-4">
+          <span className="text-sm font-medium text-neutral-700">IP 公仔模块</span>
+          <button
+            onClick={() => setIpEnabled(!ipEnabled)}
+            className={`relative w-10 h-5 rounded-full transition-colors ${ipEnabled ? "bg-purple-600" : "bg-neutral-300"}`}
+          >
+            <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${ipEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+          </button>
+          <span className={`text-xs ${ipEnabled ? "text-purple-700" : "text-neutral-400"}`}>
+            {ipEnabled ? "已启用" : "已关闭"}
+          </span>
+        </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="待处理" value={pendingCount} description="新提交/已付款" icon={<AlertCircle className="w-5 h-5" />} />

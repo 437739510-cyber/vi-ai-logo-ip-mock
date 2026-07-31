@@ -1,7 +1,7 @@
 {
   "comment": "BrandBrain IP公仔三视图测试 | DreamShaperXL10 | 1024×1024",
   "brand_params": {
-    "model": "dreamshaperXL10_alpha2Xl10.safetensors",
+    "model": "dreamshaperXL_alpha2Xl10.safetensors",
     "vae": "sdxl_fp16_fix.safetensors",
     "width": 1024,
     "height": 1024,
@@ -16,7 +16,7 @@
     "3": {
       "class_type": "CheckpointLoaderSimple",
       "inputs": {
-        "ckpt_name": "dreamshaperXL10_alpha2Xl10.safetensors"
+        "ckpt_name": "dreamshaperXL_alpha2Xl10.safetensors"
       }
     },
     "10": {

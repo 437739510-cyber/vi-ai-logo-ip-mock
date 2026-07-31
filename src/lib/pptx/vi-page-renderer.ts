@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Brand Brain — 专业VI手册页面渲染器 V4
  *
  * V3问题：1037行switch-case填表机器，没有"脑子"
@@ -195,6 +195,11 @@ interface RenderContext {
   accentColor: { hex: string; name?: string; rgb?: string; cmyk?: string };
   logoDataUri: string | null;
   mascotDataUri: string | null;
+  // ▼ TASK-008: 扩展公仔素材（三视图、表情、场景）
+  mascotThreeViewData?: string | null;
+  mascotEmotions?: Record<string, string> | null;
+  mascotScenes?: Record<string, string> | null;
+  mascotSplitViews?: string[] | null;
   pageIndex: number;
   totalPages: number;
   // V4新增
@@ -809,6 +814,11 @@ function renderMascotSpec(ctx: RenderContext): string {
 
 // ===== V4核心: 9/10/11 三个应用页（左写实图+右文字） =====
 
+
+// ===== 10. IP标准主形象 =====
+
+// ===== 9. 办公应用系统 =====
+
 function renderApplicationPage(
   ctx: RenderContext,
   chapterNum: number,
@@ -887,7 +897,6 @@ function renderApplicationPage(
   return svg;
 }
 
-// ===== 9. 办公应用系统 =====
 function renderStationery(ctx: RenderContext): string {
   return renderApplicationPage(ctx, 7, "办公应用系统", "STATIONERY SYSTEM", [
     { label: "名片设计", desc: "标准名片尺寸90×54mm，品牌色贯穿底部色条，Logo位于左上角，姓名+职位+联系方式居中排列" },
@@ -1101,6 +1110,197 @@ function renderClosing(ctx: RenderContext): string {
   return svg;
 }
 
+// ===== 9. IP人设与定位 =====
+function renderMascotPersona(ctx: RenderContext): string {
+  const { companyName, mascotPhilosophy, primaryColor: pri, accentColor: acc } = ctx;
+  let svg = pageBackground();
+  svg += topBar(pri.hex);
+  svg += pageTitle("IP人设与品牌定位", "MASCOT PERSONA", pri.hex, acc.hex);
+  svg += chapterNumber(9, pri.hex);
+  const px = M.left, py = M.top + 66, pw = M.content.w;
+  svg += contentPanel(px, py, pw, PH - py - M.bottom - 10);
+  svg += `<text x="${px + 28}" y="${py + 40}" font-size="14" font-weight="700" fill="${pri.hex}">${companyName}的公仔人设</text>`;
+  svg += `<text x="${px + 28}" y="${py + 65}" font-size="11" fill="#555">${mascotPhilosophy || "品牌公仔形象定位"}</text>`;
+  svg += pageFooter(companyName, ctx.pageIndex + 1, ctx.totalPages);
+  return svg;
+}
+
+// ===== 10. IP标准主形象 =====
+function renderMascotMain(ctx: RenderContext): string {
+  const { companyName, mascotDataUri, primaryColor: pri, accentColor: acc } = ctx;
+  let svg = pageBackground();
+  svg += topBar(pri.hex);
+  svg += pageTitle("IP标准主形象", "MAIN MASCOT IMAGE", pri.hex, acc.hex);
+  svg += chapterNumber(10, pri.hex);
+  const px = M.left, py = M.top + 66, pw = M.content.w;
+  svg += contentPanel(px, py, pw, PH - py - M.bottom - 10);
+  if (mascotDataUri) {
+    svg += `<image x="${px + (pw - 350)/2}" y="${py + 20}" width="400" height="400" href="${mascotDataUri}" preserveAspectRatio="xMidYMid meet"/>`;
+  } else {
+    svg += `<text x="${px + pw/2}" y="${py + 200}" font-size="14" fill="#999" text-anchor="middle">IP主形象待定稿</text>`;
+  }
+  svg += pageFooter(companyName, ctx.pageIndex + 1, ctx.totalPages);
+  return svg;
+}
+
+// ===== 11. IP三视图规范 =====
+function renderMascot3view(ctx: RenderContext): string {
+  const { companyName, primaryColor: pri, accentColor: acc, mascotThreeViewData, mascotSplitViews } = ctx;
+  let svg = pageBackground();
+  svg += topBar(pri.hex);
+  svg += pageTitle("IP三视图制图规范", "THREE-VIEW SHEET", pri.hex, acc.hex);
+  svg += chapterNumber(11, pri.hex);
+  const px = M.left, py = M.top + 66, pw = M.content.w;
+  svg += contentPanel(px, py, pw, PH - py - M.bottom - 10);
+
+  if (mascotThreeViewData) {
+    // 有三视图合成图 → 显示居中大图
+    const imgSize = Math.min(pw - 40, 540);
+    const ix = px + (pw - imgSize) / 2;
+    svg += `<image x="${ix}" y="${py + 20}" width="${imgSize}" height="${Math.round(imgSize * 1.2)}" href="${mascotThreeViewData}" preserveAspectRatio="xMidYMid meet"/>`;
+  } else if (mascotSplitViews && mascotSplitViews.length === 3) {
+    // 有分离的三视图（正/侧/背）
+    const vw = 180, vh = 220, gap = 25, startX = px + (pw - vw*3 - gap*2)/2;
+    ["正视图", "侧视图", "背视图"].forEach((label, i) => {
+      const x = startX + i * (vw + gap);
+      svg += `<image x="${x}" y="${py + 25}" width="${vw}" height="${vh}" href="${mascotSplitViews[i]}" preserveAspectRatio="xMidYMid meet"/>`;
+      svg += `<text x="${x + vw/2}" y="${py + vh + 50}" font-size="11" fill="#555" text-anchor="middle">${label}</text>`;
+    });
+  } else {
+    // 占位版：空框
+    const vw = 180, vh = 220, gap = 25, startX = px + (pw - vw*3 - gap*2)/2;
+    ["正视图", "侧视图", "背视图"].forEach((label, i) => {
+      const x = startX + i * (vw + gap);
+      svg += `<rect x="${x}" y="${py + 25}" width="${vw}" height="${vh}" fill="#f5f5f5" stroke="${pri.hex}" stroke-width="1.5" rx="4"/>`;
+      svg += `<text x="${x + vw/2}" y="${py + vh + 50}" font-size="11" fill="#555" text-anchor="middle">${label}</text>`;
+    });
+  }
+
+  svg += pageFooter(companyName, ctx.pageIndex + 1, ctx.totalPages);
+  return svg;
+}
+// ===== 12. IP色彩联动 =====
+function renderMascotColors(ctx: RenderContext): string {
+  const { companyName, primaryColor: pri, accentColor: acc } = ctx;
+  let svg = pageBackground();
+  svg += topBar(pri.hex);
+  svg += pageTitle("IP色彩联动规范", "MASCOT COLOR PALETTE", pri.hex, acc.hex);
+  svg += chapterNumber(12, pri.hex);
+  const px = M.left, py = M.top + 66, pw = M.content.w;
+  svg += contentPanel(px, py, pw, PH - py - M.bottom - 10);
+  const sw = 50, sg = 15, clrs = [pri.hex, acc.hex, "#333333", "#FFFFFF"];
+  const sx = px + (pw - clrs.length*(sw+sg)+sg)/2;
+  clrs.forEach((col, i) => {
+    const x = sx + i*(sw+sg);
+    svg += `<rect x="${x}" y="${py + 30}" width="${sw}" height="${sw}" fill="${col}" stroke="#ccc" stroke-width="1" rx="4"/>`;
+    svg += `<text x="${x + sw/2}" y="${py + sw + 55}" font-size="8" fill="#666" text-anchor="middle">${col}</text>`;
+  });
+  svg += pageFooter(companyName, ctx.pageIndex + 1, ctx.totalPages);
+  return svg;
+}
+
+// ===== 13. IP尺寸禁用规范 =====
+function renderMascotSizing(ctx: RenderContext): string {
+  const { companyName, primaryColor: pri, accentColor: acc } = ctx;
+  let svg = pageBackground();
+  svg += topBar(pri.hex);
+  svg += pageTitle("IP尺寸与使用禁用规范", "SIZING & RESTRICTIONS", pri.hex, acc.hex);
+  svg += chapterNumber(13, pri.hex);
+  const px = M.left, py = M.top + 66, pw = M.content.w, ph = PH - py - M.bottom - 10;
+  svg += contentPanel(px, py, pw, ph);
+  const rules = ["最小展示尺寸：30mm", "安全留白：不少于 IP 宽度的 20%", "禁止变形、拉伸、旋转", "禁止与其他图标重叠", "禁止改变原始色彩"];
+  rules.forEach((r, i) => {
+    svg += `<text x="${px + 28}" y="${py + 30 + i*22}" font-size="11" fill="#555">• ${r}</text>`;
+  });
+  svg += pageFooter(companyName, ctx.pageIndex + 1, ctx.totalPages);
+  return svg;
+}
+
+// ===== 14. IP商用姿态 =====
+function renderMascotPoses(ctx: RenderContext): string {
+  const { companyName, primaryColor: pri, accentColor: acc, mascotScenes } = ctx;
+  let svg = pageBackground();
+  svg += topBar(pri.hex);
+  svg += pageTitle("IP多商用姿态延展", "COMMERCIAL POSES", pri.hex, acc.hex);
+  svg += chapterNumber(14, pri.hex);
+  const px = M.left, py = M.top + 66, pw = M.content.w;
+  svg += contentPanel(px, py, pw, PH - py - M.bottom - 10);
+
+  if (mascotScenes && Object.keys(mascotScenes).length > 0) {
+    // 有场景图 → 取前3张填充姿态框
+    const sceneEntries = Object.entries(mascotScenes).slice(0, 3);
+    const bw = 180, bh = 200, bg = 20, sx = px + (pw - bw*3 - bg*2)/2;
+    const labels = ["站立姿态", "互动姿态", "休闲姿态"];
+    sceneEntries.forEach(([name, url], i) => {
+      const x = sx + i*(bw+bg);
+      svg += `<image x="${x}" y="${py + 20}" width="${bw}" height="${bh}" href="${url}" preserveAspectRatio="xMidYMid meet"/>`;
+      svg += `<text x="${x + bw/2}" y="${py + bh + 45}" font-size="11" font-weight="600" fill="${pri.hex}" text-anchor="middle">${labels[i] || name}</text>`;
+    });
+  } else {
+    // 占位版：空框
+    const bw = 180, bh = 200, bg = 20, sx = px + (pw - bw*3 - bg*2)/2;
+    ["站立姿态", "互动姿态", "休闲姿态"].forEach((label, i) => {
+      const x = sx + i*(bw+bg);
+      svg += `<rect x="${x}" y="${py + 20}" width="${bw}" height="${bh}" fill="#f9f9f9" stroke="#ddd" stroke-width="1" rx="6"/>`;
+      svg += `<text x="${x + bw/2}" y="${py + bh + 45}" font-size="11" font-weight="600" fill="${pri.hex}" text-anchor="middle">${label}</text>`;
+    });
+  }
+
+  svg += pageFooter(companyName, ctx.pageIndex + 1, ctx.totalPages);
+  return svg;
+}
+
+// ===== 15. IP表情符号 =====
+function renderMascotEmotions(ctx: RenderContext): string {
+  const { companyName, primaryColor: pri, accentColor: acc, mascotEmotions } = ctx;
+  let svg = pageBackground();
+  svg += topBar(pri.hex);
+  svg += pageTitle("IP表情符号延展规范", "EMOTION EXPRESSIONS", pri.hex, acc.hex);
+  svg += chapterNumber(15, pri.hex);
+  const px = M.left, py = M.top + 66, pw = M.content.w;
+  svg += contentPanel(px, py, pw, PH - py - M.bottom - 10);
+
+  if (mascotEmotions && Object.keys(mascotEmotions).length > 0) {
+    // 有真实表情图 → 用 <image> 显示（保持 3×2 网格布局）
+    const es = 70, eg = 12, row = 3, sx = px + (pw - row*(es+eg)+eg)/2;
+    const entries = Object.entries(mascotEmotions).slice(0, 6);
+    entries.forEach(([name, url], i) => {
+      const col = i % row, r = Math.floor(i / row);
+      const x = sx + col*(es+eg), y = py + 20 + r*(es+eg+20);
+      svg += `<image x="${x}" y="${y}" width="${es}" height="${es}" href="${url}" preserveAspectRatio="xMidYMid meet"/>`;
+      svg += `<text x="${x + es/2}" y="${y + es + 16}" font-size="10" fill="#555" text-anchor="middle">${name}</text>`;
+    });
+  } else {
+    // 占位版：空圆圈
+    const es = 70, eg = 12, row = 3, sx = px + (pw - row*(es+eg)+eg)/2;
+    ["微笑", "甜笑", "害羞", "悬浮", "惊讶", "满足"].forEach((label, i) => {
+      const col = i % row, r = Math.floor(i / row);
+      const x = sx + col*(es+eg), y = py + 20 + r*(es+eg+20);
+      svg += `<circle cx="${x + es/2}" cy="${y + es/2}" r="${es/2}" fill="#f0f0f0" stroke="${pri.hex}" stroke-width="1.5"/>`;
+      svg += `<text x="${x + es/2}" y="${y + es + 16}" font-size="10" fill="#555" text-anchor="middle">${label}</text>`;
+    });
+  }
+
+  svg += pageFooter(companyName, ctx.pageIndex + 1, ctx.totalPages);
+  return svg;
+}
+
+// ===== usage-summary =====
+function renderUsageSummary(ctx: RenderContext): string {
+  const { companyName, primaryColor: pri, accentColor: acc } = ctx;
+  let svg = pageBackground();
+  svg += topBar(pri.hex);
+  svg += pageTitle("品牌视觉整体使用总结", "USAGE SUMMARY", pri.hex, acc.hex);
+  const px = M.left, py = M.top + 66, pw = M.content.w;
+  svg += contentPanel(px, py, pw, PH - py - M.bottom - 10);
+  const tips = ["本手册定义了完整的品牌视觉识别系统", "所有素材均应按照规范使用", "如有疑问请联系品牌管理团队"];
+  tips.forEach((t, i) => {
+    svg += `<text x="${px + 28}" y="${py + 35 + i*22}" font-size="11" fill="#555">• ${t}</text>`;
+  });
+  svg += pageFooter(companyName, ctx.pageIndex + 1, ctx.totalPages);
+  return svg;
+}
+
 // ========== 主入口（V4签名） ==========
 
 export function renderProfessionalPage(
@@ -1113,6 +1313,12 @@ export function renderProfessionalPage(
   totalPages: number,
   designDecision?: any,
   realPhotoBase64?: string | null,
+  mascotAssetImages?: {
+    threeView?: string | null;
+    emotions?: Record<string, string> | null;
+    scenes?: Record<string, string> | null;
+    splitViews?: string[] | null;
+  } | null,
 ): string {
   const ctx: RenderContext = {
     companyName: clientInfo?.companyName || "品牌名称",
@@ -1130,6 +1336,11 @@ export function renderProfessionalPage(
     accentColor: brandColors?.accent || { hex: "#FBBC04" },
     logoDataUri,
     mascotDataUri,
+    // ▼ TASK-008: 公仔素材图
+    mascotThreeViewData: mascotAssetImages?.threeView || null,
+    mascotEmotions: mascotAssetImages?.emotions || null,
+    mascotScenes: mascotAssetImages?.scenes || null,
+    mascotSplitViews: mascotAssetImages?.splitViews || null,
     pageIndex,
     totalPages,
     designDecision: designDecision || {
@@ -1165,11 +1376,19 @@ export function renderProfessionalPage(
     case "brand-colors": pageContent = renderBrandColors(ctx); break;
     case "typography": pageContent = renderTypography(ctx); break;
     case "basic-spec": pageContent = renderBasicSpec(ctx); break;
-    case "mascot-spec": pageContent = renderMascotSpec(ctx); break;
+            case "mascot-spec": pageContent = renderMascotSpec(ctx); break;
+    case "mascot-persona": pageContent = renderMascotPersona(ctx); break;
+    case "mascot-main": pageContent = renderMascotMain(ctx); break;
+    case "mascot-3view": pageContent = renderMascot3view(ctx); break;
+    case "mascot-colors": pageContent = renderMascotColors(ctx); break;
+    case "mascot-sizing": pageContent = renderMascotSizing(ctx); break;
+    case "mascot-poses": pageContent = renderMascotPoses(ctx); break;
+    case "mascot-emotions": pageContent = renderMascotEmotions(ctx); break;
     case "stationery": pageContent = renderStationery(ctx); break;
     case "packaging": pageContent = renderPackaging(ctx); break;
     case "marketing": pageContent = renderMarketing(ctx); break;
     case "digital": pageContent = renderDigital(ctx); break;
+        case "usage-summary": pageContent = renderUsageSummary(ctx); break;
     case "summary": pageContent = renderSummary(ctx); break;
     case "closing": pageContent = renderClosing(ctx); break;
     default:

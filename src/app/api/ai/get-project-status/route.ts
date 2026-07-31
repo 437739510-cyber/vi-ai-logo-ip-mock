@@ -15,6 +15,11 @@ export type GenerationStatus =
   | "mascot_generating" // 公仔后台生成中
   | "mascot_generated"  // 公仔16张完成
   | "mascot_failed"     // 公仔生成失败
+  | "mascot_sample_fail"    // 公仔样稿生成失败(4款)
+  | "mascot_full_fail"     // 公仔全套素材生成失败(16张)
+  | "waiting_manual_review" // 人工校对缓冲期(3工作日)
+  | "manual_review_complete"// 人工校验完成,解锁渲染
+  | "manual_render_fail"    // 手册渲染失败
   | "scene_rendering"   // 场景渲染中
   | "pptx_assembling"   // PPTX组装中
   | "completed"         // 完成
@@ -30,6 +35,11 @@ const STATUS_LABELS: Record<GenerationStatus, string> = {
   mascot_generating: "公仔生成中（16张）",
   mascot_generated: "公仔生成完成",
   mascot_failed: "公仔生成失败",
+  mascot_sample_fail: "公仔样稿生成失败",
+  mascot_full_fail: "公仔全套素材生成失败",
+  waiting_manual_review: "人工校准中（3工作日交付）",
+  manual_review_complete: "人工校验完成",
+  manual_render_fail: "手册渲染失败",
   scene_rendering: "场景图渲染中",
   pptx_assembling: "手册组装中",
   completed: "已完成",
@@ -46,6 +56,11 @@ const STATUS_PROGRESS: Record<GenerationStatus, number> = {
   mascot_generating: 55,
   mascot_generated: 65,
   mascot_failed: 0,
+  mascot_sample_fail: 0,
+  mascot_full_fail: 0,
+  waiting_manual_review: 65,
+  manual_review_complete: 70,
+  manual_render_fail: 0,
   scene_rendering: 70,
   pptx_assembling: 90,
   completed: 100,

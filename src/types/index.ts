@@ -13,6 +13,14 @@ export type ProjectStatus =
   | "brand_analyzing"
   | "logo_generated"
   | "logo_generating"
+  | "mascot_generating"
+  | "mascot_generated"
+  | "mascot_failed"
+  | "mascot_sample_fail"
+  | "mascot_full_fail"
+  | "waiting_manual_review"
+  | "manual_review_complete"
+  | "manual_render_fail"
   | "manual_pending"
   | "manual_generating"
   | "scene_rendering"
@@ -33,6 +41,14 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   brand_analyzing: "品牌分析中",
   logo_generated: "Logo已生成",
   logo_generating: "Logo生成中",
+  mascot_generating: "公仔生成中",
+  mascot_generated: "公仔生成完成",
+  mascot_failed: "公仔生成失败",
+  mascot_sample_fail: "公仔样稿失败",
+  mascot_full_fail: "公仔全套失败",
+  waiting_manual_review: "人工校准中（3工作日）",
+  manual_review_complete: "人工校验完成",
+  manual_render_fail: "手册渲染失败",
   manual_pending: "待人工处理",
   manual_generating: "人工生成中",
   scene_rendering: "场景渲染中",
@@ -53,6 +69,14 @@ export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
   brand_analyzing: "bg-purple-100 text-purple-700",
   logo_generated: "bg-amber-100 text-amber-700",
   logo_generating: "bg-purple-100 text-purple-700",
+  mascot_generating: "bg-purple-100 text-purple-700",
+  mascot_generated: "bg-green-100 text-green-700",
+  mascot_failed: "bg-red-100 text-red-700",
+  mascot_sample_fail: "bg-red-100 text-red-700",
+  mascot_full_fail: "bg-red-100 text-red-700",
+  waiting_manual_review: "bg-amber-100 text-amber-700",
+  manual_review_complete: "bg-green-100 text-green-700",
+  manual_render_fail: "bg-red-100 text-red-700",
   manual_pending: "bg-sky-100 text-sky-700",
   manual_generating: "bg-purple-100 text-purple-700",
   scene_rendering: "bg-indigo-100 text-indigo-700",

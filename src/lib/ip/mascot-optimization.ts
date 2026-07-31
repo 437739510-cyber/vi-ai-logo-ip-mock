@@ -12,14 +12,20 @@
 /** 行业大类（可按需无限扩展） */
 export enum IndustryCategory {
   BEAUTY = 'beauty',
-  FOOD_BEVERAGE = 'food_beverage',
-  EDUCATION_TRAINING = 'education_training',
-  TECHNOLOGY_IT = 'technology_it',
-  HEALTHCARE_MEDICAL = 'healthcare_medical',
+  RESTAURANT = 'restaurant',
+  BEVERAGE = 'beverage',
+  EDUCATION = 'education',
+  TECHNOLOGY = 'technology',
+  HEALTHCARE = 'healthcare',
   MATERNAL_CHILD = 'maternal_child',
   RETAIL = 'retail',
-  CULTURAL_CREATIVE = 'cultural_creative',
-  FINANCIAL_SERVICE = 'financial_service',
+  CULTURAL = 'cultural',
+  FINANCIAL = 'financial',
+  FASHION = 'fashion',
+  SPORTS = 'sports',
+  HOSPITALITY = 'hospitality',
+  REAL_ESTATE = 'real_estate',
+  LEGAL = 'legal',
 }
 
 /** 品牌原型（与 BrandProfile 对齐） */
@@ -232,8 +238,8 @@ export const SPECIES_GENE_POOL: Record<string, SpeciesGene> = {
     mentalTags: ['温柔', '守护', '疗愈', '高贵', '东方灵性'],
     adaptedIndustries: [
       IndustryCategory.BEAUTY,
-      IndustryCategory.HEALTHCARE_MEDICAL,
-      IndustryCategory.CULTURAL_CREATIVE,
+      IndustryCategory.HEALTHCARE,
+      IndustryCategory.CULTURAL,
     ],
     adaptedArchetypes: [BrandArchetype.CAREGIVER, BrandArchetype.SAGE],
     baseWeight: 0.9,
@@ -245,7 +251,8 @@ export const SPECIES_GENE_POOL: Record<string, SpeciesGene> = {
     adaptedIndustries: [
       IndustryCategory.BEAUTY,
       IndustryCategory.MATERNAL_CHILD,
-      IndustryCategory.FOOD_BEVERAGE,
+      IndustryCategory.RESTAURANT,
+      IndustryCategory.BEVERAGE,
     ],
     adaptedArchetypes: [BrandArchetype.CAREGIVER, BrandArchetype.INNOCENT],
     baseWeight: 0.85,
@@ -257,7 +264,7 @@ export const SPECIES_GENE_POOL: Record<string, SpeciesGene> = {
     adaptedIndustries: [
       IndustryCategory.BEAUTY,
       IndustryCategory.RETAIL,
-      IndustryCategory.CULTURAL_CREATIVE,
+      IndustryCategory.CULTURAL,
     ],
     adaptedArchetypes: [BrandArchetype.CREATOR, BrandArchetype.INNOCENT],
     baseWeight: 0.8,
@@ -267,7 +274,8 @@ export const SPECIES_GENE_POOL: Record<string, SpeciesGene> = {
     speciesNameCn: '萌熊',
     mentalTags: ['憨厚', '亲民', '治愈', '可靠'],
     adaptedIndustries: [
-      IndustryCategory.FOOD_BEVERAGE,
+      IndustryCategory.RESTAURANT,
+      IndustryCategory.BEVERAGE,
       IndustryCategory.MATERNAL_CHILD,
       IndustryCategory.RETAIL,
     ],
@@ -279,8 +287,8 @@ export const SPECIES_GENE_POOL: Record<string, SpeciesGene> = {
     speciesNameCn: '智慧猫头鹰',
     mentalTags: ['智慧', '专业', '可靠', '陪伴'],
     adaptedIndustries: [
-      IndustryCategory.EDUCATION_TRAINING,
-      IndustryCategory.FINANCIAL_SERVICE,
+      IndustryCategory.EDUCATION,
+      IndustryCategory.FINANCIAL,
     ],
     adaptedArchetypes: [BrandArchetype.SAGE, BrandArchetype.WARRIOR],
     baseWeight: 0.85,
@@ -290,8 +298,8 @@ export const SPECIES_GENE_POOL: Record<string, SpeciesGene> = {
     speciesNameCn: '科技灵狐',
     mentalTags: ['敏捷', '智能', '前沿', '创新'],
     adaptedIndustries: [
-      IndustryCategory.TECHNOLOGY_IT,
-      IndustryCategory.CULTURAL_CREATIVE,
+      IndustryCategory.TECHNOLOGY,
+      IndustryCategory.CULTURAL,
     ],
     adaptedArchetypes: [BrandArchetype.CREATOR, BrandArchetype.WARRIOR],
     baseWeight: 0.82,
@@ -303,7 +311,7 @@ export const SPECIES_GENE_POOL: Record<string, SpeciesGene> = {
     mentalTags: ['匠心', '亲和', '手工', '传统', '地道', '温暖'],
     adaptedIndustries: [
       IndustryCategory.RETAIL,
-      IndustryCategory.CULTURAL_CREATIVE,
+      IndustryCategory.CULTURAL,
     ],
     adaptedArchetypes: [BrandArchetype.CAREGIVER, BrandArchetype.EVERYMAN],
     baseWeight: 0.9,
@@ -397,7 +405,7 @@ export const STYLE_TIER_CONFIG: Record<StyleTier, StyleTierConfig> = {
     textureKeywords: 'smooth matte surface, soft delicate details',
     adaptedIndustries: [
       IndustryCategory.BEAUTY,
-      IndustryCategory.HEALTHCARE_MEDICAL,
+      IndustryCategory.HEALTHCARE,
       IndustryCategory.MATERNAL_CHILD,
     ],
     adaptedModels: ['ark-seedream', 'sdxl', 'doubao-image'],
@@ -408,8 +416,9 @@ export const STYLE_TIER_CONFIG: Record<StyleTier, StyleTierConfig> = {
     lightingKeywords: 'bright clean studio lighting, vivid clear shadows',
     textureKeywords: 'smooth rounded shapes, glossy cartoon texture',
     adaptedIndustries: [
-      IndustryCategory.FOOD_BEVERAGE,
-      IndustryCategory.EDUCATION_TRAINING,
+      IndustryCategory.RESTAURANT,
+      IndustryCategory.BEVERAGE,
+      IndustryCategory.EDUCATION,
       IndustryCategory.MATERNAL_CHILD,
     ],
     adaptedModels: ['sdxl', 'midjourney', 'doubao-image'],
@@ -420,9 +429,9 @@ export const STYLE_TIER_CONFIG: Record<StyleTier, StyleTierConfig> = {
     lightingKeywords: 'studio key lighting, subtle rim light, minimalist clean lighting',
     textureKeywords: 'high-end texture, fine details, premium material feel',
     adaptedIndustries: [
-      IndustryCategory.FINANCIAL_SERVICE,
+      IndustryCategory.FINANCIAL,
       IndustryCategory.RETAIL,
-      IndustryCategory.CULTURAL_CREATIVE,
+      IndustryCategory.CULTURAL,
     ],
     adaptedModels: ['ark-seedream', 'sdxl', 'doubao-image'],
   },
@@ -432,8 +441,8 @@ export const STYLE_TIER_CONFIG: Record<StyleTier, StyleTierConfig> = {
     lightingKeywords: 'flat lighting, no shadows, uniform brightness',
     textureKeywords: 'clean graphic style, minimalist vector design',
     adaptedIndustries: [
-      IndustryCategory.TECHNOLOGY_IT,
-      IndustryCategory.CULTURAL_CREATIVE,
+      IndustryCategory.TECHNOLOGY,
+      IndustryCategory.CULTURAL,
       IndustryCategory.RETAIL,
     ],
     adaptedModels: ['sdxl', 'doubao-image'],
@@ -444,8 +453,9 @@ export const STYLE_TIER_CONFIG: Record<StyleTier, StyleTierConfig> = {
     lightingKeywords: 'soft oriental lighting, gentle atmospheric perspective',
     textureKeywords: 'traditional pattern details, oriental delicate texture',
     adaptedIndustries: [
-      IndustryCategory.CULTURAL_CREATIVE,
-      IndustryCategory.FOOD_BEVERAGE,
+      IndustryCategory.CULTURAL,
+      IndustryCategory.RESTAURANT,
+      IndustryCategory.BEVERAGE,
       IndustryCategory.BEAUTY,
     ],
     adaptedModels: ['ark-seedream', 'sdxl', 'doubao-image'],
@@ -616,14 +626,20 @@ function detectSpeciesType(speciesName: string): string {
 function getFallbackSpecies(industry: IndustryCategory): SpeciesScoringResult {
   const fallbackMap: Record<IndustryCategory, string> = {
     [IndustryCategory.BEAUTY]: 'soft_rabbit',
-    [IndustryCategory.FOOD_BEVERAGE]: 'cute_bear',
-    [IndustryCategory.EDUCATION_TRAINING]: 'wise_owl',
-    [IndustryCategory.TECHNOLOGY_IT]: 'tech_fox',
-    [IndustryCategory.HEALTHCARE_MEDICAL]: 'soft_rabbit',
+    [IndustryCategory.RESTAURANT]: 'cute_bear',
+    [IndustryCategory.BEVERAGE]: 'cute_bear',
+    [IndustryCategory.EDUCATION]: 'wise_owl',
+    [IndustryCategory.TECHNOLOGY]: 'tech_fox',
+    [IndustryCategory.HEALTHCARE]: 'soft_rabbit',
     [IndustryCategory.MATERNAL_CHILD]: 'cute_bear',
     [IndustryCategory.RETAIL]: 'cute_bear',
-    [IndustryCategory.CULTURAL_CREATIVE]: 'flower_fairy',
-    [IndustryCategory.FINANCIAL_SERVICE]: 'wise_owl',
+    [IndustryCategory.CULTURAL]: 'flower_fairy',
+    [IndustryCategory.FINANCIAL]: 'wise_owl',
+    [IndustryCategory.FASHION]: 'flower_fairy',
+    [IndustryCategory.SPORTS]: 'tech_fox',
+    [IndustryCategory.HOSPITALITY]: 'cute_bear',
+    [IndustryCategory.REAL_ESTATE]: 'wise_owl',
+    [IndustryCategory.LEGAL]: 'wise_owl',
   };
 
   const fallbackId = fallbackMap[industry] || 'cute_bear';
@@ -694,7 +710,8 @@ const INDUSTRY_NEGATIVE_MAP: Record<IndustryCategory, string> = {
     'glaring',
   ].join(', '),
 
-  [IndustryCategory.FOOD_BEVERAGE]: [
+  [IndustryCategory.RESTAURANT]: [
+
     'rotten',
     'moldy',
     'dirty',
@@ -708,7 +725,22 @@ const INDUSTRY_NEGATIVE_MAP: Record<IndustryCategory, string> = {
     'greasy',
   ].join(', '),
 
-  [IndustryCategory.EDUCATION_TRAINING]: [
+  
+  [IndustryCategory.BEVERAGE]: [
+    'rotten',
+    'moldy',
+    'dirty',
+    'disgusting',
+    'uncooked',
+    'raw meat',
+    'garbage',
+    'insects',
+    'stale',
+    'burnt',
+    'greasy',
+  ].join(', '),
+
+  [IndustryCategory.EDUCATION]: [
     'scary',
     'fierce',
     'aggressive',
@@ -718,7 +750,7 @@ const INDUSTRY_NEGATIVE_MAP: Record<IndustryCategory, string> = {
     'gloomy',
   ].join(', '),
 
-  [IndustryCategory.TECHNOLOGY_IT]: [
+  [IndustryCategory.TECHNOLOGY]: [
     'retro',
     'vintage',
     'old-fashioned',
@@ -729,7 +761,7 @@ const INDUSTRY_NEGATIVE_MAP: Record<IndustryCategory, string> = {
     'paper documents',
   ].join(', '),
 
-  [IndustryCategory.HEALTHCARE_MEDICAL]: [
+  [IndustryCategory.HEALTHCARE]: [
     'bloody',
     'wounds',
     'needles',
@@ -759,7 +791,7 @@ const INDUSTRY_NEGATIVE_MAP: Record<IndustryCategory, string> = {
     'noisy composition',
   ].join(', '),
 
-  [IndustryCategory.CULTURAL_CREATIVE]: [
+  [IndustryCategory.CULTURAL]: [
     'western style',
     'industrial',
     'tech heavy',
@@ -767,7 +799,57 @@ const INDUSTRY_NEGATIVE_MAP: Record<IndustryCategory, string> = {
     'modern streetwear',
   ].join(', '),
 
-  [IndustryCategory.FINANCIAL_SERVICE]: [
+  [IndustryCategory.FASHION]: [
+    'cheap texture',
+    'plastic look',
+    'outdated style',
+    'poor fabric',
+    'wrinkled',
+    'tacky',
+    'overly casual',
+  ].join(', '),
+
+  [IndustryCategory.SPORTS]: [
+    'static',
+    'stiff',
+    'unhealthy appearance',
+    'sedentary',
+    'fatigued',
+    'dull colors',
+    'lifeless',
+  ].join(', '),
+
+  [IndustryCategory.HOSPITALITY]: [
+    'empty',
+    'cold atmosphere',
+    'dirty surroundings',
+    'dingy',
+    'business sterile',
+    'unwelcoming',
+    'depressing',
+  ].join(', '),
+
+  [IndustryCategory.REAL_ESTATE]: [
+    'cartoon exaggeration',
+    'low quality',
+    'chibi',
+    'unrealistic',
+    'cheap render',
+    'poor lighting',
+    'gimmicky',
+  ].join(', '),
+
+  [IndustryCategory.LEGAL]: [
+    'cartoon',
+    'childish',
+    'silly',
+    'exaggerated',
+    'frivolous',
+    'unprofessional',
+    'whimsical',
+  ].join(', '),
+
+  [IndustryCategory.FINANCIAL]: [
     'cartoon exaggeration',
     'chibi',
     'silly expression',
@@ -915,8 +997,8 @@ export function translateBrandColors(
 function getViewDescription(view: ViewType): string {
   const viewMap: Record<ViewType, string> = {
     [ViewType.FRONT]: 'full body front view, standing upright, looking at viewer',
-    [ViewType.SIDE]: 'full body right side view profile, standing upright',
-    [ViewType.BACK]: 'full body back view, standing upright, back of head visible',
+    [ViewType.SIDE]: 'full body right side view profile, standing upright on TWO legs, bipedal humanoid stance, only two legs visible, pure profile facing left',
+    [ViewType.BACK]: 'full body back view, standing upright on TWO legs, bipedal humanoid stance, back of head visible, no facial features visible',
     [ViewType.BUST]: 'bust shot, close-up portrait, centered face',
   };
   return viewMap[view];
@@ -945,7 +1027,7 @@ export function buildImagePromptBySegments(
   const baseQuality =
     'premium quality, highly detailed, professional brand mascot, white background, centered composition, photorealistic, 8k, cinematic lighting, sharp focus, studio quality, isolated on white, photography, realistic, soft lighting, friendly expression';
   const consistencyConstraint =
-    'strict character consistency, unified color scheme, complete character design';
+    'strict character consistency, unified color scheme, complete character design, anthropomorphic bipedal character standing on two legs like a human';
 
   const brandCtx = brandName ? 'brand mascot for ' + brandName + ', 鞋业零售 brand, humanoid character design, cute creature mascot, 亲民传统匠心温暖 personality, handmade craft heritage' : '';
 
@@ -978,22 +1060,37 @@ export function deriveThemeTags(
   const tags: ThemeTag[] = [];
   const keywordStr = personality.join(',').toLowerCase();
 
-  if (/疗愈|温柔|舒缓|治愈/.test(keywordStr) || industry === IndustryCategory.HEALTHCARE_MEDICAL) {
+  if (/疗愈|温柔|舒缓|治愈/.test(keywordStr) || industry === IndustryCategory.HEALTHCARE) {
     tags.push(ThemeTag.HEALING);
   }
-  if (/东方|中式|国风|传统/.test(keywordStr) || industry === IndustryCategory.CULTURAL_CREATIVE) {
+  if (/东方|中式|国风|传统/.test(keywordStr) || industry === IndustryCategory.CULTURAL) {
     tags.push(ThemeTag.ORIENTAL);
   }
-  if (/科技|未来|智能|创新/.test(keywordStr) || industry === IndustryCategory.TECHNOLOGY_IT) {
+  if (/科技|未来|智能|创新/.test(keywordStr) || industry === IndustryCategory.TECHNOLOGY) {
     tags.push(ThemeTag.TECH_FUTURE);
   }
   if (/可爱|活泼|萌|童趣/.test(keywordStr) || industry === IndustryCategory.MATERNAL_CHILD) {
     tags.push(ThemeTag.CUTE_PLAYFUL);
   }
-  if (/美味|好吃|食欲|美食/.test(keywordStr) || industry === IndustryCategory.FOOD_BEVERAGE) {
+  if (/美味|好吃|食欲|美食/.test(keywordStr) || industry === IndustryCategory.RESTAURANT || industry === IndustryCategory.BEVERAGE) {
     tags.push(ThemeTag.DELICIOUS_FOOD);
   }
-  if (/专业|严谨|高端|可靠/.test(keywordStr) || industry === IndustryCategory.FINANCIAL_SERVICE) {
+  if (/精致|时尚|优雅/.test(keywordStr) || industry === IndustryCategory.FASHION) {
+    tags.push(ThemeTag.PROFESSIONAL_RIGOROUS);
+  }
+  if (/活力|运动|健康/.test(keywordStr) || industry === IndustryCategory.SPORTS) {
+    tags.push(ThemeTag.TECH_FUTURE);
+  }
+  if (/治愈|东方|旅宿/.test(keywordStr) || industry === IndustryCategory.HOSPITALITY) {
+    tags.push(ThemeTag.HEALING);
+  }
+  if (/高端|专业|地产/.test(keywordStr) || industry === IndustryCategory.REAL_ESTATE) {
+    tags.push(ThemeTag.PROFESSIONAL_RIGOROUS);
+  }
+  if (/专业|严谨|法律/.test(keywordStr) || industry === IndustryCategory.LEGAL) {
+    tags.push(ThemeTag.PROFESSIONAL_RIGOROUS);
+  }
+  if (/专业|严谨|高端|可靠/.test(keywordStr) || industry === IndustryCategory.FINANCIAL) {
     tags.push(ThemeTag.PROFESSIONAL_RIGOROUS);
   }
 
@@ -1046,14 +1143,20 @@ export function matchStyleTier(
   // 按行业兜底
   const industryStyleMap: Record<IndustryCategory, StyleTier> = {
     [IndustryCategory.BEAUTY]: StyleTier.SOFT_HEALING,
-    [IndustryCategory.FOOD_BEVERAGE]: StyleTier.PIXAR_CARTOON,
-    [IndustryCategory.EDUCATION_TRAINING]: StyleTier.PIXAR_CARTOON,
-    [IndustryCategory.TECHNOLOGY_IT]: StyleTier.FLAT_VECTOR,
-    [IndustryCategory.HEALTHCARE_MEDICAL]: StyleTier.SOFT_HEALING,
+    [IndustryCategory.RESTAURANT]: StyleTier.PIXAR_CARTOON,
+    [IndustryCategory.BEVERAGE]: StyleTier.PIXAR_CARTOON,
+    [IndustryCategory.EDUCATION]: StyleTier.PIXAR_CARTOON,
+    [IndustryCategory.TECHNOLOGY]: StyleTier.FLAT_VECTOR,
+    [IndustryCategory.HEALTHCARE]: StyleTier.SOFT_HEALING,
     [IndustryCategory.MATERNAL_CHILD]: StyleTier.PIXAR_CARTOON,
     [IndustryCategory.RETAIL]: StyleTier.PREMIUM_LUXURY,
-    [IndustryCategory.CULTURAL_CREATIVE]: StyleTier.CHINESE_AESTHETIC,
-    [IndustryCategory.FINANCIAL_SERVICE]: StyleTier.PREMIUM_LUXURY,
+    [IndustryCategory.CULTURAL]: StyleTier.CHINESE_AESTHETIC,
+    [IndustryCategory.FINANCIAL]: StyleTier.PREMIUM_LUXURY,
+    [IndustryCategory.FASHION]: StyleTier.PREMIUM_LUXURY,
+    [IndustryCategory.SPORTS]: StyleTier.PIXAR_CARTOON,
+    [IndustryCategory.HOSPITALITY]: StyleTier.PREMIUM_LUXURY,
+    [IndustryCategory.REAL_ESTATE]: StyleTier.PREMIUM_LUXURY,
+    [IndustryCategory.LEGAL]: StyleTier.PREMIUM_LUXURY,
   };
 
   return industryStyleMap[industry] || StyleTier.PIXAR_CARTOON;

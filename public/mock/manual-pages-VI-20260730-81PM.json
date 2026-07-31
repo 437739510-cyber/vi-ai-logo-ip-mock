@@ -1,0 +1,119 @@
+{
+  "projectId": "VI-20260730-81PM",
+  "pages": [
+    {
+      "pageId": "cover",
+      "label": "封面",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397154517-cover-final.png"
+    },
+    {
+      "pageId": "toc",
+      "label": "目录",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397155083-toc-final.png"
+    },
+    {
+      "pageId": "brand-philosophy",
+      "label": "品牌核心理念",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397155535-brand-philosophy-final.png"
+    },
+    {
+      "pageId": "logo-interpretation",
+      "label": "标识诠释",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397156080-logo-interpretation-final.png"
+    },
+    {
+      "pageId": "brand-colors",
+      "label": "标准色彩规范",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397156415-brand-colors-final.png"
+    },
+    {
+      "pageId": "typography",
+      "label": "字体系统",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397156949-typography-final.png"
+    },
+    {
+      "pageId": "basic-spec",
+      "label": "基础规范",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397157281-basic-spec-final.png"
+    },
+    {
+      "pageId": "mascot-spec",
+      "label": "IP公仔体系导览",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397157597-mascot-spec-final.png"
+    },
+    {
+      "pageId": "mascot-persona",
+      "label": "IP人设与定位",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397158079-mascot-persona-final.png"
+    },
+    {
+      "pageId": "mascot-main",
+      "label": "IP标准主形象",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397158560-mascot-main-final.png"
+    },
+    {
+      "pageId": "mascot-3view",
+      "label": "IP三视图规范",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397158949-mascot-3view-final.png"
+    },
+    {
+      "pageId": "mascot-colors",
+      "label": "IP色彩联动",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397159321-mascot-colors-final.png"
+    },
+    {
+      "pageId": "mascot-sizing",
+      "label": "IP尺寸禁用规范",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397159661-mascot-sizing-final.png"
+    },
+    {
+      "pageId": "mascot-poses",
+      "label": "IP商用姿态",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397159990-mascot-poses-final.png"
+    },
+    {
+      "pageId": "mascot-emotions",
+      "label": "IP表情符号",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397160358-mascot-emotions-final.png"
+    },
+    {
+      "pageId": "stationery",
+      "label": "办公应用系统",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397160667-stationery-final.png"
+    },
+    {
+      "pageId": "packaging",
+      "label": "产品包装系统",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397160991-packaging-final.png"
+    },
+    {
+      "pageId": "marketing",
+      "label": "营销展示系统",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397161337-marketing-final.png"
+    },
+    {
+      "pageId": "digital",
+      "label": "数字应用规范",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397161695-digital-final.png"
+    },
+    {
+      "pageId": "usage-summary",
+      "label": "品牌使用总结",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397162080-usage-summary-final.png"
+    },
+    {
+      "pageId": "summary",
+      "label": "品牌资产汇总",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397162379-summary-final.png"
+    },
+    {
+      "pageId": "closing",
+      "label": "感谢观看",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260730-81PM/1785397162688-closing-final.png"
+    }
+  ],
+  "errors": [],
+  "generatedAt": "2026-07-30T07:39:22.981Z",
+  "totalPages": 22,
+  "failedPages": 0
+}

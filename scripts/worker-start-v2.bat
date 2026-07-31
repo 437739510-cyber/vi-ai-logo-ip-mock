@@ -13,7 +13,7 @@ echo Checking ComfyUI...
 curl -s http://127.0.0.1:8188 >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo Starting ComfyUI with --lowvram...
-    start "ComfyUI" /MIN python main.py --gpu-only --lowvram --port 8188
+    start "ComfyUI" /MIN /D "D:\ComfyUI-backup" python main.py --lowvram --reserve-vram 2 --disable-smart-memory
     timeout /t 15 /nobreak >nul
     echo ComfyUI started.
 ) else (

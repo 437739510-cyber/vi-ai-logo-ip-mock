@@ -1,5 +1,138 @@
 [
   {
+    "id": "VI-20260730-EVN3",
+    "submissionId": "SBM-20260730-5572",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#D4956A",
+      "secondary": "#7BAF7A",
+      "accent": "#F5E6D3"
+    },
+    "viewPassword": "7777",
+    "companyName": "茶屿时光",
+    "industry": "餐饮",
+    "brandVision": "打造年轻人喜爱的东方新茶饮品牌，每一杯都是手作温度",
+    "coreValues": "真材实料、东方美学、温暖服务",
+    "targetMarket": "18-35岁都市年轻白领和大学生，注重生活品质和拍照打卡",
+    "mainProducts": "鲜果茶、手作奶茶、纯茶、限定特调",
+    "businessForm": "",
+    "createdAt": "2026-07-30T08:51:35.572Z",
+    "updatedAt": "2026-07-30T08:51:35.572Z",
+    "created_at": "2026-07-30T08:51:35.572Z",
+    "updated_at": "2026-07-30T08:51:35.572Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-30T08:51:35.572Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260730-81PM",
+    "submissionId": "SBM-20260730-0807",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "4444",
+    "companyName": "快乐城堡",
+    "industry": "餐饮",
+    "brandVision": "",
+    "coreValues": "",
+    "targetMarket": "",
+    "mainProducts": "手工汉堡、鲜榨饮料",
+    "businessForm": "",
+    "createdAt": "2026-07-30T06:40:00.807Z",
+    "updatedAt": "2026-07-30T06:40:00.807Z",
+    "created_at": "2026-07-30T06:40:00.807Z",
+    "updated_at": "2026-07-30T06:40:00.807Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-30T06:40:00.807Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260729-G797",
+    "submissionId": "SBM-20260729-1845",
+    "status": "submitted",
+    "brandColors": {
+      "primary": "#2E7D4F",
+      "secondary": "#8B5E3C",
+      "accent": "#FF7A45"
+    },
+    "viewPassword": "9999",
+    "companyName": "椰林工坊",
+    "industry": "food_beverage",
+    "brandVision": "二十年只做一颗好椰子，从椰林到杯中，鲜到海南",
+    "coreValues": "新鲜现开、零添加、椰乡情怀",
+    "targetMarket": "来海南的全国游客为主，本地年轻人为辅",
+    "mainProducts": "生鲜椰子水（现开现榨）、椰香珍珠奶茶、鲜果茶、椰奶冻、椰奶冰沙、生椰拿铁",
+    "businessForm": "冰品饮料实体店 + 外卖",
+    "createdAt": "2026-07-29T16:25:51.845Z",
+    "updatedAt": "2026-07-29T16:25:51.845Z",
+    "created_at": "2026-07-29T16:25:51.845Z",
+    "updated_at": "2026-07-29T16:25:51.845Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-29T16:25:51.845Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260729-QEN5",
+    "submissionId": "SBM-20260729-1682",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "6666",
+    "companyName": "????",
+    "industry": "????",
+    "brandVision": "??????????,??????,????",
+    "coreValues": "????????????????????????",
+    "targetMarket": "?????????18-35?????????",
+    "mainProducts": "?????????????????????????",
+    "businessForm": "",
+    "createdAt": "2026-07-29T16:12:51.682Z",
+    "updatedAt": "2026-07-29T16:12:51.682Z",
+    "created_at": "2026-07-29T16:12:51.682Z",
+    "updated_at": "2026-07-29T16:12:51.682Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-29T16:12:51.682Z"
+      }
+    ]
+  },
+  {
+    "id": "VI-20260729-5YWR",
+    "submissionId": "SBM-20260729-7668",
+    "status": "submitted",
+    "brandColors": null,
+    "viewPassword": "8888",
+    "companyName": "",
+    "industry": "",
+    "brandVision": "",
+    "coreValues": "",
+    "targetMarket": "",
+    "mainProducts": "",
+    "businessForm": "",
+    "createdAt": "2026-07-29T16:12:17.668Z",
+    "updatedAt": "2026-07-29T16:12:17.668Z",
+    "created_at": "2026-07-29T16:12:17.668Z",
+    "updated_at": "2026-07-29T16:12:17.668Z",
+    "assignedTo": null,
+    "timeline": [
+      {
+        "status": "submitted",
+        "timestamp": "2026-07-29T16:12:17.668Z"
+      }
+    ]
+  },
+  {
     "id": "VI-20260714-G00W",
     "submissionId": "SBM-20260714-8375",
     "status": "submitted",

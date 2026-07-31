@@ -1,0 +1,79 @@
+{
+  "projectId": "VI-20260729-G797",
+  "pages": [
+    {
+      "pageId": "cover",
+      "label": "封面",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344578379-cover-final.png"
+    },
+    {
+      "pageId": "toc",
+      "label": "目录",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344578682-toc-final.png"
+    },
+    {
+      "pageId": "brand-philosophy",
+      "label": "品牌核心理念",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344579017-brand-philosophy-final.png"
+    },
+    {
+      "pageId": "logo-interpretation",
+      "label": "标识诠释",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344579338-logo-interpretation-final.png"
+    },
+    {
+      "pageId": "brand-colors",
+      "label": "标准色彩规范",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344579767-brand-colors-final.png"
+    },
+    {
+      "pageId": "typography",
+      "label": "字体系统",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344580249-typography-final.png"
+    },
+    {
+      "pageId": "basic-spec",
+      "label": "基础规范",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344580671-basic-spec-final.png"
+    },
+    {
+      "pageId": "mascot-spec",
+      "label": "IP公仔规范",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344581044-mascot-spec-final.png"
+    },
+    {
+      "pageId": "stationery",
+      "label": "办公应用系统",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344581353-stationery-final.png"
+    },
+    {
+      "pageId": "packaging",
+      "label": "产品包装系统",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344581677-packaging-final.png"
+    },
+    {
+      "pageId": "marketing",
+      "label": "营销展示系统",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344582046-marketing-final.png"
+    },
+    {
+      "pageId": "digital",
+      "label": "数字应用规范",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344582400-digital-final.png"
+    },
+    {
+      "pageId": "summary",
+      "label": "总结",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344582735-summary-final.png"
+    },
+    {
+      "pageId": "closing",
+      "label": "感谢观看",
+      "url": "https://fzoscrutqhdfzwnjgjvs.supabase.co/storage/v1/object/public/brand-brain-generated/VI-20260729-G797/1785344583059-closing-final.png"
+    }
+  ],
+  "errors": [],
+  "generatedAt": "2026-07-29T17:03:03.476Z",
+  "totalPages": 14,
+  "failedPages": 0
+}

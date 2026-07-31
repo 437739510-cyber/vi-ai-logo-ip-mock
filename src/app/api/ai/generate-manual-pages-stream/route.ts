@@ -1,5 +1,4 @@
-export const dynamic = "force-dynamic"
-// API Route: POST /api/ai/generate-manual-pages-stream
+﻿// API Route: POST /api/ai/generate-manual-pages-stream
 // V4: 设计决策引擎(DeepSeek) + 写实图生成(万相2.7) + 14页A4竖版渲染
 import { writeFile, mkdir, readFile } from "fs/promises";
 import path from "path";
@@ -23,12 +22,20 @@ const PAGE_DEFS = [
   { id: "brand-colors", label: "标准色彩规范", desc: "Brand color palette" },
   { id: "typography", label: "字体系统", desc: "Font system specification" },
   { id: "basic-spec", label: "基础规范", desc: "Logo usage guidelines" },
-  { id: "mascot-spec", label: "IP公仔规范", desc: "Mascot guidelines" },
+  { id: "mascot-spec", label: "IP公仔体系导览", desc: "Mascot guidelines intro page" },
+  { id: "mascot-persona", label: "IP人设与定位", desc: "Mascot persona and brand positioning" },
+  { id: "mascot-main", label: "IP标准主形象", desc: "Final mascot main image" },
+  { id: "mascot-3view", label: "IP三视图规范", desc: "Three-view orthographic sheet" },
+  { id: "mascot-colors", label: "IP色彩联动", desc: "Mascot color palette and brand sync" },
+  { id: "mascot-sizing", label: "IP尺寸禁用规范", desc: "Mascot sizing and usage restrictions" },
+  { id: "mascot-poses", label: "IP商用姿态", desc: "Mascot commercial poses" },
+  { id: "mascot-emotions", label: "IP表情符号", desc: "Mascot emotion expressions" },
   { id: "stationery", label: "办公应用系统", desc: "Stationery design" },
   { id: "packaging", label: "产品包装系统", desc: "Product packaging" },
   { id: "marketing", label: "营销展示系统", desc: "Marketing materials" },
   { id: "digital", label: "数字应用规范", desc: "Digital application guidelines" },
-  { id: "summary", label: "总结", desc: "Brand asset summary" },
+  { id: "usage-summary", label: "品牌使用总结", desc: "Brand visual usage summary" },
+  { id: "summary", label: "品牌资产汇总", desc: "Brand asset summary" },
   { id: "closing", label: "感谢观看", desc: "Back cover" },
 ];
 
@@ -512,6 +519,7 @@ async function assemblePage(
   realPhotoMap: Map<string, string | null>,
   logoDataUri: string | null,
   mascotDataUri: string | null,
+  mascotAssetImages?: { threeView?: string; emotions?: Record<string,string>; scenes?: Record<string,string>; splitViews?: string[] } | null,
 ): Promise<string | null> {
   const outputDir = path.join(process.cwd(), "public", "generated");
   await mkdir(outputDir, { recursive: true });
@@ -590,6 +598,45 @@ export async function POST(req: Request) {
           mascotRawBase64 = await imageToRawBase64(mascotPath);
         }
 
+        // ▼ TASK-008: 加载额外公仔素材（三视图、表情、场景）
+        let mascotAssetImages: { threeView?: string; emotions?: Record<string,string>; scenes?: Record<string,string>; splitViews?: string[] } | null = null;
+        const mascotAssets = (clientInfo as any)?.mascotAssets as Record<string, any> | undefined;
+        if (mascotAssets) {
+          mascotAssetImages = {};
+          if (mascotAssets.threeView) {
+            const d = await processImageToDataUri(mascotAssets.threeView, {});
+            if (d) mascotAssetImages.threeView = d;
+          }
+          if (mascotAssets.emotions && Array.isArray(mascotAssets.emotions)) {
+            const loaded: Record<string, string> = {};
+            for (const em of mascotAssets.emotions) {
+              if (em.url) {
+                const d = await processImageToDataUri(em.url, {});
+                if (d) loaded[em.name || em.url] = d;
+              }
+            }
+            if (Object.keys(loaded).length > 0) mascotAssetImages.emotions = loaded;
+          }
+          if (mascotAssets.scenes && Array.isArray(mascotAssets.scenes)) {
+            const loaded: Record<string, string> = {};
+            for (const sc of mascotAssets.scenes) {
+              if (sc.url) {
+                const d = await processImageToDataUri(sc.url, {});
+                if (d) loaded[sc.name || sc.url] = d;
+              }
+            }
+            if (Object.keys(loaded).length > 0) mascotAssetImages.scenes = loaded;
+          }
+          if (mascotAssets.front && mascotAssets.side && mascotAssets.back) {
+            const [f, s, b] = await Promise.all([
+              processImageToDataUri(mascotAssets.front, {}),
+              processImageToDataUri(mascotAssets.side, {}),
+              processImageToDataUri(mascotAssets.back, {}),
+            ]);
+            if (f && s && b) mascotAssetImages.splitViews = [f, s, b];
+          }
+        }
+
         sse(controller, "page:start", { pageId: "real-photos", label: "生成品牌写实图", index: -2, total: 0 });
         const realPhotoMap = await generateRealPhotos(
           designDecision, logoRawBase64, mascotRawBase64, aliyunKey,
@@ -611,6 +658,7 @@ export async function POST(req: Request) {
               logoUrl, mascotUrl, i,
               designDecision, realPhotoMap,
               logoDataUri, mascotDataUri,
+              mascotAssetImages,
             );
           } catch (e) {
             console.error(`[generate] assemblePage error for ${page.id}:`, String(e));

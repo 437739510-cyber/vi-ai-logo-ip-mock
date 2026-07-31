@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -90,8 +90,18 @@ export default function ProjectDetailPage({
   const [mascotStatus, setMascotStatus] = useState<string>("");
   const [mascotProgress, setMascotProgress] = useState("");
   const [mascotAssets, setMascotAssets] = useState<any>(null);
-  const [mascotError, setMascotError] = useState("");
+ const [mascotError, setMascotError] = useState("");
+  const [manualReviewStatus, setManualReviewStatus] = useState<string>("");
+  const [reviewingMascot, setReviewingMascot] = useState(false);
 
+  // TASK-010: IP 公仔模块开关
+  const [ipEnabled, setIpEnabled] = useState(true);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("brandbrain_ip_enabled");
+      if (saved !== null) setIpEnabled(saved === "true");
+    }
+  }, []);
 
   // V49: Auto-poll logo generation status when generating
   useEffect(() => {
@@ -602,6 +612,14 @@ export default function ProjectDetailPage({
             const { getProjectById } = await import('@/lib/core/mock');
             const fp = await getProjectById(project.id);
             if (fp) { setProject(fp); const s = await (await import('@/lib/core/mock')).getSubmissionById(fp.submissionId); if (s) setSubmission(s); }
+          } else if (mStatus === "waiting_manual_review") {
+            setManualReviewStatus("pending");
+            setGeneratingMascot(false);
+            setMascotProgress("等待人工审核");
+          } else if (mStatus === "manual_review_complete") {
+            setManualReviewStatus("manual_review_complete");
+            setGeneratingMascot(false);
+            setMascotProgress("审核通过");
           } else if (mStatus === "mascot_failed") {
             clearInterval(pollInterval);
             setMascotError(ci.mascotError || "公仔生成失败");
@@ -1298,7 +1316,7 @@ export default function ProjectDetailPage({
               </button>
             )}
           </div>
-          {submission?.mascotAssets?.length > 0 && (
+          {ipEnabled && submission?.mascotAssets?.length > 0 && (
             <div>
               <h4 className="text-sm font-medium text-neutral-700 mb-2">IP 公仔（{submission?.mascotAssets?.length} 个）</h4>
               {submission?.mascotAssets?.map((m, i) => (
@@ -1517,12 +1535,52 @@ export default function ProjectDetailPage({
             )}
 
             {/* Phase 1.5: IP 公仔生成（需客户选了公仔） */}
-            {(submission as any)?.wantMascot === "yes" && (
+            {ipEnabled && (submission as any)?.wantMascot === "yes" && (
               <div className="mt-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 bg-purple-600 text-white text-[10px] font-bold rounded">Phase 1.5</span>
                   <span className="text-[11px] text-neutral-400">IP公仔生成</span>
                 </div>
+
+                {/* 分段进度条 */}
+                {mascotAssets && (
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      {[
+                        { label: "公仔生成", pct: 25, key: "mascot" },
+                        { label: "人工审核", pct: 65, key: "review" },
+                        { label: "手册生成", pct: 100, key: "manual" },
+                      ].map((stage, i) => {
+                        let active = false;
+                        if (stage.key === "mascot") active = true;
+                        if (stage.key === "review") active = manualReviewStatus === "manual_review_complete";
+                        if (stage.key === "manual") active = (generatedManuals?.length ?? 0) > 0;
+                        return (
+                          <div key={stage.key} className="flex items-center gap-1.5">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              active ? "bg-purple-600 text-white" : "bg-neutral-200 text-neutral-400"
+                            }`}>
+                              {active ? "✓" : i + 1}
+                            </div>
+                            <span className={`text-[10px] ${active ? "text-purple-700 font-semibold" : "text-neutral-400"}`}>
+                              {stage.label}
+                            </span>
+                            <span className="text-[9px] text-neutral-300">{stage.pct}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="relative h-1 bg-neutral-200 rounded-full overflow-hidden">
+                      <div
+                        className="absolute inset-y-0 left-0 bg-purple-500 rounded-full transition-all duration-500"
+                        style={{ width: `${
+                          manualReviewStatus === "manual_review_complete" ? 65 :
+                          mascotAssets ? 25 : 0
+                        }%` }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* 尚未生成 */}
                 {!mascotAssets && !generatingMascot && mascotStatus !== "mascot_generated" && (
@@ -1627,18 +1685,60 @@ export default function ProjectDetailPage({
                       </div>
                     )}
 
-                    {/* 确认并生成手册按钮 */}
-                    <button
-                      onClick={() => handleGeneratePptx()}
-                      disabled={generatingPptx}
-                      className="w-full py-2.5 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
-                    >
-                      {generatingPptx ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> 正在生成VI手册...</>
-                      ) : (
-                        <>✅ 确认公仔并生成VI手册</>
-                      )}
-                    </button>
+                    {/* 人工审核门禁 */}
+                    {manualReviewStatus !== "manual_review_complete" ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-amber-600 text-sm font-semibold">
+                          <span>⏳</span> 待人工审核
+                        </div>
+                        <button
+                          onClick={async () => {
+                            setReviewingMascot(true);
+                            try {
+                              const res = await fetch('/api/ai/set-manual-review-status', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ projectId: project.id, status: 'approved' }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                setManualReviewStatus("manual_review_complete");
+                              } else {
+                                alert('审核失败：' + (data.error || '未知错误'));
+                              }
+                            } catch (e: any) {
+                              alert('审核请求失败：' + (e.message || '网络错误'));
+                            }
+                            setReviewingMascot(false);
+                          }}
+                          disabled={reviewingMascot}
+                          className="w-full py-2.5 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                        >
+                          {reviewingMascot ? (
+                            <><span className="animate-spin inline-block">⏳</span> 提交审核中...</>
+                          ) : (
+                            <>✅ 通过审核</>
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-green-600 text-sm font-semibold">
+                          <span>✅</span> 人工审核通过
+                        </div>
+                        <button
+                          onClick={() => handleGeneratePptx()}
+                          disabled={generatingPptx}
+                          className="w-full py-2.5 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                        >
+                          {generatingPptx ? (
+                            <><Loader2 className="w-4 h-4 animate-spin" /> 正在生成VI手册...</>
+                          ) : (
+                            <>📄 生成VI手册</>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1681,6 +1781,11 @@ export default function ProjectDetailPage({
               </div>
               <button
                 onClick={() => {
+                  // TASK-006: IP公仔未过审核时阻止生成
+                  if (ipEnabled && (submission as any)?.wantMascot === "yes" && manualReviewStatus !== "manual_review_complete") {
+                    alert("请先完成 IP 公仔人工审核");
+                    return;
+                  }
                   if (pptxResult) {
                     if (!confirm("已有VI手册，重新生成将花费约¥2.00，确定？")) return;
                     handleGeneratePptx(true);

@@ -1,0 +1,4 @@
+三栏三视图合成（正面 + 3/4侧面 + 背面）
+中文标签：正面 / 3/4 侧面 / 背面
+尺寸：3264 x 1230
+素材：front=Z-Image（现有），side=DreamShaperXL10 seed606，back=DreamShaperXL10 seed444

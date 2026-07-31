@@ -283,10 +283,10 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
   return Buffer.from(base64, "base64");
 }
 
-const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","wayfinding","summary","material-priority","logo-output","modification-authority","mascot-positioning","mascot-threeview","mascot-emotions","mascot-scenes","mascot-usage","closing"];
+const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","digital-media","wayfinding","summary","material-priority","file-output","logo-output","modification-authority","mascot-positioning","mascot-threeview","mascot-emotions","mascot-scenes","mascot-usage","closing"];
 
 // 计算真实页序页码（整改 #5，Kevin 终选方案）：
-// 封面不编号 (=0)；其余页（目录、正文各页、封底）从 1 连续编号到 27（总蓝图 28 减去封面 1 页）。
+// 封面不编号 (=0)；其余页（目录、正文各页、封底）从 1 连续编号。
 export function computePageNumberMap(blueprints: PageBlueprint[]): Record<string, number> {
   const map: Record<string, number> = {};
   let n = 0;
@@ -1788,19 +1788,32 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
   slide.addShape("rect", { x: cx, y: 2.15, w: 1.5, h: 0.04, fill: { color: bc.acc } });
 
   // 目录项
-  const tocItems = getTocItems(industry, opts.sceneSectionTitles);
-  let yPos = 2.6;
+  // 动态过滤：只显示实际存在于手册中的页面（pageNumberMap 中有映射的），
+  // 含公仔时公仔章节出现，不含时自动消失
+  const tocItems = getTocItems(industry, opts.sceneSectionTitles)
+    .filter((item) => pageNumberMap[item.pageId] !== undefined);
   tocItems.sort((a, b) => PAGE_ORDER.indexOf(a.pageId) - PAGE_ORDER.indexOf(b.pageId));
-  for (let i = 0; i < Math.min(tocItems.length, 15); i++) {
-    const item = tocItems[i];
-    // 标题（左对齐，无独立序号）
-    slide.addText(item.title, { x: cx, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 14, color: "333333", fontFace: "Noto Sans SC" });
-    // 点线填充
-    slide.addText("....................................................................................", { x: cx, y: yPos, w: CONTENT_W - 1.5, h: 0.5, fontSize: 9, color: "CCCCCC", align: "right" });
-    // 页码（按真实页序，封面/目录/封底为 0 不显示，整改 #5）
-    const realPageNum = pageNumberMap[item.pageId] || 0;
-    slide.addText(realPageNum > 0 ? `${realPageNum}` : "", { x: cx + CONTENT_W - 0.6, y: yPos, w: 0.6, h: 0.5, fontSize: 13, color: "999999", align: "right" });
-    yPos += 0.6;
+  const total = tocItems.length;
+  // 超过 15 条自动分两栏
+  const colCount = total > 15 ? 2 : 1;
+  const itemsPerCol = Math.ceil(total / colCount);
+  const colWidth = colCount === 2 ? (CONTENT_W - 0.5) / 2 : CONTENT_W;
+  for (let col = 0; col < colCount; col++) {
+    let yPos = 2.6;
+    const xOffset = cx + col * (colWidth + 0.5);
+    const startIdx = col * itemsPerCol;
+    const endIdx = Math.min(startIdx + itemsPerCol, total);
+    for (let i = startIdx; i < endIdx; i++) {
+      const item = tocItems[i];
+      // 标题（左对齐）
+      slide.addText(item.title, { x: xOffset, y: yPos, w: colWidth - 0.9, h: 0.5, fontSize: 13, color: "333333", fontFace: "Noto Sans SC" });
+      // 点线填充
+      slide.addText("...........................................", { x: xOffset, y: yPos, w: colWidth - 0.9, h: 0.5, fontSize: 8, color: "CCCCCC", align: "right" });
+      // 页码
+      const realPageNum = pageNumberMap[item.pageId] || 0;
+      slide.addText(realPageNum > 0 ? String(realPageNum) : "", { x: xOffset + colWidth - 0.5, y: yPos, w: 0.5, h: 0.5, fontSize: 12, color: "999999", align: "right" });
+      yPos += 0.55;
+    }
   }
 
   // 底部品牌色装饰
@@ -1825,11 +1838,21 @@ function getTocItems(industry: IndustryType, aiTitles?: Record<string, string> |
     { title: configs.stationery.title, pageId: "stationery" },
     { title: configs.packaging.title, pageId: "packaging" },
     { title: configs.marketing.title, pageId: "marketing" },
+    { title: "线上数字应用", pageId: "digital-media" },
     { title: "导视系统", pageId: "wayfinding" },
     { title: "总结", pageId: "summary" },
     { title: "VI物料落地清单", pageId: "material-priority" },
+    { title: "文件输出规范", pageId: "file-output" },
     { title: "LOGO文件输出规范", pageId: "logo-output" },
     { title: "VI修改权限说明", pageId: "modification-authority" },
+    { title: "IP角色定位", pageId: "mascot-positioning" },
+    { title: "IP三视图", pageId: "mascot-threeview" },
+    { title: "IP表情库", pageId: "mascot-emotions" },
+    { title: "IP场景应用", pageId: "mascot-scenes" },
+    { title: "IP使用规范", pageId: "mascot-usage" },
+    { title: "IP公仔禁用规范", pageId: "mascot-misuse" },
+    { title: "IP公仔衍生品使用规范", pageId: "mascot-merchandise" },
+    { title: "IP公仔使用合规说明", pageId: "mascot-compliance" },
   ];
   return items;
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Brand Brain Automation Worker
  * ==============================
  * Local Windows polling script. Bridges cloud Zeabur to local ComfyUI.
@@ -17,7 +17,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { comfyuiGenerateLogo, comfyuiGenerateScene, isComfyUIAvailable } from '../src/lib/ip/ip-image-provider/comfyui-provider';
+import { comfyuiGenerateLogo, comfyuiGenerateScene, comfyGenerateImage, isComfyUIAvailable } from '../src/lib/ip/ip-image-provider/comfyui-provider';
+import { arkGenerate } from '../src/lib/ip/ip-image-provider/ark-fallback';
 import { planPages } from '../src/lib/vi-manual/page-planner';
 import { renderPptxToBuffer } from '../src/lib/pptx/render-pptx';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
@@ -201,6 +202,7 @@ async function processLogoGeneration(project) {
     client_info: { ...clientInfo, generationStatus: 'logo_generating', generationMessage: 'AI正在分析品牌...' },
     updated_at: new Date().toISOString(),
   }).eq('id', projectId);
+
 
   // Step 2: Brand analysis (if not already done)
   let logoPrompts = brandProfile.logoDesignSuggestions?.prompts;
@@ -515,6 +517,7 @@ async function processManualGeneration(project) {
         brandPersonality: clientInfo.brandPersonality || '',
       },
       brandColors,
+      includeMascotChapter: true,
     });
     log('INFO', `[MANUAL] ${projectId}: ${blueprints.length} pages planned`);
   } catch (err) {
@@ -531,6 +534,55 @@ async function processManualGeneration(project) {
     client_info: { ...clientInfo, generationStatus: 'manual_generating', generationMessage: '正在渲染VI手册PPTX...', generationPercent: 70 },
     updated_at: new Date().toISOString(),
   }).eq('id', projectId);
+
+  // Step 3.5: Prepare mascot images for PPTX
+  let mascotData = null;
+  let mascotSplitViews = null;
+  let mascotEmotions = null;
+  let mascotScenes = null;
+  let mascotThreeViewData = null;
+  const mascotAssets = clientInfo.mascotAssets;
+  if (mascotAssets && mascotAssets.front) {
+    try {
+      const imgResp = await fetch(mascotAssets.front);
+      if (imgResp.ok) {
+        const buf = Buffer.from(await imgResp.arrayBuffer());
+        const mime = imgResp.headers.get('content-type') || 'image/png';
+        mascotData = 'data:' + mime + ';base64,' + buf.toString('base64');
+        mascotThreeViewData = mascotData;
+      }
+    } catch (err) {
+      log('WARN', '[MANUAL] ' + projectId + ': Mascot front download failed: ' + err.message);
+    }
+    const views = [mascotAssets.front, mascotAssets.side, mascotAssets.back].filter(Boolean);
+    if (views.length > 0) {
+      mascotSplitViews = [];
+      for (const url of views) {
+        try {
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const buf = Buffer.from(await resp.arrayBuffer());
+            const mime = resp.headers.get('content-type') || 'image/png';
+            mascotSplitViews.push('data:' + mime + ';base64,' + buf.toString('base64'));
+          }
+        } catch (e) {
+          log('WARN', '[MANUAL] ' + projectId + ': Mascot view download failed: ' + e.message);
+        }
+      }
+    }
+    if (mascotAssets.emotions && mascotAssets.emotions.length > 0) {
+      mascotEmotions = {};
+      for (const em of mascotAssets.emotions) {
+        if (em.url) mascotEmotions[em.name || em.url] = em.url;
+      }
+    }
+    if (mascotAssets.scenes && mascotAssets.scenes.length > 0) {
+      mascotScenes = {};
+      for (const sc of mascotAssets.scenes) {
+        if (sc.url) mascotScenes[sc.name || sc.url] = sc.url;
+      }
+    }
+  }
 
   // Step 4: Render PPTX
   log('INFO', `[MANUAL] ${projectId}: Rendering PPTX...`);
@@ -558,6 +610,11 @@ async function processManualGeneration(project) {
       compressImages: true,
       fullBrandName: clientInfo.companyName || '',
       englishName: (clientInfo.companyName || 'BRAND').toUpperCase(),
+      mascotData,
+      mascotSplitViews,
+      mascotEmotions,
+      mascotScenes,
+      mascotThreeViewData,
     };
     pptxBuf = await renderPptxToBuffer(blueprints, options);
     log('INFO', `[MANUAL] ${projectId}: PPTX rendered (${(pptxBuf.length / 1024).toFixed(0)} KB)`);
@@ -626,6 +683,240 @@ async function processManualGeneration(project) {
   }
 }
 
+// ========== Mascot Sample Generation (4样稿) ==========
+
+async function processMascotSampleGeneration(project) {
+  const projectId = project.id;
+  const clientInfo = (project.client_info || {});
+  const companyName = clientInfo.companyName || "Brand";
+  const industry = clientInfo.industry || "general";
+  const profileColors = clientInfo.brandProfile?.colorPalette || [];
+  const colorDesc = profileColors.map(c => c.hex).join(", ");
+
+  log("INFO", `[MASCOT-SAMPLE] Processing project: ${projectId} (${companyName})`);
+
+  const stylePrompts = [
+    { id: "a", label: "\u7ecf\u5178\u6b3e", desc: "\u5706\u6da6\u53ef\u7231\u98ce\u683c",
+      prompt: `3D Pixar style cute brand mascot for ${companyName}, ${industry} industry, round friendly shapes, warm brand colors ${colorDesc}, cute big eyes, full body front view, white background, soft studio lighting` },
+    { id: "b", label: "\u6e05\u65b0\u6b3e", desc: "\u7b80\u7ea6\u6e05\u65b0\u98ce\u683c",
+      prompt: `3D Pixar style modern minimalist brand mascot for ${companyName}, ${industry} industry, clean geometric shapes, fresh brand colors ${colorDesc}, simple expressive face, full body front view, white background` },
+    { id: "c", label: "\u5320\u4eba\u6b3e", desc: "\u81ea\u4fe1\u5927\u65b9\u98ce\u683c",
+      prompt: `3D Pixar style character brand mascot for ${companyName}, ${industry} industry, bold design, confident pose, brand accent colors ${colorDesc}, friendly smile, full body front view, white background` },
+    { id: "d", label: "Q\u7248\u6b3e", desc: "\u8d85\u5927\u5934\u53ef\u7231\u98ce\u683c",
+      prompt: `3D Pixar style super-deformed chibi brand mascot for ${companyName}, ${industry} industry, extra large head, tiny body, ultra cute, round soft shapes, full body front view, white background` },
+  ];
+
+  const samples = [];
+  for (const sp of stylePrompts) {
+    log("INFO", `[MASCOT-SAMPLE] ${projectId}: Generating sample ${sp.id} (${sp.label})...`);
+    let imageUrl = null;
+    try {
+      const result = await comfyGenerateImage({
+        prompt: sp.prompt,
+        negativePrompt: "blurry, low quality, distorted, deformed, ugly, watermark, extra limbs, bad anatomy",
+        width: 1024,
+        height: 1024,
+      });
+      imageUrl = result.imageUrl;
+    } catch (err) {
+      log("WARN", `[MASCOT-SAMPLE] ${projectId}: ComfyUI failed for ${sp.id}: ${err.message}, trying ARK...`);
+      try {
+        const arkResult = await arkGenerate(sp.prompt, "blurry, low quality, distorted", 1024, 1024);
+        imageUrl = arkResult.imageUrl;
+      } catch (arkErr) {
+        log("ERROR", `[MASCOT-SAMPLE] ${projectId}: ARK also failed for ${sp.id}: ${arkErr.message}`);
+      }
+    }
+
+    let publicUrl = null;
+    if (imageUrl && imageUrl.startsWith("data:")) {
+      try {
+        const matches = imageUrl.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
+        if (matches) {
+          const buffer = Buffer.from(matches[2], "base64");
+          const storagePath = `${projectId}/mascot-sample-${sp.id}-${Date.now()}.png`;
+          const { error } = await supabase.storage
+            .from("brand-brain-generated")
+            .upload(storagePath, buffer, { contentType: "image/png", upsert: true });
+          if (!error) {
+            const { data } = supabase.storage.from("brand-brain-generated").getPublicUrl(storagePath);
+            publicUrl = data.publicUrl;
+            log("INFO", `[MASCOT-SAMPLE] ${projectId}: Uploaded sample ${sp.id} -> ${publicUrl}`);
+          }
+        }
+      } catch (e) {
+        log("WARN", `[MASCOT-SAMPLE] ${projectId}: Upload failed for ${sp.id}: ${e.message}`);
+      }
+    }
+
+    samples.push({ id: sp.id, label: sp.label, desc: sp.desc, imageUrl: publicUrl || (imageUrl || "") });
+  }
+
+  const successCount = samples.filter(s => s.imageUrl).length;
+  log("INFO", `[MASCOT-SAMPLE] ${projectId}: ${successCount}/4 samples generated`);
+  try {
+    await supabase.from("projects").update({
+      status: "mascot_samples_ready",
+      client_info: {
+        ...clientInfo,
+        generationStatus: "mascot_samples_ready",
+        generationMessage: `IP\u516c\u4ed4\u6837\u7a3f\u751f\u6210\u5b8c\u6210 (${successCount}/4)`,
+        mascotSamples: samples,
+        mascotGeneratedAt: new Date().toISOString(),
+      },
+      updated_at: new Date().toISOString(),
+    }).eq("id", projectId);
+    log("INFO", `[MASCOT-SAMPLE] ${projectId}: DONE! Status -> mascot_samples_ready`);
+  } catch (e) {
+    log("ERROR", `[MASCOT-SAMPLE] ${projectId}: Final update failed: ${e.message}`);
+  }
+}
+
+// ========== Mascot Full Generation (全套16张) ==========
+
+async function processMascotFullGeneration(project) {
+  const projectId = project.id;
+  const clientInfo = (project.client_info || {});
+  const companyName = clientInfo.companyName || "Brand";
+  const industry = clientInfo.industry || "general";
+  const selectedId = clientInfo.mascotSelectedId || "a";
+  const samples = clientInfo.mascotSamples || [];
+  const selectedSample = samples.find(s => s.id === selectedId) || samples[0] || {};
+  const styleAnchor = (selectedSample.label || "\u7ecf\u5178\u6b3e") + " " + (selectedSample.desc || "");
+  const profileColors = clientInfo.brandProfile?.colorPalette || [];
+  const colorDesc = profileColors.map(c => c.hex).join(", ");
+
+  log("INFO", `[MASCOT-FULL] Processing project: ${projectId} (${companyName}), selected: ${selectedId} (${styleAnchor})`);
+
+  const views = [
+    { name: "front", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, front view facing camera, full body, white background, soft studio lighting` },
+    { name: "side", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, side profile view, full body side view, white background, soft studio lighting` },
+    { name: "back", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, seen from behind, no face visible, just the back of the character, back of head, full body back view, white background` },
+  ];
+  const emotions = [
+    { name: "\u5fae\u7b11", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, warm friendly smile expression, happy eyes, full body front view, white background` },
+    { name: "\u751c\u7b11", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, sweet innocent smile, sparkling eyes, full body front view, white background` },
+    { name: "\u5bb3\u7f9e", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, shy expression, blushing cheeks, looking sideways, full body front view, white background` },
+    { name: "\u641e\u602a", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, playful funny face, winking, tongue out, full body front view, white background` },
+    { name: "\u8ba4\u771f", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, focused serious expression, determined look, full body front view, white background` },
+    { name: "\u60ca\u559c", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, surprised expression, wide eyes, mouth open in delight, full body front view, white background` },
+  ];
+  const scenes = [
+    { name: "\u7ad9\u7acb", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, standing upright with casual posture, full body, white background` },
+    { name: "\u62db\u624b", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, waving hand with friendly greeting gesture, full body, white background` },
+    { name: "\u6301\u7269", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, holding a small prop, full body, white background` },
+    { name: "\u5954\u8dd1", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, running forward with dynamic pose, full body, white background` },
+    { name: "\u8df3\u8dc3", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, jumping up with arms spread, joyful pose, full body, white background` },
+    { name: "\u5750\u4e0b", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, sitting down relaxed posture, full body, white background` },
+  ];
+
+  const totalImages = views.length + emotions.length + scenes.length + 1;
+  let completed = 0;
+
+  async function generateAndUpload(category, name, prompt) {
+    log("INFO", `[MASCOT-FULL] ${projectId}: ${category}-${name} (${completed + 1}/${totalImages})...`);
+    let imageUrl = null;
+    try {
+      const result = await comfyGenerateImage({
+        prompt,
+        negativePrompt: "blurry, low quality, distorted, deformed, ugly, watermark, extra limbs, bad anatomy",
+        width: 1024,
+        height: 1024,
+      });
+      imageUrl = result.imageUrl;
+    } catch (err) {
+      log("WARN", `[MASCOT-FULL] ${projectId}: ComfyUI failed for ${category}-${name}: ${err.message}, trying ARK...`);
+      try {
+        const arkResult = await arkGenerate(prompt, "blurry, low quality, distorted", 1024, 1024);
+        imageUrl = arkResult.imageUrl;
+      } catch (arkErr) {
+        log("ERROR", `[MASCOT-FULL] ${projectId}: ARK also failed for ${category}-${name}: ${arkErr.message}`);
+      }
+    }
+
+    let publicUrl = "";
+    if (imageUrl && imageUrl.startsWith("data:")) {
+      try {
+        const matches = imageUrl.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
+        if (matches) {
+          const buffer = Buffer.from(matches[2], "base64");
+          const storagePath = `${projectId}/mascot-${category}-${name}-${Date.now()}.png`;
+          const { error } = await supabase.storage
+            .from("brand-brain-generated")
+            .upload(storagePath, buffer, { contentType: "image/png", upsert: true });
+          if (!error) {
+            const { data } = supabase.storage.from("brand-brain-generated").getPublicUrl(storagePath);
+            publicUrl = data.publicUrl;
+            log("INFO", `[MASCOT-FULL] ${projectId}: Uploaded ${category}-${name} -> ${publicUrl}`);
+          }
+        }
+      } catch (e) {
+        log("WARN", `[MASCOT-FULL] ${projectId}: Upload failed for ${category}-${name}: ${e.message}`);
+      }
+    }
+
+    completed++;
+    try {
+      await supabase.from("projects").update({
+        client_info: {
+          ...clientInfo,
+          generationStatus: "mascot_full_generating",
+          generationMessage: `\u6b63\u5728\u751f\u6210IP\u516c\u4ed4\u5168\u5957 (${completed}/${totalImages})...`,
+          fullMascotProgress: { views: 3, emotions: 6, scenes: 6, total: totalImages, completed },
+        },
+        updated_at: new Date().toISOString(),
+      }).eq("id", projectId);
+    } catch { /* non-critical */ }
+
+    return publicUrl;
+  }
+
+  const viewResults = {};
+  for (const v of views) {
+    viewResults[v.name] = await generateAndUpload("view", v.name, v.prompt);
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  const emotionResults = [];
+  for (const e of emotions) {
+    emotionResults.push({ name: e.name, url: await generateAndUpload("emotion", e.name, e.prompt) });
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  const sceneResults = [];
+  for (const s of scenes) {
+    sceneResults.push({ name: s.name, url: await generateAndUpload("scene", s.name, s.prompt) });
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  const mascotAssets = {
+    front: viewResults.front || "",
+    side: viewResults.side || "",
+    back: viewResults.back || "",
+    emotions: emotionResults,
+    scenes: sceneResults,
+    threeView: viewResults.front || "",
+  };
+
+  log("INFO", `[MASCOT-FULL] ${projectId}: ${completed}/${totalImages} generated. Setting pending_manual...`);
+
+  try {
+    await supabase.from("projects").update({
+      status: "mascot_generated",
+      client_info: {
+        ...clientInfo,
+        generationStatus: "pending_manual",
+        generationMessage: "IP\u516c\u4ed4\u5168\u5957\u751f\u6210\u5b8c\u6210\uff0c\u5f00\u59cb\u5236\u4f5cVI\u624b\u518c",
+        mascotAssets,
+        fullMascotCompletedAt: new Date().toISOString(),
+        fullMascotProgress: { views: 3, emotions: 6, scenes: 6, total: totalImages, completed },
+      },
+      updated_at: new Date().toISOString(),
+    }).eq("id", projectId);
+    log("INFO", `[MASCOT-FULL] ${projectId}: DONE! Status -> pending_manual`);
+  } catch (e) {
+    log("ERROR", `[MASCOT-FULL] ${projectId}: Final update failed: ${e.message}`);
+  }
+}
+
 // ========== Main Polling Loop ==========
 
 async function poll() {
@@ -644,6 +935,38 @@ async function poll() {
     } else if (logoProjects && logoProjects.length > 0) {
       for (const project of logoProjects) {
         await processLogoGeneration(project);
+      }
+    }
+
+    // Phase 3: Check for mascot_generating (4 samples)
+    const { data: mascotSampleProjects, error: mascotSampleErr } = await supabase
+      .from('projects')
+      .select('id, client_info, submission_id')
+      .filter('client_info->>generationStatus', 'eq', 'mascot_generating')
+      .order('created_at', { ascending: true })
+      .limit(1);
+
+    if (mascotSampleErr) {
+      log('WARN', `[POLL] Mascot sample query error: ${mascotSampleErr.message}`);
+    } else if (mascotSampleProjects && mascotSampleProjects.length > 0) {
+      for (const project of mascotSampleProjects) {
+        await processMascotSampleGeneration(project);
+      }
+    }
+
+    // Phase 4: Check for mascot_full_generating (16 images)
+    const { data: mascotFullProjects, error: mascotFullErr } = await supabase
+      .from('projects')
+      .select('id, client_info, submission_id')
+      .filter('client_info->>generationStatus', 'eq', 'mascot_full_generating')
+      .order('created_at', { ascending: true })
+      .limit(1);
+
+    if (mascotFullErr) {
+      log('WARN', `[POLL] Mascot full query error: ${mascotFullErr.message}`);
+    } else if (mascotFullProjects && mascotFullProjects.length > 0) {
+      for (const project of mascotFullProjects) {
+        await processMascotFullGeneration(project);
       }
     }
 
