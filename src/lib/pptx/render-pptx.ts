@@ -1798,8 +1798,9 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
   const colCount = total > 15 ? 2 : 1;
   const itemsPerCol = Math.ceil(total / colCount);
   const colWidth = colCount === 2 ? (CONTENT_W - 0.5) / 2 : CONTENT_W;
+  let yPos = 2.6;
   for (let col = 0; col < colCount; col++) {
-    let yPos = 2.6;
+    yPos = 2.6;
     const xOffset = cx + col * (colWidth + 0.5);
     const startIdx = col * itemsPerCol;
     const endIdx = Math.min(startIdx + itemsPerCol, total);
