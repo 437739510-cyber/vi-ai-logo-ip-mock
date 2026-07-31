@@ -17,6 +17,8 @@ import { compressImage } from "./compress-image";
 import { type IndustryType, getIndustryType, getIndustryMaterials } from "@/lib/brand/industry-types";
 import { cleanDirtyWords, filterMaterialsByIndustry } from "@/lib/vi-manual/dirty-word-cleaner";
 import { COLOR_NAME_MAP } from "@/lib/vi-manual/color-name-map";
+import { normalizeBrandName } from "@/lib/vi-manual/brand-name-normalizer";
+import { getMaterialSpecs, type MaterialSpec } from "@/lib/vi-manual/material-specs";
 
 import { renderTypographyPng, renderColorSpecPng } from "./spec-page-renderer";
 const _DEV = process.env.NODE_ENV === "development";
@@ -48,6 +50,10 @@ export interface RenderPptxOptions {
   mascotData?: string | null;
   mascotSplitViews?: string[] | null;
   brandColors?: { primary?: string; secondary?: string; accent?: string };
+  logoColors?: {
+    navy?: { name?: string; hex?: string; rgb?: string; cmyk?: string };
+    gold?: { name?: string; hex?: string; rgb?: string; cmyk?: string };
+  };
   brandVision?: string;
   coreValues?: string;
   targetMarket?: string;
@@ -127,6 +133,21 @@ function resolveBC(opts: RenderPptxOptions, blueprints: PageBlueprint[]): BC {
   return {
     pri, sec: hx(def.secondary), acc: hx(def.accent),
     priDark: darken(pri), priLight: lighten(pri),
+  };
+}
+
+const DEFAULT_LOGO_COLORS = {
+  navy: { name: "LOGO藏青", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" },
+  gold: { name: "祥云金", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" },
+};
+
+function resolveLogoColors(opts: RenderPptxOptions): {
+  navy: { name: string; hex: string; rgb: string; cmyk: string };
+  gold: { name: string; hex: string; rgb: string; cmyk: string };
+} {
+  return {
+    navy: { ...DEFAULT_LOGO_COLORS.navy, ...(opts.logoColors?.navy || {}) },
+    gold: { ...DEFAULT_LOGO_COLORS.gold, ...(opts.logoColors?.gold || {}) },
   };
 }
 
@@ -238,7 +259,40 @@ function getSceneConfigs(industry: IndustryType, aiTitles?: Record<string, strin
 }
 
 // ========== 主渲染入口 ==========
+function assertMascotPagesHaveAssets(blueprints: PageBlueprint[], options: RenderPptxOptions): void {
+  for (const bp of blueprints) {
+    if (!bp.pageId.startsWith("mascot-")) continue;
+    const hasAny = (v: unknown): boolean => !!v;
+    let hasAssets = true;
+    switch (bp.pageId) {
+      case "mascot-positioning":
+        hasAssets = hasAny(options.mascotData) || hasAny(options.mascotThreeViewData);
+        break;
+      case "mascot-threeview":
+        hasAssets = hasAny(options.mascotThreeViewData) || (options.mascotSplitViews?.length || 0) > 0;
+        break;
+      case "mascot-emotions":
+        hasAssets = !!options.mascotEmotions && Object.values(options.mascotEmotions).some((v) => !!v);
+        break;
+      case "mascot-scenes":
+        hasAssets = !!options.mascotScenes && Object.values(options.mascotScenes).some((v) => !!v);
+        break;
+      case "mascot-usage":
+        hasAssets = (options.mascotSplitViews?.length || 0) > 0 || hasAny(options.mascotData);
+        break;
+      default:
+        break;
+    }
+    if (!hasAssets) {
+      throw new Error("Mascot page " + bp.pageId + " has no assets, refusing to render blank page");
+    }
+  }
+}
+
 export async function renderPptx(blueprints: PageBlueprint[], options: RenderPptxOptions = {}): Promise<PptxGenJS> {
+  options.companyName = normalizeBrandName(options.companyName || "");
+  options.fullBrandName = normalizeBrandName(options.fullBrandName || "");
+  assertMascotPagesHaveAssets(blueprints, options);
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "A4_PORTRAIT", width: SW, height: SH });
   pptx.layout = "A4_PORTRAIT";
@@ -269,6 +323,7 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
   _DEV && console.log(`[render-pptx] V6 | ${blueprints.length} pages | industry=${industry} | sceneImages=${Object.keys(sceneImages).length}`);
 
   const pageNumberMap = computePageNumberMap(blueprints);
+  assertTocPageNumbers(blueprints, options);
 
   for (const bp of blueprints) {
     const slide = pptx.addSlide();
@@ -283,7 +338,7 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
   return Buffer.from(base64, "base64");
 }
 
-const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","digital-media","wayfinding","summary","material-priority","file-output","logo-output","modification-authority","mascot-positioning","mascot-threeview","mascot-emotions","mascot-scenes","mascot-usage","closing"];
+const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","digital-media","wayfinding","summary","material-priority","file-output","logo-output","modification-authority","mascot-positioning","mascot-threeview","mascot-emotions","mascot-scenes","mascot-usage","mascot-misuse","mascot-merchandise","mascot-compliance","closing"];
 
 // 计算真实页序页码（整改 #5，Kevin 终选方案）：
 // 封面不编号 (=0)；其余页（目录、正文各页、封底）从 1 连续编号。
@@ -299,6 +354,52 @@ export function computePageNumberMap(blueprints: PageBlueprint[]): Record<string
     }
   }
   return map;
+}
+
+// 004: 渲染前校验目录页码，失败直接抛错，禁止输出错页码手册
+export function assertTocPageNumbers(blueprints: PageBlueprint[], options: RenderPptxOptions): void {
+  const map = computePageNumberMap(blueprints);
+  const seen = new Set<string>();
+  let lastOrderIndex = -1;
+
+  for (const bp of blueprints) {
+    const orderIndex = PAGE_ORDER.indexOf(bp.pageId);
+    if (orderIndex < 0) {
+      throw new Error(`[TOC] pageId not in PAGE_ORDER: ${bp.pageId}`);
+    }
+    if (seen.has(bp.pageId)) {
+      throw new Error(`[TOC] duplicate pageId: ${bp.pageId}`);
+    }
+    seen.add(bp.pageId);
+    if (orderIndex < lastOrderIndex) {
+      throw new Error(`[TOC] blueprints out of PAGE_ORDER: ${bp.pageId}`);
+    }
+    lastOrderIndex = orderIndex;
+
+    if (bp.pageId !== "cover" && bp.pageId !== "toc" && bp.pageId !== "closing") {
+      const pageNo = map[bp.pageId] || 0;
+      if (pageNo <= 0) {
+        throw new Error(`[TOC] page without real page number: ${bp.pageId}`);
+      }
+    }
+  }
+
+  // 除封面外全部页面从 1 连续编号（目录/封底也占真实页序），不允许跳号或重复
+  const maxPage = Math.max(0, ...Object.values(map));
+  if (maxPage !== blueprints.length - 1) {
+    throw new Error(`[TOC] page numbers not contiguous: expected max ${blueprints.length - 1}, got ${maxPage}`);
+  }
+
+  const industry = getIndustryType(options.industry);
+  const tocItems = getTocItems(industry, options.sceneSectionTitles).filter((item) => map[item.pageId] !== undefined);
+  for (const item of tocItems) {
+    if (!blueprints.some((b) => b.pageId === item.pageId)) {
+      throw new Error(`[TOC] toc references missing page: ${item.pageId}`);
+    }
+    if ((map[item.pageId] || 0) <= 0) {
+      throw new Error(`[TOC] toc item without page number: ${item.pageId}`);
+    }
+  }
 }
 
 async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>, pageNumberMap: Record<string, number>): Promise<void> {
@@ -322,6 +423,7 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "stationery": renderScene(slide, bp, opts, "stationery", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
     case "packaging": renderScene(slide, bp, opts, "packaging", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
     case "marketing": renderScene(slide, bp, opts, "marketing", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
+    case "digital-media": renderDigitalMedia(slide, bp, opts, bc); break;
     case "summary": renderSummary(slide, bp, opts, bc); break;
     case "material-priority": renderMaterialPriority(slide, bp, opts, bc); break;
     case "wayfinding": renderWayfinding(slide, bp, opts, bc); break;
@@ -333,6 +435,10 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "mascot-scenes":
     case "mascot-usage":
       renderMascotChapterPage(slide, bp, opts, bc); break;
+    case "mascot-misuse":
+    case "mascot-merchandise":
+    case "mascot-compliance":
+      renderMascotSupportPage(slide, bp, opts, bc); break;
     case "modification-authority": renderModificationAuthority(slide, bp, opts, bc); break;
     default: renderGeneric(slide, bp, opts, bc);
   }
@@ -448,7 +554,7 @@ function fitBrandText(text: string, fs: number, cs: number, availW: number): { t
   return { text, fontSize: finalFs, charSpacing: 0 };
 }
 
-function addComboLogo(slide: PptxGenJS.Slide, text: string, x: number, y: number, w: number, h: number, bc: BC, industry: IndustryType, opts: { fontSize?: number; color?: string; layout?: "vertical"|"horizontal"; showLine?: boolean; aiLogoData?: string } = {}): void {
+function addComboLogo(slide: PptxGenJS.Slide, text: string, x: number, y: number, w: number, h: number, bc: BC, industry: IndustryType, opts: { fontSize?: number; color?: string; layout?: "vertical"|"horizontal"; showLine?: boolean; aiLogoData?: string; spacing?: { x?: number; y?: number } } = {}): void {
   const fs = opts.fontSize || 36;
   const clr = opts.color || bc.pri;
   const layout = opts.layout || "vertical";
@@ -469,8 +575,9 @@ function addComboLogo(slide: PptxGenJS.Slide, text: string, x: number, y: number
       addIndustryIcon(slide, industry, iconCX, iconTop + iconSize / 2, iconSize, bc);
     }
 
-    const textY = iconTop + iconSize + 0.25;
-    const textH = h - iconSize - 0.5;
+    const gapY = opts.spacing?.y ?? 0.25;
+    const textY = iconTop + iconSize + gapY;
+    const textH = h - iconSize - gapY - 0.25;
     // V110: 智能排版 — 优先一行，放不下合理拆分
     const fitted = fitBrandText(text, fs, fs > 20 ? 10 : 4, w);
     slide.addText(fitted.text, {
@@ -496,9 +603,10 @@ function addComboLogo(slide: PptxGenJS.Slide, text: string, x: number, y: number
     } else {
       addIndustryIcon(slide, industry, x + iconSize / 2, y + h / 2, iconSize, bc);
     }
-    const hFitted = fitBrandText(text, fs, 2, w - iconSize - 0.15);
+    const gapX = opts.spacing?.x ?? 0.15;
+    const hFitted = fitBrandText(text, fs, 2, w - iconSize - gapX);
     slide.addText(hFitted.text, {
-      x: x + iconSize + 0.15, y, w: w - iconSize - 0.15, h,
+      x: x + iconSize + gapX, y, w: w - iconSize - gapX, h,
       fontSize: hFitted.fontSize,
       bold: true,
       color: clr,
@@ -623,6 +731,11 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
   if (opts.mascotData) {
     slide.addImage({ data: normImg(opts.mascotData), x: SW - 2.2, y: SH - 3.5, w: 1.8, h: 2.2, sizing: { type: "contain", w: 1.8, h: 2.2 }, transparency: 70 });
   }
+
+  // 004: 愿景→LOGO/IP 落地表达
+  slide.addText("愿景如何落地：品牌愿景通过 LOGO 的图形叙事与 IP 的亲和表达，转化为可识别的视觉资产。", {
+    x: cx, y: SH - 0.95, w: CONTENT_W, h: 0.5, fontSize: 11, color: "666666", align: "center", fontFace: "Noto Sans SC",
+  });
 }
 
 // ========== Logo Interpretation — V6: 直接用opts字段 ==========
@@ -658,8 +771,22 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
     addComboLogo(slide, opts.companyName || "品牌", (SW - 3.0) / 2, 1.2, 3.0, 3.2, bc, industry, { fontSize: 36, color: bc.pri, layout: "vertical", aiLogoData: opts.aiLogoData });
   }
 
+  // 004: LOGO 元素拆解视觉锚点（纯形状卡片，不承载文字）
+  const chipColors = [bc.pri, bc.sec, bc.acc, bc.priDark];
+  const chipSize = 0.22;
+  const chipGap = 0.12;
+  const chipsW = chipColors.length * chipSize + (chipColors.length - 1) * chipGap;
+  let chipX = (SW - chipsW) / 2;
+  for (const chipColor of chipColors) {
+    slide.addShape("roundRect", { x: chipX, y: 4.18, w: chipSize, h: chipSize, fill: { color: chipColor }, rectRadius: 0.03 });
+    chipX += chipSize + chipGap;
+  }
+
   // 设计理念
-  const philosophy = opts.logoPhilosophy || fta(bp, ["logo-philosophy","logo-meaning","logo-concept"]) || "Logo 凝练了品牌核心视觉要素，体现品牌独特识别性。";
+  const logoMeaningSrc = opts.logoPhilosophy || fta(bp, ["logo-philosophy","logo-meaning","logo-concept"]);
+  const philosophy = logoMeaningSrc
+    ? logoMeaningSrc + "\n\nLOGO 承载品牌识别，IP 公仔承载品牌温度；两者共用同一色彩与比例体系，保持调性一致。"
+    : "Logo 凝练了品牌核心视觉要素，体现品牌独特识别性。";
   const phiY = 4.8;
   slide.addShape("rect", { x: cx, y: phiY, w: 0.06, h: 0.35, fill: { color: bc.pri }, rectRadius: 0.02 });
   slide.addText("设计理念", { x: cx + 0.2, y: phiY, w: 2, h: 0.35, fontSize: 22, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
@@ -691,19 +818,19 @@ function renderLogoVariations(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: R
 
   // 2x2 grid of logo variations
   const variations = [
-    { label: "横式组合", col: 0, row: 0, layout: "horizontal" as const, invert: false, bg: "F5F5F5" },
-    { label: "竖式组合", col: 1, row: 0, layout: "vertical" as const, invert: false, bg: "F5F5F5" },
-    { label: "反白稿（深底）", col: 0, row: 1, layout: "vertical" as const, invert: true, bg: "" },
-    { label: "单色稿", col: 1, row: 1, layout: "vertical" as const, invert: false, bg: "FFFFFF" },
+    { label: "横式组合", col: 0, row: 0, layout: "horizontal" as const, invert: false, bg: "F5F5F5", caption: "图标-中文间距 0.5 单位（2.5mm） · 最小宽度 30mm", spacing: { x: 2.5 / 25.4 } },
+    { label: "竖式组合", col: 1, row: 0, layout: "vertical" as const, invert: false, bg: "F5F5F5", caption: "图标-文字间距 0.3 单位（1.5mm） · 最小宽度 20mm", spacing: { y: 1.5 / 25.4 } },
+    { label: "反白稿（深底）", col: 0, row: 1, layout: "vertical" as const, invert: true, bg: "", caption: "深底 LOGO 与文字统一反白", spacing: { y: 1.5 / 25.4 } },
+    { label: "单色稿", col: 1, row: 1, layout: "vertical" as const, invert: false, bg: "FFFFFF", caption: "品牌单色 · 禁止半色调渐变 · 小尺寸印刷建议使用", spacing: { y: 1.5 / 25.4 } },
   ];
 
   const gap = 0.2;
   const cellW = (CONTENT_W - gap) / 2;
-  const cellH = 3.4;
+  const cellH = 3.1;
 
   for (const v of variations) {
     const x = cx + v.col * (cellW + gap);
-    const y = 1.6 + v.row * (cellH + 0.15);
+    const y = 1.55 + v.row * (cellH + 0.15);
 
     // Background box
     slide.addShape("rect", {
@@ -717,27 +844,45 @@ function renderLogoVariations(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: R
     const logoColor = v.invert ? "FFFFFF" : bc.pri;
 
     // Use addComboLogo for professional rendering
-    addComboLogo(slide, companyName, x + 0.3, y + 0.2, cellW - 0.6, cellH - 0.9, bc, industry, {
+    addComboLogo(slide, companyName, x + 0.3, y + 0.2, cellW - 0.6, cellH - 1.25, bc, industry, {
       fontSize: v.layout === "horizontal" ? 14 : 18,
       color: logoColor,
       layout: v.layout,
       showLine: true,
       aiLogoData: aiLogo,
+      spacing: v.spacing,
     });
 
-    // Label
+    // 浅灰辅助线：图形区 / 间距区 / 文字区
+    const guideY = y + 0.34;
+    slide.addShape("rect", { x: x + 0.3, y: guideY, w: cellW - 0.6, h: 0.008, fill: { color: "C9C9C9" } });
+    const zoneLabels = ["图形区", "间距区", "文字区"];
+    for (let z = 0; z < zoneLabels.length; z++) {
+      slide.addText(zoneLabels[z], {
+        x: x + 0.3 + z * ((cellW - 0.6) / 3), y: guideY - 0.22, w: (cellW - 0.6) / 3, h: 0.2,
+        fontSize: 7, color: "9A9A9A", align: "center",
+      });
+    }
+
+    // 组合规范数值
+    slide.addText(v.caption, {
+      x: x + 0.15, y: y + cellH - 0.85, w: cellW - 0.3, h: 0.35,
+      fontSize: 8, color: v.invert ? "CCCCCC" : "777777", align: "center", lineSpacingMultiple: 1.1,
+    });
+
+    // 组合名称
     slide.addText(v.label, {
-      x, y: y + cellH - 0.45, w: cellW, h: 0.35,
-      fontSize: 12, bold: true,
+      x, y: y + cellH - 0.45, w: cellW, h: 0.32,
+      fontSize: 11, bold: true,
       color: v.invert ? "CCCCCC" : "666666",
       align: "center",
     });
   }
 
   // Bottom note
-  slide.addText("Logo在不同背景和应用场景下应选用合适的组合形式，确保识别性与美观性。", {
-    x: cx, y: 8.2, w: CONTENT_W, h: 0.3,
-    fontSize: 12, color: "888888", align: "center",
+  slide.addText("横式 0.5 单位（2.5mm）间距，最小宽度 30mm；竖式 0.3 单位（1.5mm）间距，最小宽度 20mm。中文名使用标准字距，禁止拉伸字间距。", {
+    x: cx, y: 8.15, w: CONTENT_W, h: 0.6,
+    fontSize: 11, color: "888888", align: "center", lineSpacingMultiple: 1.2,
   });
 }
 
@@ -755,15 +900,18 @@ function renderLogoMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     { title: "禁止描边", desc: "不得给Logo\n添加描边效果", distortion: "outline" },
     { title: "禁止加阴影", desc: "不得添加非规范\n投影效果", distortion: "shadow" },
     { title: "禁止改字体", desc: "不得更改Logo\n中的字体样式", distortion: "font" },
+    { title: "禁止裁切LOGO", desc: "不得裁掉LOGO的边框、圆环、\n文字任何部分，须完整呈现", distortion: "crop" },
+    { title: "禁止局部截取祥云元素", desc: "祥云/辅助纹样是LOGO整体的一部分，\n不得单独抽出使用", distortion: "pattern" },
+    { title: "禁止更改圆环纹样", desc: "不得替换、加粗、旋转或\n重新绘制LOGO圆环/边框纹样", distortion: "ring" },
   ];
 
   for (let i = 0; i < misuses.length; i++) {
     const col = i % 3;
     const row = Math.floor(i / 3);
     const x = cx + col * (CONTENT_W / 3 + 0.1);
-    const y = 1.5 + row * 2.8;
+    const y = 1.4 + row * 2.5;
     const w = CONTENT_W / 3 - 0.15;
-    const h = 2.4;
+    const h = 2.1;
 
     // Red-tinted box
     slide.addShape("rect", {
@@ -774,10 +922,10 @@ function renderLogoMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     });
 
     // Distorted logo example in the box
-    const logoW = w * 0.55;
-    const logoH = w * 0.55;
+    const logoW = w * 0.42;
+    const logoH = Math.min(w * 0.42, h * 0.42);
     const logoX = x + (w - logoW) / 2;
-    const logoY = y + 0.15;
+    const logoY = y + 0.12;
 
     if (aiLogo) {
       const imgOpts: any = {
@@ -843,20 +991,20 @@ function renderLogoMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
 
     // Title
     slide.addText(misuses[i].title, {
-      x, y: y + h - 0.65, w, h: 0.35,
-      fontSize: 14, bold: true, color: bc.pri, align: "center",
+      x, y: y + h - 0.55, w, h: 0.32,
+      fontSize: 13, bold: true, color: bc.pri, align: "center",
     });
 
     // Description
     slide.addText(misuses[i].desc, {
-      x: x + 0.1, y: y + h - 0.5, w: w - 0.2, h: 0.5,
-      fontSize: 12, color: "888888", align: "center", lineSpacingMultiple: 1.2,
+      x: x + 0.1, y: y + h - 0.42, w: w - 0.2, h: 0.45,
+      fontSize: 11, color: "888888", align: "center", lineSpacingMultiple: 1.15,
     });
   }
 
   // Footer warning
   slide.addText("以上误用方式将严重损害品牌形象，所有应用必须严格遵守本规范。", {
-    x: cx, y: 7.0, w: CONTENT_W, h: 0.4,
+    x: cx, y: 8.85, w: CONTENT_W, h: 0.4,
     fontSize: 12, bold: true, color: bc.pri, align: "center",
   });
 // ---- 多底色适配 ----
@@ -1049,12 +1197,17 @@ function renderAuxiliaryGraphics(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
     x: cx, y: 9.611, w: CONTENT_W, h: 0.3,
     fontSize: 14, color: "555555", align: "center",
   });
+  slide.addShape("rect", { x: cx, y: 10.05, w: CONTENT_W, h: 0.85, fill: { color: "F5F5F5" }, rectRadius: 0.06 });
+  slide.addText("最小使用尺寸：印刷 8mm / 数字 32px · 保护留白：四周 ≥ 图形高度 20% · 透明度：仅允许 10%-40% · 缩放：只能等比缩放，禁止裁切局部纹样", {
+    x: cx + 0.15, y: 10.12, w: CONTENT_W - 0.3, h: 0.7,
+    fontSize: 11, color: "444444", align: "center", valign: "middle", lineSpacingMultiple: 1.3, fontFace: "Noto Sans SC",
+  });
 }
 
 // ========== Brand Colors — V108: 图片化规范页 ==========
 async function renderColors(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): Promise<void> {
   try {
-    const imgData = await renderColorSpecPng({ bc, colorMeaning: opts.colorMeaning, companyName: opts.companyName });
+    const imgData = await renderColorSpecPng({ bc, colorMeaning: opts.colorMeaning, companyName: opts.companyName, logoColors: resolveLogoColors(opts) });
     slide.addImage({ data: imgData, x: 0, y: 0, w: SW, h: SH, sizing: { type: "cover", w: SW, h: SH } });
   } catch (err) {
     // 降级：satori渲染失败时回退到文字模式
@@ -1070,6 +1223,11 @@ async function renderColors(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Ren
     slide.addText("强调色", { x: cx + 4.6, y: 1.8, w: 2, h: 0.4, fontSize: 13, bold: true, color: "333333", align: "center" });
     slide.addText("#" + bc.acc, { x: cx + 4.6, y: 2.2, w: 2, h: 0.3, fontSize: 12, color: "555555", align: "center" });
     slide.addShape("ellipse", { x: cx + 4.9, y: 1.2, w: 1.4, h: 1.4, fill: { color: bc.acc } });
+    const logoColors = resolveLogoColors(opts);
+    slide.addText("LOGO 专属色值", { x: cx, y: 4.2, w: CONTENT_W, h: 0.4, fontSize: 15, bold: true, color: bc.pri });
+    slide.addText(logoColors.navy.name + " " + logoColors.navy.hex + "  RGB: " + logoColors.navy.rgb + "  CMYK: " + logoColors.navy.cmyk, { x: cx, y: 4.7, w: CONTENT_W, h: 0.3, fontSize: 12, color: "444444" });
+    slide.addText(logoColors.gold.name + " " + logoColors.gold.hex + "  RGB: " + logoColors.gold.rgb + "  CMYK: " + logoColors.gold.cmyk, { x: cx, y: 5.1, w: CONTENT_W, h: 0.3, fontSize: 12, color: "444444" });
+    slide.addText("LOGO 实体物料以藏青/祥云金为准，品牌画面主色用于辅助氛围，两套色按本页数值使用，不得混用冲突。", { x: cx, y: 5.6, w: CONTENT_W, h: 0.4, fontSize: 12, color: "CC6600" });
   }
 }
 
@@ -1161,6 +1319,52 @@ function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
     // ===== 降级: 无AI图，回退到色块方案 =====
     renderSceneFallback(slide, opts, bc, type, industry, cx);
   }
+
+  // 排版坐标卡：安全区虚线框 + LOGO 占位 + 尺寸标注
+  renderMaterialSpecCards(slide, bc, type, 8.55);
+}
+
+function logoPlacement(pos: string, sx: number, sy: number, sw: number, sh: number): { x: number; y: number } {
+  if (pos.includes("右上")) return { x: sx + sw * 0.66, y: sy + sh * 0.12 };
+  if (pos.includes("顶部居中")) return { x: sx + sw * 0.39, y: sy + sh * 0.12 };
+  if (pos.includes("居中") || pos.includes("中心")) return { x: sx + sw * 0.42, y: sy + sh * 0.38 };
+  if (pos.includes("上方 40%")) return { x: sx + sw * 0.4, y: sy + sh * 0.1 };
+  if (pos.includes("左侧")) return { x: sx + sw * 0.08, y: sy + sh * 0.42 };
+  return { x: sx + sw * 0.1, y: sy + sh * 0.12 };
+}
+
+function renderMaterialSpecCards(slide: PptxGenJS.Slide, bc: BC, pageType: string, yStart: number): void {
+  const specs: MaterialSpec[] = getMaterialSpecs(pageType);
+  if (!specs.length) return;
+  const cx = MARGIN + LEFT_BAR_W;
+  slide.addText("排版坐标卡", { x: cx, y: yStart, w: CONTENT_W, h: 0.35, fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+
+  const count = Math.min(specs.length, 3);
+  const gap = 0.15;
+  const cardW = (CONTENT_W - gap * (count - 1)) / count;
+  const cardH = 1.95;
+  const y = yStart + 0.4;
+
+  specs.slice(0, count).forEach((spec, i) => {
+    const x = cx + i * (cardW + gap);
+    slide.addShape("rect", { x, y, w: cardW, h: cardH, fill: { color: "FFFFFF" }, line: { color: "D8D8D8", width: 0.5 }, rectRadius: 0.08 });
+    slide.addShape("rect", { x, y, w: cardW, h: 0.07, fill: { color: bc.pri }, rectRadius: 0.03 });
+    slide.addText(spec.name, { x: x + 0.12, y: y + 0.12, w: cardW - 0.24, h: 0.28, fontSize: 11, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+    slide.addText(spec.size, { x: x + 0.12, y: y + 0.38, w: cardW - 0.24, h: 0.24, fontSize: 8, color: "666666", fontFace: "Noto Sans SC" });
+
+    const sx = x + 0.12, sy = y + 0.62, sw = cardW - 0.24, sh = 0.72;
+    slide.addShape("rect", { x: sx, y: sy, w: sw, h: sh, fill: { color: "F7F7F7" }, line: { color: bc.pri, width: 0.75, dashType: "dash" }, rectRadius: 0.04 });
+    const pos = logoPlacement(spec.logoPosition, sx, sy, sw, sh);
+    const logoW = Math.min(sw * 0.22, 0.45);
+    const logoH = Math.min(sh * 0.3, 0.3);
+    slide.addShape("rect", { x: pos.x, y: pos.y, w: logoW, h: logoH, fill: { color: bc.pri, transparency: 25 }, rectRadius: 0.02 });
+    slide.addText("LOGO", { x: pos.x, y: pos.y + 0.02, w: logoW, h: 0.16, fontSize: 6, bold: true, color: "FFFFFF", align: "center", fontFace: "Noto Sans SC" });
+
+    slide.addText(`LOGO：${spec.logoPosition}\n${spec.logoSize} · 安全区 ${spec.safeZone}`, {
+      x: x + 0.1, y: y + cardH - 0.52, w: cardW - 0.2, h: 0.44,
+      fontSize: 7, color: "555555", align: "center", lineSpacingMultiple: 1.1, fontFace: "Noto Sans SC",
+    });
+  });
 }
 
 /** V104: 场景页全页布局 — AI实景图占满页面，底部标注"以上为品牌视觉氛围示意"
@@ -1444,6 +1648,11 @@ function getSceneLabels(industry: IndustryType, type: string): string[] {
   return labelMap[industry]?.[type] || ["场景应用", "品牌延展"];
 }
 
+// 004: 统一无 AI 场景图回退卡片的边框、圆角与阴影参数
+const FALLBACK_CARD_RADIUS = 0.08;
+const FALLBACK_CARD_SHADOW = { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.12 };
+const FALLBACK_CARD_LINE = { color: "E0E0E0", width: 0.5 };
+
 /** 降级：无AI图时的色块方案 */
 function renderSceneFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, industry: IndustryType, cx: number): void {
   switch (industry) {
@@ -1466,7 +1675,7 @@ function renderRestaurantFallback(slide: PptxGenJS.Slide, opts: RenderPptxOption
   if (type === "stationery") {
     // 餐巾纸套
     const nw = 4.5, nh = 1.8, nx = (SW - nw) / 2, ny = 2.2;
-    slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.1 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: bc.pri, transparency: 8 }, rectRadius: 0.06 });
     slide.addShape("rect", { x: nx, y: ny, w: 0.12, h: nh, fill: { color: bc.priDark } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (nx + 0.3) + 0.250, y: ny + 0.2, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
@@ -1477,7 +1686,7 @@ function renderRestaurantFallback(slide: PptxGenJS.Slide, opts: RenderPptxOption
   } else if (type === "packaging") {
     // 外卖袋
     const bw = 3.5, bh = 4.2, bx = (SW - bw) / 2, by = 2.2;
-    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     slide.addShape("line", { x: bx + 0.8, y: by - 0.3, w: 0, h: 0.4, line: { color: bc.priDark, width: 2.5 } });
     slide.addShape("line", { x: bx + bw - 0.8, y: by - 0.3, w: 0, h: 0.4, line: { color: bc.priDark, width: 2.5 } });
     slide.addShape("rect", { x: bx, y: by, w: bw, h: 0.25, fill: { color: bc.priDark }, rectRadius: 0.05 });
@@ -1488,7 +1697,7 @@ function renderRestaurantFallback(slide: PptxGenJS.Slide, opts: RenderPptxOption
   } else {
     // 促销海报
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.2;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph * 0.45, fill: { color: bc.pri }, rectRadius: 0.05 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.2) + 0.250, y: py + 0.5, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
     slide.addText("限时特惠", { x: px + 0.5, y: py + ph * 0.45 + 0.3, w: pw - 1.0, h: 0.6, fontSize: 22, bold: true, color: "333333" });
@@ -1502,7 +1711,7 @@ function renderRestaurantFallback(slide: PptxGenJS.Slide, opts: RenderPptxOption
 function renderBeverageFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, cx: number): void {
   if (type === "stationery") {
     const cw = 3.0, ch = 4.5, cX = (SW - cw) / 2, cy = 2.0;
-    slide.addShape("rect", { x: cX, y: cy, w: cw, h: ch, fill: { color: bc.priLight }, rectRadius: 0.1, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.12 } });
+    slide.addShape("rect", { x: cX, y: cy, w: cw, h: ch, fill: { color: bc.priLight }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     slide.addShape("rect", { x: cX, y: cy, w: cw, h: ch * 0.4, fill: { color: bc.pri }, rectRadius: 0.06 });
     slide.addShape("ellipse", { x: cX + cw / 2 - 0.7, y: cy + 0.3, w: 1.4, h: 1.4, fill: { color: "FFFFFF" }, line: { color: "E0E0E0", width: 0.5 } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: cX + cw / 2 - 0.5, y: cy + 0.5, w: 1.0, h: 1.0, sizing: { type: "contain", w: 1.0, h: 1.0 } });
@@ -1511,7 +1720,7 @@ function renderBeverageFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
     slide.addText("外带杯 / 杯套", { x: cX, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.0, bx = (SW - bw) / 2, by = 2.2;
-    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     slide.addShape("rect", { x: bx, y: by, w: bw, h: 0.25, fill: { color: bc.priDark }, rectRadius: 0.05 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.250, y: by + 0.6, w: 2.00, h: 2.00, sizing: { type: "contain", w: 2.00, h: 2.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.8, w: bw, h: 0.5, fontSize: 17, bold: true, color: "FFFFFF", align: "center" });
@@ -1519,7 +1728,7 @@ function renderBeverageFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
     slide.addText("手提袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.0, ph = 5.5, px = (SW - pw) / 2, py = 2.2;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: bc.pri }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     slide.addText("限时优惠", { x: px + 0.5, y: py + 0.5, w: pw - 1.0, h: 0.6, fontSize: 22, bold: true, color: "FFFFFF", align: "center" });
     slide.addShape("rect", { x: px + 0.5, y: py + 1.3, w: pw - 1.0, h: 0.04, fill: { color: bc.acc } });
     slide.addText("第二杯半价", { x: px, y: py + 1.6, w: pw, h: 0.4, fontSize: 17, color: "FFFFFF", align: "center" });
@@ -1532,7 +1741,7 @@ function renderBeverageFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
 function renderBeautyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, cx: number): void {
   if (type === "stationery") {
     const aw = 3.8, ah = 2.4, ax = (SW - aw) / 2, ay = 2.0;
-    slide.addShape("rect", { x: ax, y: ay, w: aw, h: ah, fill: { color: "FFFFFF" }, rectRadius: 0.1, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.1 }, line: { color: bc.pri, width: 1 } });
+    slide.addShape("rect", { x: ax, y: ay, w: aw, h: ah, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: ax, y: ay, w: aw, h: 0.08, fill: { color: bc.pri } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (ax + 0.3) + 0.200, y: ay + 0.2, w: 0.60, h: 0.60, sizing: { type: "contain", w: 0.60, h: 0.60 } });
     slide.addText("预约卡", { x: ax + 1.5, y: ay + 0.2, w: 2.0, h: 0.4, fontSize: 17, bold: true, color: bc.pri });
@@ -1540,13 +1749,13 @@ function renderBeautyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, b
     slide.addText("预约卡", { x: ax, y: ay + ah + 0.1, w: aw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const gw = 3.2, gh = 4.0, gx = (SW - gw) / 2, gy = 2.0;
-    slide.addShape("rect", { x: gx, y: gy, w: gw, h: gh, fill: { color: bc.priLight }, rectRadius: 0.08, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: bc.pri, width: 1 } });
+    slide.addShape("rect", { x: gx, y: gy, w: gw, h: gh, fill: { color: bc.priLight }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: gx, y: gy, w: gw, h: 0.2, fill: { color: bc.pri } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (gx + 0.5) + 0.350, y: gy + 0.6, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 }, transparency: 5 });
     slide.addText("礼品袋", { x: gx, y: gy + gh + 0.1, w: gw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 3.5, ph = 5.5, px = 0.8, py = 2.0;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.12 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: px, y: py, w: pw, h: 1.0, fill: { color: bc.pri }, rectRadius: 0.06 });
     slide.addText("服务价目表", { x: px, y: py + 0.2, w: pw, h: 0.5, fontSize: 20, bold: true, color: "FFFFFF", align: "center" });
     slide.addText("促销海报", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
@@ -1557,13 +1766,13 @@ function renderBeautyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, b
 function renderRetailFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, cx: number): void {
   if (type === "stationery") {
     const nw = 3.8, nh = 2.4, nx = (SW - nw) / 2, ny = 2.0;
-    slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.1 }, line: { color: "E8E8E8", width: 0.3 } });
+    slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: nx, y: ny, w: 0.12, h: nh, fill: { color: bc.pri } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (nx + 0.3) + 0.250, y: ny + 0.2, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
     slide.addText("名片", { x: nx, y: ny + nh + 0.1, w: nw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.0, bx = (SW - bw) / 2, by = 2.2;
-    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     slide.addShape("rect", { x: bx, y: by, w: bw, h: 0.25, fill: { color: bc.priDark }, rectRadius: 0.05 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.350, y: by + 0.6, w: 1.80, h: 1.80, sizing: { type: "contain", w: 1.80, h: 1.80 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.6, w: bw, h: 0.5, fontSize: 17, bold: true, color: "FFFFFF", align: "center" });
@@ -1571,7 +1780,7 @@ function renderRetailFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, b
     slide.addText("购物袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.0;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph * 0.45, fill: { color: bc.pri }, rectRadius: 0.05 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.2) + 0.250, y: py + 0.5, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
     slide.addText("限时特惠", { x: px + 0.5, y: py + ph * 0.45 + 0.3, w: pw - 1.0, h: 0.6, fontSize: 22, bold: true, color: "333333" });
@@ -1584,7 +1793,7 @@ function renderRetailFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, b
 function renderFashionFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, cx: number): void {
   if (type === "stationery") {
     const tw = 2.5, th = 4.0, tx = (SW - tw) / 2, ty = 2.2;
-    slide.addShape("rect", { x: tx, y: ty, w: tw, h: th, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.1 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: tx, y: ty, w: tw, h: th, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("ellipse", { x: tx + tw / 2 - 0.12, y: ty + 0.2, w: 0.24, h: 0.24, fill: { color: "FFFFFF" }, line: { color: bc.pri, width: 1 } });
     slide.addShape("rect", { x: tx, y: ty, w: tw, h: 0.08, fill: { color: bc.pri } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (tx + 0.4) + 0.250, y: ty + 0.6, w: 1.20, h: 1.20, sizing: { type: "contain", w: 1.20, h: 1.20 } });
@@ -1593,7 +1802,7 @@ function renderFashionFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     slide.addText("服装吊牌", { x: tx, y: ty + th + 0.1, w: tw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.2, bx = (SW - bw) / 2, by = 2.0;
-    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     slide.addShape("rect", { x: bx, y: by, w: bw, h: 0.2, fill: { color: bc.priDark }, rectRadius: 0.05 });
     slide.addShape("line", { x: bx + 0.8, y: by - 0.3, w: 0, h: 0.4, line: { color: bc.sec, width: 2 } });
     slide.addShape("line", { x: bx + bw - 0.8, y: by - 0.3, w: 0, h: 0.4, line: { color: bc.sec, width: 2 } });
@@ -1603,7 +1812,7 @@ function renderFashionFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     slide.addText("购物袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.2;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph * 0.5, fill: { color: bc.pri }, rectRadius: 0.05 });
     slide.addText("NEW ARRIVAL", { x: px + 0.5, y: py + 0.5, w: 3.0, h: 0.6, fontSize: 22, bold: true, color: bc.sec });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.5) + 0.350, y: py + 1.5, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 }, transparency: 10 });
@@ -1616,7 +1825,7 @@ function renderFashionFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
 function renderMotherBabyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, cx: number): void {
   if (type === "stationery") {
     const sw = 3.8, sh = 2.2, sx = (SW - sw) / 2, sy = 2.2;
-    slide.addShape("rect", { x: sx, y: sy, w: sw, h: sh, fill: { color: bc.priLight }, rectRadius: 0.12, shadow: { type: "outer", blur: 4, offset: 2, color: "000000", opacity: 0.08 } });
+    slide.addShape("rect", { x: sx, y: sy, w: sw, h: sh, fill: { color: bc.priLight }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     slide.addShape("rect", { x: sx, y: sy, w: sw, h: 0.08, fill: { color: bc.pri }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (sx + 0.3) + 0.200, y: sy + 0.3, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
     slide.addText(opts.companyName || "品牌", { x: sx + 1.6, y: sy + 0.3, w: 2.0, h: 0.4, fontSize: 15, bold: true, color: bc.pri });
@@ -1624,14 +1833,14 @@ function renderMotherBabyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOption
     slide.addText("安全认证贴", { x: sx, y: sy + sh + 0.1, w: sw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.0, bx = (SW - bw) / 2, by = 2.0;
-    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.1, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.12 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     slide.addShape("rect", { x: bx + 0.2, y: by + 0.2, w: bw - 0.4, h: 0.3, fill: { color: bc.acc }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.250, y: by + 0.8, w: 2.00, h: 2.00, sizing: { type: "contain", w: 2.00, h: 2.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 3.0, w: bw, h: 0.4, fontSize: 15, bold: true, color: "FFFFFF", align: "center" });
     slide.addText("母婴礼盒", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 3.5, ph = 5.0, px = (SW - pw) / 2, py = 2.0;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.1, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: bc.pri, width: 1 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: px, y: py, w: pw, h: 1.2, fill: { color: bc.pri }, rectRadius: 0.06 });
     slide.addText("妈妈推荐", { x: px, y: py + 0.3, w: pw, h: 0.5, fontSize: 20, bold: true, color: "FFFFFF", align: "center" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 0.6) + 0.400, y: py + 1.6, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
@@ -1643,7 +1852,7 @@ function renderMotherBabyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOption
 function renderWeddingFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, cx: number): void {
   if (type === "stationery") {
     const cw = 4.5, ch = 3.0, cx2 = (SW - cw) / 2, cy = 2.0;
-    slide.addShape("rect", { x: cx2, y: cy, w: cw, h: ch, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 }, line: { color: bc.sec, width: 1 } });
+    slide.addShape("rect", { x: cx2, y: cy, w: cw, h: ch, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: cx2 + 0.2, y: cy + 0.2, w: cw - 0.4, h: ch - 0.4, fill: { color: "FFFFFF" }, rectRadius: 0.04, line: { color: bc.pri, width: 0.5, dashType: "dash" } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (cx2 + 1.5) + 0.350, y: cy + 0.4, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
     slide.addText("婚礼邀请", { x: cx2, y: cy + 1.4, w: cw, h: 0.5, fontSize: 22, bold: true, color: bc.pri, align: "center" });
@@ -1651,14 +1860,14 @@ function renderWeddingFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     slide.addText("请柬", { x: cx2, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.0, bh = 3.5, bx = (SW - bw) / 2, by = 2.0;
-    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.priLight }, rectRadius: 0.1, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: bc.sec, width: 1 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.priLight }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: bx + 0.15, y: by + 0.15, w: bw - 0.3, h: 0.6, fill: { color: bc.pri }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.400, y: by + 1.0, w: 1.20, h: 1.20, sizing: { type: "contain", w: 1.20, h: 1.20 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.4, w: bw, h: 0.4, fontSize: 14, bold: true, color: bc.pri, align: "center" });
     slide.addText("喜糖盒", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 3.5, ph = 5.5, px = (SW - pw) / 2, py = 2.0;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 }, line: { color: bc.pri, width: 0.5 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph * 0.4, fill: { color: bc.priLight }, rectRadius: 0.05 });
     slide.addText("婚礼策划", { x: px + 0.3, y: py + 0.5, w: pw - 0.6, h: 0.5, fontSize: 20, bold: true, color: bc.pri, align: "center" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 0.5) + 0.500, y: py + 2.6, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
@@ -1670,7 +1879,7 @@ function renderWeddingFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
 function renderFitnessFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, cx: number): void {
   if (type === "stationery") {
     const cw = 4.5, ch = 2.6, cx2 = (SW - cw) / 2, cy = 2.2;
-    slide.addShape("rect", { x: cx2, y: cy, w: cw, h: ch, fill: { color: bc.pri }, rectRadius: 0.1, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.15 } });
+    slide.addShape("rect", { x: cx2, y: cy, w: cw, h: ch, fill: { color: bc.pri }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (cx2 + 0.3) + 0.200, y: cy + 0.2, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
     slide.addText("MEMBERSHIP", { x: cx2 + 1.6, y: cy + 0.2, w: 2.5, h: 0.4, fontSize: 13, bold: true, color: bc.acc });
     slide.addText(opts.companyName || "品牌", { x: cx2 + 1.6, y: cy + 0.6, w: 2.5, h: 0.3, fontSize: 12, color: "FFFFFF" });
@@ -1678,14 +1887,14 @@ function renderFitnessFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
     slide.addText("会员卡", { x: cx2, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.0, bh = 4.5, bx = (SW - bw) / 2, by = 2.0;
-    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: "FFFFFF" }, rectRadius: 0.15, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: bx, y: by, w: bw, h: 1.5, fill: { color: bc.pri }, rectRadius: 0.08 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.500, y: by + 0.2, w: 1.00, h: 1.00, sizing: { type: "contain", w: 1.00, h: 1.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 1.8, w: bw, h: 0.4, fontSize: 15, bold: true, color: "333333", align: "center" });
     slide.addText("运动水杯", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.0;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: bc.pri }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     slide.addText("FITNESS", { x: px + 0.5, y: py + 0.5, w: pw - 1.0, h: 0.8, fontSize: 32, bold: true, color: "FFFFFF" });
     slide.addShape("rect", { x: px + 0.5, y: py + 1.5, w: pw - 1.0, h: 0.04, fill: { color: bc.acc } });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.0) + 0.500, y: py + 2.0, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 }, transparency: 10 });
@@ -1698,7 +1907,7 @@ function renderFitnessFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
 function renderPharmacyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, cx: number): void {
   if (type === "stationery") {
     const pw = 4.5, ph = 3.0, px = (SW - pw) / 2, py = 2.0;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 4, offset: 2, color: "000000", opacity: 0.08 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: px, y: py, w: pw, h: 0.5, fill: { color: bc.pri }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: px + 0.2, y: py + 0.08, w: 0.35, h: 0.35, sizing: { type: "contain", w: 0.35, h: 0.35 } });
     slide.addText("处方笺", { x: px + 0.6, y: py + 0.08, w: 2.0, h: 0.35, fontSize: 16, bold: true, color: "FFFFFF" });
@@ -1706,7 +1915,7 @@ function renderPharmacyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
     slide.addText("处方笺", { x: px, y: py + ph + 0.1, w: pw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.0, bh = 4.0, bx = (SW - bw) / 2, by = 2.0;
-    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: "FFFFFF" }, rectRadius: 0.06, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.1 }, line: { color: bc.pri, width: 1 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: bx, y: by, w: bw, h: 0.8, fill: { color: bc.priLight }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: bx + 0.3, y: by + 0.1, w: 0.6, h: 0.6, sizing: { type: "contain", w: 0.6, h: 0.6 } });
     slide.addText(opts.companyName || "品牌", { x: bx + 1.0, y: by + 0.15, w: 1.8, h: 0.3, fontSize: 13, bold: true, color: bc.pri });
@@ -1714,7 +1923,7 @@ function renderPharmacyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
     slide.addText("药袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.0;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: px, y: py, w: pw, h: 1.5, fill: { color: bc.pri }, rectRadius: 0.05 });
     slide.addText("健康资讯", { x: px + 0.5, y: py + 0.3, w: pw - 1.0, h: 0.6, fontSize: 22, bold: true, color: "FFFFFF", align: "center" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.2) + 0.250, y: py + 1.8, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
@@ -1727,7 +1936,7 @@ function renderPharmacyFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions,
 function renderPetFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, cx: number): void {
   if (type === "stationery") {
     const cw = 4.0, ch = 2.6, cx2 = (SW - cw) / 2, cy = 2.2;
-    slide.addShape("rect", { x: cx2, y: cy, w: cw, h: ch, fill: { color: "FFFFFF" }, rectRadius: 0.1, shadow: { type: "outer", blur: 5, offset: 2, color: "000000", opacity: 0.1 }, line: { color: bc.pri, width: 1 } });
+    slide.addShape("rect", { x: cx2, y: cy, w: cw, h: ch, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: cx2, y: cy, w: cw, h: 0.6, fill: { color: bc.pri }, rectRadius: 0.06 });
     slide.addText("疫苗记录卡", { x: cx2 + 0.3, y: cy + 0.1, w: 3.0, h: 0.4, fontSize: 15, bold: true, color: "FFFFFF" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: cx2 + cw - 1.0, y: cy + 0.1, w: 0.4, h: 0.4, sizing: { type: "contain", w: 0.4, h: 0.4 } });
@@ -1735,7 +1944,7 @@ function renderPetFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: 
     slide.addText("疫苗卡", { x: cx2, y: cy + ch + 0.1, w: cw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.5, bx = (SW - bw) / 2, by = 2.0;
-    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.12 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     slide.addShape("rect", { x: bx, y: by, w: bw, h: 0.25, fill: { color: bc.priDark }, rectRadius: 0.05 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.250, y: by + 0.6, w: 2.00, h: 2.00, sizing: { type: "contain", w: 2.00, h: 2.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.8, w: bw, h: 0.5, fontSize: 17, bold: true, color: "FFFFFF", align: "center" });
@@ -1743,7 +1952,7 @@ function renderPetFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: 
     slide.addText("宠物食品袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.0, ph = 5.5, px = (SW - pw) / 2, py = 2.0;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: bc.priLight }, rectRadius: 0.1, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.1 }, line: { color: bc.pri, width: 0.5 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: bc.priLight }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: px, y: py, w: pw, h: 0.8, fill: { color: bc.pri }, rectRadius: 0.06 });
     slide.addText("服务价目", { x: px, y: py + 0.15, w: pw, h: 0.5, fontSize: 20, bold: true, color: "FFFFFF", align: "center" });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.0) + 0.250, y: py + 1.2, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
@@ -1756,20 +1965,20 @@ function renderPetFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: 
 function renderGeneralFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, bc: BC, type: string, cx: number): void {
   if (type === "stationery") {
     const nw = 3.8, nh = 2.4, nx = (SW - nw) / 2, ny = 2.2;
-    slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 6, offset: 3, color: "000000", opacity: 0.12 }, line: { color: "E8E8E8", width: 0.3 } });
+    slide.addShape("rect", { x: nx, y: ny, w: nw, h: nh, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: nx, y: ny, w: 0.12, h: nh, fill: { color: bc.pri }, rectRadius: 0.04 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (nx + 0.3) + 0.350, y: ny + 0.25, w: 0.80, h: 0.80, sizing: { type: "contain", w: 0.80, h: 0.80 } });
     slide.addText("名片", { x: nx, y: ny + nh + 0.1, w: nw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else if (type === "packaging") {
     const bw = 3.5, bh = 4.0, bx = (SW - bw) / 2, by = 2.2;
-    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 } });
+    slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: bc.pri }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (bx + 0.5) + 0.250, y: by + 0.6, w: 2.00, h: 2.00, sizing: { type: "contain", w: 2.00, h: 2.00 } });
     slide.addText(opts.companyName || "品牌", { x: bx, y: by + 2.8, w: bw, h: 0.5, fontSize: 17, bold: true, color: "FFFFFF", align: "center" });
     slide.addShape("rect", { x: bx + 0.5, y: by + 3.5, w: bw - 1.0, h: 0.04, fill: { color: bc.acc } });
     slide.addText("手提袋", { x: bx, y: by + bh + 0.1, w: bw, h: 0.3, fontSize: 12, color: "999999", align: "center" });
   } else {
     const pw = 4.5, ph = 6.0, px = (SW - pw) / 2, py = 2.2;
-    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: 0.08, shadow: { type: "outer", blur: 8, offset: 3, color: "000000", opacity: 0.15 }, line: { color: "E0E0E0", width: 0.3 } });
+    slide.addShape("rect", { x: px, y: py, w: pw, h: ph, fill: { color: "FFFFFF" }, rectRadius: FALLBACK_CARD_RADIUS, shadow: FALLBACK_CARD_SHADOW, line: FALLBACK_CARD_LINE });
     slide.addShape("rect", { x: px, y: py, w: pw, h: ph * 0.45, fill: { color: bc.pri }, rectRadius: 0.05 });
     if (opts.logoData) slide.addImage({ data: normImg(opts.logoData), x: (px + 1.2) + 0.250, y: py + 0.5, w: 1.50, h: 1.50, sizing: { type: "contain", w: 1.50, h: 1.50 } });
     slide.addText("品牌宣传", { x: px + 0.5, y: py + ph * 0.45 + 0.3, w: pw - 1.0, h: 0.6, fontSize: 22, bold: true, color: "333333" });
@@ -1777,7 +1986,35 @@ function renderGeneralFallback(slide: PptxGenJS.Slide, opts: RenderPptxOptions, 
   }
 }
 
-// ========== Table of Contents — V7新增 ==========
+// ========== Table of Contents — V7新增 / 004分区 ==========
+
+export interface TocItem {
+  section: "基础规范" | "应用系统" | "IP公仔" | "收尾";
+  title: string;
+  pageId: string;
+}
+
+const TOC_SECTION_ORDER: TocItem["section"][] = ["基础规范", "应用系统", "IP公仔", "收尾"];
+
+function renderTocGroup(
+  slide: PptxGenJS.Slide, section: TocItem["section"], items: TocItem[],
+  x: number, yStart: number, colWidth: number, bc: BC, pageNumberMap: Record<string, number>
+): number {
+  const headerH = 0.5;
+  const itemH = 0.42;
+  slide.addText(section, { x, y: yStart, w: colWidth, h: headerH, fontSize: 14, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+  slide.addShape("rect", { x, y: yStart + headerH - 0.14, w: 0.65, h: 0.035, fill: { color: bc.acc } });
+  let y = yStart + headerH;
+  for (const item of items) {
+    slide.addText(item.title, { x, y, w: colWidth - 0.7, h: itemH, fontSize: 12, color: "333333", fontFace: "Noto Sans SC", valign: "middle" });
+    slide.addText("...........................................", { x, y, w: colWidth - 0.7, h: itemH, fontSize: 8, color: "CCCCCC", align: "right", valign: "middle" });
+    const realPageNum = pageNumberMap[item.pageId] || 0;
+    slide.addText(realPageNum > 0 ? String(realPageNum) : "", { x: x + colWidth - 0.5, y, w: 0.5, h: itemH, fontSize: 12, color: "999999", align: "right", valign: "middle" });
+    y += itemH;
+  }
+  return y;
+}
+
 function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, pageNumberMap: Record<string, number>): void {
   addContentFrame(slide, "目录", bc);
   const cn = opts.companyName || "品牌";
@@ -1787,75 +2024,96 @@ function renderTableOfContents(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: 
   slide.addText(cn, { x: cx, y: 1.6, w: CONTENT_W, h: 0.5, fontSize: 17, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
   slide.addShape("rect", { x: cx, y: 2.15, w: 1.5, h: 0.04, fill: { color: bc.acc } });
 
-  // 目录项
-  // 动态过滤：只显示实际存在于手册中的页面（pageNumberMap 中有映射的），
-  // 含公仔时公仔章节出现，不含时自动消失
+  // 动态过滤：只显示实际存在于手册中的页面；无 IP 时整区消失
   const tocItems = getTocItems(industry, opts.sceneSectionTitles)
     .filter((item) => pageNumberMap[item.pageId] !== undefined);
-  tocItems.sort((a, b) => PAGE_ORDER.indexOf(a.pageId) - PAGE_ORDER.indexOf(b.pageId));
-  const total = tocItems.length;
-  // 超过 15 条自动分两栏
-  const colCount = total > 15 ? 2 : 1;
-  const itemsPerCol = Math.ceil(total / colCount);
+  const groups = TOC_SECTION_ORDER
+    .map((section) => ({ section, items: tocItems.filter((item) => item.section === section) }))
+    .filter((group) => group.items.length > 0);
+  const totalRows = groups.reduce((sum, group) => sum + 1 + group.items.length, 0);
+  const colCount = totalRows > 15 && groups.length > 1 ? 2 : 1;
   const colWidth = colCount === 2 ? (CONTENT_W - 0.5) / 2 : CONTENT_W;
-  let yPos = 2.6;
-  for (let col = 0; col < colCount; col++) {
-    yPos = 2.6;
-    const xOffset = cx + col * (colWidth + 0.5);
-    const startIdx = col * itemsPerCol;
-    const endIdx = Math.min(startIdx + itemsPerCol, total);
-    for (let i = startIdx; i < endIdx; i++) {
-      const item = tocItems[i];
-      // 标题（左对齐）
-      slide.addText(item.title, { x: xOffset, y: yPos, w: colWidth - 0.9, h: 0.5, fontSize: 13, color: "333333", fontFace: "Noto Sans SC" });
-      // 点线填充
-      slide.addText("...........................................", { x: xOffset, y: yPos, w: colWidth - 0.9, h: 0.5, fontSize: 8, color: "CCCCCC", align: "right" });
-      // 页码
-      const realPageNum = pageNumberMap[item.pageId] || 0;
-      slide.addText(realPageNum > 0 ? String(realPageNum) : "", { x: xOffset + colWidth - 0.5, y: yPos, w: 0.5, h: 0.5, fontSize: 12, color: "999999", align: "right" });
-      yPos += 0.55;
+  const colGap = 0.5;
+  const sectionGap = 0.2;
+  const startY = 2.45;
+
+  if (colCount === 1) {
+    let y = startY;
+    for (const group of groups) {
+      y = renderTocGroup(slide, group.section, group.items, cx, y, colWidth, bc, pageNumberMap);
+      y += sectionGap;
     }
+    slide.addShape("rect", { x: cx, y, w: 3.0, h: 0.08, fill: { color: bc.pri, transparency: 40 } });
+    return;
   }
 
-  // 底部品牌色装饰
-  slide.addShape("rect", { x: cx, y: yPos + 0.5, w: 3.0, h: 0.08, fill: { color: bc.pri, transparency: 40 } });
+  // 两栏：按顺序连续切分，整组分栏且不拆散同一分区；取高度差最小的切分点
+  const groupHeight = (g: { section: TocItem["section"]; items: TocItem[] }) => 0.5 + g.items.length * 0.42 + sectionGap;
+  const prefix: number[] = [];
+  let totalH = 0;
+  for (const group of groups) {
+    totalH += groupHeight(group);
+    prefix.push(totalH);
+  }
+  let splitK = Math.floor(groups.length / 2);
+  for (let k = 1; k < groups.length; k++) {
+    const left = prefix[k - 1];
+    const right = totalH - left;
+    const cur = Math.max(left, right);
+    const best = Math.max(prefix[splitK - 1], totalH - prefix[splitK - 1]);
+    if (cur < best) splitK = k;
+  }
+  const colGroups: { section: TocItem["section"]; items: TocItem[] }[][] = [
+    groups.slice(0, splitK),
+    groups.slice(splitK),
+  ];
+  let bottomY = startY;
+  for (let col = 0; col < 2; col++) {
+    const xOffset = cx + col * (colWidth + colGap);
+    let y = startY;
+    for (const group of colGroups[col]) {
+      y = renderTocGroup(slide, group.section, group.items, xOffset, y, colWidth, bc, pageNumberMap);
+      y += sectionGap;
+    }
+    if (y > bottomY) bottomY = y;
+  }
+  slide.addShape("rect", { x: cx, y: bottomY, w: 3.0, h: 0.08, fill: { color: bc.pri, transparency: 40 } });
 }
 
-function getTocItems(industry: IndustryType, aiTitles?: Record<string, string> | null): { title: string; pageId: string }[] {
+export function getTocItems(industry: IndustryType, aiTitles?: Record<string, string> | null): TocItem[] {
   const configs = getSceneConfigs(industry, aiTitles);
-  const items: { title: string; pageId: string }[] = [
-    { title: "品牌核心理念", pageId: "brand-philosophy" },
-    { title: "标识诠释", pageId: "logo-interpretation" },
-    { title: "Logo组合规范", pageId: "logo-variations" },
-    { title: "LOGO网格制图规范", pageId: "logo-grid" },
-    { title: "辅助图形", pageId: "auxiliary-graphics" },
-    { title: "辅助图形禁用规范", pageId: "aux-graphics-misuse" },
-    { title: "标准色彩规范", pageId: "brand-colors" },
-    { title: "色彩使用规范", pageId: "color-taboos" },
-    { title: "字体系统", pageId: "typography" },
-    { title: "字体版权说明", pageId: "font-copyright" },
-    { title: "基础规范", pageId: "basic-spec" },
-    { title: "Logo误用规范", pageId: "logo-misuse" },
-    { title: configs.stationery.title, pageId: "stationery" },
-    { title: configs.packaging.title, pageId: "packaging" },
-    { title: configs.marketing.title, pageId: "marketing" },
-    { title: "线上数字应用", pageId: "digital-media" },
-    { title: "导视系统", pageId: "wayfinding" },
-    { title: "总结", pageId: "summary" },
-    { title: "VI物料落地清单", pageId: "material-priority" },
-    { title: "文件输出规范", pageId: "file-output" },
-    { title: "LOGO文件输出规范", pageId: "logo-output" },
-    { title: "VI修改权限说明", pageId: "modification-authority" },
-    { title: "IP角色定位", pageId: "mascot-positioning" },
-    { title: "IP三视图", pageId: "mascot-threeview" },
-    { title: "IP表情库", pageId: "mascot-emotions" },
-    { title: "IP场景应用", pageId: "mascot-scenes" },
-    { title: "IP使用规范", pageId: "mascot-usage" },
-    { title: "IP公仔禁用规范", pageId: "mascot-misuse" },
-    { title: "IP公仔衍生品使用规范", pageId: "mascot-merchandise" },
-    { title: "IP公仔使用合规说明", pageId: "mascot-compliance" },
+  return [
+    { section: "基础规范", title: "品牌核心理念", pageId: "brand-philosophy" },
+    { section: "基础规范", title: "标识诠释", pageId: "logo-interpretation" },
+    { section: "基础规范", title: "Logo组合规范", pageId: "logo-variations" },
+    { section: "基础规范", title: "LOGO网格制图规范", pageId: "logo-grid" },
+    { section: "基础规范", title: "辅助图形", pageId: "auxiliary-graphics" },
+    { section: "基础规范", title: "辅助图形禁用规范", pageId: "aux-graphics-misuse" },
+    { section: "基础规范", title: "标准色彩规范", pageId: "brand-colors" },
+    { section: "基础规范", title: "色彩使用规范", pageId: "color-taboos" },
+    { section: "基础规范", title: "字体系统", pageId: "typography" },
+    { section: "基础规范", title: "字体版权说明", pageId: "font-copyright" },
+    { section: "基础规范", title: "基础规范", pageId: "basic-spec" },
+    { section: "基础规范", title: "Logo误用规范", pageId: "logo-misuse" },
+    { section: "应用系统", title: configs.stationery.title, pageId: "stationery" },
+    { section: "应用系统", title: configs.packaging.title, pageId: "packaging" },
+    { section: "应用系统", title: configs.marketing.title, pageId: "marketing" },
+    { section: "应用系统", title: "线上数字应用", pageId: "digital-media" },
+    { section: "应用系统", title: "导视系统", pageId: "wayfinding" },
+    { section: "IP公仔", title: "IP角色定位", pageId: "mascot-positioning" },
+    { section: "IP公仔", title: "IP三视图", pageId: "mascot-threeview" },
+    { section: "IP公仔", title: "IP表情库", pageId: "mascot-emotions" },
+    { section: "IP公仔", title: "IP场景应用", pageId: "mascot-scenes" },
+    { section: "IP公仔", title: "IP使用规范", pageId: "mascot-usage" },
+    { section: "IP公仔", title: "IP公仔禁用规范", pageId: "mascot-misuse" },
+    { section: "IP公仔", title: "IP公仔衍生品使用规范", pageId: "mascot-merchandise" },
+    { section: "IP公仔", title: "IP公仔使用合规说明", pageId: "mascot-compliance" },
+    { section: "收尾", title: "总结", pageId: "summary" },
+    { section: "收尾", title: "VI物料落地清单", pageId: "material-priority" },
+    { section: "收尾", title: "文件输出规范", pageId: "file-output" },
+    { section: "收尾", title: "LOGO文件输出规范", pageId: "logo-output" },
+    { section: "收尾", title: "VI修改权限说明", pageId: "modification-authority" },
   ];
-  return items;
 }
 
 // ========== Summary ==========
@@ -1974,26 +2232,49 @@ async function renderMascotGallery(slide: PptxGenJS.Slide, bp: PageBlueprint, op
 }
 
 // ========== IP 五章页渲染（整改：消费 mascot* 字段，确保各页都有图）==========
-// 文字块沿用 renderGeneric 的排版，图片放在下半区，避免与正文重叠。
+// 文字块以「标题 + 正文」双列卡片排版，图片放在下半区，避免与正文重叠。
+function renderMascotTextPairs(slide: PptxGenJS.Slide, bp: PageBlueprint, bc: BC, startY: number): number {
+  const textEls = bp.elements.filter((el) => el.type === "text" && el.content && !el.id.endsWith("-title"));
+  const pairs: { title: string; body: string }[] = [];
+  for (let i = 0; i + 1 < textEls.length; i += 2) {
+    pairs.push({ title: textEls[i].content || "", body: textEls[i + 1].content || "" });
+  }
+  if (textEls.length % 2 === 1 && textEls.length > 0) {
+    pairs.push({ title: textEls[textEls.length - 1].content || "", body: "" });
+  }
+  if (pairs.length === 0) return startY;
+
+  const gap = 0.15;
+  const cardH = 1.05;
+  const cardW = (CONTENT_W - gap) / 2;
+  const rows = Math.ceil(pairs.length / 2);
+
+  pairs.forEach((p, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = MARGIN + LEFT_BAR_W + col * (cardW + gap);
+    const y = startY + row * (cardH + 0.12);
+    slide.addShape("rect", { x, y, w: cardW, h: cardH, fill: { color: "FAFAFA" }, line: { color: "E8E8E8", width: 0.3 }, rectRadius: 0.06 });
+    slide.addShape("rect", { x, y, w: 0.06, h: cardH, fill: { color: bc.pri }, rectRadius: 0.03 });
+    slide.addText(p.title, { x: x + 0.16, y: y + 0.08, w: cardW - 0.3, h: 0.3, fontSize: 10.5, bold: true, color: bc.pri, fontFace: "Noto Sans SC", valign: "top" });
+    slide.addText(p.body, { x: x + 0.16, y: y + 0.42, w: cardW - 0.3, h: cardH - 0.5, fontSize: 9, color: "555555", valign: "top", lineSpacingMultiple: 1.15, fontFace: "Noto Sans SC" });
+  });
+
+  return startY + rows * (cardH + 0.12) - 0.12;
+}
+
 function renderMascotChapterPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, bp.label || bp.pageId, bc);
 
-  // 文字块（标题/分隔线/正文）
-  let yPos = 1.8;
-  for (const el of bp.elements) {
-    if (el.type === "text" && el.content) {
-      const fs = el.fontSize ? Math.max(11, Math.round(el.fontSize * 0.7)) : 13;
-      slide.addText(el.content, { x: MARGIN + LEFT_BAR_W, y: yPos, w: CONTENT_W, h: 0.5, fontSize: fs, bold: (el.fontWeight || 400) >= 600, color: "333333" });
-      yPos += 0.6;
-    }
-  }
-
-  // 下半区按页面类型渲染对应公仔图
-  const startY = 4.6;
+  // 双列文字卡片，图片从文字结束位置开始
+  const textEnd = renderMascotTextPairs(slide, bp, bc, 1.55);
+  const startY = Math.min(Math.max(textEnd + 0.15, 3.2), 7.6);
   if (bp.pageId === "mascot-threeview") {
     if (opts.mascotThreeViewData) {
-      const vw = 6.2, vh = 2.7;
+      const vw = 6.2, vh = SH - startY - 0.5;
       slide.addImage({ data: normImg(opts.mascotThreeViewData), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
+    } else if (opts.mascotSplitViews && opts.mascotSplitViews.length > 0) {
+      renderMascotSplitGrid(slide, opts.mascotSplitViews, "分视图", startY, bc);
     }
   } else if (bp.pageId === "mascot-emotions") {
     renderMascotRecordGrid(slide, opts.mascotEmotions, "表情库", startY, bc);
@@ -2003,14 +2284,29 @@ function renderMascotChapterPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
     if (opts.mascotSplitViews && opts.mascotSplitViews.length > 0) {
       renderMascotSplitGrid(slide, opts.mascotSplitViews, "分视图", startY, bc);
     } else if (opts.mascotData) {
-      const vw = 3.2, vh = 2.6;
+      const vw = 3.2, vh = Math.min(SH - startY - 0.5, 4.6);
       slide.addImage({ data: normImg(opts.mascotData), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
     }
   } else if (bp.pageId === "mascot-positioning") {
-    if (opts.mascotData) {
-      const vw = 3.4, vh = 2.7;
-      slide.addImage({ data: normImg(opts.mascotData), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
+    const posImg = opts.mascotData || opts.mascotThreeViewData;
+    if (posImg) {
+      const vw = 3.4, vh = Math.min(SH - startY - 0.5, 4.0);
+      slide.addImage({ data: normImg(posImg), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
     }
+  }
+}
+
+function renderMascotSupportPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  addContentFrame(slide, bp.label || bp.pageId, bc);
+
+  const textEnd = renderMascotTextPairs(slide, bp, bc, 1.55);
+  const startY = Math.min(Math.max(textEnd + 0.15, 3.2), 7.6);
+  if (opts.mascotData) {
+    const vw = 3.4, vh = Math.min(SH - startY - 0.5, 3.2);
+    slide.addImage({ data: normImg(opts.mascotData), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
+  } else {
+    slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: startY, w: CONTENT_W, h: 0.8, fill: { color: "FDECEA" }, rectRadius: 0.06 });
+    slide.addText("素材待补，禁止交付", { x: MARGIN + LEFT_BAR_W, y: startY, w: CONTENT_W, h: 0.8, fontSize: 16, bold: true, color: "CC3333", align: "center", valign: "middle" });
   }
 }
 
@@ -2091,13 +2387,21 @@ function renderLogoGrid(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
   const gridH = 5.8;
   const step = gridW / 10;  // 10x10 grid
 
+  // 单位说明
+  slide.addText("1 格 = 5mm · 整图建议尺寸 50mm x 50mm", {
+    x: gridX, y: gridY - 0.32, w: gridW, h: 0.25,
+    fontSize: 9, bold: true, color: bc.pri, align: "center",
+  });
+
   // 绘制网格线
   for (let i = 0; i <= 10; i++) {
     const pos = gridX + i * step;
+    const isCenter = i === 5;
+    const lineW = isCenter ? 0.014 : 0.005;
     // 竖线
-    slide.addShape("rect", { x: pos, y: gridY, w: 0.005, h: gridH, fill: { color: i === 5 ? bc.pri : "DDDDDD" } });
+    slide.addShape("rect", { x: pos, y: gridY, w: lineW, h: gridH, fill: { color: isCenter ? bc.pri : "DDDDDD" } });
     // 横线
-    slide.addShape("rect", { x: gridX, y: gridY + i * step, w: gridW, h: 0.005, fill: { color: i === 5 ? bc.pri : "DDDDDD" } });
+    slide.addShape("rect", { x: gridX, y: gridY + i * step, w: gridW, h: lineW, fill: { color: isCenter ? bc.pri : "DDDDDD" } });
     // 刻度标注（上下左右）
     if (i % 2 === 0) {
       const labelX = (i * 10).toString();
@@ -2106,9 +2410,51 @@ function renderLogoGrid(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
     }
   }
 
+  // LOGO 外接虚线框
+  slide.addShape("rect", {
+    x: gridX, y: gridY, w: gridW, h: gridH,
+    fill: { type: "none" },
+    line: { color: bc.pri, width: 1, dashType: "dash" },
+  });
+
+  // 关键尺寸辅助线：图形高度（右侧竖向尺寸线）
+  const dimX = gridX + gridW + 0.18;
+  slide.addShape("rect", { x: dimX, y: gridY, w: 0.008, h: gridH, fill: { color: bc.sec } });
+  slide.addShape("rect", { x: dimX - 0.06, y: gridY, w: 0.13, h: 0.008, fill: { color: bc.sec } });
+  slide.addShape("rect", { x: dimX - 0.06, y: gridY + gridH, w: 0.13, h: 0.008, fill: { color: bc.sec } });
+  slide.addText("图形高度 50mm", {
+    x: dimX + 0.12, y: gridY + gridH / 2 - 0.55, w: 0.85, h: 1.1,
+    fontSize: 7, color: bc.sec, align: "left", valign: "middle", lineSpacingMultiple: 1.1,
+  });
+
+  // 文字基线
+  const baselineY = gridY + gridH * 0.72;
+  slide.addShape("rect", { x: gridX, y: baselineY, w: gridW, h: 0.008, fill: { color: bc.sec } });
+  slide.addText("文字基线", {
+    x: gridX - 0.55, y: baselineY - 0.12, w: 0.5, h: 0.25,
+    fontSize: 7, color: bc.sec, align: "right",
+  });
+
+  // 笔画中心线标注
+  slide.addText("笔画中心线", {
+    x: gridX + gridW / 2 - 0.5, y: gridY - 0.12, w: 1.0, h: 0.25,
+    fontSize: 7, color: bc.pri, align: "center",
+  });
+
   // 网格单位标注
   slide.addText("X", { x: gridX + gridW / 2 - 0.15, y: gridY + gridH + 0.35, w: 0.3, h: 0.25, fontSize: 9, color: bc.pri, bold: true, align: "center" });
   slide.addText("Y", { x: gridX - 0.5, y: gridY + gridH / 2 - 0.12, w: 0.3, h: 0.25, fontSize: 9, color: bc.pri, bold: true, align: "center" });
+
+  // 物理尺寸标注（0 / 10mm / 20mm / 30mm / 40mm / 50mm）
+  for (let i = 0; i <= 10; i += 2) {
+    const pos = gridX + i * step;
+    const label = i === 0 ? "0" : (i * 10) + "mm";
+    slide.addText(label, {
+      x: pos - 0.3, y: gridY + gridH + 0.62, w: 0.6, h: 0.22,
+      fontSize: 7, color: "777777", align: "center",
+    });
+  }
+  slide.addShape("rect", { x: gridX, y: gridY + gridH + 0.52, w: gridW, h: 0.008, fill: { color: "AAAAAA" } });
 
   // LOGO居中放置 — maintain aspect ratio (PptxGenJS 4.x ignores sizing)
   if (aiLogo) {
@@ -2124,14 +2470,10 @@ function renderLogoGrid(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
       h: fit.h,
     });
   }
-  // 比例标注
-  slide.addText("Logo标准网格为10x10单位，LOGO居中对齐网格中心点。", {
-    x: gridX, y: gridY + gridH + 0.65, w: gridW, h: 0.3,
-    fontSize: 11, color: "777777", align: "center",
-  });
-  slide.addText("网格制图确保LOGO在不同尺寸缩放时比例一致，笔画粗细统一。", {
-    x: gridX, y: gridY + gridH + 0.95, w: gridW, h: 0.3,
-    fontSize: 11, color: "777777", align: "center",
+  // 底部说明
+  slide.addText("Logo 标准网格 10x10 单位，1 格 = 5mm，标准尺寸 50mm x 50mm，缩放时按网格等比。", {
+    x: gridX, y: gridY + gridH + 0.9, w: gridW, h: 0.55,
+    fontSize: 11, color: "777777", align: "center", lineSpacingMultiple: 1.25,
   });
 }
 
@@ -2165,6 +2507,16 @@ function renderFontCopyright(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Re
 
 
 // ---- 辅助图形禁用案例 ----
+function drawAuxDemoStripes(slide: PptxGenJS.Slide, x: number, y: number, w: number, h: number, bc: BC, barCount = 4): void {
+  for (let i = 0; i < barCount; i++) {
+    const bw = w / barCount;
+    slide.addShape("rect", {
+      x: x + i * bw, y, w: bw * 0.55, h,
+      fill: { color: i % 2 === 0 ? bc.pri : bc.sec, transparency: 20 },
+    });
+  }
+}
+
 function renderAuxGraphicsMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, bp.label || "辅助图形禁用规范", bc);
   const cx = MARGIN + LEFT_BAR_W;
@@ -2180,9 +2532,36 @@ function renderAuxGraphicsMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   ];
 
   for (let i = 0; i < misuses.length; i++) {
+    const hasDemo = i < 3;
+    const textW = hasDemo ? CONTENT_W - 2.9 : CONTENT_W - 0.5;
     slide.addShape("rect", { x: cx, y, w: 0.12, h: 1.5, fill: { color: bc.pri }, rectRadius: 0.03 });
-    slide.addText(misuses[i].icon + " " + misuses[i].title, { x: cx + 0.35, y: y + 0.05, w: CONTENT_W - 0.5, h: 0.45, fontSize: 15, bold: true, color: "CC3333" });
-    slide.addText(misuses[i].desc, { x: cx + 0.35, y: y + 0.5, w: CONTENT_W - 0.5, h: 0.8, fontSize: 12, color: "555555", lineSpacing: 18 });
+    slide.addText(misuses[i].icon + " " + misuses[i].title, { x: cx + 0.35, y: y + 0.05, w: textW, h: 0.45, fontSize: 15, bold: true, color: "CC3333" });
+    slide.addText(misuses[i].desc, { x: cx + 0.35, y: y + 0.5, w: textW, h: 0.8, fontSize: 12, color: "555555", lineSpacing: 18 });
+
+    if (hasDemo) {
+      const demoX = cx + CONTENT_W - 2.6;
+      const demoY = y + 0.12;
+      const demoW = 1.05, demoH = 1.15;
+      slide.addText("错误", { x: demoX, y: demoY - 0.08, w: demoW, h: 0.22, fontSize: 9, bold: true, color: "DC2626", align: "center" });
+      slide.addText("正确", { x: demoX + demoW + 0.15, y: demoY - 0.08, w: demoW, h: 0.22, fontSize: 9, bold: true, color: "16A34A", align: "center" });
+      slide.addShape("rect", { x: demoX, y: demoY + 0.12, w: demoW, h: demoH, fill: { color: "FEF2F2" }, line: { color: "FECACA", width: 0.5 }, rectRadius: 0.04 });
+      slide.addShape("rect", { x: demoX + demoW + 0.15, y: demoY + 0.12, w: demoW, h: demoH, fill: { color: "F0FDF4" }, line: { color: "BBF7D0", width: 0.5 }, rectRadius: 0.04 });
+
+      if (i === 0) {
+        // 拉伸变形：错误=横向压扁条纹，正确=等比条纹
+        drawAuxDemoStripes(slide, demoX + 0.08, demoY + 0.35, demoW - 0.16, demoH * 0.3, bc, 4);
+        drawAuxDemoStripes(slide, demoX + demoW + 0.23, demoY + 0.25, demoW - 0.3, demoH * 0.6, bc, 4);
+      } else if (i === 1) {
+        // 透明度超标：错误=80% 几乎消失，正确=25%
+        slide.addShape("rect", { x: demoX + 0.25, y: demoY + 0.4, w: demoW - 0.5, h: demoH * 0.5, fill: { color: bc.pri, transparency: 80 } });
+        slide.addShape("rect", { x: demoX + demoW + 0.4, y: demoY + 0.4, w: demoW - 0.5, h: demoH * 0.5, fill: { color: bc.pri, transparency: 25 } });
+      } else {
+        // 局部裁切：错误=切掉一半纹样，正确=完整纹样
+        drawAuxDemoStripes(slide, demoX + 0.08, demoY + 0.4, (demoW - 0.16) / 2, demoH * 0.45, bc, 2);
+        drawAuxDemoStripes(slide, demoX + demoW + 0.23, demoY + 0.4, demoW - 0.3, demoH * 0.45, bc, 4);
+      }
+    }
+
     y += 1.7;
   }
 
@@ -2206,15 +2585,31 @@ function renderColorTaboos(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
   ];
 
   for (let i = 0; i < rules.length; i++) {
-    slide.addShape("rect", { x: cx, y, w: 0.12, h: 1.5, fill: { color: bc.pri }, rectRadius: 0.03 });
+    slide.addShape("rect", { x: cx, y, w: 0.12, h: 1.3, fill: { color: bc.pri }, rectRadius: 0.03 });
     slide.addText(rules[i].icon + " " + rules[i].title, { x: cx + 0.35, y: y + 0.05, w: CONTENT_W - 0.5, h: 0.45, fontSize: 15, bold: true, color: "333333" });
-    slide.addText(rules[i].desc, { x: cx + 0.35, y: y + 0.5, w: CONTENT_W - 0.5, h: 0.8, fontSize: 12, color: "555555", lineSpacing: 18 });
-    y += 1.7;
+    slide.addText(rules[i].desc, { x: cx + 0.35, y: y + 0.45, w: CONTENT_W - 0.5, h: 0.75, fontSize: 11, color: "555555", lineSpacing: 16 });
+    y += 1.5;
   }
 
-  slide.addShape("rect", { x: cx, y: 8.0, w: CONTENT_W, h: 0.6, fill: { color: "FFF3E0" }, rectRadius: 0.06 });
+  // 三色灰度对照（单色印刷参考）
+  const logoColors = resolveLogoColors(opts);
+  const grayRow = [
+    { label: logoColors.navy.name + " → 70% 灰", color: logoColors.navy.hex, gray: "B3B3B3" },
+    { label: logoColors.gold.name + " → 50% 灰", color: logoColors.gold.hex, gray: "808080" },
+    { label: "品牌主色 → 70% 灰", color: bc.pri, gray: "B3B3B3" },
+  ];
+  slide.addText("三色灰度对照（单色印刷参考）", { x: cx, y: 7.55, w: CONTENT_W, h: 0.35, fontSize: 15, bold: true, color: bc.pri });
+  const grayW = (CONTENT_W - 0.4) / 3;
+  for (let i = 0; i < grayRow.length; i++) {
+    const gx = cx + i * (grayW + 0.2);
+    slide.addShape("rect", { x: gx, y: 7.95, w: grayW / 2, h: 0.45, fill: { color: grayRow[i].color }, rectRadius: 0.03 });
+    slide.addShape("rect", { x: gx + grayW / 2, y: 7.95, w: grayW / 2, h: 0.45, fill: { color: grayRow[i].gray }, rectRadius: 0.03 });
+    slide.addText(grayRow[i].label, { x: gx, y: 8.45, w: grayW, h: 0.3, fontSize: 9, color: "555555", align: "center" });
+  }
+
+  slide.addShape("rect", { x: cx, y: 8.95, w: CONTENT_W, h: 0.6, fill: { color: "FFF3E0" }, rectRadius: 0.06 });
   slide.addText(sanitizeColorNames("色彩规范的核心原则：温柔不刺眼，精致不廉价。如有特殊场景色彩需求，须向品牌总部提交审核。"), {
-    x: cx + 0.2, y: 8.1, w: CONTENT_W - 0.4, h: 0.45, fontSize: 11, color: "E65100",
+    x: cx + 0.2, y: 9.05, w: CONTENT_W - 0.4, h: 0.45, fontSize: 11, color: "E65100",
   });
 }
 
@@ -2273,6 +2668,52 @@ function renderMaterialPriority(slide: PptxGenJS.Slide, bp: PageBlueprint, opts:
   });
 }
 
+
+// ---- 线上数字应用 ----
+function renderDigitalMedia(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  addContentFrame(slide, bp.label || "线上数字应用", bc);
+  const cx = MARGIN + LEFT_BAR_W;
+  let y = 1.5;
+
+  for (const el of bp.elements) {
+    if (el.type !== "text" || !el.content || el.id.endsWith("-title") || el.id.startsWith("dm-spec-")) continue;
+    const isHead = /dm-h-\d+/.test(el.id);
+    slide.addText(el.content, {
+      x: cx + 0.1, y, w: CONTENT_W - 0.2, h: isHead ? 0.3 : 0.4,
+      fontSize: isHead ? 11 : 9.5, bold: isHead, color: isHead ? bc.pri : "555555",
+      valign: "top", lineSpacingMultiple: 1.15, fontFace: "Noto Sans SC",
+    });
+    y += isHead ? 0.34 : 0.44;
+  }
+
+  // 标准模板示意
+  const sy = Math.max(y + 0.25, 4.7);
+  const avatarW = 1.35, avatarH = 1.35;
+  const ax = cx + 0.2;
+  slide.addShape("rect", { x: ax, y: sy, w: avatarW, h: avatarH, fill: { color: "F7F7F7" }, line: { color: bc.pri, width: 0.75, dashType: "dash" }, rectRadius: 0.08 });
+  slide.addShape("ellipse", { x: ax + 0.17, y: sy + 0.17, w: 1.0, h: 1.0, fill: { type: "none" }, line: { color: bc.pri, width: 0.75, dashType: "dash" } });
+  slide.addShape("ellipse", { x: ax + 0.45, y: sy + 0.45, w: 0.45, h: 0.45, fill: { color: bc.pri, transparency: 25 } });
+  slide.addText("社媒头像 1024x1024px\n圆形安全区 80%", { x: ax - 0.2, y: sy + avatarH + 0.05, w: avatarW + 0.4, h: 0.5, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
+
+  const vx = ax + 1.75, vw = 0.9, vh = 1.35;
+  slide.addShape("rect", { x: vx, y: sy, w: vw, h: vh, fill: { color: "F7F7F7" }, line: { color: bc.pri, width: 0.75, dashType: "dash" }, rectRadius: 0.05 });
+  slide.addShape("rect", { x: vx + vw - 0.34, y: sy + 0.1, w: 0.24, h: 0.18, fill: { color: bc.pri, transparency: 25 } });
+  slide.addText("LOGO", { x: vx + vw - 0.34, y: sy + 0.11, w: 0.24, h: 0.16, fontSize: 6, bold: true, color: "FFFFFF", align: "center", fontFace: "Noto Sans SC" });
+  slide.addText("短视频封面 1080x1920px\nLOGO 右上角", { x: vx - 0.25, y: sy + vh + 0.05, w: vw + 0.5, h: 0.5, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
+
+  const bx = ax + 2.95, bw = 2.35, bh = 1.32;
+  slide.addShape("rect", { x: bx, y: sy, w: bw, h: bh, fill: { color: "F7F7F7" }, line: { color: bc.pri, width: 0.75, dashType: "dash" }, rectRadius: 0.06 });
+  slide.addShape("rect", { x: bx + 0.15, y: sy + bh / 2 - 0.14, w: 0.5, h: 0.28, fill: { color: bc.pri, transparency: 25 } });
+  slide.addText("LOGO", { x: bx + 0.15, y: sy + bh / 2 - 0.12, w: 0.5, h: 0.24, fontSize: 7, bold: true, color: "FFFFFF", align: "center", fontFace: "Noto Sans SC" });
+  slide.addText("网页 Banner 1920x1080px\nLOGO 左侧 10% 区域", { x: bx - 0.4, y: sy + bh + 0.05, w: bw + 0.8, h: 0.5, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
+
+  // 底部排版坐标卡文本
+  const specs = getMaterialSpecs("digital-media");
+  slide.addText(specs.map((s) => "排版坐标卡：" + s.name + " " + s.size + "，LOGO " + s.logoPosition + "，LOGO " + s.logoSize + "，安全区 " + s.safeZone + "。").join("\n"), {
+    x: cx, y: sy + 1.95, w: CONTENT_W, h: 1.2,
+    fontSize: 9, color: "555555", valign: "top", lineSpacingMultiple: 1.4, fontFace: "Noto Sans SC",
+  });
+}
 
 // ---- 导视系统 ----
 function renderWayfinding(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
@@ -2375,9 +2816,33 @@ function renderWayfinding(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     });
   }
 
+  // 导视门牌标准模板示意（300 x 150mm 比例框）
+  slide.addText("导视门牌标准模板 300 x 150mm", {
+    x: cx, y: startY + colH + 0.15, w: CONTENT_W, h: 0.3,
+    fontSize: 13, bold: true, color: bc.pri, align: "center", fontFace: "Noto Sans SC",
+  });
+  const signW = 3.0, signH = 1.5;
+  const signX = (SW - signW) / 2, signY = startY + colH + 0.5;
+  slide.addShape("rect", { x: signX, y: signY, w: signW, h: signH, fill: { color: "F7F7F7" }, line: { color: bc.pri, width: 0.75, dashType: "dash" }, rectRadius: 0.06 });
+  if (logoForScene) {
+    slide.addImage({
+      data: normImg(logoForScene),
+      x: signX + 0.15, y: signY + 0.15, w: 0.5, h: 0.5,
+      sizing: { type: "contain", w: 0.5, h: 0.5 },
+      transparency: 10,
+    });
+  } else {
+    slide.addShape("rect", { x: signX + 0.15, y: signY + 0.15, w: 0.45, h: 0.3, fill: { color: bc.pri, transparency: 25 }, rectRadius: 0.02 });
+    slide.addText("LOGO", { x: signX + 0.15, y: signY + 0.17, w: 0.45, h: 0.2, fontSize: 7, bold: true, color: "FFFFFF", align: "center", fontFace: "Noto Sans SC" });
+  }
+  slide.addText("安全区 8mm · LOGO 左上角 · LOGO 高度 ≤ 30mm", {
+    x: cx, y: signY + signH + 0.05, w: CONTENT_W, h: 0.3,
+    fontSize: 10, color: "666666", align: "center", fontFace: "Noto Sans SC",
+  });
+
   // 底部说明
   slide.addText("导视系统是品牌在物理空间中的重要触点，统一规范的导视设计提升门店专业度与客户体验。", {
-    x: cx, y: startY + colH + 0.25, w: CONTENT_W, h: 0.3,
+    x: cx, y: startY + colH + 1.0, w: CONTENT_W, h: 0.3,
     fontSize: 12, color: "888888", align: "center",
   });
 }

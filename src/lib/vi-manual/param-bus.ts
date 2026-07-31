@@ -19,6 +19,7 @@ import {
   type GraphicDef,
   createEmptyParamPackage,
 } from "./param-package";
+import { normalizeBrandName } from "./brand-name-normalizer";
 
 // ── 内存缓存（单次生成周期内有效） ──────────────────────
 
@@ -160,7 +161,7 @@ export async function getUnifiedParam(projectId: string): Promise<UnifiedParamPa
   const pkg = createEmptyParamPackage(projectId);
 
   // ── brand ──
-  pkg.brand.companyName = ci.companyName || project.client_name || "";
+  pkg.brand.companyName = normalizeBrandName(ci.companyName || project.client_name || "");
   pkg.brand.industry = ci.industry || project.industry || "";
   pkg.brand.subIndustry = ci.subIndustry || inferSubIndustry(ci.mainProducts || "", ci.industry || "");
   pkg.brand.province = ci.province || "";

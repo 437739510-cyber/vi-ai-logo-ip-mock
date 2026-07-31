@@ -21,6 +21,7 @@ import { comfyuiGenerateLogo, comfyuiGenerateScene, comfyGenerateImage, isComfyU
 import { arkGenerate } from '../src/lib/ip/ip-image-provider/ark-fallback';
 import { planPages } from '../src/lib/vi-manual/page-planner';
 import { renderPptxToBuffer } from '../src/lib/pptx/render-pptx';
+import { normalizeBrandName } from '../src/lib/vi-manual/brand-name-normalizer';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -193,8 +194,10 @@ async function processLogoGeneration(project) {
   const projectId = project.id;
   const clientInfo = (project.client_info || {});
   const brandProfile = clientInfo.brandProfile || {};
+  const rawCompanyName = clientInfo.companyName || '';
+  const normalizedCompanyName = normalizeBrandName(rawCompanyName);
 
-  log('INFO', `[LOGO] Processing project: ${projectId} (${clientInfo.companyName || 'unknown'})`);
+  log('INFO', `[LOGO] Processing project: ${projectId} (${rawCompanyName || 'unknown'})`);
 
   // Step 1: Mark as generating
   await supabase.from('projects').update({
@@ -211,7 +214,7 @@ async function processLogoGeneration(project) {
   if (!logoPrompts || logoPrompts.length === 0) {
     log('INFO', `[LOGO] ${projectId}: No logo prompts found, running brand analysis...`);
     try {
-      const analysisPrompt = buildAnalysisPrompt(clientInfo);
+      const analysisPrompt = buildAnalysisPrompt({ ...clientInfo, companyName: normalizedCompanyName });
       const dsContent = await callDeepSeek(BRAND_ANALYSIS_SYSTEM, analysisPrompt, 0.7, 4096);
       analysisProfile = parseDeepSeekJSON(dsContent);
       logoPrompts = analysisProfile.logoDesignSuggestions?.prompts;
@@ -273,7 +276,7 @@ async function processLogoGeneration(project) {
   // Step 4: Generate 4 logos via ComfyUI (serial)
   log('INFO', `[LOGO] ${projectId}: Generating ${logoPrompts.length} logos via ComfyUI...`);
   const logoResults = [];
-  const companyName = clientInfo.companyName || 'Brand';
+  const companyName = normalizedCompanyName || 'Brand';
 
   for (let i = 0; i < logoPrompts.length; i++) {
     const rawPrompt = logoPrompts[i];
@@ -397,14 +400,69 @@ async function processLogoGeneration(project) {
   }
 }
 
+// ========== Mascot Chapter Gating ==========
+
+function hasUsableMascotAssets(ci) {
+  const a = ci?.mascotAssets || {};
+  const hasViews = !!(a.front || a.side || a.back || a.threeView);
+  const hasEmotions = Array.isArray(a.emotions) && a.emotions.some(e => e?.url);
+  const hasScenes = Array.isArray(a.scenes) && a.scenes.some(s => s?.url);
+  return hasViews || hasEmotions || hasScenes;
+}
+
+function shouldIncludeMascotChapter(ci) {
+  const wantsMascot = ci?.wantMascot === 'yes';
+  const hasExistingAssets = hasUsableMascotAssets(ci);
+  return wantsMascot && hasExistingAssets || hasExistingAssets;
+}
+
+const DEFAULT_LOGO_COLORS = {
+  navy: { name: "LOGO藏青", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" },
+  gold: { name: "祥云金", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" },
+};
+
+function resolveLogoColors(brandProfile) {
+  const aiColors = (brandProfile?.logoSpecs?.logoColors || []).filter((c) => c && c.hex);
+  const pick = (keywords, fallback) => {
+    const hit = aiColors.find((c) => keywords.some((k) => String(c.name || "").includes(k)));
+    if (!hit) return fallback;
+    return {
+      name: hit.name || fallback.name,
+      hex: hit.hex,
+      rgb: hit.rgb || fallback.rgb,
+      cmyk: hit.cmyk || fallback.cmyk,
+    };
+  };
+  return {
+    navy: pick(["藏青", "深蓝", "navy", "Navy"], DEFAULT_LOGO_COLORS.navy),
+    gold: pick(["祥云", "金", "gold", "Gold"], DEFAULT_LOGO_COLORS.gold),
+  };
+}
+
 // ========== VI Manual Generation ==========
 
 async function processManualGeneration(project) {
   const projectId = project.id;
   const clientInfo = (project.client_info || {});
   const brandProfile = clientInfo.brandProfile || {};
+  const rawCompanyName = clientInfo.companyName || '';
+  const normalizedCompanyName = normalizeBrandName(rawCompanyName);
+  const includeMascot = shouldIncludeMascotChapter(clientInfo);
 
-  log('INFO', `[MANUAL] Processing project: ${projectId} (${clientInfo.companyName || 'unknown'})`);
+  if ((clientInfo.wantMascot === 'yes' || clientInfo.mascotAssets) && !includeMascot) {
+    await supabase.from('projects').update({
+      status: 'submitted',
+      client_info: {
+        ...clientInfo,
+        generationStatus: 'mascot_generating',
+        generationMessage: '等待IP公仔素材生成，暂不渲染VI手册',
+      },
+      updated_at: new Date().toISOString(),
+    }).eq('id', projectId);
+    return;
+  }
+
+  log('INFO', `[MANUAL] Processing project: ${projectId} (${rawCompanyName || 'unknown'})`);
 
   // Mark as generating
   await supabase.from('projects').update({
@@ -448,7 +506,7 @@ async function processManualGeneration(project) {
 
   // Step 2: Generate 5 scene images via ComfyUI
   log('INFO', `[MANUAL] ${projectId}: Generating scene images...`);
-  const companyName = clientInfo.companyName || '';
+  const companyName = normalizedCompanyName;
   const industryType = getIndustryType(clientInfo.industry || 'general');
   const scenePrompts = buildScenePrompts(companyName, industryType);
 
@@ -508,7 +566,7 @@ async function processManualGeneration(project) {
 
     blueprints = await planPages({
       clientInfo: {
-        companyName: clientInfo.companyName || '',
+        companyName: normalizedCompanyName,
         brandVision: clientInfo.brandVision || brandProfile.refinedBrandVision || '',
         coreValues: clientInfo.coreValues || brandProfile.refinedCoreValues || '',
         targetMarket: clientInfo.targetMarket || brandProfile.refinedTargetMarket || '',
@@ -517,7 +575,8 @@ async function processManualGeneration(project) {
         brandPersonality: clientInfo.brandPersonality || '',
       },
       brandColors,
-      includeMascotChapter: true,
+      includeMascotChapter: includeMascot,
+      mascotAssetsReady: includeMascot,
     });
     log('INFO', `[MANUAL] ${projectId}: ${blueprints.length} pages planned`);
   } catch (err) {
@@ -590,8 +649,8 @@ async function processManualGeneration(project) {
   try {
     const cp = brandProfile.colorPalette || [];
     const options = {
-      projectName: clientInfo.companyName || 'Brand',
-      companyName: clientInfo.companyName || 'Brand',
+      projectName: normalizedCompanyName || 'Brand',
+      companyName: normalizedCompanyName || 'Brand',
       industry: clientInfo.industry || 'general',
       logoData,
       aiLogoData: logoData,
@@ -600,6 +659,7 @@ async function processManualGeneration(project) {
         secondary: cp[1]?.hex || '#666666',
         accent: cp[2]?.hex || '#CC0000',
       },
+      logoColors: resolveLogoColors(brandProfile),
       brandVision: clientInfo.brandVision || brandProfile.refinedBrandVision || '',
       coreValues: clientInfo.coreValues || brandProfile.refinedCoreValues || '',
       targetMarket: clientInfo.targetMarket || brandProfile.refinedTargetMarket || '',
@@ -608,8 +668,8 @@ async function processManualGeneration(project) {
       sceneLabels,
       sceneSectionTitles,
       compressImages: true,
-      fullBrandName: clientInfo.companyName || '',
-      englishName: (clientInfo.companyName || 'BRAND').toUpperCase(),
+      fullBrandName: normalizedCompanyName,
+      englishName: (normalizedCompanyName || 'BRAND').toUpperCase(),
       mascotData,
       mascotSplitViews,
       mascotEmotions,
@@ -688,12 +748,13 @@ async function processManualGeneration(project) {
 async function processMascotSampleGeneration(project) {
   const projectId = project.id;
   const clientInfo = (project.client_info || {});
-  const companyName = clientInfo.companyName || "Brand";
+  const rawCompanyName = clientInfo.companyName || "Brand";
+  const companyName = normalizeBrandName(rawCompanyName);
   const industry = clientInfo.industry || "general";
   const profileColors = clientInfo.brandProfile?.colorPalette || [];
   const colorDesc = profileColors.map(c => c.hex).join(", ");
 
-  log("INFO", `[MASCOT-SAMPLE] Processing project: ${projectId} (${companyName})`);
+  log("INFO", `[MASCOT-SAMPLE] Processing project: ${projectId} (${rawCompanyName})`);
 
   const stylePrompts = [
     { id: "a", label: "\u7ecf\u5178\u6b3e", desc: "\u5706\u6da6\u53ef\u7231\u98ce\u683c",
@@ -777,7 +838,8 @@ async function processMascotSampleGeneration(project) {
 async function processMascotFullGeneration(project) {
   const projectId = project.id;
   const clientInfo = (project.client_info || {});
-  const companyName = clientInfo.companyName || "Brand";
+  const rawCompanyName = clientInfo.companyName || "Brand";
+  const companyName = normalizeBrandName(rawCompanyName);
   const industry = clientInfo.industry || "general";
   const selectedId = clientInfo.mascotSelectedId || "a";
   const samples = clientInfo.mascotSamples || [];
@@ -786,7 +848,7 @@ async function processMascotFullGeneration(project) {
   const profileColors = clientInfo.brandProfile?.colorPalette || [];
   const colorDesc = profileColors.map(c => c.hex).join(", ");
 
-  log("INFO", `[MASCOT-FULL] Processing project: ${projectId} (${companyName}), selected: ${selectedId} (${styleAnchor})`);
+  log("INFO", `[MASCOT-FULL] Processing project: ${projectId} (${rawCompanyName}), selected: ${selectedId} (${styleAnchor})`);
 
   const views = [
     { name: "front", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, front view facing camera, full body, white background, soft studio lighting` },

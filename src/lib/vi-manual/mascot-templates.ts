@@ -35,9 +35,9 @@ export interface ProportionSpec {
 }
 
 export const DEFAULT_PROPORTION_SPEC: ProportionSpec = {
-  headBodyRatio: "1:1.5 - 1:2.5",
+  headBodyRatio: "1:2.0",
   totalHeight: "约20-35cm（以品牌实际设定为准）",
-  notes: "公仔整体比例应协调、可爱、易于记忆",
+  notes: "头身比固定 1:2.0，公仔整体比例应协调、可爱、易于记忆",
 };
 
 /** 最小使用尺寸规范 */
@@ -70,15 +70,15 @@ export const MERCHANDISE_CATEGORIES: MerchandiseCategory[] = [
   {
     category: "文创类",
     items: [
-      { name: "手办", spec: "最小高度30mm，头部比例可适当放大（Q版）" },
+      { name: "手办", spec: "最小高度30mm，头部可 Q 版放大，但头身比不得超过 1:1.8" },
       { name: "抱枕", spec: "公仔形象占比 <= 60%，居中或偏左排版" },
-      { name: "帆布袋", spec: "公仔居于袋面上方40%区域，下方留白放LOGO" },
+      { name: "帆布袋", spec: "成品 35x40cm，公仔印刷区位于袋面上方 40% 区域，高度 >= 12cm" },
     ],
   },
   {
     category: "线下门店",
     items: [
-      { name: "立牌", spec: "高度 >= 120cm，公仔全身展示" },
+      { name: "立牌", spec: "高度 >= 120cm，公仔全身占比 >= 70%" },
       { name: "灯箱", spec: "公仔占比 <= 50%，搭配品牌标语" },
       { name: "展架", spec: "公仔居于视觉中心位置，辅助信息环绕排版" },
     ],
@@ -86,8 +86,8 @@ export const MERCHANDISE_CATEGORIES: MerchandiseCategory[] = [
   {
     category: "线上媒介",
     items: [
-      { name: "头像", spec: "圆形裁切保留头部+斗笠/标志性特征" },
-      { name: "表情包", spec: "gif动图时长<=3秒，帧率>=12fps，尺寸统一" },
+      { name: "头像", spec: "1024x1024px，圆形裁切安全区 80%，保留头部与标志性特征" },
+      { name: "表情包", spec: "GIF 尺寸 240x240px 起，透明底，帧率 >= 12fps，时长 <= 3s" },
       { name: "视频封面", spec: "公仔居于左下1/4区域，右侧留白排版文字" },
     ],
   },
@@ -132,6 +132,18 @@ export const COMPLIANCE_SECTIONS: ComplianceSection[] = [
   {
     title: "违例处理方式",
     getContent: () => "对于违反本合规说明的行为，品牌方保留追究法律责任的权利，包括但不限于停止侵权、消除影响、赔偿损失等措施。",
+  },
+  {
+    title: "IP 修改审批流程",
+    getContent: () => "门店/合作方提交书面修改申请 → 品牌总部审核角色设定与比例 → 批准后由指定设计方执行 → 完成后归档新版本三视图。",
+  },
+  {
+    title: "对外授权申请模板",
+    getContent: () => "申请方 / 品牌名 / 使用场景 / 使用期限 / 地域范围 / 授权费用 / 违规责任（七个字段）。",
+  },
+  {
+    title: "标准商用形象 vs 节日限定形象",
+    getContent: () => "标准商用形象：日常门店、包装、社媒长期使用；节日限定形象：仅官方节日活动使用，活动结束后下架，禁止混入标准物料。",
   },
 ];
 

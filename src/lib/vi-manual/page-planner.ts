@@ -17,6 +17,8 @@ import { planLayoutWithAI, type AILayoutContext } from "./ai-layout-planner";
 import { generateMascotCharacter, type BrandMascotInfo, type MascotCharacter } from "../../../scripts/mascot-character-prompt";
 import { validateMascotBrandAlignment } from "../../../scripts/mascot-brand-check";
 import { IndustryCategory } from "../ip/mascot-optimization";
+import { normalizeBrandName } from "./brand-name-normalizer";
+import { getMaterialSpecs, formatMaterialSpec } from "./material-specs";
 
 // ========== 类型定义 ==========
 
@@ -142,6 +144,10 @@ export interface PagePlannerInput {
   generateAll?: boolean;
   /** 指定生成哪些页 */
   pageIds?: string[];
+  /** 是否强制包含 IP 公仔章节（生成流程显式传入） */
+  includeMascotChapter?: boolean;
+  /** 公仔素材是否已就绪（生成流程显式传入） */
+  mascotAssetsReady?: boolean;
 }
 
 // ========== 11 页默认文案 ==========
@@ -260,10 +266,9 @@ export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[
   // 整改 #7：当 hasMascot 为真（或本流程默认开启）时，默认追加完整 IP 公仔章节（5 段），
   // 插入到「封底」之前，不再仅塞单页 gallery。
   const includeMascot =
-    input.assetAnalysis?.mascot?.hasMascot ??
-    (input as any).includeMascotChapter ??
-    (input.clientInfo as any).wantMascot === 'yes' ??
-    false;
+    input.assetAnalysis?.mascot?.hasMascot === true ||
+    input.includeMascotChapter === true ||
+    input.mascotAssetsReady === true;
   if (includeMascot) {
     const mascotPages = await buildMascotChapter(input);
     const closingIdx = blueprints.findIndex((b) => b.pageId === "closing");
@@ -300,6 +305,7 @@ async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprin
   const acc = input.brandColors.accent;
   const mascotName = input.assetAnalysis?.mascot?.name || "品牌IP公仔";
   const hasMascotArt = !!input.assetAnalysis?.mascot?.hasMascot;
+  const companyName = normalizeBrandName(input.clientInfo.companyName);
 
   // Try to get dynamic character data from DeepSeek
   let setting = "品牌IP公仔，风格与品牌视觉方向一致";
@@ -307,7 +313,7 @@ async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprin
   let usageScenes = "手册封面/封底、品牌故事页、门店招牌、会员卡、社媒头像、包装礼盒";
   try {
     const brandInfo: BrandMascotInfo = {
-      companyName: input.clientInfo.companyName,
+      companyName,
       industry: input.clientInfo.industry || "",
       mainProduct: input.clientInfo.brandVision || "",
       brandTone: [input.clientInfo.coreValues].filter(Boolean),
@@ -355,10 +361,10 @@ async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprin
       blocks: [
         { title: "三视图规范", body: "提供正面/侧面/背面三视图，统一比例与配色，确保跨物料一致性。角色风格：" + setting },
         { title: "绘制要求", body: "纯白底、无场景；角色外观基于品牌色系，禁止添加非规范装饰元素。" },
-        { title: "比例规范", body: "头身比建议 1:1.5 ~ 1:2.5，总高度以品牌实际设定为准（约20-35cm）。" },
+        { title: "比例规范", body: "头身比 = 1:2.0，总高度以品牌实际设定为准（约20-35cm）。" },
         { title: "最小使用尺寸", body: "印刷 15mm / 数字媒介 48px / 小礼品/周边 10mm" },
         { title: "安全留白", body: "公仔四周保留 ≥ 公仔高度 10% 的留白空间，确保在任何媒介上不被裁切或遮挡。" },
-        { title: "三视图制图要求", body: "正面/侧面/背面需统一比例线，标注头部高度、身体宽度、总高度等关键尺寸。" },
+        { title: "三视图制图要求", body: "正面/侧面/背面统一比例线；标注头部高度、身体宽度、总高度；头身比固定 1:2.0；三视图底部对齐同一水平线。" },
       ],
     },
     {
@@ -386,6 +392,8 @@ async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprin
         { title: "色彩规范", body: "IP配色须严格使用品牌标准色，不得自行更改色值。单色/灰度版本按灰度值公式 R*0.299 + G*0.587 + B*0.114 转换，保留明暗层次，不得反转。" },
         { title: "最小尺寸与留白", body: "印刷最小 15mm，数字最小 48px，小礼品/周边最小 10mm。公仔四周保留充足留白，与Logo同享保护空间规则。" },
         { title: "单色/灰度版本", body: "适用于报纸广告、印章、单色喷绘等低成本的灰度印刷媒介。灰度值按公式转换，确保灰度版本与彩色版本视觉重量一致。" },
+        { title: "LOGO+IP 横式组合", body: "公仔与 LOGO 左右并排，间距 = 公仔高度 15%，公仔高度 = LOGO 宽度的 1.2 倍。" },
+        { title: "LOGO+IP 竖式组合", body: "公仔在上、LOGO 在下，垂直间距 = 公仔高度 10%，组合最小宽度 60mm。" },
       ],
     },
     {
@@ -400,9 +408,9 @@ async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprin
       pageId: "mascot-merchandise",
       label: "IP公仔衍生品使用规范",
       blocks: [
-        { title: "文创类", body: "手办：最小高度30mm，头部比例可适当放大（Q版）。抱枕：公仔形象占比 ≤ 60%，居中或偏左排版。帆布袋：公仔居于袋面上方40%区域，下方留白放LOGO。" },
-        { title: "线下门店", body: "立牌：高度 ≥ 120cm，公仔全身展示。灯箱：公仔占比 ≤ 50%，搭配品牌标语。展架：公仔居于视觉中心位置，辅助信息环绕排版。" },
-        { title: "线上媒介", body: "头像：圆形裁切保留头部+标志性特征。表情包：gif动图时长≤3秒，帧率≥12fps，尺寸统一。视频封面：公仔居于左下1/4区域，右侧留白排版文字。" },
+        { title: "文创类", body: "手办：最小高度30mm，头部可 Q 版放大，但头身比不得超过 1:1.8。抱枕：公仔形象占比 ≤ 60%，居中或偏左排版。帆布袋：成品 35x40cm，公仔印刷区位于袋面上方 40% 区域，高度 >= 12cm。" },
+        { title: "线下门店", body: "立牌：高度 >= 120cm，公仔全身占比 >= 70%。灯箱：公仔占比 ≤ 50%，搭配品牌标语。展架：公仔居于视觉中心位置，辅助信息环绕排版。" },
+        { title: "线上媒介", body: "头像：1024x1024px，圆形裁切安全区 80%，保留头部与标志性特征。表情包：GIF 尺寸 240x240px 起，透明底，帧率 >= 12fps，时长 <= 3s。视频封面：公仔居于左下1/4区域，右侧留白排版文字。" },
         { title: "材质适配提示", body: "金属材质：适合蚀刻或浮雕工艺，线条需简化。布艺材质：适合刺绣或印花工艺，颜色对比度可适当提高。亚克力材质：适合背喷或UV印刷，注意透明区域留白处理。" },
       ],
     },
@@ -410,12 +418,15 @@ async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprin
       pageId: "mascot-compliance",
       label: "IP公仔使用合规说明",
       blocks: [
-        { title: "版权归属声明", body: "IP公仔形象版权归 " + (input.clientInfo.companyName || "品牌方") + " 所有，未经授权不得复制、修改、传播或商业使用。" },
+        { title: "版权归属声明", body: "IP公仔形象版权归 " + (companyName || "品牌方") + " 所有，未经授权不得复制、修改、传播或商业使用。" },
         { title: "授权使用范围", body: "品牌自有渠道（官网、社媒、门店物料）以及书面授权的合作伙伴。任何超出此范围的使用均需另行申请授权。" },
         { title: "外部修改限制", body: "未经品牌方书面授权，任何个人或组织不得对公仔形象进行修改、变体创作或二次开发。" },
         { title: "不可商用场景", body: "禁止在竞品品牌宣传、政治活动与选举、宗教传播与仪式、成人内容与不雅场景中使用公仔形象。" },
         { title: "授权期限与地域", body: "授权使用期限和地域范围以授权协议为准，到期自动终止。" },
         { title: "违例处理方式", body: "对于违反本合规说明的行为，品牌方保留追究法律责任的权利。" },
+        { title: "IP 修改审批流程", body: "门店/合作方提交书面修改申请 → 品牌总部审核角色设定与比例 → 批准后由指定设计方执行 → 完成后归档新版本三视图。" },
+        { title: "对外授权申请模板", body: "申请方 / 品牌名 / 使用场景 / 使用期限 / 地域范围 / 授权费用 / 违规责任（七个字段）。" },
+        { title: "标准商用形象 vs 节日限定形象", body: "标准商用形象：日常门店、包装、社媒长期使用；节日限定形象：仅官方节日活动使用，活动结束后下架，禁止混入标准物料。" },
       ],
     },
   ];
@@ -472,7 +483,7 @@ async function planSinglePage(
   template: Template | null,
   perPageAnalysis: Record<string, PageAnalysis>
 ): Promise<PageBlueprint> {
-  const companyName = input.clientInfo.companyName || "品牌名称";
+  const companyName = normalizeBrandName(input.clientInfo.companyName || "品牌名称");
   const pri = input.brandColors.primary;
   const sec = input.brandColors.secondary;
   const acc = input.brandColors.accent;
@@ -722,7 +733,7 @@ function buildElements(pageId: string, ctx: BuildContext): PageElement[] {
     case "font-copyright": return buildFontCopyrightElements(ctx);
     case "summary": return buildSummaryElements(ctx);
     case "digital-media": return buildDigitalMediaElements(ctx);
-    case "wayfinding": return [{ type: "custom" as const, id: "wayfinding-placeholder", content: PAGE_LABELS["wayfinding"] }];
+    case "wayfinding": return buildWayfindingElements(ctx);
     case "material-priority": return buildMaterialPriorityElements(ctx);
     case "file-output": return buildFileOutputElements(ctx);
     case "logo-output": return [{
@@ -872,6 +883,15 @@ function buildPhilosophyElements(ctx: BuildContext): PageElement[] {
     }
   });
 
+  // 004: 愿景通过 LOGO 与 IP 落地为可识别视觉资产
+  elements.push({
+    type: "text", id: "ph-vision-apply",
+    content: "愿景如何落地：品牌愿景通过 LOGO 的图形叙事与 IP 的亲和表达，转化为可识别的视觉资产。",
+    position: "bottom-center", fontSize: 12, fontWeight: 400, color: "#666",
+    marginBottom: 60, marginLeft: 60, marginRight: 140,
+    params: { align: "left", lineHeight: 1.5 },
+  });
+
   // IP 装饰右下角
   if (hasMascot) {
     elements.push({ type: "ip-mascot", id: "ph-mascot",
@@ -930,7 +950,7 @@ function buildLogoInterpElements(ctx: BuildContext): PageElement[] {
         marginTop: yPos + 20, marginLeft: 80 });
 
       elements.push({ type: "text", id: "li-meaning",
-        content: logoMeaning, position: "top-center",
+        content: logoMeaning + "\n\nLOGO 承载品牌识别，IP 公仔承载品牌温度；两者共用同一色彩与比例体系，保持调性一致。", position: "top-center",
         fontSize: 13, fontWeight: 400, color: "#444",
         marginTop: yPos + 45, marginLeft: 40, marginRight: 40,
         params: { align: "left", lineHeight: 1.5 },
@@ -1045,6 +1065,13 @@ function buildLogoVariationsElements(ctx: BuildContext): PageElement[] {
       position: "bottom-center", fontSize: 11, color: "#888",
       marginBottom: 80, params: { align: "center" },
     });
+
+    elements.push({ type: "text", id: "lv-specs",
+      content: "横式组合：图标与中文名间距 = 0.5 单位（2.5mm），最小使用宽度 30mm，中文名使用标准字距，禁止手动拉伸字间距。竖式组合：图标与中文名上下间距 = 0.3 单位（1.5mm），最小使用宽度 20mm，中文名保持固定字号比例。反白稿深底时 LOGO 与文字统一反白；单色稿使用品牌单色，禁止半色调渐变。每个组合以浅灰辅助线标出 图形区 / 间距区 / 文字区。",
+      position: "bottom-center", fontSize: 11, color: "#777",
+      marginBottom: 40, marginLeft: 50, marginRight: 50,
+      params: { align: "left", lineHeight: 1.5 },
+    });
   } else {
     elements.push({ type: "text", id: "lv-no-logo",
       content: "本品牌使用AI生成Logo，建议后续完善横式/竖式/反白/单色稿。",
@@ -1075,17 +1102,20 @@ function buildLogoMisuseElements(ctx: BuildContext): PageElement[] {
     { title: "禁止描边", desc: "不得给Logo\n添加描边效果" },
     { title: "禁止加阴影", desc: "不得添加非规范\n投影效果" },
     { title: "禁止改字体", desc: "不得更改Logo\n中的字体样式" },
+    { title: "禁止裁切LOGO", desc: "不得裁掉LOGO的边框、圆环、\n文字任何部分，须完整呈现" },
+    { title: "禁止局部截取祥云元素", desc: "祥云/辅助纹样是LOGO整体的一部分，\n不得单独抽出使用" },
+    { title: "禁止更改圆环纹样", desc: "不得替换、加粗、旋转或\n重新绘制LOGO圆环/边框纹样" },
   ];
 
   for (let i = 0; i < misuses.length; i++) {
     const col = i % 3;
     const row = Math.floor(i / 3);
     const xBase = col === 0 ? 50 : col === 1 ? 310 : 570;
-    const yBase = 110 + row * 230;
+    const yBase = 100 + row * 180;
 
     // Red X box
     elements.push({ type: "decoration", id: `lm-box-${i}`,
-      position: "absolute", widthPct: 28, heightPct: 24,
+      position: "absolute", widthPct: 28, heightPct: 20,
       marginLeft: xBase, marginTop: yBase,
       color: "#FEF2F2", params: { shape: "rounded-rect", borderColor: "#FECACA" },
     });
@@ -1179,7 +1209,7 @@ function buildAuxiliaryGraphicsElements(ctx: BuildContext): PageElement[] {
   });
 
   elements.push({ type: "text", id: "ag-note",
-    content: "辅助图形可按比例缩放，但不可改变比例关系或旋转角度。建议透明度使用10%-40%。",
+    content: "最小使用尺寸：印刷 8mm / 数字 32px。保护留白：辅助图形四周保留 ≥ 图形高度 20% 的留白。透明度：仅允许 10%-40% 区间。缩放：只能等比缩放，禁止裁切局部纹样。",
     position: "bottom-center", fontSize: 11, color: "#888",
     marginBottom: 60, params: { align: "center" },
   });
@@ -1323,6 +1353,28 @@ function buildBasicSpecElements(ctx: BuildContext): PageElement[] {
 // ---- 办公应用系统 ----
 
 
+function buildWayfindingElements(ctx: BuildContext): PageElement[] {
+  const { pri, sec, acc } = ctx;
+  const elements: PageElement[] = [
+    { type: "text", id: "wf-title", content: PAGE_LABELS["wayfinding"], position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30 },
+    { type: "divider", id: "wf-divider", position: "center", widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15 },
+    { type: "text", id: "wf-desc", content: "导视系统按 300 x 150mm 标准比例框设计，LOGO 左上角，四周保留安全区，确保远距离识别。", position: "top-center", fontSize: 13, color: "#666", marginTop: 110, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+  ];
+
+  getMaterialSpecs("wayfinding").forEach((spec, i) => {
+    elements.push({
+      type: "text", id: `wf-spec-${i}`,
+      content: formatMaterialSpec(spec),
+      position: "top-center", fontSize: 11, color: "#666",
+      marginTop: 180 + i * 32, marginLeft: 60, marginRight: 60,
+      params: { align: "left", lineHeight: 1.4 },
+    });
+  });
+
+  return elements;
+}
+
+
 function buildDigitalMediaElements(ctx: BuildContext): PageElement[] {
   const { pri, sec, acc } = ctx;
   const elements: PageElement[] = [
@@ -1337,6 +1389,17 @@ function buildDigitalMediaElements(ctx: BuildContext): PageElement[] {
     { type: "text", id: "dm-h-3", content: "邮件签名/Banner排版规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 400, marginLeft: 60, params: { align: "left" } },
     { type: "text", id: "dm-b-3", content: "签名档公仔宽高比1:1，右侧排版姓名+联系方式。Banner采用16:9比例，公仔居中偏左，右侧留白放置品牌标语。", position: "top-center", fontSize: 12, color: "#444", marginTop: 428, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
   ];
+
+  getMaterialSpecs("digital-media").forEach((spec, i) => {
+    elements.push({
+      type: "text", id: `dm-spec-${i}`,
+      content: formatMaterialSpec(spec),
+      position: "top-center", fontSize: 11, color: "#666",
+      marginTop: 500 + i * 32, marginLeft: 60, marginRight: 60,
+      params: { align: "left", lineHeight: 1.4 },
+    });
+  });
+
   return elements;
 }
 
@@ -1356,6 +1419,8 @@ function buildFileOutputElements(ctx: BuildContext): PageElement[] {
     { type: "text", id: "fo-b-3", content: "交付前所有文字须转为轮廓（转曲），或嵌入完整字体文件。禁止使用系统默认字体替代品牌指定字体。", position: "top-center", fontSize: 12, color: "#444", marginTop: 438, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
     { type: "text", id: "fo-h-4", content: "文件命名规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 510, marginLeft: 60, params: { align: "left" } },
     { type: "text", id: "fo-b-4", content: "格式：品牌名_物料类型_版本号_日期（例：BrandName_Logo_v1.0_20260731）。禁止使用默认文件名或含空格的特殊路径。", position: "top-center", fontSize: 12, color: "#444", marginTop: 538, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "fo-h-5", content: "IP 公仔源文件", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 610, marginLeft: 60, params: { align: "left" } },
+    { type: "text", id: "fo-b-5", content: "AI/PSD 分层：头部 / 身体 / 配饰 / 表情 / 透明底合成层。交付格式：AI、PSD、透明底 PNG、SVG。命名规范：品牌名_Mascot_视角_版本_日期；正面示例：品牌名_Mascot_正面_v1.0_20260731.ai（如 有间奶茶店_Mascot_正面_v1.0_20260731.ai）。印刷分辨率：300dpi；数字媒体：SVG 或 1920px 起 PNG。", position: "top-center", fontSize: 12, color: "#444", marginTop: 638, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
   ];
   return elements;
 }
@@ -1383,6 +1448,16 @@ function buildStationeryElements(ctx: BuildContext): PageElement[] {
     position: "center", widthPct: 70, heightPct: 35,
     marginTop: 180,
     params: { sceneType: (ctx.industryType || "general") + "-stationery" },
+  });
+
+  getMaterialSpecs("stationery").forEach((spec, i) => {
+    elements.push({
+      type: "text", id: `st-spec-${i}`,
+      content: formatMaterialSpec(spec),
+      position: "top-center", fontSize: 11, color: "#666",
+      marginTop: 500 + i * 32, marginLeft: 60, marginRight: 60,
+      params: { align: "left", lineHeight: 1.4 },
+    });
   });
 
   if (hasMascot) {
@@ -1422,6 +1497,16 @@ function buildPackagingElements(ctx: BuildContext): PageElement[] {
     params: { sceneType: (ctx.industryType || "general") + "-packaging" },
   });
 
+  getMaterialSpecs("packaging").forEach((spec, i) => {
+    elements.push({
+      type: "text", id: `pk-spec-${i}`,
+      content: formatMaterialSpec(spec),
+      position: "top-center", fontSize: 11, color: "#666",
+      marginTop: 500 + i * 32, marginLeft: 60, marginRight: 60,
+      params: { align: "left", lineHeight: 1.4 },
+    });
+  });
+
   return elements;
 }
 
@@ -1448,6 +1533,16 @@ function buildMarketingElements(ctx: BuildContext): PageElement[] {
     position: "center", widthPct: 65, heightPct: 35,
     marginTop: 180,
     params: { sceneType: (ctx.industryType || "general") + "-marketing" },
+  });
+
+  getMaterialSpecs("marketing").forEach((spec, i) => {
+    elements.push({
+      type: "text", id: `mk-spec-${i}`,
+      content: formatMaterialSpec(spec),
+      position: "top-center", fontSize: 11, color: "#666",
+      marginTop: 500 + i * 32, marginLeft: 60, marginRight: 60,
+      params: { align: "left", lineHeight: 1.4 },
+    });
   });
 
   return elements;
@@ -1589,7 +1684,7 @@ function buildLogoGridElements(ctx: BuildContext): PageElement[] {
   });
   elements.push({
     type: "text", id: "lg-note",
-    content: "LOGO 居中置于 10×10 标准网格，标注外框比例、坐标与最小尺寸；四周保留 15% 保护空间。",
+    content: "Logo 标准网格 10x10 单位，1 格 = 5mm，标准尺寸 50mm x 50mm，缩放时按网格等比。",
     position: "top-center", fontSize: 12, color: "#666", marginTop: 480, marginLeft: 60, marginRight: 60,
     params: { align: "left", lineHeight: 1.5 },
   });
