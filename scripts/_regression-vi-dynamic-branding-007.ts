@@ -7,7 +7,7 @@
  *   - 直接调用生产函数并检查真实 Blueprint / PPTX XML，不在测试内替换生成结果。
  *
  * 运行：npx tsx scripts/_regression-vi-dynamic-branding-007.ts
- * 预期：10 passed / 0 failed，退出码 0。
+ * 预期：14 passed / 0 failed（007 的 10 项具名断言 + 008 新增 4 项英文规范化值覆盖），退出码 0。
  */
 process.env.DEEPSEEK_API_KEY = "";
 process.env.SUPABASE_URL = "";
@@ -21,6 +21,7 @@ import JSZip from "jszip";
 import { planPages, type PageBlueprint, type PagePlannerInput } from "../src/lib/vi-manual/page-planner";
 import { renderPptxToBuffer, type RenderPptxOptions } from "../src/lib/pptx/render-pptx";
 import { getMaterialSpecs } from "../src/lib/vi-manual/material-specs";
+import { getIndustryType } from "../src/lib/brand/industry-types";
 import { getLogoMisuseRules, normalizeLogoColorSet } from "../src/lib/vi-manual/brand-visual-rules";
 
 const ONE_PX_PNG_BASE64 =
@@ -200,6 +201,22 @@ async function main(): Promise<void> {
   writeFileSync(`${TMP_DIR}\\bb-007-dynamic-branding-be.pptx`, bufBE);
   writeFileSync(`${TMP_DIR}\\bb-007-dynamic-branding-ge.pptx`, bufGE);
 
+  // 工单 008：英文原文行业值端到端（规划与渲染都用英文 industry 原文，模拟生产
+  // route.ts / worker.mjs / analyze-brand 直连 SSOT getIndustryType 的真实层级，
+  // 确保英文 beverage 的 Blueprint 与 PPTX 都不再退化为 general）。
+  const bpsEnB = await planPages(makeInput("beverage", colorB));
+  const bpsEnR = await planPages(makeInput("restaurant", colorA));
+  const bpsEnG = await planPages(makeInput("general", colorG));
+  const bufEnB = await renderPptxToBuffer(bpsEnB, optsBE);
+  const bufEnR = await renderPptxToBuffer(bpsEnR, optsR);
+  const bufEnG = await renderPptxToBuffer(bpsEnG, optsGE);
+  writeFileSync(`${TMP_DIR}\\bb-008-en-beverage.pptx`, bufEnB);
+  writeFileSync(`${TMP_DIR}\\bb-008-en-restaurant.pptx`, bufEnR);
+  writeFileSync(`${TMP_DIR}\\bb-008-en-general.pptx`, bufEnG);
+  const pptxEnB = await extractPptxText(bufEnB);
+  const pptxEnR = await extractPptxText(bufEnR);
+  const pptxEnG = await extractPptxText(bufEnG);
+
   const pptxA = await extractPptxText(bufA);
   const pptxB = await extractPptxText(bufB);
   const pptxG = await extractPptxText(bufG);
@@ -214,16 +231,25 @@ async function main(): Promise<void> {
   const bpMapG: Record<string, string> = {};
   const bpMapC4: Record<string, string> = {};
   const bpMapD: Record<string, string> = {};
+  const bpMapEnB: Record<string, string> = {};
+  const bpMapEnR: Record<string, string> = {};
+  const bpMapEnG: Record<string, string> = {};
   for (const b of bpsA) bpMapA[b.pageId] = blueprintPageText(b);
   for (const b of bpsB) bpMapB[b.pageId] = blueprintPageText(b);
   for (const b of bpsG) bpMapG[b.pageId] = blueprintPageText(b);
   for (const b of bpsC4) bpMapC4[b.pageId] = blueprintPageText(b);
   for (const b of bpsD) bpMapD[b.pageId] = blueprintPageText(b);
+  for (const b of bpsEnB) bpMapEnB[b.pageId] = blueprintPageText(b);
+  for (const b of bpsEnR) bpMapEnR[b.pageId] = blueprintPageText(b);
+  for (const b of bpsEnG) bpMapEnG[b.pageId] = blueprintPageText(b);
 
   const allA = Object.values(bpMapA).join(" ") + " " + pptxA.all;
   const allB = Object.values(bpMapB).join(" ") + " " + pptxB.all;
   const allG = Object.values(bpMapG).join(" ") + " " + pptxG.all;
   const allC4 = Object.values(bpMapC4).join(" ") + " " + pptxC4.all;
+  const allEnB = Object.values(bpMapEnB).join(" ") + " " + pptxEnB.all;
+  const allEnR = Object.values(bpMapEnR).join(" ") + " " + pptxEnR.all;
+  const allEnG = Object.values(bpMapEnG).join(" ") + " " + pptxEnG.all;
 
   // ============ M 组：行业物料动态化 ============
   // 工单 007-R1：M1 直接覆盖规范化值 restaurant（生产传参可能是英文规范化值，
@@ -344,6 +370,44 @@ async function main(): Promise<void> {
     bpTitlesOk && pptxTitlesOk && evidenceTitlesOk && evidenceDerivedOk && noFixedWords &&
       rulesWithEvidence.length === misuseRules.length,
     `rules=${misuseRules.length} evidenceRules=${rulesWithEvidence.length}${missingBpTitles ? ` bpMissing=${missingBpTitles}` : ""}${missingPptxTitles ? ` pptxMissing=${missingPptxTitles}` : ""}`
+  );
+
+  // ============ 008 组：英文规范化行业值 SSOT 直通（007-R1 遗留风险收口）============
+  const normalizedValues = ["restaurant","fastfood","beverage","beauty","fashion","mother_baby","wedding","fitness","pharmacy","pet","retail","education","fresh_food","floral","home","nail","tea","general"];
+  const passThroughOk =
+    normalizedValues.every((v) => getIndustryType(v) === v) &&
+    getIndustryType("  Beverage  ") === "beverage";
+  check(
+    "008-1 英文规范化 IndustryType 值在 SSOT 直通（trim/lowercase）",
+    passThroughOk,
+    `samples=${normalizedValues.map((v) => `${v}=${getIndustryType(v)}`).join(",")}`
+  );
+
+  const bpPackEnB = bpMapEnB["packaging"] || "";
+  const pptxCupEnB = ["杯套", "杯身", "外带杯"].filter((t) => pptxEnB.all.includes(t));
+  check(
+    "008-2 英文 beverage 端到端 Blueprint 与 PPTX 均含杯套/杯身/外带杯",
+    bpPackEnB.includes("杯套") && bpPackEnB.includes("杯身") &&
+      pptxCupEnB.includes("杯套") && pptxCupEnB.includes("杯身") && pptxCupEnB.includes("外带杯"),
+    `bpPack=${bpPackEnB.slice(0, 200)} pptxCupTerms=${pptxCupEnB.join(",")}`
+  );
+
+  const cupTerms = ["杯套", "杯身", "外带杯"];
+  const enRCup = cupTerms.filter((t) => allEnR.includes(t));
+  const enGCup = cupTerms.filter((t) => allEnG.includes(t));
+  check(
+    "008-3 英文 restaurant/general 端到端不含杯套/杯身/外带杯",
+    enRCup.length === 0 && enGCup.length === 0,
+    `restaurant=${enRCup.join(",") || "无"} general=${enGCup.join(",") || "无"}`
+  );
+
+  const zhBeverage = getIndustryType("饮品");
+  const zhRestaurant = getIndustryType("面馆");
+  const zhGeneral = getIndustryType("其他");
+  check(
+    "008-4 中文行业词兼容保持（饮品/面馆/其他）",
+    zhBeverage === "beverage" && zhRestaurant === "restaurant" && zhGeneral === "general",
+    `饮品=${zhBeverage} 面馆=${zhRestaurant} 其他=${zhGeneral}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");

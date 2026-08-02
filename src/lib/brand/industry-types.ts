@@ -7,10 +7,27 @@
 
 export type IndustryType = "restaurant" | "fastfood" | "beverage" | "beauty" | "fashion" | "mother_baby" | "wedding" | "fitness" | "pharmacy" | "pet" | "retail" | "education" | "fresh_food" | "floral" | "home" | "nail" | "tea" | "general";
 
+/**
+ * 已规范化行业值全集（与 IndustryType 枚举一致）。工单 008（007-R1 遗留风险收口）：
+ * getIndustryType 是全平台 SSOT，generate-manual-pptx/route.ts:543、
+ * worker.mjs:508、analyze-brand/route.ts:90 都会把可能为英文的原始行业值传入；
+ * 旧实现只识别中文行业词，英文规范化值（beverage/restaurant 等）全部落到 general，
+ * 导致场景提示、行业知识、渲染输入变通用，并与 Planner（已直通 beverage）不一致。
+ * 因此“已是规范化 IndustryType 的值”trim/lowercase 后直接保留；
+ * 其余输入仍走既有中文正则，不削弱中文兼容。
+ */
+const NORMALIZED_INDUSTRY_TYPES: ReadonlySet<string> = new Set<string>([
+  "restaurant", "fastfood", "beverage", "beauty", "fashion", "mother_baby",
+  "wedding", "fitness", "pharmacy", "pet", "retail", "education",
+  "fresh_food", "floral", "home", "nail", "tea", "general",
+]);
+
 export function getIndustryType(industry?: string): IndustryType {
   if (!industry) return "general";
-  const s = industry.toLowerCase();
-  
+  const s = industry.trim().toLowerCase();
+  // 工单 008：已规范化 IndustryType 值直通，防止英文行业在生产调用链被二次归一化为 general
+  if (NORMALIZED_INDUSTRY_TYPES.has(s)) return s as IndustryType;
+
   // V14: 优先匹配二级格式（一级:二级）
   if (s.includes(":")) {
     const [cat, sub] = s.split(":");
