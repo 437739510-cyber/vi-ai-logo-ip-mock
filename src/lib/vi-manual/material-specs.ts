@@ -6,23 +6,11 @@
 import { getIndustryType, type IndustryType } from "../brand/industry-types";
 
 /**
- * 已规范化的行业值全集（IndustryType）。工单 007-R1：
- * getIndustryType 的正则只识别中文行业文本，英文规范化值（beverage/
- * restaurant/general 等）会被二次归一化为 general，导致英文 beverage
- * 在 getMaterialSpecs("packaging") 丢失合法 cup-sleeve。
- * 因此已规范化值必须直接保留；原始中文行业文本仍走 getIndustryType。
+ * 工单 014（D-03）：008 后 getIndustryType 已是全平台 SSOT（industry-types.ts 对已规范化
+ * IndustryType 值直接直通、中文走既有正则）。此处不再重复维护规范化值集合，
+ * 直接委托 getIndustryType；保留导出以兼容既有调用方。
  */
-const NORMALIZED_INDUSTRY_TYPES: ReadonlySet<string> = new Set<string>([
-  "restaurant", "fastfood", "beverage", "beauty", "fashion", "mother_baby",
-  "wedding", "fitness", "pharmacy", "pet", "retail", "education",
-  "fresh_food", "floral", "home", "nail", "tea", "general",
-]);
-
 export function resolveIndustryType(industry?: string): IndustryType {
-  if (industry) {
-    const normalized = industry.trim().toLowerCase();
-    if (NORMALIZED_INDUSTRY_TYPES.has(normalized)) return normalized as IndustryType;
-  }
   return getIndustryType(industry);
 }
 

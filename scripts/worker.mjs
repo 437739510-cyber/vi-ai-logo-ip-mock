@@ -24,7 +24,7 @@ import { renderPptxToBuffer } from '../src/lib/pptx/render-pptx';
 import { normalizeBrandName } from '../src/lib/vi-manual/brand-name-normalizer';
 import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from '../src/lib/vi-manual/mascot-assets';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
-import { extractLogoElements, resolveLogoColorsFromProfile } from '../src/lib/vi-manual/brand-visual-rules';
+import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile } from '../src/lib/vi-manual/brand-visual-rules';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -571,7 +571,7 @@ async function processManualGeneration(project) {
       assetAnalysis: {
         // 工单 009：Logo 结构证据只来自显式字段 logoDesignSuggestions.elements，
         // 缺失/为空时保持 []（通用规则，安全默认），不从文案猜测元素。
-        logo: { hasLogo: !!brandProfile?.selectedLogo?.imageUrl, elements: extractLogoElements(brandProfile?.logoDesignSuggestions?.elements), styleTags: [], meaning: clientInfo.logoPhilosophy || '' },
+        logo: { hasLogo: !!brandProfile?.selectedLogo?.imageUrl, elements: extractLogoElements(brandProfile?.logoDesignSuggestions?.elements), styleTags: extractStyleTags(brandProfile?.logoDesignSuggestions?.style), meaning: clientInfo.logoPhilosophy || '' },
         mascot: { hasMascot: clientInfo.wantMascot === 'yes', name: canonicalMascotAssets.name || '' },
       },
     });

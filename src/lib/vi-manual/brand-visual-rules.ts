@@ -54,6 +54,16 @@ export function extractLogoElements(raw?: string | null): string[] {
   return result;
 }
 
+/**
+ * 工单 014（D-04）：把显式 Logo 风格字段（brandProfile.logoDesignSuggestions.style）解析为
+ * 风格标签数组，供两条生产路径填充 assetAnalysis.logo.styleTags。
+ * 解析规则与 extractLogoElements 一致（拆分/去重/上限/空输入安全默认）；
+ * 只使用显式字段，字段缺失/为空 → []，不从文案猜测风格。
+ */
+export function extractStyleTags(raw?: string | null): string[] {
+  return extractLogoElements(raw);
+}
+
 export const GENERIC_LOGO_MISUSE_RULES: LogoMisuseRule[] = [
   { title: "禁止拉伸", desc: "不得对Logo进行\n非等比缩放", distortion: "stretch" },
   { title: "禁止旋转", desc: "不得旋转\nLogo角度", distortion: "rotate" },

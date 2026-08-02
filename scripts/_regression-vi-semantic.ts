@@ -310,7 +310,7 @@ function renderOptsFor(industry: string, companyName: string, brandColors: { pri
     logoData: ONE_PX_PNG,
     brandColors,
     compressImages: false,
-    // 故意不传 logoColors：让系统默认注入（藏青/祥云金）——用于捕获 G02，不人为喂入缺陷值。
+    // 不传 logoColors：007/013 后系统无默认 Logo 色注入；无输入即渲染无专属色区块（安全默认），此处覆盖“无专属色”场景。
   };
   if (mascot?.full) {
     // 场景 B：素材完整，提供三视图/表情/场景占位，避免误触发「素材待补」。

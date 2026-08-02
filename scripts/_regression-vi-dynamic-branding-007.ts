@@ -7,9 +7,9 @@
  *   - 直接调用生产函数并检查真实 Blueprint / PPTX XML，不在测试内替换生成结果。
  *
  * 运行：npx tsx scripts/_regression-vi-dynamic-branding-007.ts
- * 预期：22 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
+ * 预期：23 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
  * + 009 新增 4 项 Logo 结构证据接入 + 012 新增 1 项渲染端生产接线一致性
- * + 013 新增 3 项 LOGO 专属色上游数据源），退出码 0。
+ * + 013 新增 3 项 LOGO 专属色上游数据源 + 014 新增 1 项 styleTags 生产填充），退出码 0。
  */
 process.env.DEEPSEEK_API_KEY = "";
 process.env.SUPABASE_URL = "";
@@ -24,7 +24,7 @@ import { planPages, type PageBlueprint, type PagePlannerInput } from "../src/lib
 import { renderPptxToBuffer, type RenderPptxOptions } from "../src/lib/pptx/render-pptx";
 import { getMaterialSpecs } from "../src/lib/vi-manual/material-specs";
 import { getIndustryType } from "../src/lib/brand/industry-types";
-import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, resolveLogoColorsFromProfile } from "../src/lib/vi-manual/brand-visual-rules";
+import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile } from "../src/lib/vi-manual/brand-visual-rules";
 
 const ONE_PX_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -111,7 +111,8 @@ interface NamedColor {
 function makeInput(
   industry: string,
   colors: { primary: NamedColor; secondary: NamedColor; accent: NamedColor },
-  logoElements?: string[]
+  logoElements?: string[],
+  styleTags?: string[]
 ): PagePlannerInput {
   return {
     clientInfo: {
@@ -123,7 +124,7 @@ function makeInput(
     },
     wantMascot: "no",
     brandColors: colors,
-    assetAnalysis: { logo: { hasLogo: true, elements: logoElements || [] } },
+    assetAnalysis: { logo: { hasLogo: true, elements: logoElements || [], styleTags: styleTags || [] } },
   };
 }
 
@@ -539,6 +540,23 @@ async function main(): Promise<void> {
     routeSrc013.includes("logoSpecs") && routeSrc013.includes("logoColors") &&
       workerSrc013.includes("logoSpecs") && workerSrc013.includes("logoColors"),
     `route=${routeSrc013.includes("logoSpecs") && routeSrc013.includes("logoColors")} worker=${workerSrc013.includes("logoSpecs") && workerSrc013.includes("logoColors")}`
+  );
+
+  // ============ 014 组：styleTags 生产填充（011 缺陷 D-04）============
+  // 模拟生产接线：logoDesignSuggestions.style 字符串 → extractStyleTags →
+  // assetAnalysis.logo.styleTags → planPages，断言 Blueprint 出现“风格标签”行与真实标签。
+  const styleEvidence014 = "传统书法、现代简约";
+  const styleTags014 = extractStyleTags(styleEvidence014);
+  const bps014 = await planPages(makeInput("面馆", colorA, [], styleTags014));
+  const bpMap014: Record<string, string> = {};
+  for (const b of bps014) bpMap014[b.pageId] = blueprintPageText(b);
+  const bpText014 = Object.values(bpMap014).join(" ");
+  check(
+    "014-1 显式 style 证据经 extractStyleTags 进入 planner，Blueprint 含风格标签行",
+    JSON.stringify(styleTags014) === JSON.stringify(["传统书法", "现代简约"]) &&
+      bpText014.includes("风格标签") &&
+      bpText014.includes("传统书法") && bpText014.includes("现代简约"),
+    `tags=${JSON.stringify(styleTags014)} bp=${bpText014.slice(0, 200)}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");
