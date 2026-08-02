@@ -24,7 +24,7 @@ import { renderPptxToBuffer } from '../src/lib/pptx/render-pptx';
 import { normalizeBrandName } from '../src/lib/vi-manual/brand-name-normalizer';
 import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from '../src/lib/vi-manual/mascot-assets';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
-import { normalizeLogoColorSet, extractLogoElements } from '../src/lib/vi-manual/brand-visual-rules';
+import { extractLogoElements, resolveLogoColorsFromProfile } from '../src/lib/vi-manual/brand-visual-rules';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -156,6 +156,13 @@ const BRAND_ANALYSIS_SYSTEM = `你是一位资深的品牌战略分析师，精�
     {"name": "辅助色", "hex": "#RRGGBB", "nameEn": "Secondary", "meaning": "该色彩的行业关联，1句话"},
     {"name": "强调色", "hex": "#RRGGBB", "nameEn": "Accent", "meaning": "该色彩的行业关联，1句话"}
   ],
+  "logoSpecs": {
+    "note": "logoColors 必须来自客户提供的真实品牌色或已有Logo色证据；证据不足输出空数组 []，禁止虚构或套用其他品牌色板。",
+    "logoColors": [
+      {"name": "Logo专属色1（如：深空蓝）", "hex": "#RRGGBB", "rgb": "R, G, B", "cmyk": "C, M, Y, K"},
+      {"name": "Logo专属色2（如：暖金）", "hex": "#RRGGBB", "rgb": "R, G, B", "cmyk": "C, M, Y, K"}
+    ]
+  },
   "logoDesignSuggestions": {
     "note": "IMPORTANT: Logo prompts must emphasize the BRAND NAME as the central visual element. Do NOT use location/city name as the brand identifier. The brand name itself is the hero.",
     "concept": "Logo设计理念详述：3-5句话",
@@ -414,26 +421,6 @@ function evaluateMascotChapter(ci) {
   return { include: result.ready, result };
 }
 
-function resolveLogoColors(brandProfile) {
-  const aiColors = (brandProfile?.logoSpecs?.logoColors || []).filter((c) => c && c.hex);
-  const pick = (keywords) => {
-    const hit = aiColors.find((c) => keywords.some((k) => String(c.name || "").includes(k)));
-    if (!hit) return null;
-    return {
-      name: hit.name || "",
-      hex: hit.hex,
-      rgb: hit.rgb,
-      cmyk: hit.cmyk,
-    };
-  };
-  // 工单 007：没有真实 Logo 专属色时返回 null，不虚构固定色板；
-  // RGB/CMYK 缺失时由 normalizeLogoColorSet 从真实 HEX 计算。
-  return normalizeLogoColorSet({
-    navy: pick(["藏青", "深蓝", "navy", "Navy"]) || undefined,
-    gold: pick(["祥云", "金", "gold", "Gold"]) || undefined,
-  });
-}
-
 // ========== VI Manual Generation ==========
 
 async function processManualGeneration(project) {
@@ -670,7 +657,7 @@ async function processManualGeneration(project) {
         secondary: cp[1]?.hex || '#666666',
         accent: cp[2]?.hex || '#CC0000',
       },
-      logoColors: resolveLogoColors(brandProfile),
+      logoColors: resolveLogoColorsFromProfile(brandProfile),
       logoElements: extractLogoElements(brandProfile?.logoDesignSuggestions?.elements),
       brandVision: clientInfo.brandVision || brandProfile.refinedBrandVision || '',
       coreValues: clientInfo.coreValues || brandProfile.refinedCoreValues || '',

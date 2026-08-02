@@ -15,8 +15,8 @@ export interface LogoColor {
 }
 
 export interface LogoColorSet {
-  navy?: LogoColor | null;
-  gold?: LogoColor | null;
+  navy?: LogoColor;
+  gold?: LogoColor;
 }
 
 export interface LogoMisuseRule {
@@ -156,4 +156,34 @@ export function normalizeLogoColorSet(raw?: LogoColorSet | null): LogoColorSet |
   const gold = normalizeLogoColor(raw.gold, "gold");
   if (!navy && !gold) return null;
   return { navy: navy || undefined, gold: gold || undefined };
+}
+
+export interface LogoColorProfileItem {
+  name?: string;
+  hex?: string;
+  rgb?: string;
+  cmyk?: string;
+}
+
+/**
+ * 工单 013：从品牌分析档案提取真实 Logo 专属色（D-02 修复，消费者侧 SSOT）。
+ * - 颜色只来自 brandProfile.logoSpecs.logoColors（AI schema 已约束只输出真实证据）；
+ * - 按关键词选 navy/gold 槽位（与 007 worker 原逻辑一致：navy 藏青/深蓝；gold 祥云/金）；
+ * - 缺失 HEX 的颜色忽略；找不到返回 null；无真实专属色不虚构、不回退固定色板。
+ */
+export function resolveLogoColorsFromProfile(
+  brandProfile?: { logoSpecs?: { logoColors?: Array<LogoColorProfileItem | null> } } | null
+): LogoColorSet | null {
+  const aiColors = (brandProfile?.logoSpecs?.logoColors || []).filter(
+    (c): c is LogoColorProfileItem => Boolean(c && typeof c.hex === "string" && c.hex.trim())
+  );
+  const pick = (keywords: string[]): LogoColor | null => {
+    const hit = aiColors.find((c) => keywords.some((k) => String(c.name || "").includes(k)));
+    if (!hit) return null;
+    return { name: hit.name || "", hex: hit.hex || "", rgb: hit.rgb, cmyk: hit.cmyk };
+  };
+  return normalizeLogoColorSet({
+    navy: pick(["藏青", "深蓝", "navy", "Navy"]) || undefined,
+    gold: pick(["祥云", "金", "gold", "Gold"]) || undefined,
+  });
 }

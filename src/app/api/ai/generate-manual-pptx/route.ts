@@ -25,7 +25,7 @@ import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/b
 import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
 import { validateAndBlockAsync, checkColorNarrativeConsistency } from "@/lib/vi-manual/quality-check";
-import { extractLogoElements } from "@/lib/vi-manual/brand-visual-rules";
+import { extractLogoElements, resolveLogoColorsFromProfile } from "@/lib/vi-manual/brand-visual-rules";
 const _DEV = process.env.NODE_ENV === "development";
 
 
@@ -1222,6 +1222,7 @@ export async function POST(req: NextRequest) {
       targetMarket: effectiveTargetMarket,
       logoPhilosophy,
       logoElements: extractLogoElements(brandProfile?.logoDesignSuggestions?.elements),
+      logoColors: resolveLogoColorsFromProfile(brandProfile) || undefined,
       mascotPhilosophy,
       sceneImages,
       sceneLabels,
@@ -1551,6 +1552,13 @@ const BRAND_ANALYSIS_SYSTEM_PROMPT = `你是一位资深的品牌战略分析师
     {"zh": "促销海报", "en": "Professional product photography of a branded promotional poster standee in store, with company branding visible, studio setting"},
     {"zh": "会员卡", "en": "Professional product photography of a branded VIP membership card with company logo, clean studio background"}
   ],
+  "logoSpecs": {
+    "note": "logoColors 必须来自客户提供的真实品牌色或已有Logo色证据；证据不足输出空数组 []，禁止虚构或套用其他品牌色板。",
+    "logoColors": [
+      {"name": "Logo专属色1（如：深空蓝）", "hex": "#RRGGBB", "rgb": "R, G, B", "cmyk": "C, M, Y, K"},
+      {"name": "Logo专属色2（如：暖金）", "hex": "#RRGGBB", "rgb": "R, G, B", "cmyk": "C, M, Y, K"}
+    ]
+  },
   "logoDesignSuggestions": {
     "concept": "Logo设计核心概念，1-2句话",
     "style": "设计风格（如：传统书法、现代简约、国潮、手绘等）",

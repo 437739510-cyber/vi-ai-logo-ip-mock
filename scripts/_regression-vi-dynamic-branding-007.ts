@@ -7,8 +7,9 @@
  *   - 直接调用生产函数并检查真实 Blueprint / PPTX XML，不在测试内替换生成结果。
  *
  * 运行：npx tsx scripts/_regression-vi-dynamic-branding-007.ts
- * 预期：19 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
- * + 009 新增 4 项 Logo 结构证据接入 + 012 新增 1 项渲染端生产接线一致性），退出码 0。
+ * 预期：22 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
+ * + 009 新增 4 项 Logo 结构证据接入 + 012 新增 1 项渲染端生产接线一致性
+ * + 013 新增 3 项 LOGO 专属色上游数据源），退出码 0。
  */
 process.env.DEEPSEEK_API_KEY = "";
 process.env.SUPABASE_URL = "";
@@ -16,14 +17,14 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = "";
 process.env.SUPABASE_SERVICE_KEY = "";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "";
 
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdirSync, writeFileSync, readFileSync } from "fs";
 import { dirname } from "path";
 import JSZip from "jszip";
 import { planPages, type PageBlueprint, type PagePlannerInput } from "../src/lib/vi-manual/page-planner";
 import { renderPptxToBuffer, type RenderPptxOptions } from "../src/lib/pptx/render-pptx";
 import { getMaterialSpecs } from "../src/lib/vi-manual/material-specs";
 import { getIndustryType } from "../src/lib/brand/industry-types";
-import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements } from "../src/lib/vi-manual/brand-visual-rules";
+import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, resolveLogoColorsFromProfile } from "../src/lib/vi-manual/brand-visual-rules";
 
 const ONE_PX_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -494,6 +495,50 @@ async function main(): Promise<void> {
       pptxMisuse012.includes("麦穗") && pptxMisuse012.includes("帆船") &&
       !misuseText012.includes("祥云") && !misuseText012.includes("圆环纹样"),
     `evidence=${evidence012} elems=${JSON.stringify(elems012)} bp=${bpMisuse012.slice(0, 120)} pptx=${pptxMisuse012.slice(0, 120)}`
+  );
+
+  // ============ 013 组：LOGO 专属色上游数据源（011 缺陷 D-02）============
+  const resolvedColors013 = resolveLogoColorsFromProfile({
+    logoSpecs: {
+      logoColors: [
+        { name: "品牌深蓝", hex: "#123456" },
+        { name: "品牌暖金", hex: "#ABCDEF" },
+      ],
+    },
+  });
+  const opts013 = renderOpts("面馆", { primary: "#A63D40", secondary: "#D9A441", accent: "#F5EBDD" }, {
+    logoColors: resolvedColors013
+      ? { navy: resolvedColors013.navy || undefined, gold: resolvedColors013.gold || undefined }
+      : undefined,
+  });
+  const buf013 = await renderPptxToBuffer(bpsA, opts013);
+  const pptx013 = await extractPptxText(buf013);
+  check(
+    "013-1 有真实 Logo 专属色证据时原样采用：色名/HEX 在函数边界保留，PPTX 文本含真实色名、无固定默认色",
+    resolvedColors013?.navy?.name === "品牌深蓝" &&
+      resolvedColors013?.navy?.hex === "#123456" &&
+      resolvedColors013?.gold?.name === "品牌暖金" &&
+      resolvedColors013?.gold?.hex === "#ABCDEF" &&
+      pptx013.all.includes("品牌深蓝") &&
+      pptx013.all.includes("品牌暖金") &&
+      !["LOGO藏青", "祥云金"].some((t) => pptx013.all.includes(t)),
+    `resolved=${JSON.stringify(resolvedColors013)} hexRenderedInPng=spec-page-renderer.ts:231('HEX: '+c.hex) slideTextCantExtract`
+  );
+
+  const noColors013 = resolveLogoColorsFromProfile({});
+  check(
+    "013-2 无 Logo 专属色证据返回 null，渲染不出现 LOGO 专属色区块",
+    noColors013 === null && !pptxA.all.includes("LOGO 专属色值"),
+    `noColors=${JSON.stringify(noColors013)}`
+  );
+
+  const routeSrc013 = readFileSync("src/app/api/ai/generate-manual-pptx/route.ts", "utf8");
+  const workerSrc013 = readFileSync("scripts/worker.mjs", "utf8");
+  check(
+    "013-3 AI schema 契约：两条生产 schema 均含 logoSpecs 与 logoColors",
+    routeSrc013.includes("logoSpecs") && routeSrc013.includes("logoColors") &&
+      workerSrc013.includes("logoSpecs") && workerSrc013.includes("logoColors"),
+    `route=${routeSrc013.includes("logoSpecs") && routeSrc013.includes("logoColors")} worker=${workerSrc013.includes("logoSpecs") && workerSrc013.includes("logoColors")}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");
