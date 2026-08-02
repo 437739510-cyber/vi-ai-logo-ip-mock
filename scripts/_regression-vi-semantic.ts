@@ -689,7 +689,7 @@ async function main(): Promise<void> {
   const passed = checks.filter((c) => c.pass).length;
   const failed = checks.filter((c) => !c.pass).length;
   console.log(`\n=== 断言: ${passed} passed, ${failed} failed | 退出码: ${process.exitCode || 0} ===`);
-  console.log("说明: 007 范围内的 7 项（A4/A5/A6/A7/B2/D2-A/D2-B）继续如实 FAIL，其余断言代表 006G 验收标准。");
+  console.log("说明: A4/A5/A6/A7/B2/D2-A/D2-B 共 7 项由 007/007-R1/008 整改覆盖，当前全部 PASS；其余断言代表 006G 验收标准。");
 }
 
 function bpIdsSet(bps: PageBlueprint[]): Set<string> {
