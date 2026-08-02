@@ -33,11 +33,16 @@ const brandColors = {
 const baseInput = {
   clientInfo,
   brandColors,
-  includeMascotChapter: true,
-  mascotAssetsReady: true,
+  mascotAssets: {
+    name: "小茶",
+    front: ONE_PX_PNG,
+    side: ONE_PX_PNG,
+    back: ONE_PX_PNG,
+    emotions: ["微笑", "欢迎", "专注", "惊喜", "安心", "开心", "引导", "俏皮"].map((name) => ({ name, url: ONE_PX_PNG })),
+    scenes: ["门店迎宾", "包装应用", "会员互动", "社媒互动"].map((name) => ({ name, url: ONE_PX_PNG })),
+  },
   assetAnalysis: {
     logo: { hasLogo: true },
-    mascot: { hasMascot: true, name: "小茶", splitViews: [ONE_PX_PNG, ONE_PX_PNG, ONE_PX_PNG] },
   },
 };
 
@@ -106,8 +111,8 @@ async function main(): Promise<void> {
     mascotData: ONE_PX_PNG,
     mascotThreeViewData: ONE_PX_PNG,
     mascotSplitViews: [ONE_PX_PNG, ONE_PX_PNG, ONE_PX_PNG],
-    mascotEmotions: { smile: ONE_PX_PNG, wink: ONE_PX_PNG },
-    mascotScenes: { store: ONE_PX_PNG, event: ONE_PX_PNG },
+    mascotEmotions: Object.fromEntries(["微笑", "欢迎", "专注", "惊喜", "安心", "开心", "引导", "俏皮"].map((name) => [name, ONE_PX_PNG])),
+    mascotScenes: Object.fromEntries(["门店迎宾", "包装应用", "会员互动", "社媒互动"].map((name) => [name, ONE_PX_PNG])),
     compressImages: false,
   };
   ok("color options contain navy #1B2A4A", renderOptions.logoColors?.navy?.hex === "#1B2A4A");

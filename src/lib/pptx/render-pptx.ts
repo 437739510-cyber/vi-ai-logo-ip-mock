@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 /**
  * PptxGenJS Renderer V6 — AI写实图+专业排版
  *
@@ -18,6 +18,13 @@ import { type IndustryType, getIndustryType, getIndustryMaterials } from "@/lib/
 import { cleanDirtyWords, filterMaterialsByIndustry } from "@/lib/vi-manual/dirty-word-cleaner";
 import { COLOR_NAME_MAP } from "@/lib/vi-manual/color-name-map";
 import { normalizeBrandName } from "@/lib/vi-manual/brand-name-normalizer";
+import {
+  MASCOT_VIEW_MIN,
+  MASCOT_EMOTIONS_MIN,
+  MASCOT_SCENES_MIN,
+  isUsableImageRef,
+  countUsableRecordEntries,
+} from "@/lib/vi-manual/mascot-assets";
 import { getMaterialSpecs, type MaterialSpec } from "@/lib/vi-manual/material-specs";
 
 import { renderTypographyPng, renderColorSpecPng } from "./spec-page-renderer";
@@ -262,29 +269,33 @@ function getSceneConfigs(industry: IndustryType, aiTitles?: Record<string, strin
 function assertMascotPagesHaveAssets(blueprints: PageBlueprint[], options: RenderPptxOptions): void {
   for (const bp of blueprints) {
     if (!bp.pageId.startsWith("mascot-")) continue;
-    const hasAny = (v: unknown): boolean => !!v;
+    const splitViews = (options.mascotSplitViews || []).filter((v) => isUsableImageRef(v));
     let hasAssets = true;
     switch (bp.pageId) {
       case "mascot-positioning":
-        hasAssets = hasAny(options.mascotData) || hasAny(options.mascotThreeViewData);
+        hasAssets = isUsableImageRef(options.mascotData) || isUsableImageRef(options.mascotThreeViewData) || splitViews.length > 0;
         break;
       case "mascot-threeview":
-        hasAssets = hasAny(options.mascotThreeViewData) || (options.mascotSplitViews?.length || 0) > 0;
+        hasAssets = splitViews.length >= MASCOT_VIEW_MIN;
         break;
       case "mascot-emotions":
-        hasAssets = !!options.mascotEmotions && Object.values(options.mascotEmotions).some((v) => !!v);
+        hasAssets = countUsableRecordEntries(options.mascotEmotions) >= MASCOT_EMOTIONS_MIN;
         break;
       case "mascot-scenes":
-        hasAssets = !!options.mascotScenes && Object.values(options.mascotScenes).some((v) => !!v);
+        hasAssets = countUsableRecordEntries(options.mascotScenes) >= MASCOT_SCENES_MIN;
         break;
       case "mascot-usage":
-        hasAssets = (options.mascotSplitViews?.length || 0) > 0 || hasAny(options.mascotData);
+        hasAssets = splitViews.length > 0 || isUsableImageRef(options.mascotData);
         break;
       default:
         break;
     }
     if (!hasAssets) {
-      throw new Error("Mascot page " + bp.pageId + " has no assets, refusing to render blank page");
+      throw new Error(
+        "Mascot page " + bp.pageId +
+        " has insufficient assets, refusing to render blank page (contract: front/side/back + " +
+        MASCOT_EMOTIONS_MIN + " emotions + " + MASCOT_SCENES_MIN + " scenes)",
+      );
     }
   }
 }
@@ -2196,7 +2207,7 @@ async function renderMascotGallery(slide: PptxGenJS.Slide, bp: PageBlueprint, op
     yPos += 0.4;
     const emoSize = 1.2, emoGap = 0.15, emoStartX = MARGIN;
     const maxPerRow = Math.floor(CONTENT_W / (emoSize + emoGap));
-    emoKeys.slice(0, 6).forEach((key, i) => {
+    emoKeys.forEach((key, i) => {
       const col = i % maxPerRow;
       const row = Math.floor(i / maxPerRow);
       const ex = emoStartX + col * (emoSize + emoGap);
@@ -2217,7 +2228,7 @@ async function renderMascotGallery(slide: PptxGenJS.Slide, bp: PageBlueprint, op
     yPos += 0.4;
     const scSize = 1.5, scGap = 0.15, scStartX = MARGIN;
     const maxPerRow2 = Math.floor(CONTENT_W / (scSize + scGap));
-    scKeys.slice(0, 6).forEach((key, i) => {
+    scKeys.forEach((key, i) => {
       const col = i % maxPerRow2;
       const row = Math.floor(i / maxPerRow2);
       const ex = scStartX + col * (scSize + scGap);
@@ -2270,16 +2281,15 @@ function renderMascotChapterPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   const textEnd = renderMascotTextPairs(slide, bp, bc, 1.55);
   const startY = Math.min(Math.max(textEnd + 0.15, 3.2), 7.6);
   if (bp.pageId === "mascot-threeview") {
-    if (opts.mascotThreeViewData) {
-      const vw = 6.2, vh = SH - startY - 0.5;
-      slide.addImage({ data: normImg(opts.mascotThreeViewData), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
-    } else if (opts.mascotSplitViews && opts.mascotSplitViews.length > 0) {
-      renderMascotSplitGrid(slide, opts.mascotSplitViews, "分视图", startY, bc);
-    }
+    // 工单 006G：三视图页必须使用 front/side/back 三个独立视图（threeView 不能凑数）。
+    const views = (opts.mascotSplitViews || []).filter((v) => isUsableImageRef(v)).slice(0, MASCOT_VIEW_MIN);
+    if (views.length >= MASCOT_VIEW_MIN) renderMascotSplitGrid(slide, views, "三视图", startY, bc, MASCOT_VIEW_MIN);
   } else if (bp.pageId === "mascot-emotions") {
-    renderMascotRecordGrid(slide, opts.mascotEmotions, "表情库", startY, bc);
+    // A4 竖版 4×2 表情网格：完整展示 8 个中文表情，不再截断为 6 个。
+    renderMascotRecordGrid(slide, opts.mascotEmotions, "表情库", startY, bc, 4);
   } else if (bp.pageId === "mascot-scenes") {
-    renderMascotRecordGrid(slide, opts.mascotScenes, "场景应用", startY, bc);
+    // A4 竖版 2×2 场景网格：完整展示 4 个真实应用场景，不再截断为 3 个。
+    renderMascotRecordGrid(slide, opts.mascotScenes, "场景应用", startY, bc, 2);
   } else if (bp.pageId === "mascot-usage") {
     if (opts.mascotSplitViews && opts.mascotSplitViews.length > 0) {
       renderMascotSplitGrid(slide, opts.mascotSplitViews, "分视图", startY, bc);
@@ -2288,7 +2298,7 @@ function renderMascotChapterPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
       slide.addImage({ data: normImg(opts.mascotData), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
     }
   } else if (bp.pageId === "mascot-positioning") {
-    const posImg = opts.mascotData || opts.mascotThreeViewData;
+    const posImg = opts.mascotData || opts.mascotThreeViewData || opts.mascotSplitViews?.[0];
     if (posImg) {
       const vw = 3.4, vh = Math.min(SH - startY - 0.5, 4.0);
       slide.addImage({ data: normImg(posImg), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
@@ -2301,9 +2311,10 @@ function renderMascotSupportPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
 
   const textEnd = renderMascotTextPairs(slide, bp, bc, 1.55);
   const startY = Math.min(Math.max(textEnd + 0.15, 3.2), 7.6);
-  if (opts.mascotData) {
+  const supportImg = opts.mascotData || opts.mascotThreeViewData || opts.mascotSplitViews?.[0];
+  if (supportImg) {
     const vw = 3.4, vh = Math.min(SH - startY - 0.5, 3.2);
-    slide.addImage({ data: normImg(opts.mascotData), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
+    slide.addImage({ data: normImg(supportImg), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
   } else {
     slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: startY, w: CONTENT_W, h: 0.8, fill: { color: "FDECEA" }, rectRadius: 0.06 });
     slide.addText("素材待补，禁止交付", { x: MARGIN + LEFT_BAR_W, y: startY, w: CONTENT_W, h: 0.8, fontSize: 16, bold: true, color: "CC3333", align: "center", valign: "middle" });
@@ -2315,18 +2326,23 @@ function renderMascotRecordGrid(
   rec: Record<string, string> | null | undefined,
   title: string,
   yStart: number,
-  bc: BC
+  bc: BC,
+  cols = 4
 ): void {
   if (!rec) return;
-  const keys = Object.keys(rec).slice(0, 6);
+  const keys = Object.keys(rec).filter((k) => k && isUsableImageRef(rec[k]));
   if (!keys.length) return;
   slide.addText(title, { x: MARGIN + LEFT_BAR_W, y: yStart, w: CONTENT_W, h: 0.35, fontSize: 14, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
   const yPos = yStart + 0.4;
-  const size = 1.5, gap = 0.15, startX = MARGIN + LEFT_BAR_W;
-  const maxPerRow = Math.max(1, Math.floor(CONTENT_W / (size + gap)));
+  const gap = 0.14, startX = MARGIN + LEFT_BAR_W;
+  const safeCols = Math.max(1, Math.min(cols, keys.length));
+  const rows = Math.ceil(keys.length / safeCols);
+  const widthForCols = (CONTENT_W - (safeCols - 1) * gap) / safeCols;
+  const heightForRows = (SH - 1.05 - yStart - 0.4) / rows - 0.32;
+  const size = Math.max(0.9, Math.min(safeCols >= 3 ? 1.45 : 2.35, widthForCols, heightForRows));
   keys.forEach((key, i) => {
-    const col = i % maxPerRow;
-    const row = Math.floor(i / maxPerRow);
+    const col = i % safeCols;
+    const row = Math.floor(i / safeCols);
     const ex = startX + col * (size + gap);
     const ey = yPos + row * (size + 0.35);
     const b64 = rec[key];
@@ -2342,16 +2358,22 @@ function renderMascotSplitGrid(
   views: string[] | null | undefined,
   title: string,
   yStart: number,
-  bc: BC
+  bc: BC,
+  cols = 3
 ): void {
-  if (!views || !views.length) return;
+  const usable = (views || []).filter((v) => isUsableImageRef(v));
+  if (!usable.length) return;
   slide.addText(title, { x: MARGIN + LEFT_BAR_W, y: yStart, w: CONTENT_W, h: 0.35, fontSize: 14, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
   const yPos = yStart + 0.4;
-  const size = 1.8, gap = 0.2, startX = MARGIN + LEFT_BAR_W;
-  const maxPerRow = Math.max(1, Math.floor(CONTENT_W / (size + gap)));
-  views.slice(0, 6).forEach((b64, i) => {
-    const col = i % maxPerRow;
-    const row = Math.floor(i / maxPerRow);
+  const gap = 0.2, startX = MARGIN + LEFT_BAR_W;
+  const safeCols = Math.max(1, Math.min(cols, usable.length));
+  const rows = Math.ceil(usable.length / safeCols);
+  const widthForCols = (CONTENT_W - (safeCols - 1) * gap) / safeCols;
+  const heightForRows = (SH - 1.05 - yStart - 0.4) / rows - 0.35;
+  const size = Math.max(1.0, Math.min(2.0, widthForCols, heightForRows));
+  usable.forEach((b64, i) => {
+    const col = i % safeCols;
+    const row = Math.floor(i / safeCols);
     const ex = startX + col * (size + gap);
     const ey = yPos + row * (size + 0.35);
     if (b64) {

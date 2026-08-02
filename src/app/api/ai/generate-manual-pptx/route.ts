@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API: Generate VI Manual PPTX via PptxGenJS Engine V120 (ComfyUI local only)
  *
  * V7 核心改动（在V6基础上）：
@@ -18,6 +18,7 @@ import { extractBrandDNA, fillScenePrompts } from "@/lib/vi-manual/deepseek-dna"
 import path from "path";
 import { readFile, mkdir, writeFile, readdir } from "fs/promises";
 import { planPages } from "@/lib/vi-manual/page-planner";
+import { normalizeMascotAssetSet } from "@/lib/vi-manual/mascot-assets";
 import { renderPptxToBuffer } from "@/lib/pptx/render-pptx";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
@@ -520,6 +521,14 @@ export async function POST(req: NextRequest) {
 
     // V105: companyName取值链 — 加client_info.companyName兜底
     const companyName = body.clientInfo?.companyName || submission?.company_name || submission?.companyName || project?.client_name || ci?.companyName || body.clientInfo?.clientName || dd.storeName || "品牌";
+
+    // 整改 #006：正式品牌名 / 内部项目名 语义分离（工单 006 3.1 / 5.1）
+    // 优先级：client_info.formalBrandName（显式正式名）→ 既有 companyName 解析链。
+    // projectDisplayName 仅内部追踪，绝不进入品牌展示位。
+    const formalBrandName: string | null = (ci as Record<string, any>)?.formalBrandName || null;
+    const projectDisplayName: string | null = (ci as Record<string, any>)?.projectDisplayName || null;
+    // 显示用品牌名：优先级 formalBrandName → 既有 companyName
+    const displayCompanyName = formalBrandName || companyName;
     const industry = body.clientInfo?.industry || submission?.industry || project?.industry || "";
     const brandVision = body.clientInfo?.brandVision || submission?.brand_vision || dd.brandSpirit || "";
     const coreValues = body.clientInfo?.coreValues || submission?.core_values || dd.brandSpiritCustom || "";
@@ -1133,8 +1142,30 @@ export async function POST(req: NextRequest) {
     } catch (e: any) { console.warn("[generate-pptx] Checkpoint save error:", e.message); }
 
     // ===== Step 5: 生成蓝图 =====
+    // 整改 #006G：API 与 Worker 共用同一个 canonical adapter/validator。
+    // 优先使用 client_info.mascotAssets 的 public URL；旧数据无该对象时，
+    // 用已加载的 data URL（mascotSplitViews / mascotEmotions / mascotScenes）构造同一结构，
+    // 保证「已下载 data URL 与未下载 public URL」遵循同一存在/有效规则。
+    const canonicalMascotAssets = normalizeMascotAssetSet(
+      mascotAssets
+        ? { ...mascotAssets, name: mascotName }
+        : {
+            name: mascotName,
+            front: mascotSplitViews?.[0],
+            side: mascotSplitViews?.[1],
+            back: mascotSplitViews?.[2],
+            emotions: mascotEmotions || undefined,
+            scenes: mascotScenes || undefined,
+          },
+    );
     const blueprints = await planPages({
-      clientInfo: { companyName, brandVision: effectiveBrandVision, coreValues: effectiveCoreValues, targetMarket: effectiveTargetMarket, logoPhilosophy, mascotPhilosophy, industry },
+      clientInfo: { companyName: displayCompanyName, brandVision: effectiveBrandVision, coreValues: effectiveCoreValues, targetMarket: effectiveTargetMarket, logoPhilosophy, mascotPhilosophy, industry },
+      // 整改 #006：显式传递正式品牌名与内部项目名（生产实际读取位置）
+      formalBrandName: formalBrandName || undefined,
+      projectDisplayName: projectDisplayName || undefined,
+      // 整改 #006F：requested 以 client_info.wantMascot==="yes" 为唯一真源（与 Worker 共用同一规则，不依赖 !!mascotData 反推）
+      wantMascot: ci?.wantMascot || undefined,
+      mascotAssets: canonicalMascotAssets,
       brandColors: {
         primary: { hex: realColors.primary },
         secondary: { hex: realColors.secondary },
@@ -1142,7 +1173,7 @@ export async function POST(req: NextRequest) {
       },
       assetAnalysis: {
         logo: { hasLogo: !!logoData, logoUrl: body.logoUrl || "", elements: [], styleTags: [], meaning: logoPhilosophy },
-        mascot: { hasMascot: !!mascotData, mascotUrl: body.mascotUrl || "", isThreeView: !!(mascotSplitViews?.length === 3), splitViews: mascotSplitViews || [], name: mascotName, style: mascotStyle, personality: mascotPersonality },
+        mascot: { hasMascot: ci?.wantMascot === "yes", name: canonicalMascotAssets.name || mascotName, style: mascotStyle, personality: mascotPersonality },
       },
     });
 
@@ -1176,7 +1207,8 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin.from("projects").update({ status: "pptx_assembling", updated_at: new Date().toISOString() }).eq("id", projectId);
     const buffer = await renderPptxToBuffer(blueprints, {
       projectName: projectId,
-      companyName,
+      // 整改 #006：渲染期也使用正式/显示品牌名（覆盖所有品牌展示位）
+      companyName: displayCompanyName,
       industry,
       logoData,
       mascotData,

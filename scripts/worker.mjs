@@ -22,6 +22,7 @@ import { arkGenerate } from '../src/lib/ip/ip-image-provider/ark-fallback';
 import { planPages } from '../src/lib/vi-manual/page-planner';
 import { renderPptxToBuffer } from '../src/lib/pptx/render-pptx';
 import { normalizeBrandName } from '../src/lib/vi-manual/brand-name-normalizer';
+import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from '../src/lib/vi-manual/mascot-assets';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -400,20 +401,16 @@ async function processLogoGeneration(project) {
   }
 }
 
-// ========== Mascot Chapter Gating ==========
+// ========== Mascot Chapter Gating（工单 006G 统一契约） ==========
 
-function hasUsableMascotAssets(ci) {
-  const a = ci?.mascotAssets || {};
-  const hasViews = !!(a.front || a.side || a.back || a.threeView);
-  const hasEmotions = Array.isArray(a.emotions) && a.emotions.some(e => e?.url);
-  const hasScenes = Array.isArray(a.scenes) && a.scenes.some(s => s?.url);
-  return hasViews || hasEmotions || hasScenes;
-}
-
-function shouldIncludeMascotChapter(ci) {
-  const wantsMascot = ci?.wantMascot === 'yes';
-  const hasExistingAssets = hasUsableMascotAssets(ci);
-  return wantsMascot && hasExistingAssets || hasExistingAssets;
+// 整改 #006G：client_info.mascotAssets 通过共享 adapter 归一化为规范结构，
+// requested 以 wantMascot==="yes" 为唯一真源；ready 由 validateMascotAssets 判定
+// （front/side/back 独立视图 + name + emotions>=8 + scenes>=4，threeView 不能凑数）。
+function evaluateMascotChapter(ci) {
+  if (ci?.wantMascot !== 'yes') return { include: false, result: null };
+  const assets = buildMascotAssetSetFromClientInfo(ci);
+  const result = validateMascotAssets({ assets });
+  return { include: result.ready, result };
 }
 
 const DEFAULT_LOGO_COLORS = {
@@ -447,15 +444,18 @@ async function processManualGeneration(project) {
   const brandProfile = clientInfo.brandProfile || {};
   const rawCompanyName = clientInfo.companyName || '';
   const normalizedCompanyName = normalizeBrandName(rawCompanyName);
-  const includeMascot = shouldIncludeMascotChapter(clientInfo);
+  const mascotGate = evaluateMascotChapter(clientInfo);
+  const includeMascot = mascotGate.include;
 
-  if ((clientInfo.wantMascot === 'yes' || clientInfo.mascotAssets) && !includeMascot) {
+  if (clientInfo.wantMascot === 'yes' && !includeMascot) {
     await supabase.from('projects').update({
       status: 'submitted',
       client_info: {
         ...clientInfo,
         generationStatus: 'mascot_generating',
-        generationMessage: '等待IP公仔素材生成，暂不渲染VI手册',
+        generationMessage: 'IP 素材不完整，暂不渲染VI手册',
+        mascotMissing: mascotGate.result?.missing || [],
+        mascotCounts: mascotGate.result?.counts,
       },
       updated_at: new Date().toISOString(),
     }).eq('id', projectId);
@@ -558,6 +558,7 @@ async function processManualGeneration(project) {
   let blueprints;
   try {
     const cp = brandProfile.colorPalette || [];
+    const canonicalMascotAssets = buildMascotAssetSetFromClientInfo(clientInfo);
     const brandColors = {
       primary: { hex: cp[0]?.hex || '#333333', name: cp[0]?.name || '主色' },
       secondary: { hex: cp[1]?.hex || '#666666', name: cp[1]?.name || '辅助色' },
@@ -574,9 +575,18 @@ async function processManualGeneration(project) {
         industry: clientInfo.industry || 'general',
         brandPersonality: clientInfo.brandPersonality || '',
       },
+      // 整改 #006/#006F：显式传递正式品牌名与内部项目名（生产实际读取位置）
+      formalBrandName: clientInfo.formalBrandName || undefined,
+      projectDisplayName: clientInfo.projectDisplayName || undefined,
       brandColors,
-      includeMascotChapter: includeMascot,
-      mascotAssetsReady: includeMascot,
+      // 整改 #006F：requested 以 wantMascot==="yes" 为唯一真源；ready 以真实资产契约为准
+      // （不再传 includeMascotChapter / mascotAssetsReady 绕过规划期门禁）
+      wantMascot: clientInfo.wantMascot || undefined,
+      mascotAssets: canonicalMascotAssets,
+      assetAnalysis: {
+        logo: { hasLogo: !!brandProfile?.selectedLogo?.imageUrl, elements: [], styleTags: [], meaning: clientInfo.logoPhilosophy || '' },
+        mascot: { hasMascot: clientInfo.wantMascot === 'yes', name: canonicalMascotAssets.name || '' },
+      },
     });
     log('INFO', `[MANUAL] ${projectId}: ${blueprints.length} pages planned`);
   } catch (err) {
@@ -650,7 +660,8 @@ async function processManualGeneration(project) {
     const cp = brandProfile.colorPalette || [];
     const options = {
       projectName: normalizedCompanyName || 'Brand',
-      companyName: normalizedCompanyName || 'Brand',
+      // 整改 #006：渲染期也使用正式品牌名（优先 client_info.formalBrandName）
+      companyName: clientInfo.formalBrandName || normalizedCompanyName || 'Brand',
       industry: clientInfo.industry || 'general',
       logoData,
       aiLogoData: logoData,
@@ -856,20 +867,20 @@ async function processMascotFullGeneration(project) {
     { name: "back", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, seen from behind, no face visible, just the back of the character, back of head, full body back view, white background` },
   ];
   const emotions = [
-    { name: "\u5fae\u7b11", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, warm friendly smile expression, happy eyes, full body front view, white background` },
-    { name: "\u751c\u7b11", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, sweet innocent smile, sparkling eyes, full body front view, white background` },
-    { name: "\u5bb3\u7f9e", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, shy expression, blushing cheeks, looking sideways, full body front view, white background` },
-    { name: "\u641e\u602a", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, playful funny face, winking, tongue out, full body front view, white background` },
-    { name: "\u8ba4\u771f", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, focused serious expression, determined look, full body front view, white background` },
-    { name: "\u60ca\u559c", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, surprised expression, wide eyes, mouth open in delight, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[0], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, warm friendly smile expression, gentle happy eyes, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[1], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, welcoming greeting gesture with open arms, friendly smile, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[2], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, focused attentive expression, gentle determined look, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[3], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, surprised delighted expression, wide eyes, mouth open in joy, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[4], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, calm reassuring smile, peaceful warm expression, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[5], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, big happy smile, joyful expression, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[6], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, guiding gesture with one hand pointing forward, confident friendly look, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[7], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, playful cute expression, winking, cheerful mood, full body front view, white background` },
   ];
   const scenes = [
-    { name: "\u7ad9\u7acb", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, standing upright with casual posture, full body, white background` },
-    { name: "\u62db\u624b", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, waving hand with friendly greeting gesture, full body, white background` },
-    { name: "\u6301\u7269", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, holding a small prop, full body, white background` },
-    { name: "\u5954\u8dd1", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, running forward with dynamic pose, full body, white background` },
-    { name: "\u8df3\u8dc3", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, jumping up with arms spread, joyful pose, full body, white background` },
-    { name: "\u5750\u4e0b", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, sitting down relaxed posture, full body, white background` },
+    { name: MASCOT_SCENE_NAMES[0], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, full body mascot welcoming customers at the store entrance, storefront signage and entrance context, commercial setting` },
+    { name: MASCOT_SCENE_NAMES[1], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, mascot applied on the brand product packaging such as cup box or paper bag, product display context, commercial setting` },
+    { name: MASCOT_SCENE_NAMES[2], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, mascot on membership card and interactive member terminal, membership service context, commercial setting` },
+    { name: MASCOT_SCENE_NAMES[3], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, mascot in social media banner and avatar context on digital screen, social interaction context` },
   ];
 
   const totalImages = views.length + emotions.length + scenes.length + 1;
@@ -924,7 +935,7 @@ async function processMascotFullGeneration(project) {
           ...clientInfo,
           generationStatus: "mascot_full_generating",
           generationMessage: `\u6b63\u5728\u751f\u6210IP\u516c\u4ed4\u5168\u5957 (${completed}/${totalImages})...`,
-          fullMascotProgress: { views: 3, emotions: 6, scenes: 6, total: totalImages, completed },
+          fullMascotProgress: { views: 3, emotions: MASCOT_EMOTION_NAMES.length, scenes: MASCOT_SCENE_NAMES.length, total: totalImages, completed },
         },
         updated_at: new Date().toISOString(),
       }).eq("id", projectId);
@@ -955,7 +966,8 @@ async function processMascotFullGeneration(project) {
     back: viewResults.back || "",
     emotions: emotionResults,
     scenes: sceneResults,
-    threeView: viewResults.front || "",
+    // 工单 006G：不把 front 伪造成合成三视图；threeView 不能替代独立视图。
+    threeView: "",
   };
 
   log("INFO", `[MASCOT-FULL] ${projectId}: ${completed}/${totalImages} generated. Setting pending_manual...`);
@@ -969,7 +981,7 @@ async function processMascotFullGeneration(project) {
         generationMessage: "IP\u516c\u4ed4\u5168\u5957\u751f\u6210\u5b8c\u6210\uff0c\u5f00\u59cb\u5236\u4f5cVI\u624b\u518c",
         mascotAssets,
         fullMascotCompletedAt: new Date().toISOString(),
-        fullMascotProgress: { views: 3, emotions: 6, scenes: 6, total: totalImages, completed },
+        fullMascotProgress: { views: 3, emotions: MASCOT_EMOTION_NAMES.length, scenes: MASCOT_SCENE_NAMES.length, total: totalImages, completed },
       },
       updated_at: new Date().toISOString(),
     }).eq("id", projectId);

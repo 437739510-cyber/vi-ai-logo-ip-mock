@@ -17,7 +17,8 @@ import { planLayoutWithAI, type AILayoutContext } from "./ai-layout-planner";
 import { generateMascotCharacter, type BrandMascotInfo, type MascotCharacter } from "../../../scripts/mascot-character-prompt";
 import { validateMascotBrandAlignment } from "../../../scripts/mascot-brand-check";
 import { IndustryCategory } from "../ip/mascot-optimization";
-import { normalizeBrandName } from "./brand-name-normalizer";
+import { normalizeBrandName, resolveFormalBrandName } from "./brand-name-normalizer";
+import { validateMascotAssets, MascotAssetsIncompleteError, type MascotAssetSet } from "./mascot-assets";
 import { getMaterialSpecs, formatMaterialSpec } from "./material-specs";
 
 // ========== 类型定义 ==========
@@ -110,6 +111,15 @@ export interface PagePlannerInput {
     mascotPhilosophy?: string;
     industry?: string;
   };
+  /**
+   * 正式品牌名（对客户展示）。来自收单/API 显式构造，优先于 clientInfo.companyName。
+   * 内部项目显示名（projectDisplayName）不得进入任何品牌展示位。
+   */
+  formalBrandName?: string;
+  /** 内部项目显示名（可含批次/测试说明），仅用于内部追踪，绝不进入成品。 */
+  projectDisplayName?: string;
+  /** IP 公仔购买/选择意图（唯一真源）：client_info.wantMascot === "yes"（工单 006F 3.2） */
+  wantMascot?: string;
   /** 品牌颜色 */
   brandColors: {
     primary: { hex: string; name?: string; cmyk?: string };
@@ -138,6 +148,8 @@ export interface PagePlannerInput {
       labels?: string[];
     };
   };
+  /** IP 公仔素材统一契约（工单 006G）：name/front/side/back/emotions/scenes。 */
+  mascotAssets?: MascotAssetSet;
   /** 参考模板 ID（可选） */
   templateId?: string;
   /** 所有页面是否生成 */
@@ -258,18 +270,28 @@ export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[
 
   const blueprints: PageBlueprint[] = [];
 
+  // ===== 整改 #006F：IP 门禁（requested / ready / include 模型，工单 006F 3.2/3.4）=====
+  // requested：唯一真源 = client_info.wantMascot === "yes"（禁止从 hasMascot / mascotData / mascotAssets 反推购买意图）
+  const requested = input.wantMascot === "yes";
+  // ready：真实资产契约完整性校验（validateMascotAssets 永远校验真实字段，mascotAssetsReady 不再绕过）
+  const assetCheck = validateMascotAssets({ assets: input.mascotAssets });
+  const ready = assetCheck.ready;
+  // include = requested && ready
+  const include = requested && ready;
+
+  // 已请求 IP 但素材不完整 → 规划期明确抛出可识别领域错误（含缺失项），
+  // 不允许「先生成完整 IP 章节、等渲染器报错」的旧行为（工单 006 5.3）。
+  if (requested && !ready) {
+    throw new MascotAssetsIncompleteError(assetCheck);
+  }
+
   for (const pageId of pageIds) {
-    const blueprint = await planSinglePage(pageId, input, template, perPageAnalysis);
+    const blueprint = await planSinglePage(pageId, input, template, perPageAnalysis, include);
     blueprints.push(blueprint);
   }
 
-  // 整改 #7：当 hasMascot 为真（或本流程默认开启）时，默认追加完整 IP 公仔章节（5 段），
-  // 插入到「封底」之前，不再仅塞单页 gallery。
-  const includeMascot =
-    input.assetAnalysis?.mascot?.hasMascot === true ||
-    input.includeMascotChapter === true ||
-    input.mascotAssetsReady === true;
-  if (includeMascot) {
+  // include 为真时才生成 IP 章节（无 IP 或「请求但未就绪」均不会到这里：前者 include=false，后者已在上方抛出）
+  if (include) {
     const mascotPages = await buildMascotChapter(input);
     const closingIdx = blueprints.findIndex((b) => b.pageId === "closing");
     if (closingIdx >= 0) {
@@ -303,9 +325,10 @@ async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprin
   const pri = input.brandColors.primary;
   const sec = input.brandColors.secondary;
   const acc = input.brandColors.accent;
-  const mascotName = input.assetAnalysis?.mascot?.name || "品牌IP公仔";
+  const mascotName = input.mascotAssets?.name || input.assetAnalysis?.mascot?.name || "品牌IP公仔";
   const hasMascotArt = !!input.assetAnalysis?.mascot?.hasMascot;
-  const companyName = normalizeBrandName(input.clientInfo.companyName);
+  // 整改 #006：版权归属等展示位使用解析后的正式品牌名
+  const companyName = resolveFormalBrandName({ formalBrandName: input.formalBrandName, companyName: input.clientInfo.companyName });
 
   // Try to get dynamic character data from DeepSeek
   let setting = "品牌IP公仔，风格与品牌视觉方向一致";
@@ -481,14 +504,17 @@ async function planSinglePage(
   pageId: string,
   input: PagePlannerInput,
   template: Template | null,
-  perPageAnalysis: Record<string, PageAnalysis>
+  perPageAnalysis: Record<string, PageAnalysis>,
+  include: boolean
 ): Promise<PageBlueprint> {
-  const companyName = normalizeBrandName(input.clientInfo.companyName || "品牌名称");
+  // 整改 #006：正式品牌名解析（优先级 formalBrandName → clientInfo.companyName → 兜底）
+  const companyName = resolveFormalBrandName({ formalBrandName: input.formalBrandName, companyName: input.clientInfo.companyName || "品牌名称" });
   const pri = input.brandColors.primary;
   const sec = input.brandColors.secondary;
   const acc = input.brandColors.accent;
   const hasLogo = input.assetAnalysis?.logo?.hasLogo ?? false;
-  const hasMascot = input.assetAnalysis?.mascot?.hasMascot ?? false;
+  // 整改 #006：hasMascot 现在表示「有效包含 IP」（requested && ready），而非裸 hasMascot
+  const hasMascot = include;
   const isThreeView = input.assetAnalysis?.mascot?.isThreeView ?? false;
   const mascotName = input.assetAnalysis?.mascot?.name || "";
   const mascotStyle = input.assetAnalysis?.mascot?.style || "";
@@ -1376,18 +1402,32 @@ function buildWayfindingElements(ctx: BuildContext): PageElement[] {
 
 
 function buildDigitalMediaElements(ctx: BuildContext): PageElement[] {
-  const { pri, sec, acc } = ctx;
+  const { pri, sec, acc, hasMascot } = ctx;
+  // 整改 #006：无 IP 时只描述 Logo/品牌图形，不得出现「公仔头部 / 简化版公仔头像」等 IP 文案
+  const dmBodies = hasMascot
+    ? [
+        "头像采用圆形裁切，公仔头部居中，直径不低于128px。封面模板统一1920×1080分辨率，文字区域须在安全区内。",
+        "封面1080×1920竖版，公仔居左中1/3区域，右上/下留白排版标题。品牌色条置于底部20%区域。",
+        "图标使用简化版公仔头像，去除复杂细节。最小32×32px，白底或透明底，四周保留4px圆角裁切区域。",
+        "签名档公仔宽高比1:1，右侧排版姓名+联系方式。Banner采用16:9比例，公仔居中偏左，右侧留白放置品牌标语。",
+      ]
+    : [
+        "头像采用圆形裁切，Logo 居中，直径不低于128px。封面模板统一1920×1080分辨率，文字区域须在安全区内。",
+        "封面1080×1920竖版，Logo 居左中1/3区域，右上/下留白排版标题。品牌色条置于底部20%区域。",
+        "图标使用 Logo 标准图形，去除复杂细节。最小32×32px，白底或透明底，四周保留4px圆角裁切区域。",
+        "签名档 Logo 宽高比1:1，右侧排版姓名+联系方式。Banner采用16:9比例，Logo 居中偏左，右侧留白放置品牌标语。",
+      ];
   const elements: PageElement[] = [
     { type: "text", id: "dm-title", content: PAGE_LABELS["digital-media"], position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30 },
     { type: "divider", id: "dm-divider", position: "center", widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15 },
     { type: "text", id: "dm-h-0", content: "社媒头像/封面模板规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 100, marginLeft: 60, params: { align: "left" } },
-    { type: "text", id: "dm-b-0", content: "头像采用圆形裁切，公仔头部居中，直径不低于128px。封面模板统一1920×1080分辨率，文字区域须在安全区内。", position: "top-center", fontSize: 12, color: "#444", marginTop: 128, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "dm-b-0", content: dmBodies[0], position: "top-center", fontSize: 12, color: "#444", marginTop: 128, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
     { type: "text", id: "dm-h-1", content: "短视频封面排版规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 200, marginLeft: 60, params: { align: "left" } },
-    { type: "text", id: "dm-b-1", content: "封面1080×1920竖版，公仔居左中1/3区域，右上/下留白排版标题。品牌色条置于底部20%区域。", position: "top-center", fontSize: 12, color: "#444", marginTop: 228, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "dm-b-1", content: dmBodies[1], position: "top-center", fontSize: 12, color: "#444", marginTop: 228, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
     { type: "text", id: "dm-h-2", content: "网站/App图标使用规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 300, marginLeft: 60, params: { align: "left" } },
-    { type: "text", id: "dm-b-2", content: "图标使用简化版公仔头像，去除复杂细节。最小32×32px，白底或透明底，四周保留4px圆角裁切区域。", position: "top-center", fontSize: 12, color: "#444", marginTop: 328, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "dm-b-2", content: dmBodies[2], position: "top-center", fontSize: 12, color: "#444", marginTop: 328, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
     { type: "text", id: "dm-h-3", content: "邮件签名/Banner排版规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 400, marginLeft: 60, params: { align: "left" } },
-    { type: "text", id: "dm-b-3", content: "签名档公仔宽高比1:1，右侧排版姓名+联系方式。Banner采用16:9比例，公仔居中偏左，右侧留白放置品牌标语。", position: "top-center", fontSize: 12, color: "#444", marginTop: 428, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
+    { type: "text", id: "dm-b-3", content: dmBodies[3], position: "top-center", fontSize: 12, color: "#444", marginTop: 428, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
   ];
 
   getMaterialSpecs("digital-media").forEach((spec, i) => {
@@ -1405,7 +1445,7 @@ function buildDigitalMediaElements(ctx: BuildContext): PageElement[] {
 
 
 function buildFileOutputElements(ctx: BuildContext): PageElement[] {
-  const { pri, sec, acc } = ctx;
+  const { pri, sec, acc, hasMascot, companyName } = ctx;
   const elements: PageElement[] = [
     { type: "text", id: "fo-title", content: PAGE_LABELS["file-output"], position: "top-center", fontSize: 24, fontWeight: 700, color: pri.hex, marginTop: 30 },
     { type: "divider", id: "fo-divider", position: "center", widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15 },
@@ -1419,9 +1459,19 @@ function buildFileOutputElements(ctx: BuildContext): PageElement[] {
     { type: "text", id: "fo-b-3", content: "交付前所有文字须转为轮廓（转曲），或嵌入完整字体文件。禁止使用系统默认字体替代品牌指定字体。", position: "top-center", fontSize: 12, color: "#444", marginTop: 438, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
     { type: "text", id: "fo-h-4", content: "文件命名规范", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 510, marginLeft: 60, params: { align: "left" } },
     { type: "text", id: "fo-b-4", content: "格式：品牌名_物料类型_版本号_日期（例：BrandName_Logo_v1.0_20260731）。禁止使用默认文件名或含空格的特殊路径。", position: "top-center", fontSize: 12, color: "#444", marginTop: 538, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
-    { type: "text", id: "fo-h-5", content: "IP 公仔源文件", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 610, marginLeft: 60, params: { align: "left" } },
-    { type: "text", id: "fo-b-5", content: "AI/PSD 分层：头部 / 身体 / 配饰 / 表情 / 透明底合成层。交付格式：AI、PSD、透明底 PNG、SVG。命名规范：品牌名_Mascot_视角_版本_日期；正面示例：品牌名_Mascot_正面_v1.0_20260731.ai（如 有间奶茶店_Mascot_正面_v1.0_20260731.ai）。印刷分辨率：300dpi；数字媒体：SVG 或 1920px 起 PNG。", position: "top-center", fontSize: 12, color: "#444", marginTop: 638, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
   ];
+
+  // 整改 #006：动态正式品牌名（由 resolveFormalBrandName 解析，绝不硬编码示例品牌）。
+  // 无 IP 时改用「品牌图形源文件」段落；有 IP 时用「IP 公仔源文件」段落，示例均使用真实品牌名变量。
+  const brand = companyName || "品牌";
+  if (hasMascot) {
+    elements.push({ type: "text", id: "fo-h-5", content: "IP 公仔源文件", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 610, marginLeft: 60, params: { align: "left" } });
+    elements.push({ type: "text", id: "fo-b-5", content: `AI/PSD 分层：头部 / 身体 / 配饰 / 表情 / 透明底合成层。交付格式：AI、PSD、透明底 PNG、SVG。命名规范：${brand}_Mascot_视角_版本_日期；正面示例：${brand}_Mascot_正面_v1.0_20260731.ai。印刷分辨率：300dpi；数字媒体：SVG 或 1920px 起 PNG。`, position: "top-center", fontSize: 12, color: "#444", marginTop: 638, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } });
+  } else {
+    elements.push({ type: "text", id: "fo-h-5", content: "品牌图形源文件", position: "top-center", fontSize: 15, fontWeight: 700, color: pri.hex, marginTop: 610, marginLeft: 60, params: { align: "left" } });
+    elements.push({ type: "text", id: "fo-b-5", content: `AI/PSD 分层：Logo 主图形 / 标准字 / 辅助图形 / 透明底合成层。交付格式：AI、PSD、透明底 PNG、SVG。命名规范：${brand}_Logo_视角_版本_日期；正面示例：${brand}_Logo_正面_v1.0_20260731.ai。印刷分辨率：300dpi；数字媒体：SVG 或 1920px 起 PNG。`, position: "top-center", fontSize: 12, color: "#444", marginTop: 638, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } });
+  }
+
   return elements;
 }
 

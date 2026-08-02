@@ -8,8 +8,8 @@
  * 2. Immediately sets mascotStatus = "mascot_generating" (sync return)
  * 3. Background generates 16+ images:
  *    - 3 views (front/side/back)
- *    - 6 emotions (happy/smile/shy/relaxed/surprised/healing)
- *    - N scenes based on mascotSceneCount (default 6)
+ *    - 8 emotions (微笑/欢迎/专注/惊喜/安心/开心/引导/俏皮)
+ *    - N scenes based on mascotSceneCount (default 4, minimum 4)
  *    - 3-view composite sheet
  * 4. Uploads to processed-assets/{projectId}/ bucket
  * 5. Updates mascotStatus to "mascot_generated" or "mascot_failed"
@@ -22,6 +22,7 @@ import type { MascotRecommendationInput } from "@/agents/mascot-designer";
 import { generateMascotPromptSet, type MascotPromptInput } from "@/lib/ip/mascot-prompt-strategy";
 import { estimateArkCost } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
 import { LiblibAIProvider } from "@/lib/ip/ip-image-provider/liblibai-provider";
+import { MASCOT_SCENES_MIN } from "@/lib/vi-manual/mascot-assets";
 // 本地 ComfyUI 优先（免费），与 LOGO 路由同源
 import { comfyGenerateImage, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
 
@@ -47,19 +48,21 @@ const ARK_MODELS = [
 ];
 
 const EMOTION_MAP: Record<string, { label: string; expression: string; pose: string }> = {
-  happy: { label: "开心", expression: "big happy smile, joyful expression", pose: "jumping with joy, arms raised" },
   smile: { label: "微笑", expression: "warm gentle smile, friendly expression", pose: "standing relaxed, hands together" },
-  shy: { label: "害羞", expression: "shy smile, blushing slightly", pose: "hands behind back, head tilted" },
-  relaxed: { label: "放松", expression: "calm relaxed smile, peaceful expression", pose: "sitting comfortably, casual posture" },
-  surprised: { label: "惊喜", expression: "surprised happy expression, eyes wide", pose: "hands to mouth, excited stance" },
-  healing: { label: "治愈", expression: "warm comforting smile, gentle expression", pose: "arms open for hug, soothing posture" },
+  welcome: { label: "欢迎", expression: "welcoming friendly smile", pose: "open arms greeting gesture, welcoming pose" },
+  focus: { label: "专注", expression: "focused attentive expression, gentle determined look", pose: "steady standing posture, attentive pose" },
+  surprise: { label: "惊喜", expression: "surprised happy expression, eyes wide", pose: "hands to mouth, excited stance" },
+  calm: { label: "安心", expression: "calm reassuring smile, peaceful expression", pose: "sitting comfortably, soothing posture" },
+  joy: { label: "开心", expression: "big happy smile, joyful expression", pose: "jumping with joy, arms raised" },
+  guide: { label: "引导", expression: "confident friendly smile", pose: "guiding gesture, one hand pointing forward" },
+  playful: { label: "俏皮", expression: "playful cute expression, winking", pose: "cheerful casual pose, playful mood" },
 };
 
 const SCENE_MAP: Record<string, { label: string; context: string }> = {
-  storefront: { label: "门店招牌", context: "in front of a store signage, outdoor street scene" },
-  packaging: { label: "产品包装", context: "on product packaging box, retail shelf context" },
-  membership: { label: "会员卡", context: "on a membership card design, professional background" },
-  social_media: { label: "社交媒体", context: "social media banner background, digital screen" },
+  storefront: { label: "门店迎宾", context: "welcoming customers at the store entrance, storefront signage context" },
+  packaging: { label: "包装应用", context: "applied on the brand product packaging, cup box or paper bag context" },
+  membership: { label: "会员互动", context: "on membership card and interactive member terminal context" },
+  social_media: { label: "社媒互动", context: "social media banner and avatar context, digital screen" },
   merchandise: { label: "周边商品", context: "on merchandise items, plush toys, stationery" },
   interior_decor: { label: "室内装饰", context: "in an interior decoration setting, wall art" },
 };
@@ -341,7 +344,9 @@ async function performGeneration(projectId: string, ci: Record<string, any>): Pr
     if (!basePrompt) throw new Error("Empty base prompt");
 
     const sp = styleSuffix(((prefs.mascotStylePref || [])[0] || "").toLowerCase());
-    const sceneN = Math.min(prefs.mascotSceneCount || 6, SCENE_NAMES.length);
+    // 工单 006G：平台交付至少需要 4 个真实应用场景，生成数量不能低于该阈值。
+    const requestedSceneCount = Number(prefs.mascotSceneCount) || MASCOT_SCENES_MIN;
+    const sceneN = Math.min(Math.max(requestedSceneCount, MASCOT_SCENES_MIN), SCENE_NAMES.length);
     const bgEnd = ". " + sp + ". Clean white or soft gradient background, full body, centered, no text, no watermark, 8k";
     const scEnd = ". " + sp + ". Commercial setting, brand context, professional composition, no text, no watermark";
 
@@ -420,10 +425,16 @@ async function performGeneration(projectId: string, ci: Record<string, any>): Pr
     const mascotStatus = threeViewsOk ? "mascot_generated" : "mascot_failed";
     const mascotError = threeViewsOk ? undefined : "三视图生成失败";
 
+    const emotionName = (fn: string): string =>
+      EMOTION_MAP[fn.replace("mascot-emotion-", "").replace(".png", "")]?.label ||
+      fn.replace("mascot-emotion-", "").replace(".png", "");
+    const sceneName = (fn: string): string =>
+      SCENE_MAP[fn.replace("mascot-scene-", "").replace(".png", "")]?.label ||
+      fn.replace("mascot-scene-", "").replace(".png", "");
     const assets = {
       front: front?.url || null, side: side?.url || null, back: back?.url || null, threeView,
-      emotions: results.filter(r => r.fn.startsWith('mascot-emotion-') && r.url).map(r => ({ name: r.fn.replace('mascot-emotion-', '').replace('.png', ''), url: r.url })),
-      scenes: results.filter(r => r.fn.startsWith('mascot-scene-') && r.url).map(r => ({ name: r.fn.replace('mascot-scene-', '').replace('.png', ''), url: r.url })),
+      emotions: results.filter(r => r.fn.startsWith('mascot-emotion-') && r.url).map(r => ({ name: emotionName(r.fn), url: r.url })),
+      scenes: results.filter(r => r.fn.startsWith('mascot-scene-') && r.url).map(r => ({ name: sceneName(r.fn), url: r.url })),
     };
 
     const fin = { ...ci }; delete fin.mascotProgress;

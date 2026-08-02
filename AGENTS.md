@@ -1,113 +1,68 @@
-# BrandBrain Project Rules
-> Extracted from global AGENTS.md on 2026-07-21 to reduce context pollution.
-> Loaded only when working on the bb-clean project.
+# Brand Brain 仓库规则
 
----
+将本文件复制到以下目录并命名为 `AGENTS.md`：
 
-# Zeabur Pre-Deploy Check
-## Core Rule
-Before any git push to master, run the pre-deploy check script locally.
-All FAIL items must be zero before pushing.
+```text
+D:\disk\HermesDisk\bb-clean
+```
 
-## Trigger
-- About to git push to BrandBrain repo
-- User says "push", "deploy", "push to Zeabur"
-- User says "commit and push"
+本文件补充全局 Codex 规则，只适用于 Brand Brain 项目。
 
-## Steps
-1. cd D:\disk\HermesDisk\bb-clean
-2. powershell -ExecutionPolicy Bypass -File scripts/pre-deploy-check.ps1
-3. FAIL = 0 -> can push. Any FAIL -> fix first.
+## 产品与架构
 
-## 8 Checks
-1. Node.js >= 18.x
-2. Dependencies (node_modules, package-lock.json)
-3. TypeScript (tsc --noEmit)
-4. Build config (tsconfig, next.config, build command)
-5. Historical issues (hardcoded model/bucket names, debug routes)
-6. Environment variables
-7. Local build (npm run build)
-8. Git commit status
+- Brand Brain 是 B2B AI 品牌顾问与 VI 手册自动生成平台，不是单次图片生成器。
+- 生产网站运行在 Zeabur，共享项目和订单状态位于 Supabase。
+- 本地 Windows Worker 轮询获得授权的任务，本地 ComfyUI 生成视觉素材，Worker 负责生成并上传 PPTX。
+- 管理后台显示“已生成”不等于 Zeabur 完成了生成。诊断前必须确认任务实际经过哪条执行路径。
+- 推送 `master` 可能自动触发生产部署；未经明确授权不得 push 或 merge 到 `master`。
 
----
+## 动态生成与数据真源
 
-# Test & Visual Regression
-## Triggers
-- Codex modified any src/ .ts/.tsx/.css file
-- User says "push", "deploy", "screenshot", "verify"
-- Hermes sends a fix .task, Codex finishes
+- 修复平台生成器和数据契约，不直接修补某两个成品文件。
+- 禁止为了通过样例或评审而写死客户品牌名、项目 ID、测试前后缀、颜色、Logo 元素、公仔名称、页码或行业物料。
+- 正式品牌名、内部项目名称、项目 ID、行业、品牌色、Logo 语义、公仔购买意图和公仔素材完整度是不同数据概念；存在显式字段时不得互相猜测。
+- `wantMascot`（或当前经代码确认的业务意图字段）决定客户是否选择 IP；资产存在不能证明客户购买了 IP。
+- 公仔素材是否完成必须验证实际所需资产；布尔值、非空对象或 `!!mascotAssets` 不能绕过验证。
+- 无 IP 手册必须做到：零公仔/IP 页面、零公仔/IP 文案。
+- 物料必须来自可复用的行业规则。除非项目数据明确要求，面馆不得继承茶饮专属杯套等物料。
+- 色板和 Logo 禁用规则必须来自项目真实色彩与已识别 Logo 元素；证据不足时使用安全的通用规则，不得套用其他品牌模板。
 
-## Flow
-1. Run UI snapshots: npm run test:ui-snapshot
-2. Write handoff message to MESSAGE/codex-to-hermes-snapshot-YYYYMMDD-HHMM.md
-3. Run pre-deploy-check before pushing
+## 工作区纪律
 
-## When Hermes responds
-- .task file -> claim -> fix -> re-snapshot -> write .done
-- Approved -> can push
-- Diff report -> fix if needed, then re-snapshot
+- 每张任务开始时记录当前分支、HEAD、`origin/master` 和 `git status --short`。
+- 保护无关改动和隔离分支内容；没有明确工单决定，不得跨分支复制或混合修改。
+- 运行日志、生成的 PPTX/PDF/图片、临时测试产物和凭据不得进入 Git；只有经过评审且确实需要的测试 fixture 例外。
+- 搜索优先使用 `rg` / `rg --files`，修改优先使用补丁式编辑。
+- 保持原有 CRLF/LF 风格；diff 异常膨胀时，同时检查普通 diff 与 `--ignore-cr-at-eol`。
 
----
+## 安全执行边界
 
-# Full Flow Test (API + E2E)
-## Two tests, both required
-Before pushing: run API test first, then E2E test.
+- 未经当前任务授权，不得启动或停止 Worker、ComfyUI、本地服务器、定时 watcher 或其他进程。
+- 未经授权，不得读写生产 Supabase、触发付费 AI、修改订单状态、上传成品、部署或执行客户可见操作。
+- 离线测试必须清空外部凭据，且不能在本地失败后静默转用真实线上服务。
+- 控制台与报告不得暴露客户数据和密钥值。
 
-## API Full-Flow (fast, 3-5 min)
-cd D:\disk\HermesDisk\bb-clean
-npm run test:api-full-flow
+## 测试与评审
 
-## E2E Full-Flow (slow, 5-15 min)
-cd D:\disk\HermesDisk\bb-clean
-npm run test:e2e
+- 条件允许时，先用聚焦测试复现缺陷，再修改生产代码。生成了文件不等于语义和内容正确。
+- VI 手册相关修改，应同时验证规划结果（Blueprint/pageId）和渲染后的 PPTX 文字/XML。
+- 相关任务至少覆盖以下通用场景：
+  - 无 IP 的餐饮/面食项目；
+  - 素材完整的有 IP 饮品项目；
+  - 已选择 IP 但素材不完整；
+  - 名称中合法包含数字的品牌；
+  - 两个不同色板项目，用于发现跨项目串色。
+- 先跑最小相关测试。交接前根据改动运行语义回归、修改过的 `.mjs` 的 `node --check`，以及不产生增量文件的 TypeScript 检查。
+- 不得用 `any`、`@ts-ignore` 或新增 `@ts-nocheck` 掩盖错误。已有 `@ts-nocheck` 是技术债，不代表类型安全；影响验证时必须报告。
 
-## After running
-1. Write API test result to MESSAGE
-2. Write E2E screenshot paths to same message
-3. Both PASS -> can push. Either FAIL -> fix and retest.
+## 完成标准
 
----
+只有同时满足以下条件，任务才算完成：
 
-# Vision Review & VQA
-## Available Vision Solutions
-### Gemini 2.0 Flash (free, needs proxy)
-- Script: scripts/playwright/vision-review.py
-- Must confirm Kevin has proxy running (127.0.0.1:22307)
+1. 根因已在可复用的平台逻辑中修复。
+2. 通用回归场景通过，且没有削弱断言。
+3. 原有相关 PASS 没有退化。
+4. diff 仅包含授权文件，没有行尾噪声。
+5. 报告列出实际运行的测试、结果/退出码、剩余失败，以及是否发生 commit、push、部署、进程启停、远端写入或付费调用。
 
-### ARK Doubao Vision (paid, China direct)
-- Script: scripts/playwright/vision-review.py
-- Key status: INVALID since 2026-07-09, waiting for Kevin to update
-
-## Auto Review Flow
-After UI snapshots, try:
-1. Gemini first
-2. ARK if Gemini unavailable
-3. Handoff to Hermes if both unavailable
-
-## VQA Scoring
-- API: ark.cn-beijing.volces.com/api/v3/chat/completions
-- Model: doubao-1-5-vision-pro-32k-250115
-- 7 dimensions: clarity/lighting/noise/color/aesthetics/text_quality/realism
-- Force independent scoring per dimension, use full 0-100 range
-
----
-
-# Image Generation Engines (Reference)
-| Engine | Cost | Use | Status |
-|--------|------|-----|--------|
-| ARK Seedream 4.0 | ¥0.20 | Logo | OK |
-| ARK Seedream 4.5 | ¥0.25 | Logo refine | OK |
-| ARK Seedream 5.0 | ¥0.22 | Logo/scene | OK |
-| ComfyUI local | Free | Logo/scene | OK :8188 |
-| LiblibAI | Metered | Logo | OK |
-| Tongyi Qianwen | - | Image | OVERDUE |
-| HY-Image (Tencent) | 1 credit | Image | Chinese unreliable |
-
-## LiblibAI Templates
-Star-3 Alpha: 5d7e67009b344550bc1aa6ccbfa1d7f4
-Realistic XL: 7d0cdfd2e23047a19f1e064d04031fc3
-
-## Tencent TokenHub
-- hy-image-lite / hy-image-v3.0: 1 credit each
-- Chinese unreliable for brand VI
-- Use only for non-Chinese generic scene images
+Chris 或产品负责人提供的任务 MD 定义当前目标，并可施加更严格的限制。除非遇到真实阻塞、缺少产品决定、权限、凭据、破坏性操作或必须扩大范围，否则应持续完成实现与验证，不要做一步停一步。

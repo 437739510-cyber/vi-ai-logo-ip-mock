@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/lib/core/supabase";
 import { detectCompanyScale, type CompanyScale, getScaleLabel } from "@/lib/brand/company-scale";
 import { writeFile, readFile, mkdir } from "fs/promises";
 import { getCategoryDict } from "@/lib/vi-manual/category-dict";
+import { normalizeBrandName } from "@/lib/vi-manual/brand-name-normalizer";
 import path from "path";
 
 const MOCK_DIR = path.join(process.cwd(), "public", "mock");
@@ -168,6 +169,10 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       console.warn("[SUBMIT] Supabase submission skipped:", e);
     }
+
+    // 整改 #006F：client_info 的 companyName 与 formalBrandName 同源同规范化（产品语义=对外正式品牌名）
+    const clientCompanyName = normalizeBrandName(submission.companyName || "");
+
     try {
       const supabaseProj = {
         id: projectId,
@@ -179,7 +184,9 @@ export async function POST(req: NextRequest) {
         student_id: body.studentId || null,
         client_info: {
           viewPassword: submission.viewPassword,
-          companyName: submission.companyName || "",
+          companyName: clientCompanyName,
+          // 整改 #006F：正式品牌名写入（展示真源），与 companyName 同值同规范化
+          formalBrandName: clientCompanyName,
           industry: submission.industry || "",
           brandVision: body.brandVision || "",
           coreValues: body.coreValues || "",
