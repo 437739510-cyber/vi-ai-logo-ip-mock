@@ -7,8 +7,8 @@
  *   - 直接调用生产函数并检查真实 Blueprint / PPTX XML，不在测试内替换生成结果。
  *
  * 运行：npx tsx scripts/_regression-vi-dynamic-branding-007.ts
- * 预期：18 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
- * + 009 新增 4 项 Logo 结构证据接入），退出码 0。
+ * 预期：19 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
+ * + 009 新增 4 项 Logo 结构证据接入 + 012 新增 1 项渲染端生产接线一致性），退出码 0。
  */
 process.env.DEEPSEEK_API_KEY = "";
 process.env.SUPABASE_URL = "";
@@ -465,6 +465,35 @@ async function main(): Promise<void> {
       !["麦穗", "帆船"].some((t) => misuseTextGeneric.includes(t)) &&
       !misuseTextGeneric.includes("祥云") && !misuseTextGeneric.includes("圆环纹样"),
     `genericTitles=${misuseRules.length}`
+  );
+
+  // ============ 012 组：渲染端 logoElements 生产接线一致性（011 缺陷 D-01）============
+  // 模拟生产接线：同一证据源（brandProfile.logoDesignSuggestions.elements 字符串）经
+  // extractLogoElements 同时进入 planPages 的 assetAnalysis.logo.elements 与
+  // renderPptxToBuffer 的 options.logoElements（worker.mjs:690 / route.ts:1211 语义），
+  // 断言 Blueprint 与 PPTX 的 logo-misuse 页均含元素级规则，杜绝“Blueprint 元素级、
+  // PPTX 通用”的不一致回归。
+  const evidence012 = "麦穗、帆船";
+  const elems012 = extractLogoElements(evidence012);
+  const bps012 = await planPages(makeInput("面馆", colorA, elems012));
+  const opts012 = renderOpts("面馆", { primary: "#A63D40", secondary: "#D9A441", accent: "#F5EBDD" }, {
+    logoElements: elems012,
+  });
+  const buf012 = await renderPptxToBuffer(bps012, opts012);
+  writeFileSync(`${TMP_DIR}\\bb-012-render-logo-elements.pptx`, buf012);
+  const pptx012 = await extractPptxText(buf012);
+  const bpMap012: Record<string, string> = {};
+  for (const b of bps012) bpMap012[b.pageId] = blueprintPageText(b);
+  const bpMisuse012 = bpMap012["logo-misuse"] || "";
+  const pptxMisuse012 = Object.values(pptx012.perPage).find((t) => t.includes("禁止拆分局部元素")) || "";
+  const misuseText012 = bpMisuse012 + " " + pptxMisuse012;
+  check(
+    "012-1 生产接线一致性：同一证据同时进 planner 与渲染器，Blueprint/PPTX 均含元素级规则",
+    elems012.length === 2 &&
+      bpMisuse012.includes("麦穗") && bpMisuse012.includes("帆船") &&
+      pptxMisuse012.includes("麦穗") && pptxMisuse012.includes("帆船") &&
+      !misuseText012.includes("祥云") && !misuseText012.includes("圆环纹样"),
+    `evidence=${evidence012} elems=${JSON.stringify(elems012)} bp=${bpMisuse012.slice(0, 120)} pptx=${pptxMisuse012.slice(0, 120)}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");

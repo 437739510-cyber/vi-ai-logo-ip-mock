@@ -1221,6 +1221,7 @@ export async function POST(req: NextRequest) {
       coreValues: effectiveCoreValues,
       targetMarket: effectiveTargetMarket,
       logoPhilosophy,
+      logoElements: extractLogoElements(brandProfile?.logoDesignSuggestions?.elements),
       mascotPhilosophy,
       sceneImages,
       sceneLabels,

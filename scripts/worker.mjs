@@ -671,6 +671,7 @@ async function processManualGeneration(project) {
         accent: cp[2]?.hex || '#CC0000',
       },
       logoColors: resolveLogoColors(brandProfile),
+      logoElements: extractLogoElements(brandProfile?.logoDesignSuggestions?.elements),
       brandVision: clientInfo.brandVision || brandProfile.refinedBrandVision || '',
       coreValues: clientInfo.coreValues || brandProfile.refinedCoreValues || '',
       targetMarket: clientInfo.targetMarket || brandProfile.refinedTargetMarket || '',
