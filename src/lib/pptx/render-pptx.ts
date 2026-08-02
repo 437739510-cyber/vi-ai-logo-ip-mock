@@ -14,7 +14,7 @@
 import PptxGenJS from "pptxgenjs";
 import type { PageBlueprint } from "@/lib/vi-manual/page-planner";
 import { compressImage } from "./compress-image";
-import { type IndustryType, getIndustryType, getIndustryMaterials } from "@/lib/brand/industry-types";
+import { type IndustryType, getIndustryMaterials } from "@/lib/brand/industry-types";
 import { cleanDirtyWords, filterMaterialsByIndustry } from "@/lib/vi-manual/dirty-word-cleaner";
 import { COLOR_NAME_MAP } from "@/lib/vi-manual/color-name-map";
 import { normalizeBrandName } from "@/lib/vi-manual/brand-name-normalizer";
@@ -25,7 +25,13 @@ import {
   isUsableImageRef,
   countUsableRecordEntries,
 } from "@/lib/vi-manual/mascot-assets";
-import { getMaterialSpecs, type MaterialSpec } from "@/lib/vi-manual/material-specs";
+import { getMaterialSpecs, resolveIndustryType, type MaterialSpec } from "@/lib/vi-manual/material-specs";
+import {
+  normalizeLogoColorSet,
+  getLogoMisuseRules,
+  type LogoColor,
+  type LogoColorSet,
+} from "@/lib/vi-manual/brand-visual-rules";
 
 import { renderTypographyPng, renderColorSpecPng } from "./spec-page-renderer";
 const _DEV = process.env.NODE_ENV === "development";
@@ -61,6 +67,7 @@ export interface RenderPptxOptions {
     navy?: { name?: string; hex?: string; rgb?: string; cmyk?: string };
     gold?: { name?: string; hex?: string; rgb?: string; cmyk?: string };
   };
+  logoElements?: string[];  // 007-R1: 真实 Logo 结构元素，用于元素级误用规则
   brandVision?: string;
   coreValues?: string;
   targetMarket?: string;
@@ -133,7 +140,7 @@ function resolveBC(opts: RenderPptxOptions, blueprints: PageBlueprint[]): BC {
   }
 
   // V99: 按行业给默认色，统一使用 getIndustryDefaults()
-  const industry = getIndustryType(opts.industry);
+  const industry = resolveIndustryType(opts.industry);
   const def = getIndustryDefaults(industry);
   const pri = hx(def.primary);
   _DEV && console.log(`[resolveBC] Using industry defaults for ${industry}: ${pri}`);
@@ -143,19 +150,8 @@ function resolveBC(opts: RenderPptxOptions, blueprints: PageBlueprint[]): BC {
   };
 }
 
-const DEFAULT_LOGO_COLORS = {
-  navy: { name: "LOGO藏青", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" },
-  gold: { name: "祥云金", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" },
-};
-
-function resolveLogoColors(opts: RenderPptxOptions): {
-  navy: { name: string; hex: string; rgb: string; cmyk: string };
-  gold: { name: string; hex: string; rgb: string; cmyk: string };
-} {
-  return {
-    navy: { ...DEFAULT_LOGO_COLORS.navy, ...(opts.logoColors?.navy || {}) },
-    gold: { ...DEFAULT_LOGO_COLORS.gold, ...(opts.logoColors?.gold || {}) },
-  };
+function resolveLogoColors(opts: RenderPptxOptions): LogoColorSet | null {
+  return normalizeLogoColorSet(opts.logoColors);
 }
 
 // ========== 行业场景配置 ==========
@@ -312,7 +308,7 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
   pptx.subject = `${cn} VI 规范手册`;
   pptx.title = `${cn} 品牌视觉识别系统（VI）规范手册`;
   const bc = resolveBC(options, blueprints);
-  const industry = getIndustryType(options.industry);
+  const industry = resolveIndustryType(options.industry);
   let sceneImages = options.sceneImages || {};
 
   // V32: 压缩图片减小PPTX/PDF体积
@@ -401,7 +397,7 @@ export function assertTocPageNumbers(blueprints: PageBlueprint[], options: Rende
     throw new Error(`[TOC] page numbers not contiguous: expected max ${blueprints.length - 1}, got ${maxPage}`);
   }
 
-  const industry = getIndustryType(options.industry);
+  const industry = resolveIndustryType(options.industry);
   const tocItems = getTocItems(industry, options.sceneSectionTitles).filter((item) => map[item.pageId] !== undefined);
   for (const item of tocItems) {
     if (!blueprints.some((b) => b.pageId === item.pageId)) {
@@ -434,7 +430,7 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "stationery": renderScene(slide, bp, opts, "stationery", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
     case "packaging": renderScene(slide, bp, opts, "packaging", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
     case "marketing": renderScene(slide, bp, opts, "marketing", bc, industry, sceneImages, (opts.aiLogoData || opts.logoData)); break;
-    case "digital-media": renderDigitalMedia(slide, bp, opts, bc); break;
+    case "digital-media": renderDigitalMedia(slide, bp, opts, bc, industry); break;
     case "summary": renderSummary(slide, bp, opts, bc); break;
     case "material-priority": renderMaterialPriority(slide, bp, opts, bc); break;
     case "wayfinding": renderWayfinding(slide, bp, opts, bc); break;
@@ -904,17 +900,9 @@ function renderLogoMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
   const companyName = opts.companyName || "品牌";
   const aiLogo = opts.aiLogoData || (opts.logoData ? normImg(opts.logoData) : null);
 
-  const misuses = [
-    { title: "禁止拉伸", desc: "不得对Logo进行\n非等比缩放", distortion: "stretch" },
-    { title: "禁止旋转", desc: "不得旋转\nLogo角度", distortion: "rotate" },
-    { title: "禁止换色", desc: "不得使用非标准色\n替换Logo颜色", distortion: "recolor" },
-    { title: "禁止描边", desc: "不得给Logo\n添加描边效果", distortion: "outline" },
-    { title: "禁止加阴影", desc: "不得添加非规范\n投影效果", distortion: "shadow" },
-    { title: "禁止改字体", desc: "不得更改Logo\n中的字体样式", distortion: "font" },
-    { title: "禁止裁切LOGO", desc: "不得裁掉LOGO的边框、圆环、\n文字任何部分，须完整呈现", distortion: "crop" },
-    { title: "禁止局部截取祥云元素", desc: "祥云/辅助纹样是LOGO整体的一部分，\n不得单独抽出使用", distortion: "pattern" },
-    { title: "禁止更改圆环纹样", desc: "不得替换、加粗、旋转或\n重新绘制LOGO圆环/边框纹样", distortion: "ring" },
-  ];
+  // 工单 007/007-R1：与 PagePlanner 共用同一套 Logo 误用规则；
+  // 有真实结构证据（opts.logoElements）时生成元素级规则，无证据时只输出通用规则。
+  const misuses = getLogoMisuseRules(opts.logoElements || null);
 
   for (let i = 0; i < misuses.length; i++) {
     const col = i % 3;
@@ -1235,10 +1223,14 @@ async function renderColors(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Ren
     slide.addText("#" + bc.acc, { x: cx + 4.6, y: 2.2, w: 2, h: 0.3, fontSize: 12, color: "555555", align: "center" });
     slide.addShape("ellipse", { x: cx + 4.9, y: 1.2, w: 1.4, h: 1.4, fill: { color: bc.acc } });
     const logoColors = resolveLogoColors(opts);
-    slide.addText("LOGO 专属色值", { x: cx, y: 4.2, w: CONTENT_W, h: 0.4, fontSize: 15, bold: true, color: bc.pri });
-    slide.addText(logoColors.navy.name + " " + logoColors.navy.hex + "  RGB: " + logoColors.navy.rgb + "  CMYK: " + logoColors.navy.cmyk, { x: cx, y: 4.7, w: CONTENT_W, h: 0.3, fontSize: 12, color: "444444" });
-    slide.addText(logoColors.gold.name + " " + logoColors.gold.hex + "  RGB: " + logoColors.gold.rgb + "  CMYK: " + logoColors.gold.cmyk, { x: cx, y: 5.1, w: CONTENT_W, h: 0.3, fontSize: 12, color: "444444" });
-    slide.addText("LOGO 实体物料以藏青/祥云金为准，品牌画面主色用于辅助氛围，两套色按本页数值使用，不得混用冲突。", { x: cx, y: 5.6, w: CONTENT_W, h: 0.4, fontSize: 12, color: "CC6600" });
+    if (logoColors) {
+      const logoColorItems = [logoColors.navy, logoColors.gold].filter((c): c is LogoColor => Boolean(c));
+      slide.addText("LOGO 专属色值", { x: cx, y: 4.2, w: CONTENT_W, h: 0.4, fontSize: 15, bold: true, color: bc.pri });
+      logoColorItems.forEach((c, i) => {
+        slide.addText(c.name + " " + c.hex + "  RGB: " + c.rgb + "  CMYK: " + c.cmyk, { x: cx + i * 2.4, y: 4.7, w: 2.4, h: 0.3, fontSize: 12, color: "444444" });
+      });
+      slide.addText("LOGO 实体物料以" + logoColorItems.map((c) => c.name).join("/") + "为准，品牌画面主色用于辅助氛围，按本页数值使用，不得混用冲突。", { x: cx, y: 5.6, w: CONTENT_W, h: 0.4, fontSize: 12, color: "CC6600" });
+    }
   }
 }
 
@@ -1332,7 +1324,7 @@ function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
   }
 
   // 排版坐标卡：安全区虚线框 + LOGO 占位 + 尺寸标注
-  renderMaterialSpecCards(slide, bc, type, 8.55);
+  renderMaterialSpecCards(slide, bc, type, industry, 8.55);
 }
 
 function logoPlacement(pos: string, sx: number, sy: number, sw: number, sh: number): { x: number; y: number } {
@@ -1344,8 +1336,8 @@ function logoPlacement(pos: string, sx: number, sy: number, sw: number, sh: numb
   return { x: sx + sw * 0.1, y: sy + sh * 0.12 };
 }
 
-function renderMaterialSpecCards(slide: PptxGenJS.Slide, bc: BC, pageType: string, yStart: number): void {
-  const specs: MaterialSpec[] = getMaterialSpecs(pageType);
+function renderMaterialSpecCards(slide: PptxGenJS.Slide, bc: BC, pageType: string, industry: IndustryType, yStart: number): void {
+  const specs: MaterialSpec[] = getMaterialSpecs(pageType, industry);
   if (!specs.length) return;
   const cx = MARGIN + LEFT_BAR_W;
   slide.addText("排版坐标卡", { x: cx, y: yStart, w: CONTENT_W, h: 0.35, fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
@@ -2616,10 +2608,12 @@ function renderColorTaboos(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
   // 三色灰度对照（单色印刷参考）
   const logoColors = resolveLogoColors(opts);
   const grayRow = [
-    { label: logoColors.navy.name + " → 70% 灰", color: logoColors.navy.hex, gray: "B3B3B3" },
-    { label: logoColors.gold.name + " → 50% 灰", color: logoColors.gold.hex, gray: "808080" },
+    ...(logoColors?.navy ? [{ label: logoColors.navy.name + " → 70% 灰", color: logoColors.navy.hex, gray: "B3B3B3" }] : []),
+    ...(logoColors?.gold ? [{ label: logoColors.gold.name + " → 50% 灰", color: logoColors.gold.hex, gray: "808080" }] : []),
     { label: "品牌主色 → 70% 灰", color: bc.pri, gray: "B3B3B3" },
-  ];
+    { label: "辅助色 → 50% 灰", color: bc.sec, gray: "808080" },
+    { label: "强调色 → 30% 灰", color: bc.acc, gray: "4D4D4D" },
+  ].slice(0, 3);
   slide.addText("三色灰度对照（单色印刷参考）", { x: cx, y: 7.55, w: CONTENT_W, h: 0.35, fontSize: 15, bold: true, color: bc.pri });
   const grayW = (CONTENT_W - 0.4) / 3;
   for (let i = 0; i < grayRow.length; i++) {
@@ -2692,7 +2686,7 @@ function renderMaterialPriority(slide: PptxGenJS.Slide, bp: PageBlueprint, opts:
 
 
 // ---- 线上数字应用 ----
-function renderDigitalMedia(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+function renderDigitalMedia(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType): void {
   addContentFrame(slide, bp.label || "线上数字应用", bc);
   const cx = MARGIN + LEFT_BAR_W;
   let y = 1.5;
@@ -2730,7 +2724,7 @@ function renderDigitalMedia(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Ren
   slide.addText("网页 Banner 1920x1080px\nLOGO 左侧 10% 区域", { x: bx - 0.4, y: sy + bh + 0.05, w: bw + 0.8, h: 0.5, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
 
   // 底部排版坐标卡文本
-  const specs = getMaterialSpecs("digital-media");
+  const specs = getMaterialSpecs("digital-media", industry);
   slide.addText(specs.map((s) => "排版坐标卡：" + s.name + " " + s.size + "，LOGO " + s.logoPosition + "，LOGO " + s.logoSize + "，安全区 " + s.safeZone + "。").join("\n"), {
     x: cx, y: sy + 1.95, w: CONTENT_W, h: 1.2,
     fontSize: 9, color: "555555", valign: "top", lineSpacingMultiple: 1.4, fontFace: "Noto Sans SC",

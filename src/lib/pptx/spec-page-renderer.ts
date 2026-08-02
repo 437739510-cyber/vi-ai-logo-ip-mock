@@ -14,6 +14,7 @@ import satori from 'satori';
 import sharp from 'sharp';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import type { LogoColor } from "../vi-manual/brand-visual-rules";
 
 // 页面尺寸 (英寸 → 像素，PPTX标准10x7.5英寸，用600x450渲染足够清晰)
 const PAGE_W = 1200;
@@ -59,10 +60,7 @@ interface SpecPageOptions {
   bc: BrandColors;
   colorMeaning?: string;
   companyName?: string;
-  logoColors?: {
-    navy?: { name?: string; hex?: string; rgb?: string; cmyk?: string };
-    gold?: { name?: string; hex?: string; rgb?: string; cmyk?: string };
-  };
+  logoColors?: { navy?: LogoColor; gold?: LogoColor } | null;
 }
 
 /** 渲染字体系统页为PNG base64 */
@@ -143,8 +141,9 @@ export async function renderTypographyPng(opts: SpecPageOptions): Promise<string
 export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string> {
   const fonts = loadFonts();
   const { bc, colorMeaning } = opts;
-  const navy = opts.logoColors?.navy || { name: "LOGO藏青", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" };
-  const gold = opts.logoColors?.gold || { name: "祥云金", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" };
+  const logoColors = opts.logoColors;
+  const logoColorCards = [logoColors?.navy, logoColors?.gold].filter((c): c is LogoColor => Boolean(c));
+  const logoColorNames = logoColorCards.map((c) => c.name || "品牌专属色").join("/");
 
   const colors = [
     { hex: bc.pri, label: '品牌主色', name: 'Primary' },
@@ -216,30 +215,29 @@ export async function renderColorSpecPng(opts: SpecPageOptions): Promise<string>
             { type: 'div', props: { style: { fontSize: 30, color: '#444444', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `强调色#${bc.acc}用于关键信息突出` } },
           ]}},
         ]}},
-        // LOGO 专属色值（藏青 / 祥云金）
-        { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, marginBottom: 10 }, children: [
-          { type: 'div', props: { style: { width: 6, height: 24, backgroundColor: `#${bc.pri}`, borderRadius: 3, flexShrink: 0 } } },
-          { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: 'LOGO 专属色值' } },
-        ]}},
-        { type: 'div', props: { style: { display: 'flex', gap: 16, marginBottom: 12 }, children: [
-          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, padding: '12px 12px', border: '1px solid #E8E8E8' }, children: [
-            { type: 'div', props: { style: { width: '100%', height: 70, borderRadius: 6, backgroundColor: navy.hex, marginBottom: 8 } } },
-            { type: 'div', props: { style: { fontSize: 26, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: navy.name } },
-            { type: 'div', props: { style: { fontSize: 22, color: '#444444', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: `HEX: ${navy.hex}` } },
-            { type: 'div', props: { style: { fontSize: 18, color: '#666666', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: `RGB: ${navy.rgb}` } },
-            { type: 'div', props: { style: { fontSize: 18, color: '#888888', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: `CMYK: ${navy.cmyk}` } },
+        // 工单 007：只有真实传入 Logo 专属色时才渲染该区块。
+        ...(logoColors ? [
+          { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, marginBottom: 10 }, children: [
+            { type: 'div', props: { style: { width: 6, height: 24, backgroundColor: `#${bc.pri}`, borderRadius: 3, flexShrink: 0 } } },
+            { type: 'div', props: { style: { fontSize: 30, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: 'LOGO 专属色值' } },
           ]}},
-          { type: 'div', props: { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, padding: '12px 12px', border: '1px solid #E8E8E8' }, children: [
-            { type: 'div', props: { style: { width: '100%', height: 70, borderRadius: 6, backgroundColor: gold.hex, marginBottom: 8 } } },
-            { type: 'div', props: { style: { fontSize: 26, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: gold.name } },
-            { type: 'div', props: { style: { fontSize: 22, color: '#444444', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: `HEX: ${gold.hex}` } },
-            { type: 'div', props: { style: { fontSize: 18, color: '#666666', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: `RGB: ${gold.rgb}` } },
-            { type: 'div', props: { style: { fontSize: 18, color: '#888888', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: `CMYK: ${gold.cmyk}` } },
+          { type: 'div', props: { style: { display: 'flex', gap: 16, marginBottom: 12 }, children: logoColorCards.map((c) => ({
+            type: 'div',
+            props: {
+              style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, padding: '12px 12px', border: '1px solid #E8E8E8' },
+              children: [
+                { type: 'div', props: { style: { width: '100%', height: 70, borderRadius: 6, backgroundColor: c.hex, marginBottom: 8 } } },
+                { type: 'div', props: { style: { fontSize: 26, fontWeight: 700, color: '#222222', fontFamily: 'Noto Sans SC' }, children: c.name || '品牌专属色' } },
+                { type: 'div', props: { style: { fontSize: 22, color: '#444444', fontFamily: 'Noto Sans SC', marginTop: 2 }, children: `HEX: ${c.hex}` } },
+                { type: 'div', props: { style: { fontSize: 18, color: '#666666', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: `RGB: ${c.rgb}` } },
+                { type: 'div', props: { style: { fontSize: 18, color: '#888888', fontFamily: 'Noto Sans SC', marginTop: 1 }, children: `CMYK: ${c.cmyk}` } },
+              ],
+            },
+          }))}},
+          { type: 'div', props: { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FBF4E8', borderRadius: 6, padding: '10px 16px', marginBottom: 12 }, children: [
+            { type: 'div', props: { style: { width: '100%', fontSize: 22, color: '#6B4F00', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: `LOGO 实体物料以${logoColorNames}为准，品牌画面主色用于辅助氛围，两套色按本页数值使用，不得混用冲突。` } },
           ]}},
-        ]}},
-        { type: 'div', props: { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FBF4E8', borderRadius: 6, padding: '10px 16px', marginBottom: 12 }, children: [
-          { type: 'div', props: { style: { width: '100%', fontSize: 22, color: '#6B4F00', fontFamily: 'Noto Sans SC', lineHeight: 1.4, textAlign: 'center' }, children: 'LOGO 实体物料以藏青/祥云金为准，品牌画面主色用于辅助氛围，两套色按本页数值使用，不得混用冲突。' } },
-        ]}},
+        ] : []),
 
         // ───── 色彩应用说明 ─────
         { type: 'div', props: { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 12 }, children: [

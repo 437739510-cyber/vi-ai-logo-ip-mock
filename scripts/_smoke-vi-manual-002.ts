@@ -33,6 +33,7 @@ const brandColors = {
 const baseInput = {
   clientInfo,
   brandColors,
+  wantMascot: "yes",
   mascotAssets: {
     name: "小茶",
     front: ONE_PX_PNG,
@@ -72,8 +73,8 @@ async function main(): Promise<void> {
 
   const misuseText = pageText(bps, "logo-misuse");
   ok("logo misuse contains 裁切LOGO", misuseText.includes("裁切LOGO"));
-  ok("logo misuse contains 局部截取祥云", misuseText.includes("局部截取祥云"));
-  ok("logo misuse contains 更改圆环纹样", misuseText.includes("更改圆环纹样"));
+  ok("logo misuse contains 拆分局部元素", misuseText.includes("拆分局部元素"));
+  ok("logo misuse contains 改造图形结构", misuseText.includes("改造图形结构"));
 
   const threeViewText = pageText(bps, "mascot-threeview");
   ok("mascot threeview uses fixed 1:2.0", threeViewText.includes("1:2.0"));
@@ -105,8 +106,8 @@ async function main(): Promise<void> {
       accent: "#F5E6CA",
     },
     logoColors: {
-      navy: { name: "LOGO藏青", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" },
-      gold: { name: "祥云金", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" },
+      navy: { name: "品牌深蓝", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" },
+      gold: { name: "品牌金棕", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" },
     },
     mascotData: ONE_PX_PNG,
     mascotThreeViewData: ONE_PX_PNG,

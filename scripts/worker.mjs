@@ -24,6 +24,7 @@ import { renderPptxToBuffer } from '../src/lib/pptx/render-pptx';
 import { normalizeBrandName } from '../src/lib/vi-manual/brand-name-normalizer';
 import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from '../src/lib/vi-manual/mascot-assets';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
+import { normalizeLogoColorSet } from '../src/lib/vi-manual/brand-visual-rules';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -413,27 +414,24 @@ function evaluateMascotChapter(ci) {
   return { include: result.ready, result };
 }
 
-const DEFAULT_LOGO_COLORS = {
-  navy: { name: "LOGO藏青", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" },
-  gold: { name: "祥云金", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" },
-};
-
 function resolveLogoColors(brandProfile) {
   const aiColors = (brandProfile?.logoSpecs?.logoColors || []).filter((c) => c && c.hex);
-  const pick = (keywords, fallback) => {
+  const pick = (keywords) => {
     const hit = aiColors.find((c) => keywords.some((k) => String(c.name || "").includes(k)));
-    if (!hit) return fallback;
+    if (!hit) return null;
     return {
-      name: hit.name || fallback.name,
+      name: hit.name || "",
       hex: hit.hex,
-      rgb: hit.rgb || fallback.rgb,
-      cmyk: hit.cmyk || fallback.cmyk,
+      rgb: hit.rgb,
+      cmyk: hit.cmyk,
     };
   };
-  return {
-    navy: pick(["藏青", "深蓝", "navy", "Navy"], DEFAULT_LOGO_COLORS.navy),
-    gold: pick(["祥云", "金", "gold", "Gold"], DEFAULT_LOGO_COLORS.gold),
-  };
+  // 工单 007：没有真实 Logo 专属色时返回 null，不虚构固定色板；
+  // RGB/CMYK 缺失时由 normalizeLogoColorSet 从真实 HEX 计算。
+  return normalizeLogoColorSet({
+    navy: pick(["藏青", "深蓝", "navy", "Navy"]) || undefined,
+    gold: pick(["祥云", "金", "gold", "Gold"]) || undefined,
+  });
 }
 
 // ========== VI Manual Generation ==========

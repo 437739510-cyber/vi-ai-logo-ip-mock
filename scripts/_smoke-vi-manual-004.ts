@@ -39,8 +39,15 @@ const brandColors = {
 const baseInput = {
   clientInfo,
   brandColors,
-  includeMascotChapter: true,
-  mascotAssetsReady: true,
+  wantMascot: "yes",
+  mascotAssets: {
+    name: "小茶",
+    front: ONE_PX_PNG,
+    side: ONE_PX_PNG,
+    back: ONE_PX_PNG,
+    emotions: ["微笑", "欢迎", "专注", "惊喜", "安心", "开心", "引导", "俏皮"].map((name) => ({ name, url: ONE_PX_PNG })),
+    scenes: ["门店迎宾", "包装应用", "会员互动", "社媒互动"].map((name) => ({ name, url: ONE_PX_PNG })),
+  },
   assetAnalysis: {
     logo: { hasLogo: true, meaning: "圆环代表完整服务，茶叶图形代表新鲜原料" },
     mascot: { hasMascot: true, name: "小茶", splitViews: [ONE_PX_PNG, ONE_PX_PNG, ONE_PX_PNG] },
@@ -71,8 +78,7 @@ async function main(): Promise<void> {
 
   const noIp = await planPages({
     ...baseInput,
-    includeMascotChapter: false,
-    mascotAssetsReady: false,
+    wantMascot: "no",
     assetAnalysis: { logo: baseInput.assetAnalysis.logo },
   });
   const withIp = await planPages(baseInput);
@@ -137,14 +143,14 @@ async function main(): Promise<void> {
       accent: "#F5E6CA",
     },
     logoColors: {
-      navy: { name: "LOGO藏青", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" },
-      gold: { name: "祥云金", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" },
+      navy: { name: "品牌深蓝", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" },
+      gold: { name: "品牌金棕", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" },
     },
     mascotData: ONE_PX_PNG,
     mascotThreeViewData: ONE_PX_PNG,
     mascotSplitViews: [ONE_PX_PNG, ONE_PX_PNG, ONE_PX_PNG],
-    mascotEmotions: { smile: ONE_PX_PNG, wink: ONE_PX_PNG },
-    mascotScenes: { store: ONE_PX_PNG, event: ONE_PX_PNG },
+    mascotEmotions: Object.fromEntries(["微笑", "欢迎", "专注", "惊喜", "安心", "开心", "引导", "俏皮"].map((name) => [name, ONE_PX_PNG])),
+    mascotScenes: Object.fromEntries(["门店迎宾", "包装应用", "会员互动", "社媒互动"].map((name) => [name, ONE_PX_PNG])),
     compressImages: false,
   };
 

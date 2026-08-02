@@ -20,6 +20,7 @@ import { IndustryCategory } from "../ip/mascot-optimization";
 import { normalizeBrandName, resolveFormalBrandName } from "./brand-name-normalizer";
 import { validateMascotAssets, MascotAssetsIncompleteError, type MascotAssetSet } from "./mascot-assets";
 import { getMaterialSpecs, formatMaterialSpec } from "./material-specs";
+import { getLogoMisuseRules } from "./brand-visual-rules";
 
 // ========== 类型定义 ==========
 
@@ -1121,17 +1122,10 @@ function buildLogoMisuseElements(ctx: BuildContext): PageElement[] {
   elements.push({ type: "divider", id: "lm-divider",
     position: "center", widthPct: 30, color: acc.hex, opacity: 0.6, marginTop: 15 });
 
-  const misuses = [
-    { title: "禁止拉伸", desc: "不得对Logo进行\n非等比缩放" },
-    { title: "禁止旋转", desc: "不得旋转\nLogo角度" },
-    { title: "禁止换色", desc: "不得使用非标准色\n替换Logo颜色" },
-    { title: "禁止描边", desc: "不得给Logo\n添加描边效果" },
-    { title: "禁止加阴影", desc: "不得添加非规范\n投影效果" },
-    { title: "禁止改字体", desc: "不得更改Logo\n中的字体样式" },
-    { title: "禁止裁切LOGO", desc: "不得裁掉LOGO的边框、圆环、\n文字任何部分，须完整呈现" },
-    { title: "禁止局部截取祥云元素", desc: "祥云/辅助纹样是LOGO整体的一部分，\n不得单独抽出使用" },
-    { title: "禁止更改圆环纹样", desc: "不得替换、加粗、旋转或\n重新绘制LOGO圆环/边框纹样" },
-  ];
+  // 工单 007/007-R1：Planner 与 Renderer 共用同一套 Logo 误用规则；
+  // 有真实结构证据（ctx.logoElements）时生成元素级规则，
+  // 无证据时只输出通用规则，不默认声称 Logo 含祥云/圆环纹样等具体图形。
+  const misuses = getLogoMisuseRules(ctx.logoElements);
 
   for (let i = 0; i < misuses.length; i++) {
     const col = i % 3;
@@ -1387,7 +1381,7 @@ function buildWayfindingElements(ctx: BuildContext): PageElement[] {
     { type: "text", id: "wf-desc", content: "导视系统按 300 x 150mm 标准比例框设计，LOGO 左上角，四周保留安全区，确保远距离识别。", position: "top-center", fontSize: 13, color: "#666", marginTop: 110, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
   ];
 
-  getMaterialSpecs("wayfinding").forEach((spec, i) => {
+  getMaterialSpecs("wayfinding", ctx.industryType).forEach((spec, i) => {
     elements.push({
       type: "text", id: `wf-spec-${i}`,
       content: formatMaterialSpec(spec),
@@ -1430,7 +1424,7 @@ function buildDigitalMediaElements(ctx: BuildContext): PageElement[] {
     { type: "text", id: "dm-b-3", content: dmBodies[3], position: "top-center", fontSize: 12, color: "#444", marginTop: 428, marginLeft: 60, marginRight: 60, params: { align: "left", lineHeight: 1.5 } },
   ];
 
-  getMaterialSpecs("digital-media").forEach((spec, i) => {
+  getMaterialSpecs("digital-media", ctx.industryType).forEach((spec, i) => {
     elements.push({
       type: "text", id: `dm-spec-${i}`,
       content: formatMaterialSpec(spec),
@@ -1500,7 +1494,7 @@ function buildStationeryElements(ctx: BuildContext): PageElement[] {
     params: { sceneType: (ctx.industryType || "general") + "-stationery" },
   });
 
-  getMaterialSpecs("stationery").forEach((spec, i) => {
+  getMaterialSpecs("stationery", ctx.industryType).forEach((spec, i) => {
     elements.push({
       type: "text", id: `st-spec-${i}`,
       content: formatMaterialSpec(spec),
@@ -1547,7 +1541,7 @@ function buildPackagingElements(ctx: BuildContext): PageElement[] {
     params: { sceneType: (ctx.industryType || "general") + "-packaging" },
   });
 
-  getMaterialSpecs("packaging").forEach((spec, i) => {
+  getMaterialSpecs("packaging", ctx.industryType).forEach((spec, i) => {
     elements.push({
       type: "text", id: `pk-spec-${i}`,
       content: formatMaterialSpec(spec),
@@ -1585,7 +1579,7 @@ function buildMarketingElements(ctx: BuildContext): PageElement[] {
     params: { sceneType: (ctx.industryType || "general") + "-marketing" },
   });
 
-  getMaterialSpecs("marketing").forEach((spec, i) => {
+  getMaterialSpecs("marketing", ctx.industryType).forEach((spec, i) => {
     elements.push({
       type: "text", id: `mk-spec-${i}`,
       content: formatMaterialSpec(spec),

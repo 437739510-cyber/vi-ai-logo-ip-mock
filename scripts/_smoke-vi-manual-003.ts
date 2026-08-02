@@ -33,8 +33,15 @@ const brandColors = {
 const baseInput = {
   clientInfo,
   brandColors,
-  includeMascotChapter: true,
-  mascotAssetsReady: true,
+  wantMascot: "yes",
+  mascotAssets: {
+    name: "小茶",
+    front: ONE_PX_PNG,
+    side: ONE_PX_PNG,
+    back: ONE_PX_PNG,
+    emotions: ["微笑", "欢迎", "专注", "惊喜", "安心", "开心", "引导", "俏皮"].map((name) => ({ name, url: ONE_PX_PNG })),
+    scenes: ["门店迎宾", "包装应用", "会员互动", "社媒互动"].map((name) => ({ name, url: ONE_PX_PNG })),
+  },
   assetAnalysis: {
     logo: { hasLogo: true },
     mascot: { hasMascot: true, name: "小茶", splitViews: [ONE_PX_PNG, ONE_PX_PNG, ONE_PX_PNG] },
@@ -70,7 +77,7 @@ async function main(): Promise<void> {
 
   const fileOutputText = pageText(bps, "file-output");
   ok("file-output contains IP 公仔源文件", fileOutputText.includes("IP 公仔源文件"));
-  ok("file-output contains 品牌名_Mascot_正面", fileOutputText.includes("品牌名_Mascot_正面"));
+  ok("file-output contains 品牌名_Mascot_正面", fileOutputText.includes("有间奶茶店_Mascot_正面"));
 
   const auxText = pageText(bps, "auxiliary-graphics");
   ok("auxiliary graphics contains 最小使用尺寸", auxText.includes("最小使用尺寸"));
@@ -93,14 +100,14 @@ async function main(): Promise<void> {
       accent: "#F5E6CA",
     },
     logoColors: {
-      navy: { name: "LOGO藏青", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" },
-      gold: { name: "祥云金", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" },
+      navy: { name: "品牌深蓝", hex: "#1B2A4A", rgb: "27,42,74", cmyk: "64,43,0,71" },
+      gold: { name: "品牌金棕", hex: "#C9A96E", rgb: "201,169,110", cmyk: "0,16,45,21" },
     },
     mascotData: ONE_PX_PNG,
     mascotThreeViewData: ONE_PX_PNG,
     mascotSplitViews: [ONE_PX_PNG, ONE_PX_PNG, ONE_PX_PNG],
-    mascotEmotions: { smile: ONE_PX_PNG, wink: ONE_PX_PNG },
-    mascotScenes: { store: ONE_PX_PNG, event: ONE_PX_PNG },
+    mascotEmotions: Object.fromEntries(["微笑", "欢迎", "专注", "惊喜", "安心", "开心", "引导", "俏皮"].map((name) => [name, ONE_PX_PNG])),
+    mascotScenes: Object.fromEntries(["门店迎宾", "包装应用", "会员互动", "社媒互动"].map((name) => [name, ONE_PX_PNG])),
     compressImages: false,
   };
 

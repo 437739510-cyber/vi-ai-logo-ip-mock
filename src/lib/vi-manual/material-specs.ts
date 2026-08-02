@@ -3,6 +3,29 @@
  * Values are template defaults; industry-specific adjustments are allowed.
  */
 
+import { getIndustryType, type IndustryType } from "../brand/industry-types";
+
+/**
+ * 已规范化的行业值全集（IndustryType）。工单 007-R1：
+ * getIndustryType 的正则只识别中文行业文本，英文规范化值（beverage/
+ * restaurant/general 等）会被二次归一化为 general，导致英文 beverage
+ * 在 getMaterialSpecs("packaging") 丢失合法 cup-sleeve。
+ * 因此已规范化值必须直接保留；原始中文行业文本仍走 getIndustryType。
+ */
+const NORMALIZED_INDUSTRY_TYPES: ReadonlySet<string> = new Set<string>([
+  "restaurant", "fastfood", "beverage", "beauty", "fashion", "mother_baby",
+  "wedding", "fitness", "pharmacy", "pet", "retail", "education",
+  "fresh_food", "floral", "home", "nail", "tea", "general",
+]);
+
+export function resolveIndustryType(industry?: string): IndustryType {
+  if (industry) {
+    const normalized = industry.trim().toLowerCase();
+    if (NORMALIZED_INDUSTRY_TYPES.has(normalized)) return normalized as IndustryType;
+  }
+  return getIndustryType(industry);
+}
+
 export interface MaterialSpec {
   id: string;
   name: string;
@@ -92,10 +115,13 @@ export function formatMaterialSpec(spec: MaterialSpec): string {
   return `排版坐标卡：${spec.name} ${spec.size}，LOGO ${spec.logoPosition}，LOGO ${spec.logoSize}，安全区 ${spec.safeZone}。`;
 }
 
-export function getMaterialSpecs(pageType: string): MaterialSpec[] {
+export function getMaterialSpecs(pageType: string, industry?: string): MaterialSpec[] {
+  const industryType = resolveIndustryType(industry);
+  const beverageLike = industryType === "beverage";
   const byPage: Record<string, string[]> = {
     stationery: ["staff-badge", "menu", "signboard"],
-    packaging: ["cup-sleeve", "carry-bag"],
+    // 工单 007：只有饮品行业默认包含杯套；餐饮/通用等其他行业不再被注入茶饮专属物料。
+    packaging: beverageLike ? ["cup-sleeve", "carry-bag"] : ["carry-bag", "menu"],
     marketing: ["signboard", "wayfinding-sign", "web-banner"],
     "digital-media": ["avatar", "video-cover", "web-banner"],
     wayfinding: ["signboard", "wayfinding-sign"],
