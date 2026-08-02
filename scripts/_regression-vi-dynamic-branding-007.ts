@@ -7,7 +7,8 @@
  *   - 直接调用生产函数并检查真实 Blueprint / PPTX XML，不在测试内替换生成结果。
  *
  * 运行：npx tsx scripts/_regression-vi-dynamic-branding-007.ts
- * 预期：14 passed / 0 failed（007 的 10 项具名断言 + 008 新增 4 项英文规范化值覆盖），退出码 0。
+ * 预期：18 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
+ * + 009 新增 4 项 Logo 结构证据接入），退出码 0。
  */
 process.env.DEEPSEEK_API_KEY = "";
 process.env.SUPABASE_URL = "";
@@ -22,7 +23,7 @@ import { planPages, type PageBlueprint, type PagePlannerInput } from "../src/lib
 import { renderPptxToBuffer, type RenderPptxOptions } from "../src/lib/pptx/render-pptx";
 import { getMaterialSpecs } from "../src/lib/vi-manual/material-specs";
 import { getIndustryType } from "../src/lib/brand/industry-types";
-import { getLogoMisuseRules, normalizeLogoColorSet } from "../src/lib/vi-manual/brand-visual-rules";
+import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements } from "../src/lib/vi-manual/brand-visual-rules";
 
 const ONE_PX_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -408,6 +409,62 @@ async function main(): Promise<void> {
     "008-4 中文行业词兼容保持（饮品/面馆/其他）",
     zhBeverage === "beverage" && zhRestaurant === "restaurant" && zhGeneral === "general",
     `饮品=${zhBeverage} 面馆=${zhRestaurant} 其他=${zhGeneral}`
+  );
+
+  // ============ 009 组：Logo 结构证据上游接入（007/007-R1 遗留风险之二）============
+  // 模拟生产接线：brandProfile.logoDesignSuggestions.elements（字符串）→
+  // extractLogoElements → assetAnalysis.logo.elements → planPages + renderPptx。
+  const elems009 = extractLogoElements("麦穗、帆船");
+  const bps009 = await planPages(makeInput("面馆", colorA, elems009));
+  const opts009 = renderOpts("面馆", { primary: "#A63D40", secondary: "#D9A441", accent: "#F5EBDD" }, {
+    logoElements: elems009,
+  });
+  const buf009 = await renderPptxToBuffer(bps009, opts009);
+  writeFileSync(`${TMP_DIR}\\bb-009-logo-elements.pptx`, buf009);
+  const pptx009 = await extractPptxText(buf009);
+  const bpMap009: Record<string, string> = {};
+  for (const b of bps009) bpMap009[b.pageId] = blueprintPageText(b);
+  const bpMisuse009 = bpMap009["logo-misuse"] || "";
+  const pptxMisuse009 = Object.values(pptx009.perPage).find((t) => t.includes("禁止拆分局部元素")) || "";
+  const misuseText009 = bpMisuse009 + " " + pptxMisuse009;
+
+  check(
+    "009-1 extractLogoElements 中英文分隔符拆分/去重/过滤/截断",
+    JSON.stringify(extractLogoElements("麦穗、帆船，祥云；莲花/波浪")) === JSON.stringify(["麦穗", "帆船", "祥云", "莲花", "波浪"]) &&
+      JSON.stringify(extractLogoElements("麦穗、麦穗，帆船")) === JSON.stringify(["麦穗", "帆船"]) &&
+      extractLogoElements("ABCDEFGHIJKLMNOPQRSTUVWXYZ")[0] === "ABCDEFGHIJKLMNOPQRST" &&
+      extractLogoElements("一、二、三、四、五、六、七、八、九").length === 8 &&
+      extractLogoElements("……，").length === 0,
+    `split=${JSON.stringify(extractLogoElements("麦穗、帆船，祥云；莲花/波浪"))} dedupe=${JSON.stringify(extractLogoElements("麦穗、麦穗，帆船"))} trunc=${JSON.stringify(extractLogoElements("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))} punct=${JSON.stringify(extractLogoElements("……，"))}`
+  );
+
+  check(
+    "009-2 extractLogoElements 空输入返回空数组",
+    extractLogoElements("").length === 0 &&
+      extractLogoElements(null).length === 0 &&
+      extractLogoElements(undefined).length === 0 &&
+      extractLogoElements("   ").length === 0,
+    `empty=${JSON.stringify(extractLogoElements(""))} null=${JSON.stringify(extractLogoElements(null))} undef=${JSON.stringify(extractLogoElements(undefined))} blank=${JSON.stringify(extractLogoElements("   "))}`
+  );
+
+  check(
+    "009-3 生产接线端到端：显式 elements 证据激活元素级误用规则",
+    elems009.length === 2 &&
+      bpMisuse009.includes("麦穗") && bpMisuse009.includes("帆船") &&
+      pptxMisuse009.includes("麦穗") && pptxMisuse009.includes("帆船") &&
+      !misuseText009.includes("祥云") && !misuseText009.includes("圆环纹样"),
+    `elems=${JSON.stringify(elems009)} bp=${bpMisuse009.slice(0, 140)} pptx=${pptxMisuse009.slice(0, 140)}`
+  );
+
+  const bpMisuseGeneric = bpMapA["logo-misuse"] || "";
+  const pptxMisuseGeneric = Object.values(pptxA.perPage).find((t) => t.includes("禁止拆分局部元素")) || "";
+  const misuseTextGeneric = bpMisuseGeneric + " " + pptxMisuseGeneric;
+  check(
+    "009-4 无结构证据端到端仍只输出通用规则",
+    misuseRules.every((r) => misuseTextGeneric.includes(r.title)) &&
+      !["麦穗", "帆船"].some((t) => misuseTextGeneric.includes(t)) &&
+      !misuseTextGeneric.includes("祥云") && !misuseTextGeneric.includes("圆环纹样"),
+    `genericTitles=${misuseRules.length}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");

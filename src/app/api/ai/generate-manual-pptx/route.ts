@@ -25,6 +25,7 @@ import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/b
 import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
 import { validateAndBlockAsync, checkColorNarrativeConsistency } from "@/lib/vi-manual/quality-check";
+import { extractLogoElements } from "@/lib/vi-manual/brand-visual-rules";
 const _DEV = process.env.NODE_ENV === "development";
 
 
@@ -1172,7 +1173,9 @@ export async function POST(req: NextRequest) {
         accent: { hex: realColors.accent },
       },
       assetAnalysis: {
-        logo: { hasLogo: !!logoData, logoUrl: body.logoUrl || "", elements: [], styleTags: [], meaning: logoPhilosophy },
+        // 工单 009：Logo 结构证据只来自显式字段 logoDesignSuggestions.elements，
+        // 缺失/为空时保持 []（通用规则，安全默认），不从文案猜测元素。
+        logo: { hasLogo: !!logoData, logoUrl: body.logoUrl || "", elements: extractLogoElements(brandProfile?.logoDesignSuggestions?.elements), styleTags: [], meaning: logoPhilosophy },
         mascot: { hasMascot: ci?.wantMascot === "yes", name: canonicalMascotAssets.name || mascotName, style: mascotStyle, personality: mascotPersonality },
       },
     });

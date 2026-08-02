@@ -25,6 +25,35 @@ export interface LogoMisuseRule {
   distortion: string;
 }
 
+/**
+ * 工单 009：把显式 Logo 结构证据字段（brandProfile.logoDesignSuggestions.elements，
+ * 字符串）解析为元素数组，供两条生产路径填充 assetAnalysis.logo.elements。
+ * - 按中英文分隔符拆分：、 ， , ； ; / | 。 . 空格 换行；
+ * - trim、过滤空串与纯标点、去重（保持顺序）；
+ * - 上限：最多 8 个元素、每个元素最长 20 字符（超出截断），防止误用页文案膨胀；
+ * - null/undefined/空串/纯空白 → []（安全默认，只输出通用规则）。
+ * 元素只能来自该显式字段，不得从 logoPhilosophy/logoMeaning/行业/品牌名猜测。
+ */
+export function extractLogoElements(raw?: string | null): string[] {
+  if (!raw || typeof raw !== "string") return [];
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  const parts = trimmed.split(/[、，,；;/|。.\s]+/);
+  const seen = new Set<string>();
+  const result: string[] = [];
+  const PURE_PUNCT = /^[\s\u3000-\u303f\uff00-\uffef\u2000-\u206f!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~·•]+$/;
+  for (const part of parts) {
+    const item = part.trim();
+    if (!item || PURE_PUNCT.test(item)) continue;
+    const normalized = item.length > 20 ? item.slice(0, 20) : item;
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(normalized);
+    if (result.length >= 8) break;
+  }
+  return result;
+}
+
 export const GENERIC_LOGO_MISUSE_RULES: LogoMisuseRule[] = [
   { title: "禁止拉伸", desc: "不得对Logo进行\n非等比缩放", distortion: "stretch" },
   { title: "禁止旋转", desc: "不得旋转\nLogo角度", distortion: "rotate" },
