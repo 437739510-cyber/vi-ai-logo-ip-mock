@@ -212,9 +212,9 @@ async function submitAndWait(
   if (error) throw new ComfyUIError(`Generation error: ${error}`, "GEN_ERROR", true);
   if (!filename) throw new ComfyUIError(`Timed out after ${timeoutMs}ms`, "TIMEOUT", true);
 
-  // 本机红线（D:\DISK\ComfyUI-模型清单.md）：DDR3 内存带宽限制，Z-Image 每张生成后
-  // 必须间隔 45 秒，否则连续 4 张以上蓝屏。可用 COMFYUI_COOLDOWN_MS 覆盖（设 0 关闭）。
-  const COOLDOWN_MS = Number(process.env.COMFYUI_COOLDOWN_MS) || 45000;
+  // 2026-08-03 Chris 决策：已更换新内存条，默认取消 45 秒间隔（提速）；
+  // 若日后再次出现蓝屏/不稳定，设 COMFYUI_COOLDOWN_MS=45000 即可恢复保护。
+  const COOLDOWN_MS = Number(process.env.COMFYUI_COOLDOWN_MS) || 0;
   if (COOLDOWN_MS > 0) await sleep(COOLDOWN_MS);
 
   return { filename, durationMs: Date.now() - startTime };
