@@ -910,10 +910,12 @@ function buildPhilosophyElements(ctx: BuildContext): PageElement[] {
     }
   });
 
-  // 004: 愿景通过 LOGO 与 IP 落地为可识别视觉资产
+  // 004: 愿景通过 LOGO 与 IP 落地为可识别视觉资产（020：无 IP 手册不含 IP 文案）
   elements.push({
     type: "text", id: "ph-vision-apply",
-    content: "愿景如何落地：品牌愿景通过 LOGO 的图形叙事与 IP 的亲和表达，转化为可识别的视觉资产。",
+    content: hasMascot
+      ? "愿景如何落地：品牌愿景通过 LOGO 的图形叙事与 IP 的亲和表达，转化为可识别的视觉资产。"
+      : "愿景如何落地：品牌愿景通过 LOGO 的图形叙事，转化为可识别的视觉资产。",
     position: "bottom-center", fontSize: 12, fontWeight: 400, color: "#666",
     marginBottom: 60, marginLeft: 60, marginRight: 140,
     params: { align: "left", lineHeight: 1.5 },

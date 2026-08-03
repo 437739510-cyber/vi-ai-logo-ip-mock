@@ -7,10 +7,11 @@
  *   - 直接调用生产函数并检查真实 Blueprint / PPTX XML，不在测试内替换生成结果。
  *
  * 运行：npx tsx scripts/_regression-vi-dynamic-branding-007.ts
- * 预期：27 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
+ * 预期：28 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
  * + 009 新增 4 项 Logo 结构证据接入 + 012 新增 1 项渲染端生产接线一致性
  * + 013 新增 3 项 LOGO 专属色上游数据源 + 014 新增 1 项 styleTags 生产填充
- * + 015 新增 3 项人工改色 manual 优先 + 019 新增 1 项本地生图模型静态契约），退出码 0。
+ * + 015 新增 3 项人工改色 manual 优先 + 019 新增 1 项本地生图模型静态契约
+ * + 020 新增 1 项无IP手册零IP文案），退出码 0。
  */
 process.env.DEEPSEEK_API_KEY = "";
 process.env.SUPABASE_URL = "";
@@ -26,6 +27,7 @@ import { renderPptxToBuffer, type RenderPptxOptions } from "../src/lib/pptx/rend
 import { getMaterialSpecs } from "../src/lib/vi-manual/material-specs";
 import { getIndustryType } from "../src/lib/brand/industry-types";
 import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from "../src/lib/vi-manual/brand-visual-rules";
+import { MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from "../src/lib/vi-manual/mascot-assets";
 
 const ONE_PX_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -619,6 +621,45 @@ async function main(): Promise<void> {
       providerSrc019.includes("z_image_turbo_nvfp4.safetensors") &&
       !providerSrc019.includes("z-image-turbo-Q4_K_M.gguf"),
     `unetLoader=${providerSrc019.includes("UNETLoader")} nvfp4=${providerSrc019.includes("z_image_turbo_nvfp4.safetensors")} q4gguf=${providerSrc019.includes("z-image-turbo-Q4_K_M.gguf")}`
+  );
+
+  // ============ 020 组：无 IP 手册零 IP 文案（愿景模板按 hasMascot 条件化）============
+  const mascotAssets020 = {
+    name: "青柚仔",
+    front: ONE_PX_PNG,
+    side: ONE_PX_PNG,
+    back: ONE_PX_PNG,
+    emotions: MASCOT_EMOTION_NAMES.map((name) => ({ name, url: ONE_PX_PNG })),
+    scenes: MASCOT_SCENE_NAMES.map((name) => ({ name, url: ONE_PX_PNG })),
+  };
+  const mascotInput020 = makeInput("饮品", colorB);
+  mascotInput020.wantMascot = "yes";
+  mascotInput020.mascotAssets = mascotAssets020;
+  mascotInput020.assetAnalysis = { logo: { hasLogo: true, elements: [] }, mascot: { hasMascot: true, name: "青柚仔" } };
+  const bpsMascot020 = await planPages(mascotInput020);
+  const mascotOpts020 = renderOpts("饮品", { primary: "#167D68", secondary: "#E97842", accent: "#FFF4DE" }, {
+    mascotData: ONE_PX_PNG,
+    mascotThreeViewData: ONE_PX_PNG,
+    mascotSplitViews: [ONE_PX_PNG, ONE_PX_PNG, ONE_PX_PNG],
+    mascotEmotions: Object.fromEntries(MASCOT_EMOTION_NAMES.map((n) => [n, ONE_PX_PNG])),
+    mascotScenes: Object.fromEntries(MASCOT_SCENE_NAMES.map((n) => [n, ONE_PX_PNG])),
+  });
+  const bufMascot020 = await renderPptxToBuffer(bpsMascot020, mascotOpts020);
+  writeFileSync(`${TMP_DIR}\\bb-020-mascot-ip.pptx`, bufMascot020);
+  const pptxMascot020 = await extractPptxText(bufMascot020);
+  const bpMapMascot020: Record<string, string> = {};
+  for (const b of bpsMascot020) bpMapMascot020[b.pageId] = blueprintPageText(b);
+  const bpPhiloNoIp020 = bpMapA["brand-philosophy"] || "";
+  const bpPhiloIp020 = bpMapMascot020["brand-philosophy"] || "";
+  const pptxPhiloIp020 = Object.values(pptxMascot020.perPage).find((t) => t.includes("愿景如何落地")) || "";
+  check(
+    "020-1 无IP手册不含“IP 的亲和表达/公仔”，有IP手册保留",
+    !bpPhiloNoIp020.includes("IP 的亲和表达") &&
+      !bpPhiloNoIp020.includes("公仔") &&
+      !pptxA.all.includes("IP 的亲和表达") &&
+      bpPhiloIp020.includes("IP 的亲和表达") &&
+      pptxPhiloIp020.includes("IP 的亲和表达"),
+    `noIpBpHasIp=${bpPhiloNoIp020.includes("IP 的亲和表达")} noIpPptxHasIp=${pptxA.all.includes("IP 的亲和表达")} ipBpHas=${bpPhiloIp020.includes("IP 的亲和表达")} ipPptxHas=${pptxPhiloIp020.includes("IP 的亲和表达")}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");

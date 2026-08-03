@@ -739,10 +739,14 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     slide.addImage({ data: normImg(opts.mascotData), x: SW - 2.2, y: SH - 3.5, w: 1.8, h: 2.2, sizing: { type: "contain", w: 1.8, h: 2.2 }, transparency: 70 });
   }
 
-  // 004: 愿景→LOGO/IP 落地表达
-  slide.addText("愿景如何落地：品牌愿景通过 LOGO 的图形叙事与 IP 的亲和表达，转化为可识别的视觉资产。", {
-    x: cx, y: SH - 0.95, w: CONTENT_W, h: 0.5, fontSize: 11, color: "666666", align: "center", fontFace: "Noto Sans SC",
-  });
+  // 004: 愿景→LOGO/IP 落地表达（020：无 IP 手册不含 IP 文案，与 Planner 同源判断）
+  slide.addText(
+    opts.mascotData
+      ? "愿景如何落地：品牌愿景通过 LOGO 的图形叙事与 IP 的亲和表达，转化为可识别的视觉资产。"
+      : "愿景如何落地：品牌愿景通过 LOGO 的图形叙事，转化为可识别的视觉资产。",
+    {
+      x: cx, y: SH - 0.95, w: CONTENT_W, h: 0.5, fontSize: 11, color: "666666", align: "center", fontFace: "Noto Sans SC",
+    });
 }
 
 // ========== Logo Interpretation — V6: 直接用opts字段 ==========
