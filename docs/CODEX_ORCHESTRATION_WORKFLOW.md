@@ -299,6 +299,10 @@ RTX 3060 12 GB 显存（当前基本闲置）、D 盘空闲 1 TB。以下模式�
   `D:\DISK\workbuddy\tokenhub_config.json`（腾讯云 TokenHub，handoff 提到
   hy-vision-2.0-instruct 视觉模型，配置里默认模型 glm-5）。用途：**后期平台做
   图片评审/QA 时调用**（DeepSeek 无法看图，TokenHub 视觉模型可以）。
+- **免费视觉模型候选（2026-08-03 Chris 提供）**：智谱 GLM-4V-Flash（“GIMI”），
+  可用于场景图/Logo 视觉评审；优先尝试免费方案，Key/接入方式待确认后补充。
+- **本地台湾代理（2026-08-03 Chris 提供）**：HTTP 代理端口 22307，SOCKS5 端口 22308；
+  用于需要境外 IP 的下载/API 访问（如模型下载、部分境外服务），按需使用。
 - **红线**：key 值不得写入对话、Git、回执或任何文档；引用时只写文件路径；
   该 key 曾在本会话工具报错中意外显示过一次，建议 Chris 方便时在 TokenHub
   控制台重置。
@@ -307,4 +311,26 @@ RTX 3060 12 GB 显存（当前基本闲置）、D 盘空闲 1 TB。以下模式�
   - 会话接入 DeepSeek（无法看图，如 ChatGPT 流量用尽时）→ **禁止直接打开/
     预览/渲染图片**；需要“看图”时只能调用外部视觉 API（腾讯 TokenHub
     hy-vision 视觉模型），且必须先获 Chris 明确授权；
-  - 无论哪种，回执/对话/文档都只写图片路径，不嵌入图片。
+- 无论哪种，回执/对话/文档都只写图片路径，不嵌入图片。
+
+### 15. 产品规则备忘（2026-08-03 Chris 口头确认）
+
+- **场景图行业一致性**：场景图必须与客户行业匹配——例如餐馆的场景图应是
+  “含 LOGO 的餐巾纸/餐具”，绝不能出现“含 LOGO 洗车液”等跨行业画面。
+- 对应保障点：
+  1. 场景提示词必须以行业（industryType）与行业知识为准生成（worker
+     buildScenePrompts / getIndustryKnowledge 链路）；
+  2. 场景图内容的最终校验需要**视觉评审**（本机规则：DeepSeek 不能看图，
+     需授权后调 TokenHub hy-vision 或由 Chris 人工确认），文字/XML 核验
+     只能证明物料卡正确，不能证明图片内容正确。
+
+### 16. 场景图“沐浴乳”根因结论（2026-08-03 排查）
+
+- 现象：奶茶店测试单场景图出现沐浴乳（跨行业画面）。
+- 根因：**提示词管线问题，非生图模型不稳定**。DeepSeek 已生成行业正确的
+  sceneImageSuggestions（奶茶杯/杯套/茶罐/招牌/海报），但 worker.mjs 第 496 行
+  使用通用模板 buildScenePrompts（“产品包装盒”等，未指定产品），未消费
+  DeepSeek 的行业提示词 → Z-Image 自由发挥画出沐浴乳。
+- 行业分类本身正确（饮品→beverage、快餐→fastfood）。
+- 修复：worker 优先使用 brandProfile.sceneImageSuggestions（注入品牌名），
+  缺失才回退通用模板（工单 021）。
