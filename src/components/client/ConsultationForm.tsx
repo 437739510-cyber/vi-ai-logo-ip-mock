@@ -217,7 +217,19 @@ export function ConsultationForm() {
         secondary: bc?.secondary || null,
         accent: bc?.accent || null,
       };
-      const payload = { ...data, plan, brandColors: cleanBrandColors,
+            // 工单 016：LOGO 专属色（选填）——未选（空/#FFFFFF）槽位不写入；两槽皆空则不传
+      const lc = data.logoColors;
+      const isLogoColorChosen = (hex?: string) => !!hex && hex !== '#FFFFFF' && hex !== '#ffffff';
+      const cleanNavy = lc?.navy?.hex && isLogoColorChosen(lc.navy.hex)
+        ? { hex: lc.navy.hex, ...(lc.navy.name ? { name: lc.navy.name } : {}) }
+        : undefined;
+      const cleanGold = lc?.gold?.hex && isLogoColorChosen(lc.gold.hex)
+        ? { hex: lc.gold.hex, ...(lc.gold.name ? { name: lc.gold.name } : {}) }
+        : undefined;
+      const cleanLogoColors = (cleanNavy || cleanGold)
+        ? { ...(cleanNavy ? { navy: cleanNavy } : {}), ...(cleanGold ? { gold: cleanGold } : {}) }
+        : undefined;
+      const payload = { ...data, plan, brandColors: cleanBrandColors, logoColors: cleanLogoColors,
         logoFiles: logoAssets,
         mascotItems: mascotAssetsList.map((a, i) => ({ ...a, name: mascotNames[i] || "", personality: mascotPersonalities[i] || "" })),
         referenceFile: refAssets[0] || null, referenceEnabled, storePhotos: storeAssets,
@@ -506,6 +518,25 @@ export function ConsultationForm() {
               <div><label className="block text-xs font-medium text-neutral-600 mb-1">辅助色</label><input type="color" defaultValue="#FFFFFF" {...register("brandColors.secondary")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" /></div>
               <div><label className="block text-xs font-medium text-neutral-600 mb-1">强调色</label><input type="color" defaultValue="#FFFFFF" {...register("brandColors.accent")} className="w-full h-10 rounded-lg border border-neutral-200 cursor-pointer" /></div>
             </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">LOGO 专属色 <span className="text-neutral-400 text-xs">（选填，不确定可留白，AI会推荐）</span></label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">LOGO 深色（如藏青/深蓝）</label>
+                <div className="flex gap-2 items-center">
+                  <input type="color" defaultValue="#FFFFFF" {...register("logoColors.navy.hex")} className="w-12 h-10 rounded-lg border border-neutral-200 cursor-pointer" />
+                  <input type="text" placeholder="色名（选填）" {...register("logoColors.navy.name")} className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">LOGO 亮色（如金色）</label>
+                <div className="flex gap-2 items-center">
+                  <input type="color" defaultValue="#FFFFFF" {...register("logoColors.gold.hex")} className="w-12 h-10 rounded-lg border border-neutral-200 cursor-pointer" />
+                  <input type="text" placeholder="色名（选填）" {...register("logoColors.gold.name")} className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
+                </div>
+              </div>
+            </div>
+          </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">补充说明</label>

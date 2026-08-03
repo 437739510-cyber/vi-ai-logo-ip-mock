@@ -79,6 +79,11 @@ export const consultationSchema = z.object({
       secondary: z.string().optional(),
       accent: z.string().optional(),
     }).optional(),
+  // === LOGO 专属色（选填，2026-08-03 工单 016）===
+  logoColors: z.object({
+      navy: z.object({ name: z.string().optional(), hex: z.string().optional() }).optional(),
+      gold: z.object({ name: z.string().optional(), hex: z.string().optional() }).optional(),
+    }).optional(),
 
   logoPhilosophy: z
     .string()
