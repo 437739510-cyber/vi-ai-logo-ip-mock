@@ -51,6 +51,6 @@
     "lightningcss-linux-x64-gnu": "^1.29.0"
   },
   "engines": {
-    "node": ">=20 <24"
+    "node": ">=22 <25"
   }
 }
