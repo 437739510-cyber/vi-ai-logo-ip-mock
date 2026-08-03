@@ -25,7 +25,7 @@ import { type IndustryType, getIndustryType, getIndustryDefaults } from "@/lib/b
 import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
 import { validateAndBlockAsync, checkColorNarrativeConsistency } from "@/lib/vi-manual/quality-check";
-import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile } from "@/lib/vi-manual/brand-visual-rules";
+import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from "@/lib/vi-manual/brand-visual-rules";
 const _DEV = process.env.NODE_ENV === "development";
 
 
@@ -1222,7 +1222,7 @@ export async function POST(req: NextRequest) {
       targetMarket: effectiveTargetMarket,
       logoPhilosophy,
       logoElements: extractLogoElements(brandProfile?.logoDesignSuggestions?.elements),
-      logoColors: resolveLogoColorsFromProfile(brandProfile) || undefined,
+      logoColors: resolveLogoColors(ci?.logoColors || body.clientInfo?.logoColors, brandProfile) || undefined,
       mascotPhilosophy,
       sceneImages,
       sceneLabels,

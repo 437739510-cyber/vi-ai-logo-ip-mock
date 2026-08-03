@@ -7,9 +7,10 @@
  *   - 直接调用生产函数并检查真实 Blueprint / PPTX XML，不在测试内替换生成结果。
  *
  * 运行：npx tsx scripts/_regression-vi-dynamic-branding-007.ts
- * 预期：23 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
+ * 预期：26 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
  * + 009 新增 4 项 Logo 结构证据接入 + 012 新增 1 项渲染端生产接线一致性
- * + 013 新增 3 项 LOGO 专属色上游数据源 + 014 新增 1 项 styleTags 生产填充），退出码 0。
+ * + 013 新增 3 项 LOGO 专属色上游数据源 + 014 新增 1 项 styleTags 生产填充
+ * + 015 新增 3 项人工改色 manual 优先），退出码 0。
  */
 process.env.DEEPSEEK_API_KEY = "";
 process.env.SUPABASE_URL = "";
@@ -24,7 +25,7 @@ import { planPages, type PageBlueprint, type PagePlannerInput } from "../src/lib
 import { renderPptxToBuffer, type RenderPptxOptions } from "../src/lib/pptx/render-pptx";
 import { getMaterialSpecs } from "../src/lib/vi-manual/material-specs";
 import { getIndustryType } from "../src/lib/brand/industry-types";
-import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile } from "../src/lib/vi-manual/brand-visual-rules";
+import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from "../src/lib/vi-manual/brand-visual-rules";
 
 const ONE_PX_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -557,6 +558,57 @@ async function main(): Promise<void> {
       bpText014.includes("风格标签") &&
       bpText014.includes("传统书法") && bpText014.includes("现代简约"),
     `tags=${JSON.stringify(styleTags014)} bp=${bpText014.slice(0, 200)}`
+  );
+
+  // ============ 015 组：人工改色入口——manual 优先、AI 兜底 ============
+  const aiProfile015 = {
+    logoSpecs: {
+      logoColors: [
+        { name: "AI藏青", hex: "#1B2A4A" },
+        { name: "AI金色", hex: "#C9A96E" },
+      ],
+    },
+  };
+  const manualNavy015 = { navy: { name: "客户深蓝", hex: "#123456" } };
+  const mergedNavyOnly015 = resolveLogoColors(manualNavy015, aiProfile015);
+  const manualBoth015 = {
+    navy: { name: "客户深蓝", hex: "#123456" },
+    gold: { name: "客户暖金", hex: "#ABCDEF" },
+  };
+  const mergedBoth015 = resolveLogoColors(manualBoth015, aiProfile015);
+  const opts015 = renderOpts("面馆", { primary: "#A63D40", secondary: "#D9A441", accent: "#F5EBDD" }, {
+    logoColors: mergedBoth015 || undefined,
+  });
+  const buf015 = await renderPptxToBuffer(bpsA, opts015);
+  const pptx015 = await extractPptxText(buf015);
+  const noManualNoAi015 = resolveLogoColors(null, {});
+  check(
+    "015-1 manual.navy 覆盖 AI navy，AI gold 补位",
+    mergedNavyOnly015?.navy?.name === "客户深蓝" &&
+      mergedNavyOnly015?.navy?.hex === "#123456" &&
+      mergedNavyOnly015?.gold?.name === "AI金色" &&
+      mergedNavyOnly015?.gold?.hex === "#C9A96E",
+    `merged=${JSON.stringify(mergedNavyOnly015)}`
+  );
+
+  check(
+    "015-2 manual navy+gold 双槽优先于 AI：函数边界与 PPTX 文本均为 manual 值",
+    mergedBoth015?.navy?.name === "客户深蓝" &&
+      mergedBoth015?.navy?.hex === "#123456" &&
+      mergedBoth015?.gold?.name === "客户暖金" &&
+      mergedBoth015?.gold?.hex === "#ABCDEF" &&
+      pptx015.all.includes("客户深蓝") &&
+      pptx015.all.includes("客户暖金") &&
+      !pptx015.all.includes("AI藏青") &&
+      !pptx015.all.includes("AI金色") &&
+      !["LOGO藏青", "祥云金"].some((t) => pptx015.all.includes(t)),
+    `merged=${JSON.stringify(mergedBoth015)}`
+  );
+
+  check(
+    "015-3 manual 与 AI 均无 → null，渲染不出现 LOGO 专属色区块",
+    noManualNoAi015 === null && !pptxA.all.includes("LOGO 专属色值"),
+    `noColors=${JSON.stringify(noManualNoAi015)}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");

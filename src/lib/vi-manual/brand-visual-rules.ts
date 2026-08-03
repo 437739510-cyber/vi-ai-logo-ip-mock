@@ -197,3 +197,25 @@ export function resolveLogoColorsFromProfile(
     gold: pick(["祥云", "金", "gold", "Gold"]) || undefined,
   });
 }
+
+/**
+ * 工单 015：人工改色入口——manual（客户/后台显式输入）优先，AI 提取兜底。
+ * - 逐槽位（navy/gold）：manual 槽位有效（hex 存在）→ 采用 manual；
+ *   否则取 resolveLogoColorsFromProfile(brandProfile) 对应槽位；
+ * - 两路都无 → null（无真实专属色不虚构、不回退固定色板）；
+ * - 缺失 rgb/cmyk 由 normalizeLogoColorSet 从 HEX 计算。
+ */
+export function resolveLogoColors(
+  manual?: LogoColorSet | null,
+  brandProfile?: { logoSpecs?: { logoColors?: Array<LogoColorProfileItem | null> } } | null
+): LogoColorSet | null {
+  const ai = resolveLogoColorsFromProfile(brandProfile);
+  const valid = (c?: LogoColor | null): c is LogoColor =>
+    Boolean(c && typeof c.hex === "string" && c.hex.trim());
+  const slot = (key: "navy" | "gold"): LogoColor | undefined => {
+    const m = manual?.[key];
+    if (valid(m)) return m;
+    return ai?.[key] || undefined;
+  };
+  return normalizeLogoColorSet({ navy: slot("navy"), gold: slot("gold") });
+}

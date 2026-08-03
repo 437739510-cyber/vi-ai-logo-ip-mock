@@ -24,7 +24,7 @@ import { renderPptxToBuffer } from '../src/lib/pptx/render-pptx';
 import { normalizeBrandName } from '../src/lib/vi-manual/brand-name-normalizer';
 import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from '../src/lib/vi-manual/mascot-assets';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
-import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile } from '../src/lib/vi-manual/brand-visual-rules';
+import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from '../src/lib/vi-manual/brand-visual-rules';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -657,7 +657,7 @@ async function processManualGeneration(project) {
         secondary: cp[1]?.hex || '#666666',
         accent: cp[2]?.hex || '#CC0000',
       },
-      logoColors: resolveLogoColorsFromProfile(brandProfile),
+      logoColors: resolveLogoColors(clientInfo.logoColors, brandProfile),
       logoElements: extractLogoElements(brandProfile?.logoDesignSuggestions?.elements),
       brandVision: clientInfo.brandVision || brandProfile.refinedBrandVision || '',
       coreValues: clientInfo.coreValues || brandProfile.refinedCoreValues || '',

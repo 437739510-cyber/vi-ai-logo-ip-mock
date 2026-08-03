@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
       existingSignagePain: body.existingSignagePain || "",
       competitorReference: body.competitorReference || "",
           colorOverrides: body.brandColors ? { primary: { hex: body.brandColors.primary || "", name: "品牌主色" }, secondary: { hex: body.brandColors.secondary || "", name: "辅助色" }, accent: { hex: body.brandColors.accent || "", name: "强调色" } } : null,
+          logoColors: body.logoColors || null,
           industryKey: getCategoryDict(mainProducts || "")?.category_key || "",
       referenceManual: body.referenceFile
         ? { fileName: body.referenceFile.fileName, url: body.referenceFile.url, pageCount: 0, isReferenceEnabled: true, referenceMode: body.referenceEnabled ? "weak" : "none" }
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
       submissionId: submissionId,
       status: "submitted" as const,
       brandColors: body.brandColors || null,
+      logoColors: body.logoColors || null,
       viewPassword: submission.viewPassword,
           companyName: submission.companyName || "",
           industry: submission.industry || "",
@@ -205,6 +207,7 @@ export async function POST(req: NextRequest) {
           existingSignagePain: body.existingSignagePain || "",
           competitorReference: body.competitorReference || "",
           colorOverrides: body.brandColors ? { primary: { hex: body.brandColors.primary || "", name: "品牌主色" }, secondary: { hex: body.brandColors.secondary || "", name: "辅助色" }, accent: { hex: body.brandColors.accent || "", name: "强调色" } } : null,
+          logoColors: body.logoColors || null,
           industryKey: getCategoryDict(mainProducts || "")?.category_key || "",
           // === IP 公仔需求字段（2026-07-27）===
           wantMascot: body.wantMascot || null,
