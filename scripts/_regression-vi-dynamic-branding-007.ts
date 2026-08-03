@@ -7,11 +7,11 @@
  *   - 直接调用生产函数并检查真实 Blueprint / PPTX XML，不在测试内替换生成结果。
  *
  * 运行：npx tsx scripts/_regression-vi-dynamic-branding-007.ts
- * 预期：28 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
+ * 预期：29 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
  * + 009 新增 4 项 Logo 结构证据接入 + 012 新增 1 项渲染端生产接线一致性
  * + 013 新增 3 项 LOGO 专属色上游数据源 + 014 新增 1 项 styleTags 生产填充
  * + 015 新增 3 项人工改色 manual 优先 + 019 新增 1 项本地生图模型静态契约
- * + 020 新增 1 项无IP手册零IP文案），退出码 0。
+ * + 020 新增 1 项无IP手册零IP文案 + 021 新增 1 项场景提示词行业化），退出码 0。
  */
 process.env.DEEPSEEK_API_KEY = "";
 process.env.SUPABASE_URL = "";
@@ -660,6 +660,48 @@ async function main(): Promise<void> {
       bpPhiloIp020.includes("IP 的亲和表达") &&
       pptxPhiloIp020.includes("IP 的亲和表达"),
     `noIpBpHasIp=${bpPhiloNoIp020.includes("IP 的亲和表达")} noIpPptxHasIp=${pptxA.all.includes("IP 的亲和表达")} ipBpHas=${bpPhiloIp020.includes("IP 的亲和表达")} ipPptxHas=${pptxPhiloIp020.includes("IP 的亲和表达")}`
+  );
+
+  // ============ 021 组：场景提示词优先 DeepSeek 行业提示词（跨行业画面根因修复）============
+  const workerSrc021 = readFileSync(new URL("../scripts/worker.mjs", import.meta.url), "utf8");
+  const helperMatch021 = workerSrc021.match(/\/\/ === 021 scene prompts helper ===([\s\S]*?)\/\/ === 021 scene prompts helper end ===/);
+  let helperOk021 = false;
+  let helperOutput021 = "";
+  if (helperMatch021) {
+    try {
+      const genericStub021 = () => [
+        { key: "stationery-1", prompt: "generic stationery" },
+        { key: "packaging-1", prompt: "branded product packaging box (generic)" },
+        { key: "packaging-2", prompt: "generic box" },
+        { key: "marketing-1", prompt: "generic poster" },
+        { key: "marketing-2", prompt: "generic card" },
+      ];
+      const factory021 = new Function("buildScenePrompts", "return (" + helperMatch021[1] + ")");
+      const helperFn = factory021(genericStub021);
+      const suggestions021 = [
+        { en: "Professional product photography of a branded milk tea cup with a custom sleeve, logo clearly printed, studio lighting", zh: "奶茶杯与杯套" },
+        { en: "Professional product photography of a branded takeaway paper bag with company logo, studio lighting", zh: "外带纸袋" },
+        { en: "Professional product photography of a branded jasmine tea canister with logo, studio lighting", zh: "茉莉花茶包装罐" },
+        { en: "Professional product photography of a branded storefront sign with logo, daylight", zh: "门店招牌" },
+        { en: "Professional product photography of a branded promotional poster with logo, studio lighting", zh: "宣传海报" },
+      ];
+      const out021 = helperFn(suggestions021, "冒烟饮品", "beverage");
+      helperOutput021 = out021.map((p: { prompt: string }) => p.prompt).join(" || ");
+      helperOk021 =
+        out021.length === 5 &&
+        out021[0].prompt.includes("milk tea cup") &&
+        out021[0].prompt.includes("冒烟饮品") &&
+        !helperOutput021.includes("product packaging box");
+    } catch (e) {
+      helperOutput021 = "EXTRACT_EVAL_ERROR: " + (e as Error).message;
+    }
+  }
+  check(
+    "021-1 场景提示词优先 DeepSeek 行业提示词并注入品牌名（非通用模板）",
+    helperOk021 &&
+      workerSrc021.includes("sceneImageSuggestions") &&
+      workerSrc021.includes("buildScenePromptsFromSuggestions"),
+    `out=${helperOutput021.slice(0, 220)}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");

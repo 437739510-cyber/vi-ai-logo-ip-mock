@@ -197,6 +197,23 @@ function buildScenePrompts(companyName, industryType) {
   ];
 }
 
+// === 021 scene prompts helper ===
+// 工单 021：场景图提示词优先使用 DeepSeek 行业提示词（brandProfile.sceneImageSuggestions，
+// 结构 [{en, zh}]），并注入品牌名；提示词缺失时回退通用模板对应场景。
+function buildScenePromptsFromSuggestions(suggestions, companyName, industryType) {
+  const keys = ['stationery-1', 'packaging-1', 'packaging-2', 'marketing-1', 'marketing-2'];
+  const fallbacks = buildScenePrompts(companyName, industryType);
+  const name = companyName || '品牌';
+  return keys.map((key, i) => {
+    const s = suggestions && suggestions[i];
+    const base = s && (typeof s.en === 'string' && s.en.trim() ? s.en : (typeof s.zh === 'string' ? s.zh : ''));
+    if (!base) return fallbacks[i];
+    const prompt = base.includes(name) ? base : `${base}, with company logo "${name}" printed`;
+    return { key, prompt };
+  });
+}
+// === 021 scene prompts helper end ===
+
 // ========== Logo Generation ==========
 
 async function processLogoGeneration(project) {
@@ -493,7 +510,12 @@ async function processManualGeneration(project) {
   log('INFO', `[MANUAL] ${projectId}: Generating scene images...`);
   const companyName = normalizedCompanyName;
   const industryType = getIndustryType(clientInfo.industry || 'general');
-  const scenePrompts = buildScenePrompts(companyName, industryType);
+  // 工单 021：优先使用 DeepSeek 行业场景提示词（解决“奶茶店场景出现沐浴乳”的
+  // 跨行业画面问题）；brandProfile.sceneImageSuggestions 缺失/为空时回退通用模板。
+  const sceneSuggestions = brandProfile.sceneImageSuggestions;
+  const scenePrompts = (Array.isArray(sceneSuggestions) && sceneSuggestions.length > 0)
+    ? buildScenePromptsFromSuggestions(sceneSuggestions, companyName, industryType)
+    : buildScenePrompts(companyName, industryType);
 
   const sceneImages = {};
   const sceneLabels = {
