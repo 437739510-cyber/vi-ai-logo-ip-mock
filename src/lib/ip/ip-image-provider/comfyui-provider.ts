@@ -2,7 +2,7 @@
  * IP Image Provider Layer — ComfyUI Provider (Z-Image Turbo GGUF)
  *
  * Local image generation via ComfyUI REST API (http://127.0.0.1:8188).
- * Uses Z-Image Turbo Q4_K_M GGUF with UnetLoaderGGUF pipeline.
+ * Uses Z-Image Turbo nvfp4 (z_image_turbo_nvfp4.safetensors) with UNETLoader pipeline.
  * Chinese text quality: 90/100 (ARK doubao-vision verified).
  *
  * Startup: python main.py --gpu-only --lowvram --port 8188
@@ -30,7 +30,7 @@ const POLL_INTERVAL_MS = 2_000;
 /**
  * Build Z-Image Turbo GGUF workflow for ComfyUI API.
  *
- * Pipeline: UnetLoaderGGUF → CLIPLoader → VAELoader →
+ * Pipeline: UNETLoader → CLIPLoader → VAELoader →
  *   CLIPTextEncode(pos) → CLIPTextEncode(neg) →
  *   BasicGuider ← model + pos → BasicScheduler ← model →
  *   KSamplerSelect(euler) → RandomNoise →
@@ -38,7 +38,7 @@ const POLL_INTERVAL_MS = 2_000;
  *   VAEDecode → SaveImage
  *
  * Model files (must exist in ComfyUI models/ dirs):
- *   diffusion_models/z-image-turbo-Q4_K_M.gguf
+ *   diffusion_models/z_image_turbo_nvfp4.safetensors
  *   text_encoders/qwen_3_4b_fp8_mixed.safetensors
  *   vae/ae.safetensors
  */
@@ -51,8 +51,8 @@ function buildZTWorkflow(
 ): Record<string, any> {
   return {
     "1": {
-      class_type: "UnetLoaderGGUF",
-      inputs: { unet_name: "z-image-turbo-Q4_K_M.gguf" },
+      class_type: "UNETLoader",
+      inputs: { unet_name: "z_image_turbo_nvfp4.safetensors", weight_dtype: "default" },
     },
     "2": {
       class_type: "CLIPLoader",
@@ -212,6 +212,11 @@ async function submitAndWait(
   if (error) throw new ComfyUIError(`Generation error: ${error}`, "GEN_ERROR", true);
   if (!filename) throw new ComfyUIError(`Timed out after ${timeoutMs}ms`, "TIMEOUT", true);
 
+  // 本机红线（D:\DISK\ComfyUI-模型清单.md）：DDR3 内存带宽限制，Z-Image 每张生成后
+  // 必须间隔 45 秒，否则连续 4 张以上蓝屏。可用 COMFYUI_COOLDOWN_MS 覆盖（设 0 关闭）。
+  const COOLDOWN_MS = Number(process.env.COMFYUI_COOLDOWN_MS) || 45000;
+  if (COOLDOWN_MS > 0) await sleep(COOLDOWN_MS);
+
   return { filename, durationMs: Date.now() - startTime };
 }
 
@@ -272,7 +277,7 @@ export class ComfyUIProvider implements ImageProvider {
       assetId: `comfyui-zt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       providerName: "comfyui",
       providerMeta: {
-        model: "z-image-turbo-Q4_K_M",
+        model: "z_image_turbo_nvfp4",
         width,
         height,
         seed,
@@ -308,9 +313,11 @@ export async function comfyGenerateLogo(options: {
     const workflow = buildZTWorkflow(options.prompt, logoNeg, size.width, size.height, seed);
     const { filename, durationMs } = await submitAndWait(workflow);
     const imageUrl = await readImageAsBase64(filename);
-    return { imageUrl, durationMs, model: "z-image-turbo-Q4_K_M", source: "local" };
+    return { imageUrl, durationMs, model: "z_image_turbo_nvfp4", source: "local" };
   } catch (ztErr) {
     console.warn("[comfyui] Z-Image Turbo failed, falling back to ARK:", (ztErr as Error).message.slice(0, 100));
+    // 部署红线（Chris 2026-08-03）：生图必须本地完成，禁止回退到付费 ARK。
+    if ((process.env.COMFYUI_DISABLE_ARK_FALLBACK || "").trim() === "1") throw ztErr;
   }
 
   // Fallback to ARK cloud
@@ -334,9 +341,11 @@ export async function comfyGenerateScene(options: {
     const workflow = buildZTWorkflow(options.prompt, sceneNeg, size.width, size.height, seed);
     const { filename, durationMs } = await submitAndWait(workflow);
     const imageUrl = await readImageAsBase64(filename);
-    return { imageUrl, durationMs, model: "z-image-turbo-Q4_K_M", source: "local" };
+    return { imageUrl, durationMs, model: "z_image_turbo_nvfp4", source: "local" };
   } catch (ztErr) {
     console.warn("[comfyui] Z-Image Turbo failed, falling back to ARK:", (ztErr as Error).message.slice(0, 100));
+    // 部署红线（Chris 2026-08-03）：生图必须本地完成，禁止回退到付费 ARK。
+    if ((process.env.COMFYUI_DISABLE_ARK_FALLBACK || "").trim() === "1") throw ztErr;
   }
 
   // Fallback to ARK cloud

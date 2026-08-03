@@ -780,6 +780,8 @@ async function processMascotSampleGeneration(project) {
       imageUrl = result.imageUrl;
     } catch (err) {
       log("WARN", `[MASCOT-SAMPLE] ${projectId}: ComfyUI failed for ${sp.id}: ${err.message}, trying ARK...`);
+      // 部署红线（Chris 2026-08-03）：生图必须本地完成，禁止回退到付费 ARK。
+      if ((process.env.COMFYUI_DISABLE_ARK_FALLBACK || "").trim() === "1") throw err;
       try {
         const arkResult = await arkGenerate(sp.prompt, "blurry, low quality, distorted", 1024, 1024);
         imageUrl = arkResult.imageUrl;
@@ -887,6 +889,8 @@ async function processMascotFullGeneration(project) {
       imageUrl = result.imageUrl;
     } catch (err) {
       log("WARN", `[MASCOT-FULL] ${projectId}: ComfyUI failed for ${category}-${name}: ${err.message}, trying ARK...`);
+      // 部署红线（Chris 2026-08-03）：生图必须本地完成，禁止回退到付费 ARK。
+      if ((process.env.COMFYUI_DISABLE_ARK_FALLBACK || "").trim() === "1") throw err;
       try {
         const arkResult = await arkGenerate(prompt, "blurry, low quality, distorted", 1024, 1024);
         imageUrl = arkResult.imageUrl;
@@ -985,12 +989,17 @@ async function poll() {
   await sendHeartbeat();
   try {
     // Phase 1: Check for pending_logo
-    const { data: logoProjects, error: logoErr } = await supabase
+    const orderFilter = (process.env.WORKER_ORDER_FILTER || '').split(',').map((s) => s.trim()).filter(Boolean);
+    let logoQuery = supabase
       .from('projects')
       .select('id, client_info, submission_id')
       .filter('client_info->>generationStatus', 'eq', 'pending_logo')
       .order('created_at', { ascending: true })
       .limit(1);
+    if (orderFilter.length > 0) {
+      logoQuery = logoQuery.in('id', orderFilter);
+    }
+    const { data: logoProjects, error: logoErr } = await logoQuery;
 
     if (logoErr) {
       log('WARN', `[POLL] Logo query error: ${logoErr.message}`);
@@ -1001,12 +1010,14 @@ async function poll() {
     }
 
     // Phase 3: Check for mascot_generating (4 samples)
-    const { data: mascotSampleProjects, error: mascotSampleErr } = await supabase
+    let mascotSampleQuery = supabase
       .from('projects')
       .select('id, client_info, submission_id')
       .filter('client_info->>generationStatus', 'eq', 'mascot_generating')
       .order('created_at', { ascending: true })
       .limit(1);
+    if (orderFilter.length > 0) mascotSampleQuery = mascotSampleQuery.in('id', orderFilter);
+    const { data: mascotSampleProjects, error: mascotSampleErr } = await mascotSampleQuery;
 
     if (mascotSampleErr) {
       log('WARN', `[POLL] Mascot sample query error: ${mascotSampleErr.message}`);
@@ -1017,12 +1028,14 @@ async function poll() {
     }
 
     // Phase 4: Check for mascot_full_generating (16 images)
-    const { data: mascotFullProjects, error: mascotFullErr } = await supabase
+    let mascotFullQuery = supabase
       .from('projects')
       .select('id, client_info, submission_id')
       .filter('client_info->>generationStatus', 'eq', 'mascot_full_generating')
       .order('created_at', { ascending: true })
       .limit(1);
+    if (orderFilter.length > 0) mascotFullQuery = mascotFullQuery.in('id', orderFilter);
+    const { data: mascotFullProjects, error: mascotFullErr } = await mascotFullQuery;
 
     if (mascotFullErr) {
       log('WARN', `[POLL] Mascot full query error: ${mascotFullErr.message}`);
@@ -1033,12 +1046,14 @@ async function poll() {
     }
 
     // Phase 2: Check for pending_manual
-    const { data: manualProjects, error: manualErr } = await supabase
+    let manualQuery = supabase
       .from('projects')
       .select('id, client_info, submission_id')
       .filter('client_info->>generationStatus', 'eq', 'pending_manual')
       .order('created_at', { ascending: true })
       .limit(1);
+    if (orderFilter.length > 0) manualQuery = manualQuery.in('id', orderFilter);
+    const { data: manualProjects, error: manualErr } = await manualQuery;
 
     if (manualErr) {
       log('WARN', `[POLL] Manual query error: ${manualErr.message}`);

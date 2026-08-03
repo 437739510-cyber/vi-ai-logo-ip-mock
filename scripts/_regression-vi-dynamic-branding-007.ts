@@ -7,10 +7,10 @@
  *   - 直接调用生产函数并检查真实 Blueprint / PPTX XML，不在测试内替换生成结果。
  *
  * 运行：npx tsx scripts/_regression-vi-dynamic-branding-007.ts
- * 预期：26 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
+ * 预期：27 passed / 0 failed（007 的 10 项 + 008 新增 4 项英文规范化值覆盖
  * + 009 新增 4 项 Logo 结构证据接入 + 012 新增 1 项渲染端生产接线一致性
  * + 013 新增 3 项 LOGO 专属色上游数据源 + 014 新增 1 项 styleTags 生产填充
- * + 015 新增 3 项人工改色 manual 优先），退出码 0。
+ * + 015 新增 3 项人工改色 manual 优先 + 019 新增 1 项本地生图模型静态契约），退出码 0。
  */
 process.env.DEEPSEEK_API_KEY = "";
 process.env.SUPABASE_URL = "";
@@ -609,6 +609,16 @@ async function main(): Promise<void> {
     "015-3 manual 与 AI 均无 → null，渲染不出现 LOGO 专属色区块",
     noManualNoAi015 === null && !pptxA.all.includes("LOGO 专属色值"),
     `noColors=${JSON.stringify(noManualNoAi015)}`
+  );
+
+  // ============ 019 组：本地生图模型静态契约（中文正确模型，防回退到拼音 GGUF）============
+  const providerSrc019 = readFileSync("src/lib/ip/ip-image-provider/comfyui-provider.ts", "utf8");
+  check(
+    "019-1 本地生图使用 UNETLoader + z_image_turbo_nvfp4（中文），不使用 Q4_K_M.gguf",
+    providerSrc019.includes("UNETLoader") &&
+      providerSrc019.includes("z_image_turbo_nvfp4.safetensors") &&
+      !providerSrc019.includes("z-image-turbo-Q4_K_M.gguf"),
+    `unetLoader=${providerSrc019.includes("UNETLoader")} nvfp4=${providerSrc019.includes("z_image_turbo_nvfp4.safetensors")} q4gguf=${providerSrc019.includes("z-image-turbo-Q4_K_M.gguf")}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");
