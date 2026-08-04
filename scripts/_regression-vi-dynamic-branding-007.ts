@@ -24,6 +24,7 @@ import { dirname } from "path";
 import JSZip from "jszip";
 import { planPages, type PageBlueprint, type PagePlannerInput } from "../src/lib/vi-manual/page-planner";
 import { renderPptxToBuffer, type RenderPptxOptions } from "../src/lib/pptx/render-pptx";
+import { normalizeLogoTextLanguage } from "../src/lib/core/consultation-schema";
 import { getMaterialSpecs } from "../src/lib/vi-manual/material-specs";
 import { getIndustryType } from "../src/lib/brand/industry-types";
 import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from "../src/lib/vi-manual/brand-visual-rules";
@@ -613,14 +614,16 @@ async function main(): Promise<void> {
     `noColors=${JSON.stringify(noManualNoAi015)}`
   );
 
-  // ============ 019 组：本地生图模型静态契约（中文正确模型，防回退到拼音 GGUF）============
+  // ============ 019 组：本地生图模型静态契约（默认中文 nvfp4；024 起拼音模式显式走 Q4_K_M GGUF）============
   const providerSrc019 = readFileSync("src/lib/ip/ip-image-provider/comfyui-provider.ts", "utf8");
   check(
-    "019-1 本地生图使用 UNETLoader + z_image_turbo_nvfp4（中文），不使用 Q4_K_M.gguf",
+    "019-1 本地生图默认 UNETLoader + z_image_turbo_nvfp4（中文）；Q4_K_M.gguf 仅限显式拼音分支",
     providerSrc019.includes("UNETLoader") &&
       providerSrc019.includes("z_image_turbo_nvfp4.safetensors") &&
-      !providerSrc019.includes("z-image-turbo-Q4_K_M.gguf"),
-    `unetLoader=${providerSrc019.includes("UNETLoader")} nvfp4=${providerSrc019.includes("z_image_turbo_nvfp4.safetensors")} q4gguf=${providerSrc019.includes("z-image-turbo-Q4_K_M.gguf")}`
+      providerSrc019.includes("z-image-turbo-Q4_K_M.gguf") &&
+      providerSrc019.includes("UnetLoaderGGUF") &&
+      providerSrc019.includes('mode === "pinyin"'),
+    `unetLoader=${providerSrc019.includes("UNETLoader")} nvfp4=${providerSrc019.includes("z_image_turbo_nvfp4.safetensors")} q4gguf=${providerSrc019.includes("z-image-turbo-Q4_K_M.gguf")} pinyinBranch=${providerSrc019.includes('mode === "pinyin"')}`
   );
 
   // ============ 020 组：无 IP 手册零 IP 文案（愿景模板按 hasMascot 条件化）============
@@ -702,6 +705,111 @@ async function main(): Promise<void> {
       workerSrc021.includes("sceneImageSuggestions") &&
       workerSrc021.includes("buildScenePromptsFromSuggestions"),
     `out=${helperOutput021.slice(0, 220)}`
+  );
+
+  // 工单 023：Logo 提示词模板统一（网页 brand-analysis 路径 + worker 模板版本校验）
+  const baselineCount023 = checks.length;
+  const baselineAllPass023 = checks.every((c) => c.pass);
+  const routeSrc023 = readFileSync("src/app/api/ai/brand-analysis/route.ts", "utf8");
+  const workerSrc023 = readFileSync(new URL("../scripts/worker.mjs", import.meta.url), "utf8");
+  const oldWording023 =
+    /pinyin|overlay_chinese|SDXL cannot render|English logo prompt|Chinese text is overlaid|seal script/i;
+  const versionMismatch023 =
+    /templateOutdated\s*=\s*storedTemplateVersion\s*!==\s*LOGO_PROMPT_TEMPLATE_VERSION/;
+  check(
+    "023-1 brand-analysis route 模板已统一为中文新模板（无旧 seal/拼音/overlay 措辞）",
+    !oldWording023.test(routeSrc023) &&
+      routeSrc023.includes("023-chinese-v1") &&
+      routeSrc023.includes("每个字只出现一次") &&
+      routeSrc023.includes("品牌Logo设计：现代简约品牌标志") &&
+      routeSrc023.includes("BRAND_ANALYSIS_TEMPLATE_VERSION") &&
+      routeSrc023.includes("analysisTemplateVersion: BRAND_ANALYSIS_TEMPLATE_VERSION"),
+    `oldWording=${oldWording023.test(routeSrc023)} hasVersion=${routeSrc023.includes("023-chinese-v1")}`
+  );
+  check(
+    "023-2 worker 对已存 prompts 做模板版本校验，缺失/不一致强制重跑品牌分析",
+    workerSrc023.includes("LOGO_PROMPT_TEMPLATE_VERSION") &&
+      workerSrc023.includes("storedTemplateVersion") &&
+      versionMismatch023.test(workerSrc023) &&
+      workerSrc023.includes("if (!logoPrompts || logoPrompts.length === 0 || templateOutdated)") &&
+      workerSrc023.includes("analysisTemplateVersion: LOGO_PROMPT_TEMPLATE_VERSION") &&
+      routeSrc023.includes("analysisTemplateVersion: BRAND_ANALYSIS_TEMPLATE_VERSION"),
+    `versionConst=${workerSrc023.includes("LOGO_PROMPT_TEMPLATE_VERSION")} mismatch=${versionMismatch023.test(workerSrc023)}`
+  );
+  check(
+    "023-3 原 29 项断言未被削弱（基线全 PASS 且数量=29）",
+    baselineCount023 === 29 && baselineAllPass023,
+    `baseline=${baselineCount023} allPass=${baselineAllPass023}`
+  );
+
+  // ============ 工单 024：Logo 文字语言显式选项（中文/拼音）+ 拼音提示词/模型切换 ============
+  const baselineCount024 = checks.length;
+  const baselineAllPass024 = checks.every((c) => c.pass);
+  const schemaSrc024 = readFileSync("src/lib/core/consultation-schema.ts", "utf8");
+  const formSrc024 = readFileSync("src/components/client/ConsultationForm.tsx", "utf8");
+  const submitSrc024 = readFileSync("src/app/api/submit/route.ts", "utf8");
+  const orchestratorSrc024 = readFileSync("src/agents/orchestrator.ts", "utf8");
+  const providerSrc024 = readFileSync("src/lib/ip/ip-image-provider/comfyui-provider.ts", "utf8");
+  const typesSrc024 = readFileSync("src/types/index.ts", "utf8");
+  const agentsTypesSrc024 = readFileSync("src/agents/types.ts", "utf8");
+
+  check(
+    "024-1 契约：LOGO_TEXT_LANGUAGE_OPTIONS=中文/拼音，默认中文，normalize 归一化 chinese/pinyin",
+    schemaSrc024.includes("LOGO_TEXT_LANGUAGE_OPTIONS = [\"中文\", \"拼音\"]") &&
+      /logoTextLanguage: z\.enum\(\["中文", "拼音"\]\)\.optional\(\)/.test(schemaSrc024) &&
+      schemaSrc024.includes('export function normalizeLogoTextLanguage') &&
+      normalizeLogoTextLanguage("中文") === "chinese" &&
+      normalizeLogoTextLanguage("拼音") === "pinyin" &&
+      normalizeLogoTextLanguage(undefined) === "chinese",
+    `zh=${normalizeLogoTextLanguage("中文")} py=${normalizeLogoTextLanguage("拼音")} undef=${normalizeLogoTextLanguage(undefined)}`
+  );
+  check(
+    "024-2 表单：Step3 显式单选默认中文，注册 logoTextLanguage，中文>4字与字母缩写有提示",
+    formSrc024.includes("LOGO_TEXT_LANGUAGE_OPTIONS") &&
+      formSrc024.includes("logoTextLanguage") &&
+      formSrc024.includes("useState<string>(\"中文\")") &&
+      formSrc024.includes('setValue("logoTextLanguage", tag)') &&
+      formSrc024.includes("countHanChars") &&
+      formSrc024.includes("中文超过 4 个字"),
+    `hasOpts=${formSrc024.includes("LOGO_TEXT_LANGUAGE_OPTIONS")} hasHint=${formSrc024.includes("中文超过 4 个字")}`
+  );
+  check(
+    "024-3 worker 提示词：buildAnalysisPrompt 带 Logo文字语言；系统模板含拼音分支（No Chinese characters/LAOWANXIANG）且中文模板保留",
+    workerSrc023.includes("Logo文字语言") &&
+      workerSrc023.includes("logoTextMode") &&
+      workerSrc023.includes("No Chinese characters") &&
+      workerSrc023.includes("LAOWANXIANG") &&
+      workerSrc023.includes("品牌Logo设计：现代简约品牌标志"),
+    `lang=${workerSrc023.includes("Logo文字语言")} pinyinBranch=${workerSrc023.includes("No Chinese characters")}`
+  );
+  check(
+    "024-4 provider：comfyGenerateLogo 支持 mode；pinyin→UnetLoaderGGUF(Q4_K_M)，缺省 nvfp4 不变",
+    providerSrc024.includes("mode?: \"chinese\" | \"pinyin\"") &&
+      providerSrc024.includes("UnetLoaderGGUF") &&
+      providerSrc024.includes("z-image-turbo-Q4_K_M.gguf") &&
+      providerSrc024.includes("UNETLoader") &&
+      providerSrc024.includes("z_image_turbo_nvfp4.safetensors"),
+    `gguf=${providerSrc024.includes("z-image-turbo-Q4_K_M.gguf")} nvfp4=${providerSrc024.includes("z_image_turbo_nvfp4.safetensors")}`
+  );
+  check(
+    "024-5 worker 接线：mode 传入生图、空公司名拼音回退、提交/编排链路归一化",
+    workerSrc023.includes("mode: logoTextMode") &&
+      workerSrc023.includes("logoTextMode === 'pinyin' && !normalizedCompanyName") &&
+      workerSrc023.includes("mode=${logoTextMode}") &&
+      submitSrc024.includes("logoTextLanguage: normalizeLogoTextLanguage(body.logoTextLanguage)") &&
+      orchestratorSrc024.includes("logoTextLanguage: normalizeLogoTextLanguage(raw.logoTextLanguage)"),
+    `workerMode=${workerSrc023.includes("mode: logoTextMode")} guard=${workerSrc023.includes("!normalizedCompanyName")}`
+  );
+  check(
+    "024-6 类型契约：types/index.ts 与 agents/types.ts 声明 chinese|pinyin",
+    /logoTextLanguage\?: "chinese" \| "pinyin"/.test(typesSrc024) &&
+      /logoTextLanguage\?: "chinese" \| "pinyin"/.test(agentsTypesSrc024),
+    `types=${/logoTextLanguage\?: "chinese" \| "pinyin"/.test(typesSrc024)} agents=${/logoTextLanguage\?: "chinese" \| "pinyin"/.test(agentsTypesSrc024)}`
+  );
+  check(
+    "024-7 024 基线未削弱（追加前全部 PASS，数量=32：29+023×3）",
+    baselineCount024 === 32 && baselineAllPass024,
+    `baseline=${baselineCount024} allPass=${baselineAllPass024}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");

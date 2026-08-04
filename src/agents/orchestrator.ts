@@ -153,6 +153,7 @@ import { getMemoryAdapter } from "@/lib/core/memory";
 import { DEFAULT_HARNESS_CONFIG, withRetry, CircuitBreaker, saveFailureSnapshot, qualityGate } from "@/lib/harness";
 import { checkCrossIndustryContamination, validateParamPackageIntegrity, ValidationBlockedError } from "@/lib/vi-manual/quality-check";
 import type { ClientMemory, ProjectMemory, BrainResultSnapshot } from "@/lib/core/memory";
+import { normalizeLogoTextLanguage } from "@/lib/core/consultation-schema";
 /**
  * Reverse mapping: encoded industry value → human-readable label used by brand-analyzer.
  * The analyzer expects labels like "餐饮/食品", but callers may pass "food_beverage".
@@ -181,6 +182,7 @@ function normalizeClientInfo(raw: any): any {
     coreValues: raw.coreValues || raw.brandDescription?.slice(0, 50) || "",
     targetMarket: raw.targetMarket || raw.businessProfile?.targetAudience || "",
     logoPhilosophy: raw.logoPhilosophy || "",
+    logoTextLanguage: normalizeLogoTextLanguage(raw.logoTextLanguage),
     mascotPhilosophy: raw.mascotPhilosophy || "",
     logoAssets: raw.logoAssets || [],
     mascotAssets: raw.mascotAssets || [],

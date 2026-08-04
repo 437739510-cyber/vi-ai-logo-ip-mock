@@ -138,6 +138,8 @@ export const consultationSchema = z.object({
     .max(100, "图形偏好不超过 100 个字符")
     .optional()
     .or(z.literal("")),
+  // 工单 024：Logo 文字语言显式单选（中文/拼音；未选由表单默认/提交归一化为中文）
+  logoTextLanguage: z.enum(["中文", "拼音"]).optional(),
   avoidElements: z
     .string()
     .max(300, "避免元素不超过 300 个字符")
@@ -161,6 +163,13 @@ export const consultationSchema = z.object({
 });
 
 export type ConsultationFormData = z.infer<typeof consultationSchema>;
+
+// 工单 024：把表单文案值归一化为数据契约值（默认 chinese，兼容“中文/拼音”旧文案）
+export function normalizeLogoTextLanguage(v: unknown): "chinese" | "pinyin" {
+  const s = String(v ?? "").trim();
+  if (s === "拼音" || s === "pinyin" || s === "Pinyin" || s === "PY") return "pinyin";
+  return "chinese";
+}
 
 // V14: 二级联动行业分类 — 参考百度地图POI体系
 export const INDUSTRY_CATEGORIES: Record<string, string[]> = {
@@ -463,6 +472,9 @@ export const LOGO_STYLE_OPTIONS = [
   "中式印章风格",
   "手写/书法",
 ] as const;
+
+// 工单 024：Logo 文字语言显式选项（默认中文）
+export const LOGO_TEXT_LANGUAGE_OPTIONS = ["中文", "拼音"] as const;
 
 // V58: 避免元素选项
 export const AVOID_ELEMENT_OPTIONS = [

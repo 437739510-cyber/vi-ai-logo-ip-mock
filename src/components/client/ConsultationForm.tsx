@@ -14,6 +14,7 @@ import {
   BRAND_PERSONALITY_OPTIONS,
   LOGO_USAGE_OPTIONS,
   LOGO_STYLE_OPTIONS,
+  LOGO_TEXT_LANGUAGE_OPTIONS,
   AVOID_ELEMENT_OPTIONS,
   SIGNAGE_PAIN_OPTIONS,
   normalizeIndustry,
@@ -29,6 +30,11 @@ import { STORAGE_BUCKET } from "@/config/storage";
 
 const MAX_LOGO_SIZE = 20 * 1024 * 1024;
 const MAX_MASCOT_SIZE = 20 * 1024 * 1024;
+
+// 工单 024：统计汉字数（数字/英文原样保留，不计入）
+function countHanChars(s: string): number {
+  return (s.match(/[\u4e00-\u9fff]/g) || []).length;
+}
 const MAX_PDF_SIZE = 50 * 1024 * 1024;
 
 const STORAGE_PREFIX = "uploads/form-assets";
@@ -95,6 +101,7 @@ export function ConsultationForm() {
   const [selectedPersonalities, setSelectedPersonalities] = useState<string[]>([]);
   const [selectedUsages, setSelectedUsages] = useState<string[]>([]);
   const [selectedLogoStyle, setSelectedLogoStyle] = useState("");
+  const [selectedLogoTextLanguage, setSelectedLogoTextLanguage] = useState<string>("中文");
   const [selectedAvoids, setSelectedAvoids] = useState<string[]>([]);
   const [selectedPain, setSelectedPain] = useState("");
 
@@ -481,6 +488,24 @@ export function ConsultationForm() {
               {LOGO_STYLE_OPTIONS.map((tag) => (<TagBtn key={tag} label={tag} selected={selectedLogoStyle === tag} onClick={() => { const val = selectedLogoStyle === tag ? "" : tag; setSelectedLogoStyle(val); setValue("logoStyle", val); }} />))}
             </div>
             <input type="hidden" {...register("logoStyle")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Logo 文字语言 <span className="text-neutral-400 text-xs">（单选，默认中文）</span></label>
+            <div className="flex flex-wrap gap-2">
+              {LOGO_TEXT_LANGUAGE_OPTIONS.map((tag) => (<TagBtn key={tag} label={tag} selected={selectedLogoTextLanguage === tag} onClick={() => { setSelectedLogoTextLanguage(tag); setValue("logoTextLanguage", tag); }} />))}
+            </div>
+            <input type="hidden" {...register("logoTextLanguage")} />
+            {(() => {
+              const name = String(formValues.companyName || "");
+              const warnings: string[] = [];
+              if (selectedLogoTextLanguage === "中文" && countHanChars(name) > 4) {
+                warnings.push("中文超过 4 个字时渲染质量不稳定，建议改用「拼音」或填写更短的文字要求。");
+              }
+              if (selectedLogoStyle === "字母缩写" && selectedLogoTextLanguage === "中文") {
+                warnings.push("已选「字母缩写」，建议文字语言选「拼音」以匹配缩写风格。");
+              }
+              return warnings.map((w) => (<p key={w} className="mt-1 text-xs text-amber-600">{w}</p>));
+            })()}
           </div>
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">Logo主要用在哪些地方？ <span className="text-neutral-400 text-xs">（可多选，影响图形复杂度）</span></label>

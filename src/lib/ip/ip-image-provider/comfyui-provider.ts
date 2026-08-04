@@ -47,12 +47,15 @@ function buildZTWorkflow(
   negativePrompt: string,
   width: number,
   height: number,
-  seed: number
+  seed: number,
+  mode: "chinese" | "pinyin" = "chinese"
 ): Record<string, any> {
   return {
     "1": {
-      class_type: "UNETLoader",
-      inputs: { unet_name: "z_image_turbo_nvfp4.safetensors", weight_dtype: "default" },
+      // 工单 024：拼音模式用 Q4_K_M GGUF（成功案例 comfyui_zt_00366~00370），中文模式用 nvfp4
+      ...(mode === "pinyin"
+        ? { class_type: "UnetLoaderGGUF", inputs: { unet_name: "z-image-turbo-Q4_K_M.gguf" } }
+        : { class_type: "UNETLoader", inputs: { unet_name: "z_image_turbo_nvfp4.safetensors", weight_dtype: "default" } }),
     },
     "2": {
       class_type: "CLIPLoader",
@@ -302,18 +305,20 @@ export async function comfyGenerateLogo(options: {
   prompt: string;
   negativePrompt?: string;
   size?: string;
+  mode?: "chinese" | "pinyin";
 }): Promise<{ imageUrl: string; durationMs: number; model: string; source: string }> {
   const size = parseSize(options.size || "1024x1024");
+  const mode = options.mode === "pinyin" ? "pinyin" : "chinese";
   const seed = Math.floor(Math.random() * 2_147_483_647);
   const logoNeg = options.negativePrompt ||
     "blurry, low quality, distorted text, photorealistic, 3d render, shadows, messy, watermark";
 
   // Try Z-Image Turbo locally first
   try {
-    const workflow = buildZTWorkflow(options.prompt, logoNeg, size.width, size.height, seed);
+    const workflow = buildZTWorkflow(options.prompt, logoNeg, size.width, size.height, seed, mode);
     const { filename, durationMs } = await submitAndWait(workflow);
     const imageUrl = await readImageAsBase64(filename);
-    return { imageUrl, durationMs, model: "z_image_turbo_nvfp4", source: "local" };
+    return { imageUrl, durationMs, model: mode === "pinyin" ? "z-image-turbo-Q4_K_M" : "z_image_turbo_nvfp4", source: "local" };
   } catch (ztErr) {
     console.warn("[comfyui] Z-Image Turbo failed, falling back to ARK:", (ztErr as Error).message.slice(0, 100));
     // 部署红线（Chris 2026-08-03）：生图必须本地完成，禁止回退到付费 ARK。

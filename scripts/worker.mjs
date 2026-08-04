@@ -25,6 +25,7 @@ import { normalizeBrandName } from '../src/lib/vi-manual/brand-name-normalizer';
 import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from '../src/lib/vi-manual/mascot-assets';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from '../src/lib/vi-manual/brand-visual-rules';
+import { normalizeLogoTextLanguage } from '../src/lib/core/consultation-schema';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -93,6 +94,8 @@ function parseDeepSeekJSON(content) {
   return JSON.parse(cleaned);
 }
 
+// 工单 023：品牌分析提示词模板版本。已存 prompts 版本缺失/不一致 → 强制重跑品牌分析。
+const LOGO_PROMPT_TEMPLATE_VERSION = '023-chinese-v1';
 // ========== Brand Analysis Prompt ==========
 
 function buildAnalysisPrompt(clientInfo) {
@@ -101,6 +104,7 @@ function buildAnalysisPrompt(clientInfo) {
     '',
     `公司名称：${clientInfo.companyName || ''}`,
     `所属行业：${clientInfo.industry || ''}`,
+    `Logo文字语言：${normalizeLogoTextLanguage(clientInfo.logoTextLanguage) === 'pinyin' ? '拼音' : '中文'}`,
   ];
   if (clientInfo.province || clientInfo.city) {
     parts.push(`所在地：${clientInfo.province || ''} ${clientInfo.city || ''}`);
@@ -130,6 +134,8 @@ const BRAND_ANALYSIS_SYSTEM = `你是一位资深的品牌战略分析师，精�
 ## 输出格式
 返回严格JSON，不要markdown包裹：
 {
+  "analysisTemplateVersion": "023-chinese-v1",
+  "logoTextMode": "chinese | pinyin（必须与客户选择的 Logo 文字语言一致）",
   "industryInsight": "行业洞察，2-3句话",
   "geoEnvironment": "地理环境分析，2-3句话",
   "competitiveLandscape": "竞品格局，2-3句话",
@@ -164,16 +170,16 @@ const BRAND_ANALYSIS_SYSTEM = `你是一位资深的品牌战略分析师，精�
     ]
   },
   "logoDesignSuggestions": {
-    "note": "IMPORTANT: Logo prompts must emphasize the BRAND NAME as the central visual element. Do NOT use location/city name as the brand identifier. The brand name itself is the hero.",
+    "note": "IMPORTANT: 若客户选择拼音（logoTextMode=pinyin），四条 prompts 必须全部改写为英文拼音提示词：把品牌名转成正确拼音（全大写或首字母大写）显式写入，如 Text 'LAOWANXIANG' in bold sans-serif；必须包含 No Chinese characters；现代扁平、白色背景、明确配色与字形；四条构图变体参考：极简图标+文字、圆形徽章、手写风格、几何无衬线；禁止出现任何汉字。若客户选择中文，四条 prompts 必须全部用中文撰写（英文提示词会触发 nvfp4 渲染印章/篆书小字，导致品牌中文错字），把客户品牌名（公司名称字段）原样写入并以品牌中文清晰为主视觉；仅允许现代简约/扁平/白色背景风格；必须明确要求每个字只出现一次、无重复、无多余文字、无错字；严禁使用“大字”“粗壮”“横平竖直”等强调放大文字的措辞（实测会诱发叠字/缺字）；严禁 seal stamp、印章、篆书、雕刻、engraved、环形小字、仿古纹样。模板中的 XXX 必须替换为公司名称字段中的真实品牌名，不得原样输出 XXX。禁止把地名或行业词当作品牌标识，品牌名是唯一主角。",
     "concept": "Logo设计理念详述：3-5句话",
     "style": "设计风格",
     "elements": "建议包含的设计元素",
     "colorGuidance": "配色建议",
     "prompts": [
-      "English logo prompt 1: Chinese seal stamp logo, engraved brand name text in seal script as the central focus, thick double border with fret pattern, navy blue ink on beige paper, flat vector, no 3D, centered composition, emphasize the brand name not location",
-      "English logo prompt 2: square seal chop design, brand name in ancient seal script as the main visual element, thin border with cloud patterns, engraved stamp texture, flat design no gradients, brand name is the centerpiece",
-      "English logo prompt 3: round seal logo, brand name characters carved in bold small seal style at center, surrounded by auspicious cloud and fret patterns, antique gold and deep indigo color scheme, engraved texture, flat vector, brand name dominates",
-      "English logo prompt 4: traditional seal mark with bold brand name characters as the primary visual, double square border with corner ornaments, hand-carved woodblock texture, deep navy blue ink, flat engraving style, brand name is the hero element"
+      "品牌Logo设计：现代简约品牌标志，中文品牌名「XXX」清晰写在画面中央为主视觉，简洁扁平风格，字距均匀、每个字只出现一次、无错字无重复，干净白色背景，居中构图，禁止印章、篆书、雕刻、仿古纹样与多余装饰文字",
+      "品牌Logo设计：极简现代品牌标志，中央清晰呈现中文品牌名「XXX」，简洁扁平、易识别，文字清晰完整、无重叠无重复，白色背景居中排版，禁止印章、篆书、雕刻、seal stamp、环形排列与多余文字",
+      "品牌Logo设计：现代扁平品牌标志，中文品牌名「XXX」为画面主体，简单干净、留白充足，字字独立、笔画完整、不重复不多字，白色背景，居中构图，禁止印章、篆书、雕刻与任何仿古装饰",
+      "品牌Logo设计：简洁扁平风格的中文品牌标志，画面中央清晰展示中文品牌名「XXX」，字迹清楚、无重复无多余文字，白色背景，居中构图，禁止印章、篆书、雕刻与仿古装饰"
     ]
   },
   "aiGeneratedFields": {
@@ -222,6 +228,12 @@ async function processLogoGeneration(project) {
   const brandProfile = clientInfo.brandProfile || {};
   const rawCompanyName = clientInfo.companyName || '';
   const normalizedCompanyName = normalizeBrandName(rawCompanyName);
+  // 工单 024：Logo 文字语言（客户显式选择；空公司名时拼音模式回退中文）
+  let logoTextMode = normalizeLogoTextLanguage(clientInfo.logoTextLanguage);
+  if (logoTextMode === 'pinyin' && !normalizedCompanyName) {
+    log('WARN', `[LOGO] ${projectId}: 拼音模式但公司名为空，回退中文模式（避免产出占位拼音）`);
+    logoTextMode = 'chinese';
+  }
 
   log('INFO', `[LOGO] Processing project: ${projectId} (${rawCompanyName || 'unknown'})`);
 
@@ -237,8 +249,14 @@ async function processLogoGeneration(project) {
   let logoPrompts = brandProfile.logoDesignSuggestions?.prompts;
   let analysisProfile = brandProfile;
 
-  if (!logoPrompts || logoPrompts.length === 0) {
-    log('INFO', `[LOGO] ${projectId}: No logo prompts found, running brand analysis...`);
+  const storedTemplateVersion = brandProfile.analysisTemplateVersion;
+  const templateOutdated = storedTemplateVersion !== LOGO_PROMPT_TEMPLATE_VERSION;
+  if (!logoPrompts || logoPrompts.length === 0 || templateOutdated) {
+    if (logoPrompts && logoPrompts.length > 0 && templateOutdated) {
+      log('WARN', `[LOGO] ${projectId}: Stored logo prompts use template version '${storedTemplateVersion || 'missing'}', expected '${LOGO_PROMPT_TEMPLATE_VERSION}', force re-running brand analysis...`);
+    } else {
+      log('INFO', `[LOGO] ${projectId}: No logo prompts found, running brand analysis...`);
+    }
     try {
       const analysisPrompt = buildAnalysisPrompt({ ...clientInfo, companyName: normalizedCompanyName });
       const dsContent = await callDeepSeek(BRAND_ANALYSIS_SYSTEM, analysisPrompt, 0.7, 4096);
@@ -269,6 +287,7 @@ async function processLogoGeneration(project) {
             logoDesignSuggestions: analysisProfile.logoDesignSuggestions || null,
             colorPalette: analysisProfile.colorPalette || null,
             aiGeneratedFields: analysisProfile.aiGeneratedFields || {},
+            analysisTemplateVersion: LOGO_PROMPT_TEMPLATE_VERSION,
             analysisStatus: 'completed',
             analyzedAt: new Date().toISOString(),
           },
@@ -300,9 +319,13 @@ async function processLogoGeneration(project) {
   }
 
   // Step 4: Generate 4 logos via ComfyUI (serial)
-  log('INFO', `[LOGO] ${projectId}: Generating ${logoPrompts.length} logos via ComfyUI...`);
+  log('INFO', `[LOGO] ${projectId}: Generating ${logoPrompts.length} logos via ComfyUI (mode=${logoTextMode})...`);
   const logoResults = [];
   const companyName = normalizedCompanyName || 'Brand';
+  const hanCount = (normalizedCompanyName.match(/[\u4e00-\u9fff]/g) || []).length;
+  const qualityNote = logoTextMode === 'chinese' && hanCount > 4
+    ? '中文品牌名超过4字，中文渲染存在质量风险'
+    : '';
 
   for (let i = 0; i < logoPrompts.length; i++) {
     const rawPrompt = logoPrompts[i];
@@ -319,6 +342,7 @@ async function processLogoGeneration(project) {
           prompt: enhancedPrompt,
           negativePrompt,
           size: '1024x1024',
+          mode: logoTextMode,
         });
         result = {
           index: i,
@@ -350,6 +374,7 @@ async function processLogoGeneration(project) {
         completed: i + 1,
         results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
         startedAt: freshCI.logoGenerationStatus?.startedAt || new Date().toISOString(),
+        ...(qualityNote ? { qualityNote } : {}),
       };
       await supabase.from('projects').update({ client_info: freshCI, updated_at: new Date().toISOString() }).eq('id', projectId);
     } catch (e) { /* non-critical */ }

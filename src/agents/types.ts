@@ -37,6 +37,8 @@ export interface AgentContext {
     coreValues?: string;
     targetMarket?: string;
     logoPhilosophy?: string;
+    // 工单 024：Logo 文字语言（chinese=中文 / pinyin=拼音）
+    logoTextLanguage?: "chinese" | "pinyin";
     mascotPhilosophy?: string;
     logoAssets?: { url: string; fileName?: string }[];
     mascotAssets?: { files: { url: string; fileName?: string }[]; name?: string }[];

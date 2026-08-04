@@ -7,6 +7,7 @@ import { detectCompanyScale, type CompanyScale, getScaleLabel } from "@/lib/bran
 import { writeFile, readFile, mkdir } from "fs/promises";
 import { getCategoryDict } from "@/lib/vi-manual/category-dict";
 import { normalizeBrandName } from "@/lib/vi-manual/brand-name-normalizer";
+import { normalizeLogoTextLanguage } from "@/lib/core/consultation-schema";
 import path from "path";
 
 const MOCK_DIR = path.join(process.cwd(), "public", "mock");
@@ -203,6 +204,8 @@ export async function POST(req: NextRequest) {
           brandPersonality: body.brandPersonality || "",
           logoUsage: body.logoUsage || "",
           logoStyle: body.logoStyle || "",
+          // 工单 024：Logo 文字语言显式单选（默认中文）
+          logoTextLanguage: normalizeLogoTextLanguage(body.logoTextLanguage),
           avoidElements: body.avoidElements || "",
           existingSignagePain: body.existingSignagePain || "",
           competitorReference: body.competitorReference || "",
