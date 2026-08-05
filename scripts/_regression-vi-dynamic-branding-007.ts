@@ -812,6 +812,25 @@ async function main(): Promise<void> {
     `baseline=${baselineCount024} allPass=${baselineAllPass024}`
   );
 
+  // ============ 工单 025：生产只认本地 worker（mark-paid 停发网页触发链）============
+  const baselineCount025 = checks.length;
+  const baselineAllPass025 = checks.every((c) => c.pass);
+  const markPaidSrc025 = readFileSync("src/app/api/admin/mark-paid/route.ts", "utf8");
+  check(
+    "025-1 mark-paid 不再触发网页 analyze-brand / generate-logo（防回潮），改为 pending_logo 交 worker",
+    !markPaidSrc025.includes("/api/ai/analyze-brand") &&
+      !markPaidSrc025.includes("/api/ai/generate-logo") &&
+      !markPaidSrc025.includes("triggerGen") &&
+      markPaidSrc025.includes("generationStatus: \"pending_logo\"") &&
+      markPaidSrc025.includes("已收款，正在生成"),
+    `analyzeBrand=${markPaidSrc025.includes("/api/ai/analyze-brand")} generateLogo=${markPaidSrc025.includes("/api/ai/generate-logo")} handoff=${markPaidSrc025.includes("pending_logo")}`
+  );
+  check(
+    "025-2 025 基线未削弱（追加前全部 PASS，数量=39：29+023×3+024×7）",
+    baselineCount025 === 39 && baselineAllPass025,
+    `baseline=${baselineCount025} allPass=${baselineAllPass025}`
+  );
+
   console.log("=== 007 动态品牌规则定向回归 ===");
   for (const c of checks) {
     console.log(`${c.pass ? "PASS" : "FAIL"} ${c.name}${c.evidence ? `  | 证据: ${c.evidence}` : ""}`);

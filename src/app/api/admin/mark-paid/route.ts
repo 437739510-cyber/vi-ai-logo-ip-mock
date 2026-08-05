@@ -33,33 +33,15 @@ export async function POST(req: NextRequest) {
       .update({ status: "paid", updated_at: new Date().toISOString() })
       .eq("id", projectId);
 
-    // Fire-and-forget generation chain
-    const baseUrl = req.headers.get("origin") || "";
+    // 工单 025：生产只认本地 worker——不再触发网页 analyze-brand / generate-logo。
+    // 收款后确保订单进入 pending_logo 由本地 worker 轮询接管（缺失/空时补齐；
+    // 已进入后续阶段的状态不倒退）。
     const ci = (project.client_info || {}) as Record<string, any>;
-    const bp = (ci.brandProfile || {}) as Record<string, any>;
-    const needsAnalysis = !bp.logoDesignSuggestions?.prompts?.length;
-
-    const triggerGen = (url: string, body: any) => {
-      fetch(url, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }).catch(e => console.warn("[mark-paid] trigger failed:", e));
-    };
-
-    if (needsAnalysis) {
-      triggerGen(`${baseUrl}/api/ai/analyze-brand`, {
-        projectId, clientInfo: {
-          companyName: ci.companyName || "",
-          industry: ci.industry || "", province: ci.province || "",
-          city: ci.city || "", brandVision: ci.brandVision || "",
-          coreValues: ci.coreValues || "", targetMarket: ci.targetMarket || "",
-          mainProducts: ci.mainProducts || "", description: ci.description || "",
-          logoPhilosophy: ci.logoPhilosophy || "", mascotPhilosophy: ci.mascotPhilosophy || "",
-        },
-      });
-      setTimeout(() => triggerGen(`${baseUrl}/api/ai/generate-logo`, { projectId }), 2000);
-    } else {
-      triggerGen(`${baseUrl}/api/ai/generate-logo`, { projectId });
+    if (!ci.generationStatus || ci.generationStatus === "pending_logo") {
+      const nextClientInfo = { ...ci, generationStatus: "pending_logo" };
+      await supabaseAdmin.from("projects")
+        .update({ client_info: nextClientInfo, updated_at: new Date().toISOString() })
+        .eq("id", projectId);
     }
 
     return NextResponse.json({ success: true, status: "paid", message: "已收款，正在生成" });
