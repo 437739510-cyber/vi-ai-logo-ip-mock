@@ -838,6 +838,7 @@ async function main(): Promise<void> {
   const workerSrc027 = readFileSync("scripts/worker.mjs", "utf8");
   const providerSrc027 = readFileSync("src/lib/ip/ip-image-provider/comfyui-provider.ts", "utf8");
   const visionCheckSrc027 = readFileSync("src/lib/vision-check/index.ts", "utf8");
+  const batchSrc027 = readFileSync("scripts/_logo-batch.mjs", "utf8");
   check(
     "027-1 归一化：中文只留汉字，拼音只留字母/数字（大小写不敏感）",
     normalizeForCompare("老碗 碗香。", "chinese") === "老碗碗香" &&
@@ -862,11 +863,11 @@ async function main(): Promise<void> {
     "027-4 worker 接线：接入 vision-check、needs_review/未初检处理、换 seed 重试",
     workerSrc027.includes("runLogoVisionCheck") &&
       workerSrc027.includes("extractExpectedText") &&
-      workerSrc027.includes("needs_review") &&
+      (workerSrc027.includes("needs_review") || batchSrc027.includes("needs_review")) &&
       workerSrc027.includes("未初检") &&
       workerSrc027.includes("MAX_VISION_RETRIES") &&
       workerSrc027.includes("seed,"),
-    `import=${workerSrc027.includes("runLogoVisionCheck")} needsReview=${workerSrc027.includes("needs_review")} unChecked=${workerSrc027.includes("未初检")}`
+    `import=${workerSrc027.includes("runLogoVisionCheck")} needsReview=${workerSrc027.includes("needs_review") || batchSrc027.includes("needs_review")} unChecked=${workerSrc027.includes("未初检")}`
   );
   check(
     "027-5 provider 支持 seed 重试（comfyGenerateLogo 透传 seed）",
@@ -895,6 +896,7 @@ async function main(): Promise<void> {
   const baselineAllPass029 = checks.every((c) => c.pass);
   const workerSrc029 = readFileSync("scripts/worker.mjs", "utf8");
   const visionCheckSrc029 = readFileSync("src/lib/vision-check/index.ts", "utf8");
+  const batchSrc029 = readFileSync("scripts/_logo-batch.mjs", "utf8");
   check(
     "029-1 vision-check 剥离 data URI 前缀（Ollama 只收裸 base64）",
     stripDataUriPrefix("data:image/png;base64,AAAA") === "AAAA" &&
@@ -918,14 +920,72 @@ async function main(): Promise<void> {
   );
   check(
     "029-4 worker 生图前 ComfyUI 健康检查（重活前确认可用）",
-    workerSrc029.includes("ComfyUI not available before generation") &&
-      workerSrc029.includes("isComfyUIAvailable()"),
-    `healthCheck=${workerSrc029.includes("ComfyUI not available before generation")}`
+    workerSrc029.includes("isComfyUIAvailable()") &&
+      (workerSrc029.includes("ComfyUI not available before generation") ||
+        batchSrc029.includes("ComfyUI not available before generation")),
+    `healthCheck=${batchSrc029.includes("ComfyUI not available before generation") || workerSrc029.includes("ComfyUI not available before generation")}`
   );
   check(
     "029-5 029 基线未削弱（追加前数量=48）",
     baselineCount029 === 48 && baselineAllPass029,
     `baseline=${baselineCount029} allPass=${baselineAllPass029}`
+  );
+
+  // ============ 工单 030：ComfyUI 健康门＋批次化校验（生成→统一校验→下一轮统一重生成）============
+  const baselineCount030 = checks.length;
+  const baselineAllPass030 = checks.every((c) => c.pass);
+  const workerSrc030 = readFileSync("scripts/worker.mjs", "utf8");
+  const providerSrc030 = readFileSync("src/lib/ip/ip-image-provider/comfyui-provider.ts", "utf8");
+  const lifecycleSrc030 = readFileSync("scripts/_comfyui-lifecycle.mjs", "utf8");
+  const batchSrc030 = readFileSync("scripts/_logo-batch.mjs", "utf8");
+  check(
+    "030-1 worker 调用批次模块；批次模块含生成阶段/统一校验/重试轮逻辑",
+    workerSrc030.includes("runLogoBatchFlow") &&
+      batchSrc030.includes("批次第") &&
+      batchSrc030.includes("统一校验") &&
+      batchSrc030.includes("生成阶段，ComfyUI 独占，不触发 Ollama") &&
+      batchSrc030.includes("needs_review") &&
+      workerSrc030.includes("MAX_LOGO_BATCH_ROUNDS"),
+    `workerCall=${workerSrc030.includes("runLogoBatchFlow")} batchRound=${batchSrc030.includes("批次第")} unifiedCheck=${batchSrc030.includes("统一校验")} rounds=${workerSrc030.includes("MAX_LOGO_BATCH_ROUNDS")}`
+  );
+  check(
+    "030-2 单张生成超时放宽至 600s",
+    providerSrc030.includes("const TIMEOUT_MS = 600_000;"),
+    `timeout600=${providerSrc030.includes("const TIMEOUT_MS = 600_000;")}`
+  );
+  check(
+    "030-3 worker 接线健康门：连续失败进健康门、暂停批次＋告警、恢复后继续",
+    workerSrc030.includes("ensureComfyUIReady") &&
+      batchSrc030.includes("连续") &&
+      batchSrc030.includes("暂停整个批次") &&
+      batchSrc030.includes("健康门恢复失败，暂停批次") &&
+      workerSrc030.includes("paused_comfyui"),
+    `gate=${workerSrc030.includes("ensureComfyUIReady")} pause=${batchSrc030.includes("暂停整个批次")}`
+  );
+  check(
+    "030-4 ARK 回退日志文案修正（禁用时不再误导为 falling back）",
+    providerSrc030.includes("ARK fallback disabled, rethrowing"),
+    `wording=${providerSrc030.includes("ARK fallback disabled, rethrowing")}`
+  );
+  check(
+    "030-5 ComfyUI 生命周期模块：进程双检/杀/启/就绪/健康门导出",
+    lifecycleSrc030.includes("isComfyUIProcessAlive") &&
+      lifecycleSrc030.includes("killComfyUI") &&
+      lifecycleSrc030.includes("startComfyUI") &&
+      lifecycleSrc030.includes("waitForComfyUIReady") &&
+      lifecycleSrc030.includes("ensureComfyUIReady") &&
+      lifecycleSrc030.includes("gpuSnapshot"),
+    `proc=${lifecycleSrc030.includes("isComfyUIProcessAlive")} gate=${lifecycleSrc030.includes("ensureComfyUIReady")} gpu=${lifecycleSrc030.includes("gpuSnapshot")}`
+  );
+  check(
+    "030-6 显存/进程日志接入（gpuSnapshot 记录）",
+    workerSrc030.includes("gpuSnapshot") && lifecycleSrc030.includes("nvidia-smi"),
+    `gpuLog=${workerSrc030.includes("gpuSnapshot")}`
+  );
+  check(
+    "030-7 030 基线未削弱（追加前数量=53）",
+    baselineCount030 === 53 && baselineAllPass030,
+    `baseline=${baselineCount030} allPass=${baselineAllPass030}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");

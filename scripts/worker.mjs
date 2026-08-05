@@ -27,6 +27,10 @@ import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from '../src/lib/vi-manual/brand-visual-rules';
 import { normalizeLogoTextLanguage } from '../src/lib/core/consultation-schema';
 import { runLogoVisionCheck, extractExpectedText } from '../src/lib/vision-check';
+// 工单 030：ComfyUI 健康门与生命周期（崩溃探测→自动重启→就绪→冷却）。
+import { ensureComfyUIReady, gpuSnapshot } from './_comfyui-lifecycle.mjs';
+// 工单 030：Logo 批次循环编排（生成→统一校验→不合格下一轮统一重生成）。
+import { runLogoBatchFlow } from './_logo-batch.mjs';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -42,6 +46,10 @@ const DEEPSEEK_TIMEOUT_MS = 60_000;
 const MAX_LOGO_GEN_RETRIES = 2;
 // 工单 027：Logo 视觉校验不合格时换 seed 重试次数（校验失败不计入生成重试）。
 const MAX_VISION_RETRIES = 2;
+// 工单 030：Logo 批次循环（生成 4 张 → 统一校验 → 不合格下一轮统一重生成）。
+const MAX_LOGO_BATCH_ROUNDS = 2;
+const MAX_LOGO_GEN_ATTEMPTS = 3; // 单张 ≤3 次尝试（含重试）
+const LOGO_RETRY_GAP_MS = 30_000; // 单张失败重试间隔
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -310,10 +318,10 @@ async function processLogoGeneration(project) {
     }
   }
 
-  // Step 3: Check ComfyUI availability
-  const comfyAvailable = await isComfyUIAvailable();
-  if (!comfyAvailable) {
-    log('WARN', `[LOGO] ${projectId}: ComfyUI not available, will retry later`);
+  // Step 3: Check ComfyUI availability（工单 030：健康门尝试自动重启后再判定）
+  const comfyReady = await ensureComfyUIReady({ log });
+  if (!comfyReady) {
+    log('WARN', `[LOGO] ${projectId}: ComfyUI not available (restart failed), will retry later`);
     await supabase.from('projects').update({
       client_info: { ...clientInfo, generationStatus: 'pending_logo' },
       updated_at: new Date().toISOString(),
@@ -321,9 +329,8 @@ async function processLogoGeneration(project) {
     return;
   }
 
-  // Step 4: Generate 4 logos via ComfyUI (serial)
-  log('INFO', `[LOGO] ${projectId}: Generating ${logoPrompts.length} logos via ComfyUI (mode=${logoTextMode})...`);
-  const logoResults = [];
+  // Step 4: Generate logos via ComfyUI（工单 030 批次循环：生成→统一校验→不合格下一轮统一重生成）
+  log('INFO', `[LOGO] ${projectId}: Generating ${logoPrompts.length} logos via ComfyUI (mode=${logoTextMode}, 批次化)...`);
   const companyName = normalizedCompanyName || 'Brand';
   const hanCount = (normalizedCompanyName.match(/[\u4e00-\u9fff]/g) || []).length;
   const qualityNote = logoTextMode === 'chinese' && hanCount > 4
@@ -335,104 +342,49 @@ async function processLogoGeneration(project) {
     log('WARN', `[LOGO] ${projectId}: 拼音模式但无法从提示词提取期望拼音，Logo 校验将降级为未初检`);
   }
 
-  for (let i = 0; i < logoPrompts.length; i++) {
-    const rawPrompt = logoPrompts[i];
-    const enhancedPrompt = rawPrompt + ', logo design on clean white background, centered composition';
-    const negativePrompt = 'deformed, blurry, low quality, distorted, 3d render, shadow, gradient, complex background, watermark, text, extra limbs, bad anatomy';
+  const negativePrompt = 'deformed, blurry, low quality, distorted, 3d render, shadow, gradient, complex background, watermark, text, extra limbs, bad anatomy';
+  const { results: logoResults, paused: batchPaused } = await runLogoBatchFlow({
+    prompts: logoPrompts,
+    generate: async ({ prompt, seed }) => comfyuiGenerateLogo({
+      prompt: prompt + ', logo design on clean white background, centered composition',
+      negativePrompt,
+      size: '1024x1024',
+      mode: logoTextMode,
+      seed,
+    }),
+    check: async ({ imageBase64, prompt }) => runLogoVisionCheck({
+      imageBase64,
+      prompt,
+      expectedText,
+      mode: logoTextMode,
+    }),
+    ensureReady: () => ensureComfyUIReady({ log }),
+    isAvailable: () => isComfyUIAvailable(),
+    log,
+    gpuSnapshot,
+    maxRounds: MAX_LOGO_BATCH_ROUNDS,
+    maxAttempts: MAX_LOGO_GEN_ATTEMPTS,
+    retryGapMs: LOGO_RETRY_GAP_MS,
+  });
 
-    let genRetries = 0;
-    let visionRetries = 0;
-    let result = null;
-
-    while (genRetries <= MAX_LOGO_GEN_RETRIES && !result) {
-      const seed = Math.floor(Math.random() * 2147483647);
-      try {
-        log('INFO', `[LOGO] ${projectId}: Logo ${i + 1}/${logoPrompts.length} (attempt ${genRetries + 1}, seed=${seed})...`);
-        // 工单 029：重活前 ComfyUI 健康检查——避免与 Ollama 驻留/高负载叠加时挂起。
-        if (!(await isComfyUIAvailable())) {
-          log('WARN', `[LOGO] ${projectId}: ComfyUI 暂不可用，等待 5s 后重试 (attempt ${genRetries + 1})`);
-          await new Promise(r => setTimeout(r, 5000));
-          if (!(await isComfyUIAvailable())) {
-            throw new Error('ComfyUI not available before generation');
-          }
-        }
-        const genResult = await comfyuiGenerateLogo({
-          prompt: enhancedPrompt,
-          negativePrompt,
-          size: '1024x1024',
-          mode: logoTextMode,
-          seed,
-        });
-
-        // 工单 027：生成后自动视觉校验（Ollama 可用时）；不可用/无期望文本 → 未初检标记。
-        let vision = null;
-        if (genResult.imageUrl && expectedText) {
-          try {
-            vision = await runLogoVisionCheck({
-              imageBase64: genResult.imageUrl,
-              prompt: rawPrompt,
-              expectedText,
-              mode: logoTextMode,
-            });
-          } catch (e) {
-            vision = { status: 'skipped', reason: `vision_error: ${e.message.slice(0, 120)}`, mode: logoTextMode, expectedText, coarseModel: 'qwen2.5vl:3b', fineModel: 'my-vl' };
-          }
-          log('INFO', `[VISION] ${projectId}: Logo ${i + 1} ${vision.status}${vision.reason ? ` (${vision.reason})` : ''} (expected=${expectedText}${vision.fineText ? ` fine=${vision.fineText.slice(0, 60)}` : ''})`);
-          if (vision.status === 'suspect' && visionRetries < MAX_VISION_RETRIES) {
-            visionRetries++;
-            log('WARN', `[VISION] ${projectId}: Logo ${i + 1} 校验不合格，换 seed 重试 ${visionRetries}/${MAX_VISION_RETRIES}`);
-            await new Promise(r => setTimeout(r, 2000));
-            continue;
-          }
-          if (vision.status === 'suspect') {
-            vision = { ...vision, status: 'needs_review' };
-            log('WARN', `[VISION] ${projectId}: Logo ${i + 1} 重试后仍不合格，标记 needs_review（不静默交付）`);
-          }
-        } else if (genResult.imageUrl && !expectedText) {
-          vision = { status: 'skipped', reason: 'expected_text_unavailable', mode: logoTextMode, expectedText: '', coarseModel: 'qwen2.5vl:3b', fineModel: 'my-vl' };
-          log('WARN', `[VISION] ${projectId}: Logo ${i + 1} 无法校验（期望文本缺失），标记未初检`);
-        }
-
-        result = {
-          index: i,
-          prompt: rawPrompt,
-          imageUrl: genResult.imageUrl,
-          model: genResult.model,
-          durationMs: genResult.durationMs,
-          seed,
-          vision,
-        };
-        log('INFO', `[LOGO] ${projectId}: Logo ${i + 1} OK (${genResult.durationMs}ms${vision ? `, vision=${vision.status}` : ''})`);
-      } catch (err) {
-        genRetries++;
-        log('WARN', `[LOGO] ${projectId}: Logo ${i + 1} failed (attempt ${genRetries}): ${err.message}`);
-        if (genRetries > MAX_LOGO_GEN_RETRIES) {
-          result = { index: i, prompt: rawPrompt, imageUrl: null, error: err.message };
-        }
-        await new Promise(r => setTimeout(r, 3000));
-      }
-    }
-    logoResults.push(result);
-
-    // Update progress after each logo (non-critical, don't throw)
-    try {
-      const fresh = await supabase.from('projects').select('client_info').eq('id', projectId).single();
-      const freshCI = { ...(fresh.data?.client_info || clientInfo) };
-      freshCI.generationStatus = 'logo_generating';
-      freshCI.generationMessage = `正在生成Logo (${i + 1}/${logoPrompts.length})...`;
-      freshCI.logoGenerationStatus = {
-        total: logoPrompts.length,
-        completed: i + 1,
-        results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error, vision: r.vision })),
-        startedAt: freshCI.logoGenerationStatus?.startedAt || new Date().toISOString(),
-        ...(qualityNote ? { qualityNote } : {}),
-      };
-      await supabase.from('projects').update({ client_info: freshCI, updated_at: new Date().toISOString() }).eq('id', projectId);
-    } catch (e) { /* non-critical */ }
-
-    if (i < logoPrompts.length - 1) {
-      await new Promise(r => setTimeout(r, 2000));
-    }
+  if (batchPaused) {
+    log('ERROR', `[LOGO] ${projectId}: 批次已暂停（ComfyUI 不可用），等待人工处理`);
+    await supabase.from('projects').update({
+      status: 'submitted',
+      client_info: {
+        ...clientInfo,
+        generationStatus: 'paused_comfyui',
+        generationMessage: 'ComfyUI 不可用，Logo 批次已暂停，等待人工处理',
+        logoGenerationStatus: {
+          total: logoPrompts.length,
+          completed: logoResults.filter((r) => r.imageUrl || r.error).length,
+          results: logoResults,
+          pausedAt: new Date().toISOString(),
+        },
+      },
+      updated_at: new Date().toISOString(),
+    }).eq('id', projectId);
+    return;
   }
 
   // Step 5: Persist base64 images to Supabase Storage
@@ -603,9 +555,10 @@ async function processManualGeneration(project) {
     'packaging-2': '产品包装系统', 'marketing-1': '营销展示系统', 'marketing-2': '营销展示系统',
   };
 
-  const comfyAvailable = await isComfyUIAvailable();
-  if (!comfyAvailable) {
-    log('WARN', `[MANUAL] ${projectId}: ComfyUI not available, will retry later`);
+  // 工单 030：手册阶段生图前 ComfyUI 健康门（自动重启尝试）
+  const comfyReady = await ensureComfyUIReady({ log });
+  if (!comfyReady) {
+    log('WARN', `[MANUAL] ${projectId}: ComfyUI not available (restart failed), will retry later`);
     await supabase.from('projects').update({
       client_info: { ...clientInfo, generationStatus: 'pending_manual' },
       updated_at: new Date().toISOString(),

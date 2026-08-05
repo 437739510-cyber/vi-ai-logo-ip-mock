@@ -21,8 +21,9 @@ const COMFYUI_BASE = process.env.COMFYUI_BASE_URL || "http://127.0.0.1:8188";
 const PROMPT_URL = `${COMFYUI_BASE}/prompt`;
 const HISTORY_URL = `${COMFYUI_BASE}/history`;
 // 整改：原 120s 硬超时会在 ComfyUI(~150s 才完成) 跑到一半时丢弃 logo/场景图。
-// 改为按 prompt_id 轮询 /history 直到该 prompt 完成再返回，最大等待提到 480s（300–600s 区间）。
-const TIMEOUT_MS = 480_000;
+// 改为按 prompt_id 轮询 /history 直到该 prompt 完成再返回。
+// 工单 030：单张生成超时放宽到 600s（本机单张 20s~300s 波动，首图含模型装载）。
+const TIMEOUT_MS = 600_000;
 const POLL_INTERVAL_MS = 2_000;
 
 // ========== Z-Image Turbo GGUF Workflow ==========
@@ -322,9 +323,11 @@ export async function comfyGenerateLogo(options: {
     const imageUrl = await readImageAsBase64(filename);
     return { imageUrl, durationMs, model: mode === "pinyin" ? "z-image-turbo-Q4_K_M" : "z_image_turbo_nvfp4", source: "local", seed };
   } catch (ztErr) {
-    console.warn("[comfyui] Z-Image Turbo failed, falling back to ARK:", (ztErr as Error).message.slice(0, 100));
     // 部署红线（Chris 2026-08-03）：生图必须本地完成，禁止回退到付费 ARK。
-    if ((process.env.COMFYUI_DISABLE_ARK_FALLBACK || "").trim() === "1") throw ztErr;
+    const arkDisabled = (process.env.COMFYUI_DISABLE_ARK_FALLBACK || "").trim() === "1";
+    // 工单 030：日志文案修正——禁用回退时不再误导为“falling back to ARK”。
+    console.warn(`[comfyui] Z-Image Turbo failed, ${arkDisabled ? "ARK fallback disabled, rethrowing" : "falling back to ARK"}:`, (ztErr as Error).message.slice(0, 100));
+    if (arkDisabled) throw ztErr;
   }
 
   // Fallback to ARK cloud
@@ -350,9 +353,11 @@ export async function comfyGenerateScene(options: {
     const imageUrl = await readImageAsBase64(filename);
     return { imageUrl, durationMs, model: "z_image_turbo_nvfp4", source: "local" };
   } catch (ztErr) {
-    console.warn("[comfyui] Z-Image Turbo failed, falling back to ARK:", (ztErr as Error).message.slice(0, 100));
     // 部署红线（Chris 2026-08-03）：生图必须本地完成，禁止回退到付费 ARK。
-    if ((process.env.COMFYUI_DISABLE_ARK_FALLBACK || "").trim() === "1") throw ztErr;
+    const arkDisabled = (process.env.COMFYUI_DISABLE_ARK_FALLBACK || "").trim() === "1";
+    // 工单 030：日志文案修正——禁用回退时不再误导为“falling back to ARK”。
+    console.warn(`[comfyui] Z-Image Turbo failed, ${arkDisabled ? "ARK fallback disabled, rethrowing" : "falling back to ARK"}:`, (ztErr as Error).message.slice(0, 100));
+    if (arkDisabled) throw ztErr;
   }
 
   // Fallback to ARK cloud
