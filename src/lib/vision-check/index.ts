@@ -427,3 +427,200 @@ export async function runMascotVisionCheck(opts: {
     reason: fine.parsed?.reason || coarse.parsed?.reason || "mascot_integrity",
   };
 }
+
+// ===== 工单 033：三视图一致性（角色描述动态生成 + 7B 特征交叉比对） =====
+
+/** 从公仔样稿提取可复用角色描述（7B 视觉，动态生成，禁止硬编码模板）。失败返回 ""。 */
+const MASCOT_SPEC_PROMPT =
+  "Analyze this mascot character design image. Extract a detailed, reusable character description in English " +
+  "covering: body type and proportions, main colors and color scheme, headwear/ears/antlers, hairstyle, " +
+  "outfit and clothing details, accessories, and overall art style (e.g. 3D Pixar). " +
+  "Output only the description text, no extra commentary.";
+
+export async function extractMascotCharacterSpec(
+  imageBase64: string,
+  opts?: { fineModel?: string },
+): Promise<string> {
+  const model = opts?.fineModel || "my-vl";
+  try {
+    const text = await ocrWithModel(model, MASCOT_SPEC_PROMPT, imageBase64);
+    return (text || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+const MASCOT_FEATURE_PROMPT =
+  "Analyze this mascot image. Output ONLY a JSON object with these array keys: colors, headwear, hairstyle, " +
+  "outfit, bodyType, accessories. Each array contains short English keywords describing that aspect of the " +
+  "character's design. Do not output anything else.";
+
+export interface MascotFeatures {
+  colors: string[];
+  headwear: string[];
+  hairstyle: string[];
+  outfit: string[];
+  bodyType: string[];
+  accessories: string[];
+}
+
+/** 容错解析 7B 特征 JSON（剥离代码围栏、取首尾花括号）；失败返回 null。 */
+export function parseMascotFeatures(text: string): MascotFeatures | null {
+  const cleaned = (text || "")
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>;
+    const norm = (v: unknown): string[] => {
+      if (!Array.isArray(v)) return [];
+      return v.map((x) => String(x).trim().toLowerCase()).filter(Boolean);
+    };
+    return {
+      colors: norm(parsed.colors),
+      headwear: norm(parsed.headwear),
+      hairstyle: norm(parsed.hairstyle),
+      outfit: norm(parsed.outfit),
+      bodyType: norm(parsed.bodyType),
+      accessories: norm(parsed.accessories),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// 工单 033：身份关键特征加权。outfit/headwear 权重最高（决定“同一角色”），
+// 泛化维度（bodyType/accessories）压低；配合“outfit 必须相似”门槛。
+const FEATURE_WEIGHTS: Record<keyof MascotFeatures, number> = {
+  colors: 0.15,
+  headwear: 0.2,
+  hairstyle: 0.15,
+  outfit: 0.3,
+  bodyType: 0.1,
+  accessories: 0.1,
+};
+
+const GENERIC_FEATURE_TOKENS = new Set(["none", "unknown", "n/a", "na", "not applicable"]);
+
+// 工单 033：通用同义词归一（仅比对用，不含任何品牌/角色模板；应对 7B 措辞漂移）。
+const FEATURE_SYNONYMS: Record<string, string> = {
+  robe: "gown",
+  kimono: "gown",
+  dress: "gown",
+  shirt: "top",
+  blouse: "top",
+  pants: "trousers",
+  trousers: "trousers",
+  sash: "belt",
+};
+
+function featureTokenSet(words: string[]): Set<string> {
+  const s = new Set<string>();
+  for (const w of words) {
+    for (const raw of w.toLowerCase().split(/[^a-z0-9]+/)) {
+      if (!raw) continue;
+      const t = FEATURE_SYNONYMS[raw] || raw;
+      if (t) s.add(t);
+    }
+  }
+  return s;
+}
+
+function featureOverlap(a: string[], b: string[]): number {
+  const sa = featureTokenSet(a);
+  const sb = featureTokenSet(b);
+  if (sa.size === 0 && sb.size === 0) return 1;
+  if (sa.size === 0 || sb.size === 0) return 0;
+  let hit = 0;
+  for (const t of sa) if (sb.has(t)) hit++;
+  return hit / Math.min(sa.size, sb.size);
+}
+
+/** 清理泛化 token（none/unknown 等）与空串，避免稀释身份差异。 */
+function cleanFeatureList(words: string[]): string[] {
+  return words.filter((w) => {
+    const t = w.trim().toLowerCase();
+    return t !== "" && !GENERIC_FEATURE_TOKENS.has(t);
+  });
+}
+
+/** 两视图特征相似度 0..1（加权 token 重叠）。 */
+export function mascotFeatureSimilarity(a: MascotFeatures, b: MascotFeatures): number {
+  let total = 0;
+  (Object.keys(FEATURE_WEIGHTS) as (keyof MascotFeatures)[]).forEach((k) => {
+    total += FEATURE_WEIGHTS[k] * featureOverlap(cleanFeatureList(a[k]), cleanFeatureList(b[k]));
+  });
+  return total;
+}
+
+export type ThreeViewStatus = "passed" | "needs_review" | "skipped";
+
+export interface ThreeViewConsistencyResult {
+  status: ThreeViewStatus;
+  reason?: string;
+  features?: Record<"front" | "side" | "back", MascotFeatures | null>;
+  pairwise?: { frontSide: number; sideBack: number; frontBack: number };
+}
+
+/** 纯函数判定（可单测）：三对加权相似度均值低于阈值，或正/背 outfit 不相似 → needs_review；任一张为空 → skipped。 */
+export function decideThreeViewConsistency(
+  features: Record<"front" | "side" | "back", MascotFeatures | null>,
+  threshold = 0.55,
+  outfitGate = 0.3,
+): ThreeViewConsistencyResult {
+  if (!features.front || !features.side || !features.back) {
+    const missing = (["front", "side", "back"] as const).filter((k) => !features[k]);
+    return { status: "skipped", reason: `feature_extract_failed: ${missing.join(",")}`, features };
+  }
+  const frontSide = mascotFeatureSimilarity(features.front, features.side);
+  const sideBack = mascotFeatureSimilarity(features.side, features.back);
+  const frontBack = mascotFeatureSimilarity(features.front, features.back);
+  const pairwise = { frontSide, sideBack, frontBack };
+  const outfitSim = (x: MascotFeatures, y: MascotFeatures): number =>
+    featureOverlap(cleanFeatureList(x.outfit), cleanFeatureList(y.outfit));
+  const avg = (frontSide + sideBack + frontBack) / 3;
+  if (avg >= threshold && outfitSim(features.front, features.back) >= outfitGate) {
+    return { status: "passed", features, pairwise };
+  }
+  return {
+    status: "needs_review",
+    reason:
+      `three_view_inconsistent (avg=${avg.toFixed(2)}, frontSide=${frontSide.toFixed(2)}, sideBack=${sideBack.toFixed(2)}, ` +
+      `frontBack=${frontBack.toFixed(2)}, threshold=${threshold}, outfitGate=${outfitGate})`,
+    features,
+    pairwise,
+  };
+}
+
+/**
+ * 三视图一致性判定（工单 033）：对 front/side/back 三张分别做 7B 特征提取
+ * （配色/服装/头饰/体型等），三对加权相似度均值低于阈值，或正/背 outfit 不相似
+ * → needs_review（不静默交付）。任一张特征提取失败 → skipped（未初检）。
+ * 阈值默认 0.55，正/背 outfit 门槛默认 0.3，均可传参覆盖。
+ */
+export async function runThreeViewConsistencyCheck(opts: {
+  front: string;
+  side: string;
+  back: string;
+  fineModel?: string;
+  threshold?: number;
+}): Promise<ThreeViewConsistencyResult> {
+  const model = opts.fineModel || "my-vl";
+  const features: Record<"front" | "side" | "back", MascotFeatures | null> = {
+    front: null,
+    side: null,
+    back: null,
+  };
+  for (const key of ["front", "side", "back"] as const) {
+    try {
+      const text = await ocrWithModel(model, MASCOT_FEATURE_PROMPT, opts[key]);
+      features[key] = parseMascotFeatures(text);
+    } catch {
+      features[key] = null;
+    }
+  }
+  return decideThreeViewConsistency(features, opts.threshold);
+}

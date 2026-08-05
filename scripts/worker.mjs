@@ -25,7 +25,7 @@ import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from '../src/lib/vi-manual/brand-visual-rules';
 import { normalizeLogoTextLanguage } from '../src/lib/core/consultation-schema';
-import { runLogoVisionCheck, runMascotVisionCheck, runSceneVisionCheck, extractExpectedText } from '../src/lib/vision-check';
+import { runLogoVisionCheck, runMascotVisionCheck, runSceneVisionCheck, extractExpectedText, extractMascotCharacterSpec, runThreeViewConsistencyCheck } from '../src/lib/vision-check';
 // 工单 030：ComfyUI 健康门与生命周期（崩溃探测→自动重启→就绪→冷却）。
 import { ensureComfyUIReady, gpuSnapshot } from './_comfyui-lifecycle.mjs';
 // 工单 030：Logo 批次循环编排（生成→统一校验→不合格下一轮统一重生成）。
@@ -934,6 +934,21 @@ async function processMascotSampleGeneration(project) {
 
 // ========== Mascot Full Generation (全套16张) ==========
 
+// 工单 033：把 URL 转成 data URI（样稿若是 URL 需先取回，供 7B 视觉提取角色描述）。
+async function toDataUriIfNeeded(url) {
+  if (!url) return "";
+  if (url.startsWith("data:")) return url;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return "";
+    const buf = Buffer.from(await resp.arrayBuffer());
+    const mime = (resp.headers.get("content-type") || "image/png").split(";")[0] || "image/png";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  } catch {
+    return "";
+  }
+}
+
 async function processMascotFullGeneration(project) {
   const projectId = project.id;
   const clientInfo = (project.client_info || {});
@@ -949,26 +964,47 @@ async function processMascotFullGeneration(project) {
 
   log("INFO", `[MASCOT-FULL] Processing project: ${projectId} (${rawCompanyName}), selected: ${selectedId} (${styleAnchor})`);
 
+  // 工单 033：角色身份描述由平台 AI（本地 7B 视觉）从客户选定样稿动态提取，
+  // 禁止手写/硬编码角色描述模板；提取失败/过短则回退 styleAnchor 并告警。
+  let characterSpec = styleAnchor;
+  try {
+    const sampleImage = selectedSample && (selectedSample.imageUrl || "");
+    if (sampleImage) {
+      const sampleB64 = await toDataUriIfNeeded(sampleImage);
+      if (sampleB64) {
+        const spec = await extractMascotCharacterSpec(sampleB64);
+        if (spec && spec.length >= 10) {
+          characterSpec = spec;
+          log("INFO", `[MASCOT-FULL] ${projectId}: 角色描述由 AI 从样稿提取（${spec.length} 字符）`);
+        } else {
+          log("WARN", `[MASCOT-FULL] ${projectId}: 角色描述提取失败或过短，回退 styleAnchor`);
+        }
+      }
+    }
+  } catch (e) {
+    log("WARN", `[MASCOT-FULL] ${projectId}: 角色描述提取异常，回退 styleAnchor: ${e.message}`);
+  }
+
   const views = [
-    { name: "front", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, front view facing camera, full body, white background, soft studio lighting` },
-    { name: "side", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, side profile view, full body side view, white background, soft studio lighting` },
-    { name: "back", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, seen from behind, no face visible, just the back of the character, back of head, full body back view, white background` },
+    { name: "front", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, front view facing camera, full body, white background, soft studio lighting` },
+    { name: "side", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, side profile view, full body side view, white background, soft studio lighting` },
+    { name: "back", prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, seen from behind, no face visible, just the back of the character, back of head, full body back view, white background` },
   ];
   const emotions = [
-    { name: MASCOT_EMOTION_NAMES[0], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, warm friendly smile expression, gentle happy eyes, full body front view, white background` },
-    { name: MASCOT_EMOTION_NAMES[1], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, welcoming greeting gesture with open arms, friendly smile, full body front view, white background` },
-    { name: MASCOT_EMOTION_NAMES[2], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, focused attentive expression, gentle determined look, full body front view, white background` },
-    { name: MASCOT_EMOTION_NAMES[3], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, surprised delighted expression, wide eyes, mouth open in joy, full body front view, white background` },
-    { name: MASCOT_EMOTION_NAMES[4], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, calm reassuring smile, peaceful warm expression, full body front view, white background` },
-    { name: MASCOT_EMOTION_NAMES[5], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, big happy smile, joyful expression, full body front view, white background` },
-    { name: MASCOT_EMOTION_NAMES[6], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, guiding gesture with one hand pointing forward, confident friendly look, full body front view, white background` },
-    { name: MASCOT_EMOTION_NAMES[7], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, playful cute expression, winking, cheerful mood, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[0], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, warm friendly smile expression, gentle happy eyes, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[1], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, welcoming greeting gesture with open arms, friendly smile, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[2], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, focused attentive expression, gentle determined look, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[3], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, surprised delighted expression, wide eyes, mouth open in joy, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[4], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, calm reassuring smile, peaceful warm expression, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[5], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, big happy smile, joyful expression, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[6], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, guiding gesture with one hand pointing forward, confident friendly look, full body front view, white background` },
+    { name: MASCOT_EMOTION_NAMES[7], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, playful cute expression, winking, cheerful mood, full body front view, white background` },
   ];
   const scenes = [
-    { name: MASCOT_SCENE_NAMES[0], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, full body mascot welcoming customers at the store entrance, storefront signage and entrance context, commercial setting` },
-    { name: MASCOT_SCENE_NAMES[1], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, mascot applied on the brand product packaging such as cup box or paper bag, product display context, commercial setting` },
-    { name: MASCOT_SCENE_NAMES[2], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, mascot on membership card and interactive member terminal, membership service context, commercial setting` },
-    { name: MASCOT_SCENE_NAMES[3], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, mascot in social media banner and avatar context on digital screen, social interaction context` },
+    { name: MASCOT_SCENE_NAMES[0], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, full body mascot welcoming customers at the store entrance, storefront signage and entrance context, commercial setting` },
+    { name: MASCOT_SCENE_NAMES[1], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, mascot applied on the brand product packaging such as cup box or paper bag, product display context, commercial setting` },
+    { name: MASCOT_SCENE_NAMES[2], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, mascot on membership card and interactive member terminal, membership service context, commercial setting` },
+    { name: MASCOT_SCENE_NAMES[3], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${characterSpec}, brand colors ${colorDesc}, mascot in social media banner and avatar context on digital screen, social interaction context` },
   ];
 
   // 工单 031：公仔全套批次循环＋完整性统一校验（15 张：3 视图＋8 表情＋4 场景）
@@ -1021,6 +1057,7 @@ async function processMascotFullGeneration(project) {
   const emotionResults = [];
   const sceneResults = [];
   const mascotVision = {};
+  const viewImageData = {}; // 工单 033：视图 data URI，供三视图一致性判定
   let completed = 0;
   for (let i = 0; i < allItems.length; i++) {
     const item = allItems[i];
@@ -1067,9 +1104,33 @@ async function processMascotFullGeneration(project) {
         updated_at: new Date().toISOString(),
       }).eq("id", projectId);
     } catch { /* non-critical */ }
-    if (item.cat === "view") viewResults[item.name] = publicUrl;
-    else if (item.cat === "emotion") emotionResults.push({ name: item.name, url: publicUrl });
+    if (item.cat === "view") {
+      viewResults[item.name] = publicUrl;
+      viewImageData[item.name] = imageUrl;
+    } else if (item.cat === "emotion") emotionResults.push({ name: item.name, url: publicUrl });
     else sceneResults.push({ name: item.name, url: publicUrl });
+  }
+
+  // 工单 033：三视图一致性判定（7B 特征交叉比对；不一致 needs_review 不静默交付）。
+  let threeViewConsistency = null;
+  const viewKeys = ["front", "side", "back"];
+  if (viewKeys.every((k) => viewImageData[k])) {
+    try {
+      threeViewConsistency = await runThreeViewConsistencyCheck({
+        front: viewImageData.front,
+        side: viewImageData.side,
+        back: viewImageData.back,
+      });
+      log("INFO", `[MASCOT-FULL] ${projectId}: 三视图一致性 ${threeViewConsistency.status}${threeViewConsistency.reason ? ` (${threeViewConsistency.reason})` : ""}`);
+      if (threeViewConsistency.status !== "passed") {
+        log("WARN", `[MASCOT-FULL] ${projectId}: 三视图不一致，标记 needs_review（不静默交付）`);
+        for (const k of viewKeys) mascotVision[`view-${k}`] = "needs_review";
+      }
+    } catch (e) {
+      log("WARN", `[MASCOT-FULL] ${projectId}: 三视图一致性检查失败: ${e.message}`);
+    }
+  } else {
+    log("WARN", `[MASCOT-FULL] ${projectId}: 视图图像数据不完整，跳过三视图一致性判定`);
   }
 
   const mascotAssets = {
@@ -1102,6 +1163,7 @@ async function processMascotFullGeneration(project) {
         mascotFullAttempts: attempt,
         mascotAssets,
         mascotVision,
+        mascotThreeViewConsistency: threeViewConsistency,
         fullMascotMissing: validation.missing,
       },
       updated_at: new Date().toISOString(),
@@ -1120,6 +1182,7 @@ async function processMascotFullGeneration(project) {
         mascotFullAttempts: 0,
         mascotAssets,
         mascotVision,
+        mascotThreeViewConsistency: threeViewConsistency,
         fullMascotMissing: validation.missing,
       },
       updated_at: new Date().toISOString(),
@@ -1138,6 +1201,7 @@ async function processMascotFullGeneration(project) {
         generationMessage: "IP\u516c\u4ed4\u5168\u5957\u751f\u6210\u5b8c\u6210\uff0c\u5f00\u59cb\u5236\u4f5cVI\u624b\u518c",
         mascotAssets,
         mascotVision,
+        mascotThreeViewConsistency: threeViewConsistency,
         mascotFullAttempts: 0,
         fullMascotCompletedAt: new Date().toISOString(),
         fullMascotProgress: { views: 3, emotions: MASCOT_EMOTION_NAMES.length, scenes: MASCOT_SCENE_NAMES.length, total: totalImages, completed },

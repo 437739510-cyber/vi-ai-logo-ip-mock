@@ -1112,6 +1112,54 @@ async function main(): Promise<void> {
     `baseline=${baselineCount032} allPass=${baselineAllPass032}`
   );
 
+  // ===== 工单 033：三视图一致性（动态角色描述 + 7B 特征交叉比对） =====
+  const baselineCount033 = checks.length;
+  const baselineAllPass033 = checks.every((c) => c.pass);
+  const workerSrc033 = readFileSync("scripts/worker.mjs", "utf8");
+
+  check(
+    "033-1 角色描述由平台 AI 动态生成（worker 接入 extractMascotCharacterSpec；禁止手写硬编码角色模板）",
+    workerSrc033.includes("extractMascotCharacterSpec") &&
+      workerSrc033.includes("characterSpec") &&
+      workerSrc033.includes("toDataUriIfNeeded") &&
+      !/deer-human|rose gold|鹿娘|粉白长袍/.test(workerSrc033),
+    `spec=${workerSrc033.includes("extractMascotCharacterSpec")} fallback=${workerSrc033.includes("回退 styleAnchor")}`
+  );
+  check(
+    "033-2 三视图提示词复用同一段 AI 角色描述，仅视角措辞不同",
+    workerSrc033.includes("${characterSpec}") &&
+      workerSrc033.includes("front view facing camera") &&
+      workerSrc033.includes("side profile view") &&
+      workerSrc033.includes("seen from behind"),
+    `shared=${(workerSrc033.match(/\$\{characterSpec\}/g) || []).length}`
+  );
+  check(
+    "033-3 一致性判定接线：worker 调用 runThreeViewConsistencyCheck 并记录 mascotThreeViewConsistency",
+    workerSrc033.includes("runThreeViewConsistencyCheck") &&
+      workerSrc033.includes("mascotThreeViewConsistency"),
+    `gate=${workerSrc033.includes("runThreeViewConsistencyCheck")} saved=${workerSrc033.includes("mascotThreeViewConsistency")}`
+  );
+  const vision033 = await import("../src/lib/vision-check");
+  const sameFeat = { colors: ["pink", "white"], headwear: ["antlers"], hairstyle: ["long"], outfit: ["robe"], bodyType: ["slender"], accessories: [] };
+  const diffFeat = { colors: ["brown"], headwear: [], hairstyle: ["short"], outfit: ["shirt", "shorts"], bodyType: ["round"], accessories: [] };
+  const pass3v = vision033.decideThreeViewConsistency({ front: sameFeat, side: sameFeat, back: sameFeat });
+  const fail3v = vision033.decideThreeViewConsistency({ front: sameFeat, side: diffFeat, back: diffFeat });
+  const skip3v = vision033.decideThreeViewConsistency({ front: sameFeat, side: null, back: sameFeat });
+  check(
+    "033-4 三视图一致性纯函数判定：一致→passed、不一致→needs_review、特征缺失→skipped",
+    pass3v.status === "passed" &&
+      fail3v.status === "needs_review" &&
+      skip3v.status === "skipped" &&
+      vision033.mascotFeatureSimilarity(sameFeat, sameFeat) === 1 &&
+      vision033.parseMascotFeatures('```json\n{"colors":["pink"]}\n```')?.colors[0] === "pink",
+    `pass=${pass3v.status} fail=${fail3v.status} skip=${skip3v.status} sim=${vision033.mascotFeatureSimilarity(sameFeat, sameFeat).toFixed(2)}`
+  );
+  check(
+    "033-5 033 基线未削弱（追加前数量=74）",
+    baselineCount033 === 74 && baselineAllPass033,
+    `baseline=${baselineCount033} allPass=${baselineAllPass033}`
+  );
+
   console.log("=== 007 动态品牌规则定向回归 ===");
   for (const c of checks) {
     console.log(`${c.pass ? "PASS" : "FAIL"} ${c.name}${c.evidence ? `  | 证据: ${c.evidence}` : ""}`);
