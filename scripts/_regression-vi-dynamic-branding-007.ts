@@ -29,7 +29,7 @@ import { getMaterialSpecs } from "../src/lib/vi-manual/material-specs";
 import { getIndustryType } from "../src/lib/brand/industry-types";
 import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from "../src/lib/vi-manual/brand-visual-rules";
 import { MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from "../src/lib/vi-manual/mascot-assets";
-import { normalizeForCompare, extractExpectedText, looksGarbled } from "../src/lib/vision-check";
+import { normalizeForCompare, extractExpectedText, looksGarbled, stripDataUriPrefix } from "../src/lib/vision-check";
 
 const ONE_PX_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -888,6 +888,44 @@ async function main(): Promise<void> {
     "027-7 027 基线未削弱（追加前全部 PASS，数量=41：29+023×3+024×7+025×2）",
     baselineCount027 === 41 && baselineAllPass027,
     `baseline=${baselineCount027} allPass=${baselineAllPass027}`
+  );
+
+  // ============ 工单 029：校验门热修（data URI 剥离 / 探活重试 / 空 OCR→skipped / keep_alive=0 / ComfyUI 健康检查）============
+  const baselineCount029 = checks.length;
+  const baselineAllPass029 = checks.every((c) => c.pass);
+  const workerSrc029 = readFileSync("scripts/worker.mjs", "utf8");
+  const visionCheckSrc029 = readFileSync("src/lib/vision-check/index.ts", "utf8");
+  check(
+    "029-1 vision-check 剥离 data URI 前缀（Ollama 只收裸 base64）",
+    stripDataUriPrefix("data:image/png;base64,AAAA") === "AAAA" &&
+      stripDataUriPrefix("AAAA") === "AAAA" &&
+      visionCheckSrc029.includes("stripDataUriPrefix"),
+    `stripped=${stripDataUriPrefix("data:image/png;base64,AAAA")} raw=${stripDataUriPrefix("AAAA")}`
+  );
+  check(
+    "029-2 探活放宽（10s）＋1 次重试；OCR 调用 keep_alive=0",
+    visionCheckSrc029.includes("timeoutMs = 10000") &&
+      visionCheckSrc029.includes("for (let attempt = 0; attempt < 2; attempt++)") &&
+      visionCheckSrc029.includes("keep_alive: 0"),
+    `timeout=${visionCheckSrc029.includes("timeoutMs = 10000")} retry=${visionCheckSrc029.includes("attempt < 2")} keepAlive=${visionCheckSrc029.includes("keep_alive: 0")}`
+  );
+  check(
+    "029-3 空/乱码 OCR：重试后仍空 → skipped(ocr_empty)，不升级 needs_review",
+    visionCheckSrc029.includes("ocrWithRetry") &&
+      visionCheckSrc029.includes("ocr_empty") &&
+      visionCheckSrc029.includes("garbled"),
+    `retry=${visionCheckSrc029.includes("ocrWithRetry")} skip=${visionCheckSrc029.includes("ocr_empty")}`
+  );
+  check(
+    "029-4 worker 生图前 ComfyUI 健康检查（重活前确认可用）",
+    workerSrc029.includes("ComfyUI not available before generation") &&
+      workerSrc029.includes("isComfyUIAvailable()"),
+    `healthCheck=${workerSrc029.includes("ComfyUI not available before generation")}`
+  );
+  check(
+    "029-5 029 基线未削弱（追加前数量=48）",
+    baselineCount029 === 48 && baselineAllPass029,
+    `baseline=${baselineCount029} allPass=${baselineAllPass029}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");

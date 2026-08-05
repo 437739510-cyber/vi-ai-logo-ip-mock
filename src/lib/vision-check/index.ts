@@ -31,6 +31,15 @@ const OLLAMA_API = "http://127.0.0.1:11434";
 const OCR_PROMPT =
   "请把图片里面所有可见的汉字、拼音、英文全部逐字完整提取出来，不要总结描述，只输出图片上出现的文字。";
 
+/**
+ * 工单 029：剥离 data URI 前缀。Ollama 的 images 字段只接受裸 base64；
+ * 直接传 `data:image/png;base64,...` 会返回空 OCR（028 复现）。
+ */
+export function stripDataUriPrefix(image: string): string {
+  const m = /^data:[^;]+;base64,([\s\S]+)$/.exec(image);
+  return m ? m[1] : image;
+}
+
 function runCurl(
   args: string[],
   timeoutMs: number,
@@ -51,23 +60,33 @@ function runCurl(
   });
 }
 
-/** Ollama 服务是否可达（只探活，不占显存）。 */
-export async function isOllamaAvailable(timeoutMs = 2500): Promise<boolean> {
-  try {
-    const seconds = Math.max(1, Math.ceil(timeoutMs / 1000));
-    const r = await runCurl(["-sS", "-m", String(seconds), `${OLLAMA_API}/api/version`], timeoutMs + 500);
-    return r.code === 0 && r.stdout.includes("version");
-  } catch {
-    return false;
+/** Ollama 服务是否可达（只探活，不占显存）。工单 029：超时放宽到 10s，允许 1 次重试。 */
+export async function isOllamaAvailable(timeoutMs = 10000): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const seconds = Math.max(1, Math.ceil(timeoutMs / 1000));
+      const r = await runCurl(["-sS", "-m", String(seconds), `${OLLAMA_API}/api/version`], timeoutMs + 500);
+      if (r.code === 0 && r.stdout.includes("version")) {
+        return true;
+      }
+    } catch {
+      /* 重试一次 */
+    }
+    if (attempt === 0) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
   }
+  return false;
 }
 
 async function ocrWithModel(model: string, imageBase64: string): Promise<string> {
   const payload = {
     model,
     prompt: OCR_PROMPT,
-    images: [imageBase64],
+    images: [stripDataUriPrefix(imageBase64)],
     stream: false,
+    // 工单 029：校验后立即卸载模型，避免驻留显存与 ComfyUI 并发冲突。
+    keep_alive: 0,
     options: { temperature: 0, num_predict: 200 },
   };
   const tmpIn = path.join(os.tmpdir(), `vision-in-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
@@ -101,6 +120,31 @@ async function ocrWithModel(model: string, imageBase64: string): Promise<string>
     fs.promises.unlink(tmpIn).catch(() => {});
     fs.promises.unlink(tmpOut).catch(() => {});
   }
+}
+
+/**
+ * 工单 029：OCR 带 1 次重试。空/乱码结果视为 OCR 失败，返回 garbled=true，
+ * 由调用方决定重试/降级，绝不把“空 OCR”当作内容不合格。
+ */
+async function ocrWithRetry(
+  model: string,
+  imageBase64: string,
+): Promise<{ text: string; garbled: boolean }> {
+  let text = "";
+  try {
+    text = await ocrWithModel(model, imageBase64);
+  } catch {
+    text = "";
+  }
+  if (!looksGarbled(text)) {
+    return { text, garbled: false };
+  }
+  try {
+    text = await ocrWithModel(model, imageBase64);
+  } catch {
+    text = "";
+  }
+  return { text, garbled: looksGarbled(text) };
 }
 
 /**
@@ -179,20 +223,29 @@ export async function runLogoVisionCheck(opts: {
     return { ...base, reason: "ollama_unavailable" };
   }
 
-  let coarseText = "";
-  try {
-    coarseText = await ocrWithModel(coarseModel, opts.imageBase64);
-  } catch (e) {
-    return { ...base, reason: `coarse_error: ${(e as Error).message.slice(0, 120)}` };
+  const expectedNorm = normalizeForCompare(expectedText, mode);
+  const coarse = await ocrWithRetry(coarseModel, opts.imageBase64);
+  const coarseText = coarse.text;
+
+  if (coarse.garbled) {
+    // 空/乱码 OCR：给 7B 一次机会；仍空 → skipped(ocr_empty)，不升级 needs_review。
+    const fine = await ocrWithRetry(fineModel, opts.imageBase64);
+    if (fine.garbled) {
+      return { ...base, status: "skipped", reason: "ocr_empty", coarseText };
+    }
+    const fineNorm = normalizeForCompare(fine.text, mode);
+    if (fineNorm === expectedNorm) {
+      return { ...base, status: "passed", coarseText, fineText: fine.text };
+    }
+    return { ...base, status: "suspect", coarseText, fineText: fine.text };
   }
 
-  const expectedNorm = normalizeForCompare(expectedText, mode);
   const coarseNorm = normalizeForCompare(coarseText, mode);
-  if (!looksGarbled(coarseText) && coarseNorm === expectedNorm) {
+  if (coarseNorm === expectedNorm) {
     return { ...base, status: "passed", coarseText };
   }
 
-  // 疑似 → 7B 终审
+  // 有效 OCR 但与期望不符 → 7B 终审
   let fineText = "";
   try {
     fineText = await ocrWithModel(fineModel, opts.imageBase64);

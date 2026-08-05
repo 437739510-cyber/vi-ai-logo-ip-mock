@@ -348,6 +348,14 @@ async function processLogoGeneration(project) {
       const seed = Math.floor(Math.random() * 2147483647);
       try {
         log('INFO', `[LOGO] ${projectId}: Logo ${i + 1}/${logoPrompts.length} (attempt ${genRetries + 1}, seed=${seed})...`);
+        // 工单 029：重活前 ComfyUI 健康检查——避免与 Ollama 驻留/高负载叠加时挂起。
+        if (!(await isComfyUIAvailable())) {
+          log('WARN', `[LOGO] ${projectId}: ComfyUI 暂不可用，等待 5s 后重试 (attempt ${genRetries + 1})`);
+          await new Promise(r => setTimeout(r, 5000));
+          if (!(await isComfyUIAvailable())) {
+            throw new Error('ComfyUI not available before generation');
+          }
+        }
         const genResult = await comfyuiGenerateLogo({
           prompt: enhancedPrompt,
           negativePrompt,
