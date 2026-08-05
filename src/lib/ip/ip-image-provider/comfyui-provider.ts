@@ -306,10 +306,12 @@ export async function comfyGenerateLogo(options: {
   negativePrompt?: string;
   size?: string;
   mode?: "chinese" | "pinyin";
-}): Promise<{ imageUrl: string; durationMs: number; model: string; source: string }> {
+  seed?: number;
+}): Promise<{ imageUrl: string; durationMs: number; model: string; source: string; seed?: number }> {
   const size = parseSize(options.size || "1024x1024");
   const mode = options.mode === "pinyin" ? "pinyin" : "chinese";
-  const seed = Math.floor(Math.random() * 2_147_483_647);
+  // 工单 027：支持外部指定 seed（校验不合格重试时换 seed 重新生成）。
+  const seed = options.seed ?? Math.floor(Math.random() * 2_147_483_647);
   const logoNeg = options.negativePrompt ||
     "blurry, low quality, distorted text, photorealistic, 3d render, shadows, messy, watermark";
 
@@ -318,7 +320,7 @@ export async function comfyGenerateLogo(options: {
     const workflow = buildZTWorkflow(options.prompt, logoNeg, size.width, size.height, seed, mode);
     const { filename, durationMs } = await submitAndWait(workflow);
     const imageUrl = await readImageAsBase64(filename);
-    return { imageUrl, durationMs, model: mode === "pinyin" ? "z-image-turbo-Q4_K_M" : "z_image_turbo_nvfp4", source: "local" };
+    return { imageUrl, durationMs, model: mode === "pinyin" ? "z-image-turbo-Q4_K_M" : "z_image_turbo_nvfp4", source: "local", seed };
   } catch (ztErr) {
     console.warn("[comfyui] Z-Image Turbo failed, falling back to ARK:", (ztErr as Error).message.slice(0, 100));
     // 部署红线（Chris 2026-08-03）：生图必须本地完成，禁止回退到付费 ARK。
@@ -327,7 +329,7 @@ export async function comfyGenerateLogo(options: {
 
   // Fallback to ARK cloud
   const arkResult = await arkGenerate(options.prompt, logoNeg, size.width, size.height);
-  return { imageUrl: arkResult.imageUrl, durationMs: 0, model: arkResult.model, source: "ark" };
+  return { imageUrl: arkResult.imageUrl, durationMs: 0, model: arkResult.model, source: "ark", seed };
 
 }
 export async function comfyGenerateScene(options: {

@@ -26,6 +26,7 @@ import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from '../src/lib/vi-manual/brand-visual-rules';
 import { normalizeLogoTextLanguage } from '../src/lib/core/consultation-schema';
+import { runLogoVisionCheck, extractExpectedText } from '../src/lib/vision-check';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -39,6 +40,8 @@ const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const POLL_INTERVAL_MS = 10_000;
 const DEEPSEEK_TIMEOUT_MS = 60_000;
 const MAX_LOGO_GEN_RETRIES = 2;
+// 工单 027：Logo 视觉校验不合格时换 seed 重试次数（校验失败不计入生成重试）。
+const MAX_VISION_RETRIES = 2;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -326,36 +329,76 @@ async function processLogoGeneration(project) {
   const qualityNote = logoTextMode === 'chinese' && hanCount > 4
     ? '中文品牌名超过4字，中文渲染存在质量风险'
     : '';
+  // 工单 027：期望文本按 024 契约——中文=正式品牌名；拼音=从提示词提取 DeepSeek 写入的拼音。
+  const expectedText = extractExpectedText(logoPrompts[0], logoTextMode, normalizedCompanyName);
+  if (logoTextMode === 'pinyin' && !expectedText) {
+    log('WARN', `[LOGO] ${projectId}: 拼音模式但无法从提示词提取期望拼音，Logo 校验将降级为未初检`);
+  }
 
   for (let i = 0; i < logoPrompts.length; i++) {
     const rawPrompt = logoPrompts[i];
     const enhancedPrompt = rawPrompt + ', logo design on clean white background, centered composition';
     const negativePrompt = 'deformed, blurry, low quality, distorted, 3d render, shadow, gradient, complex background, watermark, text, extra limbs, bad anatomy';
 
-    let retries = 0;
+    let genRetries = 0;
+    let visionRetries = 0;
     let result = null;
 
-    while (retries <= MAX_LOGO_GEN_RETRIES && !result) {
+    while (genRetries <= MAX_LOGO_GEN_RETRIES && !result) {
+      const seed = Math.floor(Math.random() * 2147483647);
       try {
-        log('INFO', `[LOGO] ${projectId}: Logo ${i + 1}/${logoPrompts.length} (attempt ${retries + 1})...`);
+        log('INFO', `[LOGO] ${projectId}: Logo ${i + 1}/${logoPrompts.length} (attempt ${genRetries + 1}, seed=${seed})...`);
         const genResult = await comfyuiGenerateLogo({
           prompt: enhancedPrompt,
           negativePrompt,
           size: '1024x1024',
           mode: logoTextMode,
+          seed,
         });
+
+        // 工单 027：生成后自动视觉校验（Ollama 可用时）；不可用/无期望文本 → 未初检标记。
+        let vision = null;
+        if (genResult.imageUrl && expectedText) {
+          try {
+            vision = await runLogoVisionCheck({
+              imageBase64: genResult.imageUrl,
+              prompt: rawPrompt,
+              expectedText,
+              mode: logoTextMode,
+            });
+          } catch (e) {
+            vision = { status: 'skipped', reason: `vision_error: ${e.message.slice(0, 120)}`, mode: logoTextMode, expectedText, coarseModel: 'qwen2.5vl:3b', fineModel: 'my-vl' };
+          }
+          log('INFO', `[VISION] ${projectId}: Logo ${i + 1} ${vision.status}${vision.reason ? ` (${vision.reason})` : ''} (expected=${expectedText}${vision.fineText ? ` fine=${vision.fineText.slice(0, 60)}` : ''})`);
+          if (vision.status === 'suspect' && visionRetries < MAX_VISION_RETRIES) {
+            visionRetries++;
+            log('WARN', `[VISION] ${projectId}: Logo ${i + 1} 校验不合格，换 seed 重试 ${visionRetries}/${MAX_VISION_RETRIES}`);
+            await new Promise(r => setTimeout(r, 2000));
+            continue;
+          }
+          if (vision.status === 'suspect') {
+            vision = { ...vision, status: 'needs_review' };
+            log('WARN', `[VISION] ${projectId}: Logo ${i + 1} 重试后仍不合格，标记 needs_review（不静默交付）`);
+          }
+        } else if (genResult.imageUrl && !expectedText) {
+          vision = { status: 'skipped', reason: 'expected_text_unavailable', mode: logoTextMode, expectedText: '', coarseModel: 'qwen2.5vl:3b', fineModel: 'my-vl' };
+          log('WARN', `[VISION] ${projectId}: Logo ${i + 1} 无法校验（期望文本缺失），标记未初检`);
+        }
+
         result = {
           index: i,
           prompt: rawPrompt,
           imageUrl: genResult.imageUrl,
           model: genResult.model,
           durationMs: genResult.durationMs,
+          seed,
+          vision,
         };
-        log('INFO', `[LOGO] ${projectId}: Logo ${i + 1} OK (${genResult.durationMs}ms)`);
+        log('INFO', `[LOGO] ${projectId}: Logo ${i + 1} OK (${genResult.durationMs}ms${vision ? `, vision=${vision.status}` : ''})`);
       } catch (err) {
-        retries++;
-        log('WARN', `[LOGO] ${projectId}: Logo ${i + 1} failed (attempt ${retries}): ${err.message}`);
-        if (retries > MAX_LOGO_GEN_RETRIES) {
+        genRetries++;
+        log('WARN', `[LOGO] ${projectId}: Logo ${i + 1} failed (attempt ${genRetries}): ${err.message}`);
+        if (genRetries > MAX_LOGO_GEN_RETRIES) {
           result = { index: i, prompt: rawPrompt, imageUrl: null, error: err.message };
         }
         await new Promise(r => setTimeout(r, 3000));
@@ -372,7 +415,7 @@ async function processLogoGeneration(project) {
       freshCI.logoGenerationStatus = {
         total: logoPrompts.length,
         completed: i + 1,
-        results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
+        results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error, vision: r.vision })),
         startedAt: freshCI.logoGenerationStatus?.startedAt || new Date().toISOString(),
         ...(qualityNote ? { qualityNote } : {}),
       };
@@ -425,13 +468,13 @@ async function processLogoGeneration(project) {
           generationMessage: `Logo生成完成 (${successCount}/${logoPrompts.length})`,
           brandProfile: {
             ...finalBP,
-            logoGenerationResults: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
+            logoGenerationResults: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error, vision: r.vision })),
             logoGeneratedAt: new Date().toISOString(),
           },
           logoGenerationStatus: {
             total: logoPrompts.length,
             completed: logoPrompts.length,
-            results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error })),
+            results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error, vision: r.vision })),
             completedAt: new Date().toISOString(),
           },
         },

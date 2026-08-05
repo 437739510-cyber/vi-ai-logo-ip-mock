@@ -29,6 +29,7 @@ import { getMaterialSpecs } from "../src/lib/vi-manual/material-specs";
 import { getIndustryType } from "../src/lib/brand/industry-types";
 import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from "../src/lib/vi-manual/brand-visual-rules";
 import { MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from "../src/lib/vi-manual/mascot-assets";
+import { normalizeForCompare, extractExpectedText, looksGarbled } from "../src/lib/vision-check";
 
 const ONE_PX_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -829,6 +830,64 @@ async function main(): Promise<void> {
     "025-2 025 基线未削弱（追加前全部 PASS，数量=39：29+023×3+024×7）",
     baselineCount025 === 39 && baselineAllPass025,
     `baseline=${baselineCount025} allPass=${baselineAllPass025}`
+  );
+
+  // ============ 工单 027：生成后自动视觉校验门（Ollama 3B 粗筛 → 7B 终审）============
+  const baselineCount027 = checks.length;
+  const baselineAllPass027 = checks.every((c) => c.pass);
+  const workerSrc027 = readFileSync("scripts/worker.mjs", "utf8");
+  const providerSrc027 = readFileSync("src/lib/ip/ip-image-provider/comfyui-provider.ts", "utf8");
+  const visionCheckSrc027 = readFileSync("src/lib/vision-check/index.ts", "utf8");
+  check(
+    "027-1 归一化：中文只留汉字，拼音只留字母/数字（大小写不敏感）",
+    normalizeForCompare("老碗 碗香。", "chinese") === "老碗碗香" &&
+      normalizeForCompare("lao wan xiang.", "pinyin") === "LAOWANXIANG",
+    `cn=${normalizeForCompare("老碗 碗香。", "chinese")} en=${normalizeForCompare("lao wan xiang.", "pinyin")}`
+  );
+  check(
+    "027-2 期望文本按 024 契约：中文=正式品牌名；拼音=提示词内 DeepSeek 写入的拼音",
+    extractExpectedText("品牌Logo设计：中文品牌名「XXX」", "chinese", "老碗香") === "老碗香" &&
+      extractExpectedText("Text 'LAOWANXIANG' in bold sans-serif", "pinyin", "老碗香") === "LAOWANXIANG" &&
+      extractExpectedText("品牌Logo设计：拼音「LAOWANXIANG」", "pinyin", "老碗香") === "LAOWANXIANG" &&
+      extractExpectedText("品牌Logo设计：无拼音标记", "pinyin", "老碗香") === "",
+    `cn=${extractExpectedText("x", "chinese", "老碗香")} quoted=${extractExpectedText("Text 'LAOWANXIANG' in bold", "pinyin", "老碗香")} corner=${extractExpectedText("「LAOWANXIANG」", "pinyin", "老碗香")} missing=${extractExpectedText("无拼音", "pinyin", "老碗香")}`
+  );
+  check(
+    "027-3 乱码/空文本启发式：空、替换符、无汉字无字母均判为乱码",
+    looksGarbled("") && looksGarbled("老\uFFFD香") && looksGarbled("###！！！") &&
+      !looksGarbled("老碗香") && !looksGarbled("LAOWANXIANG"),
+    `empty=${looksGarbled("")} repl=${looksGarbled("老\uFFFD香")} junk=${looksGarbled("###！！！")} okCn=${!looksGarbled("老碗香")} okEn=${!looksGarbled("LAOWANXIANG")}`
+  );
+  check(
+    "027-4 worker 接线：接入 vision-check、needs_review/未初检处理、换 seed 重试",
+    workerSrc027.includes("runLogoVisionCheck") &&
+      workerSrc027.includes("extractExpectedText") &&
+      workerSrc027.includes("needs_review") &&
+      workerSrc027.includes("未初检") &&
+      workerSrc027.includes("MAX_VISION_RETRIES") &&
+      workerSrc027.includes("seed,"),
+    `import=${workerSrc027.includes("runLogoVisionCheck")} needsReview=${workerSrc027.includes("needs_review")} unChecked=${workerSrc027.includes("未初检")}`
+  );
+  check(
+    "027-5 provider 支持 seed 重试（comfyGenerateLogo 透传 seed）",
+    providerSrc027.includes("seed?: number") &&
+      providerSrc027.includes("options.seed ?? Math.floor(Math.random()") &&
+      providerSrc027.includes("seed,"),
+    `seedOpt=${providerSrc027.includes("seed?: number")} passThrough=${providerSrc027.includes("options.seed ??")}`
+  );
+  check(
+    "027-6 vision-check 模块默认 3B 粗筛 + my-vl 7B 终审 + Ollama 不可用降级 skipped",
+    visionCheckSrc027.includes('"qwen2.5vl:3b"') &&
+      visionCheckSrc027.includes('"my-vl"') &&
+      visionCheckSrc027.includes("ollama_unavailable") &&
+      visionCheckSrc027.includes("expected_text_unavailable") &&
+      visionCheckSrc027.includes("curl.exe"),
+    `coarse=${visionCheckSrc027.includes('"qwen2.5vl:3b"')} fine=${visionCheckSrc027.includes('"my-vl"')} skip=${visionCheckSrc027.includes("ollama_unavailable")}`
+  );
+  check(
+    "027-7 027 基线未削弱（追加前全部 PASS，数量=41：29+023×3+024×7+025×2）",
+    baselineCount027 === 41 && baselineAllPass027,
+    `baseline=${baselineCount027} allPass=${baselineAllPass027}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");
