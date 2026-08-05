@@ -988,6 +988,130 @@ async function main(): Promise<void> {
     `baseline=${baselineCount030} allPass=${baselineAllPass030}`
   );
 
+  // ============ 工单 031：校验门扩展到公仔（样稿/全套）与场景批次 ============
+  const baselineCount031 = checks.length;
+  const baselineAllPass031 = checks.every((c) => c.pass);
+  const visionSrc031 = readFileSync("src/lib/vision-check/index.ts", "utf8");
+  const workerSrc031 = readFileSync("scripts/worker.mjs", "utf8");
+  check(
+    "031-1 vision-check 新增公仔完整性判定与场景文字+清晰度判定",
+    visionSrc031.includes("runMascotVisionCheck") &&
+      visionSrc031.includes("runSceneVisionCheck") &&
+      visionSrc031.includes("parseMascotJson") &&
+      visionSrc031.includes("singleSubject") &&
+      visionSrc031.includes("whiteBackground") &&
+      visionSrc031.includes("noWatermark") &&
+      visionSrc031.includes("CLARITY_PROMPT"),
+    `mascot=${visionSrc031.includes("runMascotVisionCheck")} scene=${visionSrc031.includes("runSceneVisionCheck")} clarity=${visionSrc031.includes("CLARITY_PROMPT")}`
+  );
+  check(
+    "031-2 worker 公仔样稿/全套/场景三阶段接入批次循环＋对应校验",
+    workerSrc031.includes("label: 'MascotSample'") &&
+      workerSrc031.includes("label: 'MascotFull'") &&
+      workerSrc031.includes("label: 'Scene'") &&
+      workerSrc031.includes("runMascotVisionCheck") &&
+      workerSrc031.includes("runSceneVisionCheck") &&
+      workerSrc031.includes("sceneVision"),
+    `sample=${workerSrc031.includes("label: 'MascotSample'")} full=${workerSrc031.includes("label: 'MascotFull'")} scene=${workerSrc031.includes("label: 'Scene'")}`
+  );
+  check(
+    "031-3 批次模块支持资产类型标签（label 参数，默认 Logo 日志不变）",
+    batchSrc030.includes("label = 'Logo'") && batchSrc030.includes("label.toUpperCase()"),
+    `label=${batchSrc030.includes("label = 'Logo'")}`
+  );
+  check(
+    "031-4 公仔校验不做逐字匹配；空/乱码仍按 029 约定降级 skipped",
+    visionSrc031.includes("mascotEval") &&
+      visionSrc031.includes("reason: \"ocr_empty\"") &&
+      visionSrc031.includes("不做逐字匹配"),
+    `eval=${visionSrc031.includes("mascotEval")} skip=${visionSrc031.includes("reason: \"ocr_empty\"")}`
+  );
+  check(
+    "031-5 031 基线未削弱（追加前数量=60）",
+    baselineCount031 === 60 && baselineAllPass031,
+    `baseline=${baselineCount031} allPass=${baselineAllPass031}`
+  );
+
+  // ============ 工单 032：公仔全套失败→弹回样稿死循环修复＋资产持久化完整性 ============
+  const baselineCount032 = checks.length;
+  const baselineAllPass032 = checks.every((c) => c.pass);
+  const workerSrc032 = readFileSync("scripts/worker.mjs", "utf8");
+  check(
+    "032-1 全套存储路径 ASCII 化（不再用中文 item.name，避免上传静默失败）",
+    !/mascot-\$\{item\.cat\}-\$\{item\.name\}/.test(workerSrc032) &&
+      workerSrc032.includes("mascot-${item.cat}-${i}-${Date.now()}.png"),
+    `asciiPath=${workerSrc032.includes("mascot-${item.cat}-${i}-${Date.now()}.png")}`
+  );
+  check(
+    "032-2 进度计数按实际项数（totalImages = allItems.length，无 +1 偏差）",
+    workerSrc032.includes("const totalImages = allItems.length;"),
+    `total=${workerSrc032.includes("const totalImages = allItems.length;")}`
+  );
+  check(
+    "032-3 上传失败留痕（不再静默跳过）",
+    workerSrc032.includes("Upload error for") && workerSrc032.includes("error.message"),
+    `uploadLog=${workerSrc032.includes("Upload error for")}`
+  );
+  check(
+    "032-4 全套场景项跳过白底判定（与样稿一致，避免场景图误报）",
+    workerSrc032.includes("requireWhiteBackground: (allItems[index] || {}).cat !== \"scene\""),
+    `sceneNoWhiteBg=${workerSrc032.includes("cat !== \"scene\"")}`
+  );
+  check(
+    "032-5 全套不完整→自动重试≤2 次→needs_review，绝不写 pending_manual/弹回样稿",
+    workerSrc032.includes("generationStatus: retry ? \"mascot_full_generating\" : \"needs_review\"") &&
+      workerSrc032.includes("shouldRetryMascotFull") &&
+      workerSrc032.includes("nextMascotFullAttempt") &&
+      workerSrc032.includes("fullMascotMissing"),
+    `branch=${workerSrc032.includes("generationStatus: retry ? \"mascot_full_generating\" : \"needs_review\"")} missing=${workerSrc032.includes("fullMascotMissing")}`
+  );
+  check(
+    "032-6 手册门弹回样稿加次数上限（>2 次转 needs_review，杜绝死循环）",
+    workerSrc032.includes("mascotSampleAttempts") &&
+      workerSrc032.includes("stopLoop") &&
+      workerSrc032.includes("generationStatus: stopLoop ? 'needs_review' : 'mascot_generating'"),
+    `cap=${workerSrc032.includes("mascotSampleAttempts")} stop=${workerSrc032.includes("stopLoop")}`
+  );
+  const mascotAssets032 = await import("../src/lib/vi-manual/mascot-assets");
+  check(
+    "032-7 mascot-assets 重试上限纯函数（≤2 重试、>2 转人工、递增容错）",
+    mascotAssets032.MASCOT_FULL_RETRY_LIMIT === 2 &&
+      mascotAssets032.nextMascotFullAttempt(undefined) === 1 &&
+      mascotAssets032.nextMascotFullAttempt(1) === 2 &&
+      mascotAssets032.shouldRetryMascotFull(1) === true &&
+      mascotAssets032.shouldRetryMascotFull(2) === true &&
+      mascotAssets032.shouldRetryMascotFull(3) === false,
+    `limit=${mascotAssets032.MASCOT_FULL_RETRY_LIMIT} next=${mascotAssets032.nextMascotFullAttempt(1)} retry3=${mascotAssets032.shouldRetryMascotFull(3)}`
+  );
+  const completeAssets = {
+    name: "测试",
+    front: "https://x/1.png",
+    side: "https://x/2.png",
+    back: "https://x/3.png",
+    emotions: Array.from({ length: 8 }, (_, i) => ({ name: "e" + i, url: "https://x/e" + i + ".png" })),
+    scenes: Array.from({ length: 4 }, (_, i) => ({ name: "s" + i, url: "https://x/s" + i + ".png" })),
+  };
+  const incompleteAssets = {
+    name: "测试",
+    front: "https://x/1.png",
+    side: "",
+    back: "https://x/3.png",
+    emotions: [{ name: "e1", url: "" }],
+    scenes: [],
+  };
+  const vComplete = mascotAssets032.validateMascotAssets({ assets: completeAssets });
+  const vIncomplete = mascotAssets032.validateMascotAssets({ assets: incompleteAssets });
+  check(
+    "032-8 validateMascotAssets：完整资产 ready、缺 URL 资产不 ready",
+    vComplete.ready === true && vIncomplete.ready === false && vIncomplete.missing.includes("mascot.side"),
+    `complete=${vComplete.ready} incomplete=${!vIncomplete.ready} missing=${vIncomplete.missing.join(",")}`
+  );
+  check(
+    "032-9 032 基线未削弱（追加前数量=65）",
+    baselineCount032 === 65 && baselineAllPass032,
+    `baseline=${baselineCount032} allPass=${baselineAllPass032}`
+  );
+
   console.log("=== 007 动态品牌规则定向回归 ===");
   for (const c of checks) {
     console.log(`${c.pass ? "PASS" : "FAIL"} ${c.name}${c.evidence ? `  | 证据: ${c.evidence}` : ""}`);

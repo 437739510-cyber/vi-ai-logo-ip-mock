@@ -11,6 +11,22 @@ export const MASCOT_VIEW_MIN = 3;
 export const MASCOT_EMOTIONS_MIN = 8;
 export const MASCOT_SCENES_MIN = 4;
 
+/**
+ * 工单 032：公仔全套失败后的自动重试上限（超过后转人工，不再弹回样稿，
+ * 杜绝「全套不完整→弹回样稿→再全套」死循环）。
+ */
+export const MASCOT_FULL_RETRY_LIMIT = 2;
+
+/** 递增公仔全套重试次数（容错空/非法值）。 */
+export function nextMascotFullAttempt(current: number | null | undefined): number {
+  return (typeof current === "number" && Number.isFinite(current) ? current : 0) + 1;
+}
+
+/** 是否允许继续自动重试全套（≤上限则重试，否则转人工）。 */
+export function shouldRetryMascotFull(attempt: number): boolean {
+  return attempt <= MASCOT_FULL_RETRY_LIMIT;
+}
+
 /** 完整公仔生成器统一使用的 8 个通用中文表情。 */
 export const MASCOT_EMOTION_NAMES = [
   "微笑",

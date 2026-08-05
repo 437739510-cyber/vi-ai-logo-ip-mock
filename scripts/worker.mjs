@@ -18,15 +18,14 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { comfyuiGenerateLogo, comfyuiGenerateScene, comfyGenerateImage, isComfyUIAvailable } from '../src/lib/ip/ip-image-provider/comfyui-provider';
-import { arkGenerate } from '../src/lib/ip/ip-image-provider/ark-fallback';
 import { planPages } from '../src/lib/vi-manual/page-planner';
 import { renderPptxToBuffer } from '../src/lib/pptx/render-pptx';
 import { normalizeBrandName } from '../src/lib/vi-manual/brand-name-normalizer';
-import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from '../src/lib/vi-manual/mascot-assets';
+import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES, nextMascotFullAttempt, shouldRetryMascotFull } from '../src/lib/vi-manual/mascot-assets';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from '../src/lib/vi-manual/brand-visual-rules';
 import { normalizeLogoTextLanguage } from '../src/lib/core/consultation-schema';
-import { runLogoVisionCheck, extractExpectedText } from '../src/lib/vision-check';
+import { runLogoVisionCheck, runMascotVisionCheck, runSceneVisionCheck, extractExpectedText } from '../src/lib/vision-check';
 // 工单 030：ComfyUI 健康门与生命周期（崩溃探测→自动重启→就绪→冷却）。
 import { ensureComfyUIReady, gpuSnapshot } from './_comfyui-lifecycle.mjs';
 // 工单 030：Logo 批次循环编排（生成→统一校验→不合格下一轮统一重生成）。
@@ -478,12 +477,17 @@ async function processManualGeneration(project) {
   const includeMascot = mascotGate.include;
 
   if (clientInfo.wantMascot === 'yes' && !includeMascot) {
+    // 工单 032：弹回样稿加次数上限，超过上限转人工，杜绝无限循环。
+    const sampleAttempts = (typeof clientInfo.mascotSampleAttempts === 'number' ? clientInfo.mascotSampleAttempts : 0) + 1;
+    const stopLoop = sampleAttempts > 2;
+    log(stopLoop ? 'ERROR' : 'WARN', `[MANUAL] ${projectId}: IP 素材不完整（弹回次数 ${sampleAttempts}）${stopLoop ? '，超过上限转人工，不再弹回样稿' : ''}`);
     await supabase.from('projects').update({
       status: 'submitted',
       client_info: {
         ...clientInfo,
-        generationStatus: 'mascot_generating',
-        generationMessage: 'IP 素材不完整，暂不渲染VI手册',
+        generationStatus: stopLoop ? 'needs_review' : 'mascot_generating',
+        generationMessage: stopLoop ? 'IP 素材多次不完整，等待人工处理' : 'IP 素材不完整，暂不渲染VI手册',
+        mascotSampleAttempts: sampleAttempts,
         mascotMissing: mascotGate.result?.missing || [],
         mascotCounts: mascotGate.result?.counts,
       },
@@ -566,22 +570,46 @@ async function processManualGeneration(project) {
     return;
   }
 
-  for (const sp of scenePrompts) {
-    try {
-      log('INFO', `[MANUAL] ${projectId}: Scene ${sp.key}...`);
-      const result = await comfyuiGenerateScene({
-        prompt: sp.prompt,
-        negativePrompt: 'blurry, low quality, distorted, watermark, text overlay',
-        size: '1024x1024',
-      });
-      if (result.imageUrl) {
-        sceneImages[sp.key] = result.imageUrl;
-        log('INFO', `[MANUAL] ${projectId}: Scene ${sp.key} OK (${result.durationMs || '?'}ms)`);
-      }
-    } catch (err) {
-      log('WARN', `[MANUAL] ${projectId}: Scene ${sp.key} failed: ${err.message}, using placeholder`);
-    }
+  // 工单 031：场景批次循环＋统一校验（品牌文字按 024 契约；空/乱码→skipped）
+  const sceneTextMode = (clientInfo.logoTextLanguage === 'pinyin') ? 'pinyin' : 'chinese';
+  const sceneExpectedText = extractExpectedText(scenePrompts[0]?.prompt, sceneTextMode, normalizedCompanyName);
+  const { results: sceneResults, paused: scenePaused } = await runLogoBatchFlow({
+    prompts: scenePrompts.map((p) => p.prompt),
+    generate: async ({ prompt }) => comfyuiGenerateScene({
+      prompt,
+      negativePrompt: 'blurry, low quality, distorted, watermark, text overlay',
+      size: '1024x1024',
+    }),
+    check: async ({ imageBase64 }) => runSceneVisionCheck({ imageBase64, expectedText: sceneExpectedText, mode: sceneTextMode }),
+    ensureReady: () => ensureComfyUIReady({ log }),
+    isAvailable: () => isComfyUIAvailable(),
+    log,
+    gpuSnapshot,
+    maxRounds: 2,
+    maxAttempts: 3,
+    retryGapMs: 30000,
+    label: 'Scene',
+  });
+  if (scenePaused) {
+    log('WARN', `[MANUAL] ${projectId}: 场景批次已暂停（ComfyUI 不可用），稍后重试`);
+    await supabase.from('projects').update({
+      client_info: { ...clientInfo, generationStatus: 'pending_manual', generationMessage: 'ComfyUI 不可用，场景批次已暂停，等待重试' },
+      updated_at: new Date().toISOString(),
+    }).eq('id', projectId);
+    return;
   }
+  const sceneVision = {};
+  scenePrompts.forEach((sp, i) => {
+    const r = sceneResults[i];
+    sceneVision[sp.key] = (r && r.vision && r.vision.status) || (r && r.status) || 'failed';
+    if (r && r.imageUrl) {
+      sceneImages[sp.key] = r.imageUrl;
+      log('INFO', `[MANUAL] ${projectId}: Scene ${sp.key} OK (${r.durationMs || '?'}ms, vision=${sceneVision[sp.key]})`);
+    } else {
+      log('WARN', `[MANUAL] ${projectId}: Scene ${sp.key} 未生成/未通过校验，using placeholder`);
+    }
+  });
+  clientInfo.sceneVision = sceneVision;
 
   // Update progress
   await supabase.from('projects').update({
@@ -817,30 +845,46 @@ async function processMascotSampleGeneration(project) {
       prompt: `3D Pixar style super-deformed chibi brand mascot for ${companyName}, ${industry} industry, extra large head, tiny body, ultra cute, round soft shapes, full body front view, white background` },
   ];
 
-  const samples = [];
-  for (const sp of stylePrompts) {
-    log("INFO", `[MASCOT-SAMPLE] ${projectId}: Generating sample ${sp.id} (${sp.label})...`);
-    let imageUrl = null;
-    try {
-      const result = await comfyGenerateImage({
-        prompt: sp.prompt,
-        negativePrompt: "blurry, low quality, distorted, deformed, ugly, watermark, extra limbs, bad anatomy",
-        width: 1024,
-        height: 1024,
-      });
-      imageUrl = result.imageUrl;
-    } catch (err) {
-      log("WARN", `[MASCOT-SAMPLE] ${projectId}: ComfyUI failed for ${sp.id}: ${err.message}, trying ARK...`);
-      // 部署红线（Chris 2026-08-03）：生图必须本地完成，禁止回退到付费 ARK。
-      if ((process.env.COMFYUI_DISABLE_ARK_FALLBACK || "").trim() === "1") throw err;
-      try {
-        const arkResult = await arkGenerate(sp.prompt, "blurry, low quality, distorted", 1024, 1024);
-        imageUrl = arkResult.imageUrl;
-      } catch (arkErr) {
-        log("ERROR", `[MASCOT-SAMPLE] ${projectId}: ARK also failed for ${sp.id}: ${arkErr.message}`);
-      }
-    }
+  // 工单 031：公仔样稿批次循环＋完整性统一校验（3B粗筛→7B终审；不逐字匹配）
+  const negativePrompt = "blurry, low quality, distorted, deformed, ugly, watermark, extra limbs, bad anatomy";
+  const { results: sampleResults, paused: batchPaused } = await runLogoBatchFlow({
+    prompts: stylePrompts.map((p) => p.prompt),
+    generate: async ({ prompt }) => comfyGenerateImage({ prompt, negativePrompt, width: 1024, height: 1024 }),
+    check: async ({ imageBase64, index }) =>
+      runMascotVisionCheck({
+        imageBase64,
+        // 工单 031 补验：场景图天然非纯白背景，跳过 whiteBackground 判定
+        requireWhiteBackground: (allItems[index] || {}).cat !== "scene",
+      }),
+    ensureReady: () => ensureComfyUIReady({ log }),
+    isAvailable: () => isComfyUIAvailable(),
+    log,
+    gpuSnapshot,
+    maxRounds: 2,
+    maxAttempts: 3,
+    retryGapMs: 30000,
+    label: 'MascotSample',
+  });
 
+  if (batchPaused) {
+    log("ERROR", `[MASCOT-SAMPLE] ${projectId}: 批次已暂停（ComfyUI 不可用），等待人工处理`);
+    await supabase.from("projects").update({
+      status: "submitted",
+      client_info: {
+        ...clientInfo,
+        generationStatus: "paused_comfyui",
+        generationMessage: "ComfyUI 不可用，公仔样稿批次已暂停，等待人工处理",
+      },
+      updated_at: new Date().toISOString(),
+    }).eq("id", projectId);
+    return;
+  }
+
+  const samples = [];
+  for (let i = 0; i < stylePrompts.length; i++) {
+    const sp = stylePrompts[i];
+    const r = sampleResults[i];
+    const imageUrl = (r && r.imageUrl) || null;
     let publicUrl = null;
     if (imageUrl && imageUrl.startsWith("data:")) {
       try {
@@ -861,8 +905,10 @@ async function processMascotSampleGeneration(project) {
         log("WARN", `[MASCOT-SAMPLE] ${projectId}: Upload failed for ${sp.id}: ${e.message}`);
       }
     }
-
-    samples.push({ id: sp.id, label: sp.label, desc: sp.desc, imageUrl: publicUrl || (imageUrl || "") });
+    if (r && r.vision && r.vision.status === "needs_review") {
+      log("WARN", `[MASCOT-SAMPLE] ${projectId}: sample ${sp.id} 重试轮后仍 suspect，标记 needs_review（不静默交付）`);
+    }
+    samples.push({ id: sp.id, label: sp.label, desc: sp.desc, imageUrl: publicUrl || (imageUrl || ""), vision: (r && r.vision) || null, status: (r && r.status) || "failed" });
   }
 
   const successCount = samples.filter(s => s.imageUrl).length;
@@ -875,6 +921,7 @@ async function processMascotSampleGeneration(project) {
         generationStatus: "mascot_samples_ready",
         generationMessage: `IP\u516c\u4ed4\u6837\u7a3f\u751f\u6210\u5b8c\u6210 (${successCount}/4)`,
         mascotSamples: samples,
+        mascotVisionSummary: samples.map(s => ({ id: s.id, status: s.status, vision: s.vision ? s.vision.status : null })),
         mascotGeneratedAt: new Date().toISOString(),
       },
       updated_at: new Date().toISOString(),
@@ -924,53 +971,90 @@ async function processMascotFullGeneration(project) {
     { name: MASCOT_SCENE_NAMES[3], prompt: `3D Pixar style brand mascot for ${companyName}, ${industry} industry, ${styleAnchor}, brand colors ${colorDesc}, mascot in social media banner and avatar context on digital screen, social interaction context` },
   ];
 
-  const totalImages = views.length + emotions.length + scenes.length + 1;
+  // 工单 031：公仔全套批次循环＋完整性统一校验（15 张：3 视图＋8 表情＋4 场景）
+  const allItems = [
+    ...views.map((v) => ({ cat: "view", name: v.name, prompt: v.prompt })),
+    ...emotions.map((e) => ({ cat: "emotion", name: e.name, prompt: e.prompt })),
+    ...scenes.map((s) => ({ cat: "scene", name: s.name, prompt: s.prompt })),
+  ];
+  // 工单 032：进度计数按实际项数（3 视图＋8 表情＋4 场景 = 15），修正旧的 +1 偏差。
+  const totalImages = allItems.length;
+  const { results: fullResults, paused: batchPaused } = await runLogoBatchFlow({
+    prompts: allItems.map((it) => it.prompt),
+    generate: async ({ prompt }) => comfyGenerateImage({
+      prompt,
+      negativePrompt: "blurry, low quality, distorted, deformed, ugly, watermark, extra limbs, bad anatomy",
+      width: 1024,
+      height: 1024,
+    }),
+    // 工单 032：全套场景项跳过白底判定（与样稿一致），避免场景图误报 needs_review。
+    check: async ({ imageBase64, index }) =>
+      runMascotVisionCheck({
+        imageBase64,
+        requireWhiteBackground: (allItems[index] || {}).cat !== "scene",
+      }),
+    ensureReady: () => ensureComfyUIReady({ log }),
+    isAvailable: () => isComfyUIAvailable(),
+    log,
+    gpuSnapshot,
+    maxRounds: 2,
+    maxAttempts: 3,
+    retryGapMs: 30000,
+    label: 'MascotFull',
+  });
+
+  if (batchPaused) {
+    log("ERROR", `[MASCOT-FULL] ${projectId}: 批次已暂停（ComfyUI 不可用），等待人工处理`);
+    await supabase.from("projects").update({
+      status: "submitted",
+      client_info: {
+        ...clientInfo,
+        generationStatus: "paused_comfyui",
+        generationMessage: "ComfyUI 不可用，公仔全套批次已暂停，等待人工处理",
+      },
+      updated_at: new Date().toISOString(),
+    }).eq("id", projectId);
+    return;
+  }
+
+  const viewResults = {};
+  const emotionResults = [];
+  const sceneResults = [];
+  const mascotVision = {};
   let completed = 0;
-
-  async function generateAndUpload(category, name, prompt) {
-    log("INFO", `[MASCOT-FULL] ${projectId}: ${category}-${name} (${completed + 1}/${totalImages})...`);
-    let imageUrl = null;
-    try {
-      const result = await comfyGenerateImage({
-        prompt,
-        negativePrompt: "blurry, low quality, distorted, deformed, ugly, watermark, extra limbs, bad anatomy",
-        width: 1024,
-        height: 1024,
-      });
-      imageUrl = result.imageUrl;
-    } catch (err) {
-      log("WARN", `[MASCOT-FULL] ${projectId}: ComfyUI failed for ${category}-${name}: ${err.message}, trying ARK...`);
-      // 部署红线（Chris 2026-08-03）：生图必须本地完成，禁止回退到付费 ARK。
-      if ((process.env.COMFYUI_DISABLE_ARK_FALLBACK || "").trim() === "1") throw err;
-      try {
-        const arkResult = await arkGenerate(prompt, "blurry, low quality, distorted", 1024, 1024);
-        imageUrl = arkResult.imageUrl;
-      } catch (arkErr) {
-        log("ERROR", `[MASCOT-FULL] ${projectId}: ARK also failed for ${category}-${name}: ${arkErr.message}`);
-      }
-    }
-
+  for (let i = 0; i < allItems.length; i++) {
+    const item = allItems[i];
+    const r = fullResults[i];
     let publicUrl = "";
+    const imageUrl = (r && r.imageUrl) || null;
     if (imageUrl && imageUrl.startsWith("data:")) {
       try {
         const matches = imageUrl.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
         if (matches) {
           const buffer = Buffer.from(matches[2], "base64");
-          const storagePath = `${projectId}/mascot-${category}-${name}-${Date.now()}.png`;
+          // 工单 032：存储路径用 ASCII 序号（item.name 为中文时 Supabase 上传会
+          // 静默失败，导致 emotions/scenes URL 为空 → 手册门不通过 → 弹回样稿死循环）。
+          const storagePath = `${projectId}/mascot-${item.cat}-${i}-${Date.now()}.png`;
           const { error } = await supabase.storage
             .from("brand-brain-generated")
             .upload(storagePath, buffer, { contentType: "image/png", upsert: true });
           if (!error) {
             const { data } = supabase.storage.from("brand-brain-generated").getPublicUrl(storagePath);
             publicUrl = data.publicUrl;
-            log("INFO", `[MASCOT-FULL] ${projectId}: Uploaded ${category}-${name} -> ${publicUrl}`);
+            log("INFO", `[MASCOT-FULL] ${projectId}: Uploaded ${item.cat}-${item.name} -> ${publicUrl}`);
+          } else {
+            // 工单 032：上传失败必须留痕，不能静默跳过。
+            log("WARN", `[MASCOT-FULL] ${projectId}: Upload error for ${item.cat}-${item.name}: ${error.message}`);
           }
         }
       } catch (e) {
-        log("WARN", `[MASCOT-FULL] ${projectId}: Upload failed for ${category}-${name}: ${e.message}`);
+        log("WARN", `[MASCOT-FULL] ${projectId}: Upload failed for ${item.cat}-${item.name}: ${e.message}`);
       }
     }
-
+    mascotVision[`${item.cat}-${item.name}`] = (r && r.vision && r.vision.status) || (r && r.status) || "failed";
+    if (r && r.vision && r.vision.status === "needs_review") {
+      log("WARN", `[MASCOT-FULL] ${projectId}: ${item.cat}-${item.name} 重试轮后仍 suspect，标记 needs_review（不静默交付）`);
+    }
     completed++;
     try {
       await supabase.from("projects").update({
@@ -983,24 +1067,9 @@ async function processMascotFullGeneration(project) {
         updated_at: new Date().toISOString(),
       }).eq("id", projectId);
     } catch { /* non-critical */ }
-
-    return publicUrl;
-  }
-
-  const viewResults = {};
-  for (const v of views) {
-    viewResults[v.name] = await generateAndUpload("view", v.name, v.prompt);
-    await new Promise(r => setTimeout(r, 2000));
-  }
-  const emotionResults = [];
-  for (const e of emotions) {
-    emotionResults.push({ name: e.name, url: await generateAndUpload("emotion", e.name, e.prompt) });
-    await new Promise(r => setTimeout(r, 2000));
-  }
-  const sceneResults = [];
-  for (const s of scenes) {
-    sceneResults.push({ name: s.name, url: await generateAndUpload("scene", s.name, s.prompt) });
-    await new Promise(r => setTimeout(r, 2000));
+    if (item.cat === "view") viewResults[item.name] = publicUrl;
+    else if (item.cat === "emotion") emotionResults.push({ name: item.name, url: publicUrl });
+    else sceneResults.push({ name: item.name, url: publicUrl });
   }
 
   const mascotAssets = {
@@ -1013,7 +1082,52 @@ async function processMascotFullGeneration(project) {
     threeView: "",
   };
 
-  log("INFO", `[MASCOT-FULL] ${projectId}: ${completed}/${totalImages} generated. Setting pending_manual...`);
+  // 工单 032：全套完成后先校验资产完整性；不完整时自动重试（≤2 次）后转人工，
+  // 绝不写 pending_manual（避免手册门弹回样稿造成死循环）。
+  const validation = validateMascotAssets({ assets: { ...mascotAssets, name: clientInfo.mascotName || "" } });
+  const missingGenerated = validation.missing.filter((m) => m !== "mascot.name");
+  if (missingGenerated.length > 0) {
+    const attempt = nextMascotFullAttempt(clientInfo.mascotFullAttempts);
+    const retry = shouldRetryMascotFull(attempt);
+    log(retry ? "WARN" : "ERROR",
+      `[MASCOT-FULL] ${projectId}: 全套资产不完整 ${validation.missing.join(",")} (attempt ${attempt})${retry ? "，自动重试全套" : "，超过上限转人工，不再弹回样稿"}`);
+    await supabase.from("projects").update({
+      status: "submitted",
+      client_info: {
+        ...clientInfo,
+        generationStatus: retry ? "mascot_full_generating" : "needs_review",
+        generationMessage: retry
+          ? `公仔全套资产不完整，自动重试第 ${attempt} 次`
+          : "公仔全套多次不完整，等待人工处理",
+        mascotFullAttempts: attempt,
+        mascotAssets,
+        mascotVision,
+        fullMascotMissing: validation.missing,
+      },
+      updated_at: new Date().toISOString(),
+    }).eq("id", projectId);
+    return;
+  }
+  if (!validation.ready) {
+    // 仅缺 name 等非生成项：不重试生成，直接转人工。
+    log("ERROR", `[MASCOT-FULL] ${projectId}: 公仔名称缺失，转人工处理 ${validation.missing.join(",")}`);
+    await supabase.from("projects").update({
+      status: "submitted",
+      client_info: {
+        ...clientInfo,
+        generationStatus: "needs_review",
+        generationMessage: "公仔名称缺失，等待人工处理",
+        mascotFullAttempts: 0,
+        mascotAssets,
+        mascotVision,
+        fullMascotMissing: validation.missing,
+      },
+      updated_at: new Date().toISOString(),
+    }).eq("id", projectId);
+    return;
+  }
+
+  log("INFO", `[MASCOT-FULL] ${projectId}: ${completed}/${totalImages} generated, assets complete. Setting pending_manual...`);
 
   try {
     await supabase.from("projects").update({
@@ -1023,6 +1137,8 @@ async function processMascotFullGeneration(project) {
         generationStatus: "pending_manual",
         generationMessage: "IP\u516c\u4ed4\u5168\u5957\u751f\u6210\u5b8c\u6210\uff0c\u5f00\u59cb\u5236\u4f5cVI\u624b\u518c",
         mascotAssets,
+        mascotVision,
+        mascotFullAttempts: 0,
         fullMascotCompletedAt: new Date().toISOString(),
         fullMascotProgress: { views: 3, emotions: MASCOT_EMOTION_NAMES.length, scenes: MASCOT_SCENE_NAMES.length, total: totalImages, completed },
       },

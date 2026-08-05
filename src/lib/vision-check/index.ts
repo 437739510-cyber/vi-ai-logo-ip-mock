@@ -30,6 +30,10 @@ export interface VisionCheckResult {
 const OLLAMA_API = "http://127.0.0.1:11434";
 const OCR_PROMPT =
   "请把图片里面所有可见的汉字、拼音、英文全部逐字完整提取出来，不要总结描述，只输出图片上出现的文字。";
+const MASCOT_CHECK_PROMPT =
+  '请评估这张3D卡通公仔图的完整性，只输出JSON：{"complete":true或false,"singleSubject":true或false,"whiteBackground":true或false,"noWatermark":true或false,"reason":"一句话"}。检查：1)主体是否完整（无缺肢、畸形、多肢体） 2)是否单主体居中 3)背景是否纯白 4)有无乱码或水印。';
+const CLARITY_PROMPT =
+  "请判断这张图片是否清晰、无乱码、无水印、无模糊。只回答：清晰 或 有问题。";
 
 /**
  * 工单 029：剥离 data URI 前缀。Ollama 的 images 字段只接受裸 base64；
@@ -79,10 +83,10 @@ export async function isOllamaAvailable(timeoutMs = 10000): Promise<boolean> {
   return false;
 }
 
-async function ocrWithModel(model: string, imageBase64: string): Promise<string> {
+async function ocrWithModel(model: string, prompt: string, imageBase64: string): Promise<string> {
   const payload = {
     model,
-    prompt: OCR_PROMPT,
+    prompt,
     images: [stripDataUriPrefix(imageBase64)],
     stream: false,
     // 工单 029：校验后立即卸载模型，避免驻留显存与 ComfyUI 并发冲突。
@@ -128,11 +132,12 @@ async function ocrWithModel(model: string, imageBase64: string): Promise<string>
  */
 async function ocrWithRetry(
   model: string,
+  prompt: string,
   imageBase64: string,
 ): Promise<{ text: string; garbled: boolean }> {
   let text = "";
   try {
-    text = await ocrWithModel(model, imageBase64);
+    text = await ocrWithModel(model, prompt, imageBase64);
   } catch {
     text = "";
   }
@@ -140,7 +145,7 @@ async function ocrWithRetry(
     return { text, garbled: false };
   }
   try {
-    text = await ocrWithModel(model, imageBase64);
+    text = await ocrWithModel(model, prompt, imageBase64);
   } catch {
     text = "";
   }
@@ -191,12 +196,12 @@ export function looksGarbled(text: string): boolean {
 }
 
 /**
- * 执行一次 Logo 视觉校验。
+ * 执行一次文字型视觉校验（Logo/场景共用管道）。
  * - 3B 粗筛通过 → passed（不升级 7B）；
  * - 3B 疑似/不符 → 7B（my-vl）终审；7B 与期望一致 → passed，否则 suspect；
  * - Ollama 不可达 / 期望文本缺失 / OCR 调用失败 → skipped（未初检），带 reason。
  */
-export async function runLogoVisionCheck(opts: {
+export async function runTextVisionCheck(opts: {
   imageBase64: string;
   prompt?: string;
   expectedText: string;
@@ -224,12 +229,12 @@ export async function runLogoVisionCheck(opts: {
   }
 
   const expectedNorm = normalizeForCompare(expectedText, mode);
-  const coarse = await ocrWithRetry(coarseModel, opts.imageBase64);
+  const coarse = await ocrWithRetry(coarseModel, OCR_PROMPT, opts.imageBase64);
   const coarseText = coarse.text;
 
   if (coarse.garbled) {
     // 空/乱码 OCR：给 7B 一次机会；仍空 → skipped(ocr_empty)，不升级 needs_review。
-    const fine = await ocrWithRetry(fineModel, opts.imageBase64);
+    const fine = await ocrWithRetry(fineModel, OCR_PROMPT, opts.imageBase64);
     if (fine.garbled) {
       return { ...base, status: "skipped", reason: "ocr_empty", coarseText };
     }
@@ -248,7 +253,7 @@ export async function runLogoVisionCheck(opts: {
   // 有效 OCR 但与期望不符 → 7B 终审
   let fineText = "";
   try {
-    fineText = await ocrWithModel(fineModel, opts.imageBase64);
+    fineText = await ocrWithModel(fineModel, OCR_PROMPT, opts.imageBase64);
   } catch (e) {
     return {
       ...base,
@@ -262,4 +267,163 @@ export async function runLogoVisionCheck(opts: {
     return { ...base, status: "passed", coarseText, fineText };
   }
   return { ...base, status: "suspect", coarseText, fineText };
+}
+
+/**
+ * Logo 校验（保持既有接口）：文字逐字比对。
+ */
+export function runLogoVisionCheck(opts: {
+  imageBase64: string;
+  prompt?: string;
+  expectedText: string;
+  mode: LogoTextMode;
+  coarseModel?: string;
+  fineModel?: string;
+}): Promise<VisionCheckResult> {
+  return runTextVisionCheck(opts);
+}
+
+/**
+ * 场景图校验（工单 031）：品牌文字校验（同 Logo 管道）＋清晰度/无乱码粗检。
+ * 文字不过/清晰度异常 → suspect（交批次下一轮重生成）；空 OCR → skipped。
+ */
+export async function runSceneVisionCheck(opts: {
+  imageBase64: string;
+  expectedText: string;
+  mode: LogoTextMode;
+  coarseModel?: string;
+  fineModel?: string;
+}): Promise<VisionCheckResult> {
+  const coarseModel = opts.coarseModel || "qwen2.5vl:3b";
+  const fineModel = opts.fineModel || "my-vl";
+  const base: VisionCheckResult = {
+    status: "skipped",
+    mode: opts.mode,
+    expectedText: opts.expectedText,
+    coarseModel,
+    fineModel,
+    checkedAt: new Date().toISOString(),
+  };
+  if (!opts.expectedText) {
+    return { ...base, reason: "expected_text_unavailable" };
+  }
+  if (!(await isOllamaAvailable())) {
+    return { ...base, reason: "ollama_unavailable" };
+  }
+  const textCheck = await runTextVisionCheck(opts);
+  if (textCheck.status !== "passed") {
+    return textCheck;
+  }
+  // 清晰度粗检（3B）；“有问题/模糊/乱码/水印” → suspect
+  const clarity = await ocrWithRetry(coarseModel, CLARITY_PROMPT, opts.imageBase64);
+  if (!clarity.garbled && /有问题|模糊|乱码|水印|不清/.test(clarity.text)) {
+    return {
+      ...base,
+      status: "suspect",
+      coarseText: textCheck.coarseText,
+      reason: "clarity_issue",
+    };
+  }
+  return textCheck;
+}
+
+/** 解析公仔完整性 JSON（容错：剥离代码围栏、正则回退）。 */
+export function parseMascotJson(text: string): {
+  complete: boolean;
+  singleSubject: boolean;
+  whiteBackground: boolean;
+  noWatermark: boolean;
+  reason: string;
+} {
+  const cleaned = text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  const obj: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+    if (parsed && typeof parsed === "object") Object.assign(obj, parsed);
+  } catch {
+    for (const key of ["complete", "singleSubject", "whiteBackground", "noWatermark"]) {
+      const m = new RegExp(`"${key}"\\s*:\\s*(true|false)`, "i").exec(cleaned);
+      if (m) obj[key] = m[1].toLowerCase() === "true";
+    }
+    const r = /"reason"\s*:\s*"([^"]*)"/.exec(cleaned);
+    if (r) obj.reason = r[1];
+  }
+  return {
+    complete: obj.complete === true,
+    singleSubject: obj.singleSubject === true,
+    whiteBackground: obj.whiteBackground === true,
+    noWatermark: obj.noWatermark === true,
+    reason: typeof obj.reason === "string" ? obj.reason : "",
+  };
+}
+
+async function mascotEval(
+  model: string,
+  imageBase64: string,
+  requireWhiteBackground: boolean,
+): Promise<{ ok: boolean; text: string; garbled: boolean; parsed: ReturnType<typeof parseMascotJson> | null }> {
+  const r = await ocrWithRetry(model, MASCOT_CHECK_PROMPT, imageBase64);
+  const parsed = r.garbled ? null : parseMascotJson(r.text);
+  // 工单 031 补验：场景图（公仔在门店/包装/社媒环境）天然非纯白背景，
+  // requireWhiteBackground=false 时跳过 whiteBackground 判定，避免误报 needs_review。
+  const ok =
+    parsed !== null &&
+    parsed.complete &&
+    parsed.singleSubject &&
+    parsed.noWatermark &&
+    (requireWhiteBackground ? parsed.whiteBackground : true);
+  return { ok, text: r.text, garbled: r.garbled, parsed };
+}
+
+/**
+ * 公仔完整性校验（工单 031）：3B 粗检 → 疑似件 7B 终审。
+ * 不做逐字匹配（公仔图通常无文字）；空/乱码 → 重试 → skipped。
+ */
+export async function runMascotVisionCheck(opts: {
+  imageBase64: string;
+  coarseModel?: string;
+  fineModel?: string;
+  requireWhiteBackground?: boolean;
+}): Promise<VisionCheckResult> {
+  const coarseModel = opts.coarseModel || "qwen2.5vl:3b";
+  const fineModel = opts.fineModel || "my-vl";
+  const requireWhiteBackground = opts.requireWhiteBackground !== false;
+  const base: VisionCheckResult = {
+    status: "skipped",
+    mode: "chinese",
+    expectedText: "",
+    coarseModel,
+    fineModel,
+    checkedAt: new Date().toISOString(),
+  };
+  if (!(await isOllamaAvailable())) {
+    return { ...base, reason: "ollama_unavailable" };
+  }
+  const coarse = await mascotEval(coarseModel, opts.imageBase64, requireWhiteBackground);
+  if (coarse.garbled) {
+    const fine = await mascotEval(fineModel, opts.imageBase64, requireWhiteBackground);
+    if (fine.garbled) {
+      return { ...base, status: "skipped", reason: "ocr_empty" };
+    }
+    return fine.ok
+      ? { ...base, status: "passed", coarseText: coarse.text, fineText: fine.text }
+      : { ...base, status: "suspect", coarseText: coarse.text, fineText: fine.text, reason: fine.parsed?.reason };
+  }
+  if (coarse.ok) {
+    return { ...base, status: "passed", coarseText: coarse.text };
+  }
+  const fine = await mascotEval(fineModel, opts.imageBase64, requireWhiteBackground);
+  if (fine.ok) {
+    return { ...base, status: "passed", coarseText: coarse.text, fineText: fine.text };
+  }
+  return {
+    ...base,
+    status: "suspect",
+    coarseText: coarse.text,
+    fineText: fine.text,
+    reason: fine.parsed?.reason || coarse.parsed?.reason || "mascot_integrity",
+  };
 }

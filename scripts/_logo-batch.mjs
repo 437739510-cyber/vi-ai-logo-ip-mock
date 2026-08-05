@@ -17,10 +17,12 @@ export async function runLogoBatchFlow(opts) {
     isAvailable,   // async () => boolean（单张前快速探测）
     log = (level, msg) => console.log(`[${level}] ${msg}`),
     gpuSnapshot = async () => '',
+    label = 'Logo', // 工单 031：资产类型标签（Logo/MascotSample/MascotFull/Scene），仅影响日志
     maxRounds = 2,
     maxAttempts = 3,
     retryGapMs = 30_000,
   } = opts;
+  const tag = label.toUpperCase();
 
   const pending = prompts.map((prompt, index) => ({
     index,
@@ -41,7 +43,7 @@ export async function runLogoBatchFlow(opts) {
     const todo = pending.filter((r) => r.status === 'pending');
     if (todo.length === 0) break;
 
-    log('INFO', `[LOGO] 批次第 ${round}/${maxRounds} 轮，待生成 ${todo.length} 张（生成阶段，ComfyUI 独占，不触发 Ollama）`);
+    log('INFO', `[${tag}] 批次第 ${round}/${maxRounds} 轮，待生成 ${todo.length} 张（生成阶段，ComfyUI 独占，不触发 Ollama）`);
     log('INFO', `[GPU] 生成前 ${await gpuSnapshot()}`);
 
     const ready = await ensureReady();
@@ -66,13 +68,13 @@ export async function runLogoBatchFlow(opts) {
               throw new Error('ComfyUI not available before generation');
             }
           }
-          log('INFO', `[LOGO] Logo ${item.index + 1}/${prompts.length} 第${round}轮 (attempt ${attempts}, seed=${seed})...`);
+          log('INFO', `[${tag}] ${label} ${item.index + 1}/${prompts.length} 第${round}轮 (attempt ${attempts}, seed=${seed})...`);
           genResult = await generate({ prompt: item.prompt, seed });
           consecutiveGenFailures = 0;
         } catch (err) {
           lastErr = err;
           consecutiveGenFailures++;
-          log('WARN', `[LOGO] Logo ${item.index + 1} 第${round}轮 attempt ${attempts} 失败: ${err.message}`);
+          log('WARN', `[${tag}] ${label} ${item.index + 1} 第${round}轮 attempt ${attempts} 失败: ${err.message}`);
           if (consecutiveGenFailures >= 2) {
             log('WARN', `[LOGO] 连续 ${consecutiveGenFailures} 次生成失败，进入 ComfyUI 健康门`);
             const recovered = await ensureReady();
@@ -97,11 +99,11 @@ export async function runLogoBatchFlow(opts) {
         item.durationMs = genResult.durationMs;
         item.batchRound = round;
         item.status = 'generated';
-        log('INFO', `[LOGO] Logo ${item.index + 1} 第${round}轮 OK (${genResult.durationMs}ms)`);
+        log('INFO', `[${tag}] ${label} ${item.index + 1} 第${round}轮 OK (${genResult.durationMs}ms)`);
       } else {
         item.status = 'failed';
         item.error = (lastErr && lastErr.message) || 'generate failed after max attempts';
-        log('WARN', `[LOGO] Logo ${item.index + 1} 第${round}轮失败（已尝试 ${maxAttempts} 次）`);
+        log('WARN', `[${tag}] ${label} ${item.index + 1} 第${round}轮失败（已尝试 ${maxAttempts} 次）`);
       }
     }
 
@@ -116,12 +118,12 @@ export async function runLogoBatchFlow(opts) {
       for (const item of toCheck) {
         let vision = null;
         try {
-          vision = await check({ imageBase64: item.imageUrl, prompt: item.prompt });
+          vision = await check({ imageBase64: item.imageUrl, prompt: item.prompt, index: item.index });
         } catch (e) {
           vision = { status: 'skipped', reason: `vision_error: ${(e && e.message || '').slice(0, 120)}` };
         }
         item.vision = vision;
-        log('INFO', `[VISION] Logo ${item.index + 1} ${vision.status}${vision.reason ? ` (${vision.reason})` : ''}`);
+        log('INFO', `[VISION] ${label} ${item.index + 1} ${vision.status}${vision.reason ? ` (${vision.reason})` : ''}`);
         if (vision.status === 'passed' || vision.status === 'skipped') {
           item.status = 'final';
         } else if (vision.status === 'suspect') {
@@ -130,10 +132,10 @@ export async function runLogoBatchFlow(opts) {
             item.imageUrl = null;
             item.seed = null;
             item.vision = null;
-            log('WARN', `[VISION] Logo ${item.index + 1} 校验不合格，进入下一轮统一重生成`);
+            log('WARN', `[VISION] ${label} ${item.index + 1} 校验不合格，进入下一轮统一重生成`);
           } else {
             item.status = 'needs_review';
-            log('WARN', `[VISION] Logo ${item.index + 1} 重试轮后仍不合格，标记 needs_review（不静默交付）`);
+            log('WARN', `[VISION] ${label} ${item.index + 1} 重试轮后仍不合格，标记 needs_review（不静默交付）`);
           }
         }
       }
