@@ -58,8 +58,7 @@ export default function ViewLogoPage() {
   const [mounted, setMounted] = useState(false);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [regenConfirmType, setRegenConfirmType] = useState<"no_selection" | "has_selection">("no_selection");
-  const [showChineseConfirm, setShowChineseConfirm] = useState(false);
-  const [chineseConfirmCost, setChineseConfirmCost] = useState("0");
+  const [regenMode, setRegenMode] = useState<"feedback" | "pinyin">("feedback");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showDeliveryConfirm, setShowDeliveryConfirm] = useState(false);
   const [deliveryConfirmType, setDeliveryConfirmType] = useState<"logo" | "mascot">("logo");
@@ -192,8 +191,9 @@ export default function ViewLogoPage() {
     }
   };
 
-  const handleRegenerate = async () => {
+  const handleRegenerate = async (mode: "feedback" | "pinyin" = "feedback") => {
     if (!projectData) return;
+    setRegenMode(mode);
     // 未选择Logo时的强提醒
     if (selectedIdx === null) {
       setRegenConfirmType("no_selection");
@@ -202,13 +202,6 @@ export default function ViewLogoPage() {
     }
     setRegenConfirmType("has_selection");
     setShowRegenConfirm(true);
-  };
-
-  const handleUpgradeToArk = async () => {
-    if (!projectData) return;
-    const cost = "0.80";
-    setChineseConfirmCost(cost);
-    setShowChineseConfirm(true);
   };
 
   const getStatusText = (status: string) => {
@@ -500,21 +493,14 @@ export default function ViewLogoPage() {
                     </button>
                   </div>
 
-                  {/* V121: Logo省钱策略 — 生成拼音(本地免费) / 生成中文(ARK付费) */}
+                  {/* 工单 038：生成拼音LOGO（本地免费）；ARK 升级已下线（禁止付费回退） */}
                   <div className="flex gap-3">
                     <button
-                      onClick={handleRegenerate}
+                      onClick={() => handleRegenerate("pinyin")}
                       disabled={regenerating}
                       className="flex-1 py-2.5 border-2 border-primary text-primary text-sm font-medium rounded-xl hover:bg-primary/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                     >
                       {regenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> 生成中...</> : "生成拼音LOGO"}
-                    </button>
-                    <button
-                      onClick={handleUpgradeToArk}
-                      disabled={regenerating}
-                      className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-medium rounded-xl hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                    >
-                      {regenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> 升级中...</> : "升级ARK中文版"}
                     </button>
                   </div>
                   <div className="space-y-3">
@@ -542,7 +528,7 @@ export default function ViewLogoPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-neutral-400">{feedback.length}/500</span>
                           <button
-                            onClick={handleRegenerate}
+                            onClick={() => handleRegenerate("feedback")}
                             disabled={regenerating}
                             className="px-6 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center gap-2"
                           >
@@ -644,6 +630,7 @@ export default function ViewLogoPage() {
                 phone: phone.trim(),
                 viewPassword: viewPassword.trim(),
                 feedback: feedback.trim(),
+                logoTextLanguage: regenMode === "pinyin" ? "pinyin" : undefined,
               }),
             });
             const data = await res.json();
@@ -672,49 +659,6 @@ export default function ViewLogoPage() {
         confirmLabel="确定"
         cancelLabel="取消"
         variant={regenConfirmType === "no_selection" ? "danger" : "default"}
-      />
-
-      <ConfirmDialog
-        isOpen={showChineseConfirm}
-        onClose={() => setShowChineseConfirm(false)}
-        onConfirm={async () => {
-          if (!projectData) return;
-          setShowChineseConfirm(false);
-          setRegenerating(true);
-          try {
-            const res = await fetch("/api/ai/regenerate-logo", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                phone: phone.trim(),
-                viewPassword: viewPassword.trim(),
-                feedback: "",
-                arkMode: true,
-                payCost: chineseConfirmCost,
-              }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-              setProjectData({
-                ...projectData,
-                generationStatus: "logo_generating",
-              });
-              setHistoryRound(null);
-              setSelectedIdx(null);
-              setTimeout(() => handleView(), 10000);
-            } else {
-              setError(data.error || "生成失败");
-            }
-          } catch {
-            setError("网络错误");
-          } finally {
-            setRegenerating(false);
-          }
-        }}
-        title="生成中文LOGO"
-        description={`✨ 生成中文LOGO — 豆包 Seedream 4.0\n\n成本: ￥${chineseConfirmCost}（4张 Logo x ￥0.20）\n\n原生中文 Logo，效果更精美。确定要生成吗？`}
-        confirmLabel="确定生成"
-        cancelLabel="取消"
       />
 
       {/* ▼ TASK-009: 交付承诺弹窗（不可跳过） */}

@@ -2,6 +2,7 @@
 // Client view logo - verify by phone + password (or projectId + password for backward compat)
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { filterCustomerLogos } from "@/lib/vi-manual/customer-logo-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -113,10 +114,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Filter only successful logo results
-    const validLogos = logoResults.filter(
-      (r: any) => r.imageUrl && !r.error
-    );
+    // 工单 036：客户可见 Logo 过滤（needs_review/failed/error 不展示；skipped/passed 保留）
+    const validLogos = filterCustomerLogos(logoResults);
 
     // Get logo history
     const logoHistory = clientInfo.logoHistory || [];

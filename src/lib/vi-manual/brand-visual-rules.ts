@@ -45,6 +45,9 @@ export function extractLogoElements(raw?: string | null): string[] {
   for (const part of parts) {
     const item = part.trim();
     if (!item || PURE_PUNCT.test(item)) continue;
+    // 工单 036：过滤提示词风格片段（如“中文品牌名「老碗香」为主体”“可辅助以…”“以…为主”），
+    // 只保留具体元素名词；避免 AI 分析字段把提示词式长句带进规范文案。
+    if (isPromptLikeElement(item)) continue;
     const normalized = item.length > 20 ? item.slice(0, 20) : item;
     if (seen.has(normalized)) continue;
     seen.add(normalized);
@@ -52,6 +55,15 @@ export function extractLogoElements(raw?: string | null): string[] {
     if (result.length >= 8) break;
   }
   return result;
+}
+
+/**
+ * 工单 036：判断元素片段是否“提示词风格”（非纯元素名词）。
+ * 命中即丢弃，防止“中文品牌名「老碗香」为主体”“可辅助以简笔碗形或麦穗图形”
+ * 这类 AI 长句进入误用规范文案。
+ */
+export function isPromptLikeElement(raw: string): boolean {
+  return /为主体|为主|主视觉|作为|辅助|搭配|建议|突出|强调|品牌名|「|」/.test(raw);
 }
 
 /**
@@ -88,7 +100,7 @@ export function getLogoMisuseRules(logoElements?: string[] | null): LogoMisuseRu
   const rules = GENERIC_LOGO_MISUSE_RULES.map((rule) => ({ ...rule }));
   const elements = (logoElements || [])
     .map((e) => (typeof e === "string" ? e.trim() : ""))
-    .filter((e) => e.length > 0);
+    .filter((e) => e.length > 0 && !isPromptLikeElement(e));
   if (elements.length === 0) return rules;
 
   const unique = [...new Set(elements)];

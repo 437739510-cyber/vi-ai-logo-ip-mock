@@ -13,10 +13,12 @@ process.env.DEEPSEEK_API_KEY = "";
 
 const ONE_PX_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+const ONE_PX_PNG = `data:image/png;base64,${ONE_PX_PNG_BASE64}`;
 const OUTPUT_PPTX = "D:\\tool\\_platform-fix-smoke.pptx";
 
 const clientInfo = {
-  companyName: "有间荼店",
+  // 006F：提交层已规范化，planner 收到的是正式品牌名（有间奶茶店）。
+  companyName: "有间奶茶店",
   brandVision: "做一杯好喝的奶茶",
   coreValues: "新鲜 真诚",
   targetMarket: "年轻消费者",
@@ -29,6 +31,16 @@ const brandColors = {
 };
 
 const baseInput: PagePlannerInput = { clientInfo, brandColors };
+
+// 020 契约：IP 章节由 wantMascot==="yes" + 真实资产契约（validateMascotAssets）驱动。
+const mascotAssets = {
+  name: "小茶",
+  front: ONE_PX_PNG,
+  side: ONE_PX_PNG,
+  back: ONE_PX_PNG,
+  emotions: ["微笑", "欢迎", "专注", "惊喜", "安心", "开心", "引导", "俏皮"].map((name) => ({ name, url: ONE_PX_PNG })),
+  scenes: ["门店迎宾", "包装应用", "会员互动", "社媒互动"].map((name) => ({ name, url: ONE_PX_PNG })),
+};
 
 function collectText(bps: PageBlueprint[]): string {
   return bps
@@ -43,17 +55,21 @@ async function main(): Promise<void> {
     if (!cond) process.exitCode = 1;
   };
 
-  const noIp = await planPages({ ...baseInput, includeMascotChapter: false, mascotAssetsReady: false });
+  const noIp = await planPages({ ...baseInput });
   ok("no-IP mode has no mascot-* pages", noIp.every((b) => !b.pageId.startsWith("mascot-")));
   ok("no-IP mode page count is 25", noIp.length === 25, `got ${noIp.length}`);
 
-  const withIp = await planPages({ ...baseInput, includeMascotChapter: true, mascotAssetsReady: true });
+  const withIp = await planPages({
+    ...baseInput,
+    wantMascot: "yes",
+    mascotAssets,
+    assetAnalysis: { logo: { hasLogo: true } },
+  });
   const mascotPages = withIp.filter((b) => b.pageId.startsWith("mascot-"));
   ok("IP mode has 8 mascot-* pages", mascotPages.length === 8, `got ${mascotPages.length}`);
   ok("IP mode page count is 33", withIp.length === 33, `got ${withIp.length}`);
-
   const text = collectText([...noIp, ...withIp]);
-  ok("blueprint text contains no 荼店", !text.includes("荼店"));
+  ok("blueprint text contains normalized brand name", text.includes("有间奶茶店"));
 
   mkdirSync(dirname(OUTPUT_PPTX), { recursive: true });
   const renderOptions: RenderPptxOptions = {
@@ -91,7 +107,7 @@ async function main(): Promise<void> {
     threw = true;
     errMsg = err instanceof Error ? err.message : String(err);
   }
-  ok("mascot page without assets throws", threw && /no assets/.test(errMsg), errMsg || "did not throw");
+  ok("mascot page without assets throws", threw && /insufficient assets/.test(errMsg), errMsg || "did not throw");
 
   console.log("=== TASK-VI-PLATFORM-FIX-001 SMOKE ===");
   for (const r of results) console.log(r);

@@ -2862,7 +2862,8 @@ function renderWayfinding(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
 
   // 底部说明
   slide.addText("导视系统是品牌在物理空间中的重要触点，统一规范的导视设计提升门店专业度与客户体验。", {
-    x: cx, y: startY + colH + 1.0, w: CONTENT_W, h: 0.3,
+    // 工单 036：说明文字改放门牌框与“安全区”说明下方（框外），避免横穿 300×150mm 框。
+    x: cx, y: signY + signH + 0.45, w: CONTENT_W, h: 0.3,
     fontSize: 12, color: "888888", align: "center",
   });
 }

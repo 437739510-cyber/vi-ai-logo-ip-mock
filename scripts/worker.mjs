@@ -132,6 +132,14 @@ function buildAnalysisPrompt(clientInfo) {
   if (clientInfo.competitorReference) parts.push(`竞品参考：${clientInfo.competitorReference}`);
   if (clientInfo.mainProducts) parts.push(`主营产品：${clientInfo.mainProducts}`);
   if (clientInfo.description) parts.push(`补充描述：${clientInfo.description}`);
+  // 工单 038：重新生成时把客户最近一条反馈带入品牌分析上下文
+  const regenHistory = clientInfo.brandProfile?.regenerationHistory;
+  if (Array.isArray(regenHistory) && regenHistory.length > 0) {
+    const last = regenHistory[regenHistory.length - 1];
+    if (last && last.feedback) {
+      parts.push(`客户最新反馈（重新生成时提供）：${last.feedback}`);
+    }
+  }
   parts.push('');
   parts.push('请基于以上信息，进行深度品牌分析，输出品牌档案JSON。');
   return parts.join('\n');

@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { phone, viewPassword, feedback, provider } = body;
+    const { phone, viewPassword, feedback, logoTextLanguage } = body;
 
     if (!phone || !viewPassword) {
       return NextResponse.json({ error: "Phone and view password required" }, { status: 400 });
@@ -78,44 +78,30 @@ export async function POST(req: NextRequest) {
     brandProfile.selectedLogo = null;
     brandProfile.preferredLogo = null;
 
-    // Reset logo generation status to trigger regeneration
+    // 工单 038：024 契约——客户在重新生成时显式选择拼音则更新语言字段
+    if (logoTextLanguage === "pinyin" || logoTextLanguage === "chinese") {
+      clientInfo.logoTextLanguage = logoTextLanguage;
+    }
+
+    // 工单 038：改走本地 worker——写 pending_logo（worker 轮询接管），
+    // 不再调外部 mock 域名，也不再使用旧的重生成状态（worker 不轮询）。
     await supabaseAdmin
       .from("projects")
       .update({
         client_info: {
           ...clientInfo,
           brandProfile,
-          generationStatus: "logo_regenerating",
+          generationStatus: "pending_logo",
           logoGenerationStatus: { started: false, completed: 0, total: 4 },
         },
       })
       .eq("id", project.id);
 
-    // Step 5: Trigger actual generation (internal call to generate-logo)
-    const projectId = project.id;
-    const genProvider = provider || "comfyui";
-
-    try {
-      const baseUrl = "https://vi-ai-logo-ip-mock.edgeone.dev";
-      const genRes = await fetch(`${baseUrl}/api/ai/generate-logo`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, provider: genProvider, force: true }),
-      });
-      const genData = await genRes.json().catch(() => ({}));
-      if (!genRes.ok) {
-        return NextResponse.json({ error: genData.error || "Generation failed" }, { status: 500 });
-      }
-    } catch (e: any) {
-      console.error("[regenerate-logo] Internal generate call failed:", e);
-    }
-
     return NextResponse.json({
       success: true,
-      projectId,
-      status: "logo_regenerating",
-      provider: genProvider,
-      message: genProvider === "ark" ? "AI paid upgrade started" : "Logo regeneration started",
+      projectId: project.id,
+      status: "pending_logo",
+      message: "Logo regeneration queued for local worker",
     });
   } catch (error: any) {
     console.error("[regenerate-logo] Error:", error);

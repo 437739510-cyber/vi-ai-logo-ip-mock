@@ -30,6 +30,7 @@ import { getIndustryType } from "../src/lib/brand/industry-types";
 import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from "../src/lib/vi-manual/brand-visual-rules";
 import { MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from "../src/lib/vi-manual/mascot-assets";
 import { normalizeForCompare, extractExpectedText, looksGarbled, stripDataUriPrefix } from "../src/lib/vision-check";
+import { filterCustomerLogos } from "../src/lib/vi-manual/customer-logo-filter";
 
 const ONE_PX_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -1194,6 +1195,111 @@ async function main(): Promise<void> {
     "034-5 034 基线未削弱（追加前数量=79）",
     baselineCount034 === 79 && baselineAllPass034,
     `baseline=${baselineCount034} allPass=${baselineAllPass034}`
+  );
+
+  // ===== 工单 036：手册评审收尾（needs_review 展示过滤/提示词风格文案/导视模板坐标）=====
+  const baselineCount036 = checks.length;
+  const baselineAllPass036 = checks.every((c) => c.pass);
+  const viewSrc036 = readFileSync("src/app/api/view/route.ts", "utf8");
+  const renderSrc036 = readFileSync("src/lib/pptx/render-pptx.ts", "utf8");
+
+  const customerOk = filterCustomerLogos([
+    { index: 0, imageUrl: "u0", vision: { status: "passed" } },
+    { index: 1, imageUrl: "u1", vision: { status: "skipped", reason: "ollama_unavailable" } },
+    { index: 2, imageUrl: "u2", vision: { status: "needs_review" } },
+    { index: 3, imageUrl: "u3", error: "gen failed" },
+    { index: 4, imageUrl: null },
+    { index: 5, imageUrl: "u5" },
+  ]).map((r: any) => r.index).join(",");
+  check(
+    "036-1 客户可见 Logo 过滤：needs_review/failed/error/无图 不展示，skipped/passed/无 vision 保留",
+    customerOk === "0,1,5",
+    `kept=${customerOk}`
+  );
+
+  const cleanElems = extractLogoElements("中文品牌名「老碗香」为主体、可辅助以简笔碗形或麦穗图形、碗形、麦穗、帆船");
+  check(
+    "036-2 extractLogoElements 过滤提示词风格片段（为主体/可辅助以/「」不进入元素）",
+    !cleanElems.some((e) => /为主体|可辅助以|「|」/.test(e)) &&
+      cleanElems.includes("碗形") &&
+      cleanElems.includes("麦穗") &&
+      cleanElems.includes("帆船"),
+    `elems=${cleanElems.join("、")}`
+  );
+
+  const misuseRules036 = getLogoMisuseRules(["中文品牌名「老碗香」为主体", "碗形", "麦穗"]);
+  const splitRule036 = misuseRules036.find((r) => r.distortion === "split")?.desc || "";
+  const restructureRule036 = misuseRules036.find((r) => r.distortion === "restructure")?.desc || "";
+  check(
+    "036-3 Logo 误用规范不再引用提示词风格元素（仅引用干净元素名词）",
+    !splitRule036.includes("为主体") &&
+      !splitRule036.includes("「老碗香」") &&
+      splitRule036.includes("「碗形」") &&
+      restructureRule036.includes("「麦穗」"),
+    `split=${splitRule036.slice(0, 60)}`
+  );
+
+  check(
+    "036-4 客户展示数据层使用 filterCustomerLogos（view route 接入）",
+    viewSrc036.includes('import { filterCustomerLogos }') &&
+      viewSrc036.includes("filterCustomerLogos(logoResults)"),
+    `imported=${viewSrc036.includes("filterCustomerLogos")}`
+  );
+
+  check(
+    "036-5 导视门牌说明文字移至框外（y=signY+signH+0.45，不再 startY+colH+1.0 横穿框）",
+    renderSrc036.includes("y: signY + signH + 0.45") &&
+      !renderSrc036.includes("y: startY + colH + 1.0"),
+    `descBelow=${renderSrc036.includes("signY + signH + 0.45")}`
+  );
+
+  check(
+    "036-6 036 基线未削弱（追加前数量=84）",
+    baselineCount036 === 84 && baselineAllPass036,
+    `baseline=${baselineCount036} allPass=${baselineAllPass036}`
+  );
+
+  // ============ 038 组：regenerate-logo 链路修复 ============
+  const baselineCount038 = checks.length;
+  const baselineAllPass038 = checks.every((c) => c.pass);
+  const regenSrc038 = readFileSync("src/app/api/ai/regenerate-logo/route.ts", "utf8");
+  const viewSrc038 = readFileSync("src/app/(client)/view/page.tsx", "utf8");
+
+  check(
+    "038-1 regenerate-logo 不再调外部 mock 域名，改走 pending_logo 交 worker",
+    !regenSrc038.includes("vi-ai-logo-ip-mock") &&
+      !regenSrc038.includes("logo_regenerating") &&
+      regenSrc038.includes('generationStatus: "pending_logo"'),
+    `mock=${regenSrc038.includes("vi-ai-logo-ip-mock")} pending=${regenSrc038.includes('generationStatus: "pending_logo"')}`
+  );
+
+  check(
+    "038-2 regenerate-logo 读取 024 契约 logoTextLanguage 并写回 clientInfo",
+    regenSrc038.includes("logoTextLanguage") &&
+      /clientInfo\.logoTextLanguage = logoTextLanguage/.test(regenSrc038),
+    `has=${regenSrc038.includes("logoTextLanguage")}`
+  );
+
+  check(
+    "038-3 worker 品牌分析带 regenerationHistory 最近一条 feedback",
+    workerSrc033.includes("regenerationHistory") &&
+      workerSrc033.includes("客户最新反馈（重新生成时提供）"),
+    `regen=${workerSrc033.includes("regenerationHistory")} fb=${workerSrc033.includes("客户最新反馈")}`
+  );
+
+  check(
+    "038-4 view 页按钮与 route 契约对齐（ARK 升级下线、传 logoTextLanguage）",
+    !viewSrc038.includes("arkMode: true") &&
+      !viewSrc038.includes("升级ARK中文版") &&
+      viewSrc038.includes('logoTextLanguage: regenMode === "pinyin" ? "pinyin" : undefined') &&
+      viewSrc038.includes('handleRegenerate("pinyin")'),
+    `ark=${viewSrc038.includes("arkMode: true")} pinyinBtn=${viewSrc038.includes('handleRegenerate("pinyin")')}`
+  );
+
+  check(
+    "038-5 038 基线未削弱（追加前数量=90）",
+    baselineCount038 === 90 && baselineAllPass038,
+    `baseline=${baselineCount038} allPass=${baselineAllPass038}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");
