@@ -624,3 +624,77 @@ export async function runThreeViewConsistencyCheck(opts: {
   }
   return decideThreeViewConsistency(features, opts.threshold);
 }
+
+// ===== 工单 042：客户上传 Logo 4 槽方案 =====
+
+export interface UploadedLogoCheck {
+  valid: boolean;
+  url?: string;
+}
+
+/**
+ * 校验客户上传 Logo 素材是否真实完整：数组非空，且至少一个元素含 http(s) URL。
+ * 禁止仅凭布尔/非空对象判断（020 契约精神）。返回首个有效 URL 作为主素材。
+ */
+export function isValidUploadedLogoAssets(assets: unknown): UploadedLogoCheck {
+  if (!Array.isArray(assets) || assets.length === 0) {
+    return { valid: false };
+  }
+  for (const a of assets) {
+    if (a && typeof a === "object") {
+      const url = String((a as { url?: unknown }).url ?? "").trim();
+      if (/^https?:\/\/\S+$/i.test(url)) {
+        return { valid: true, url };
+      }
+    }
+  }
+  return { valid: false };
+}
+
+const LOGO_SPEC_PROMPT =
+  "请分析这张客户提供的Logo图，只输出中文描述：1)核心图形元素（图形/符号/文字）" +
+  " 2)构图与布局 3)品牌名或文字内容（逐字提取） 4)视觉风格 5)主色调。不要给修改建议。";
+
+/** 用 my-vl（7B）提取上传 Logo 特征描述（动态生成，不硬编码客户素材）。失败返回空串。 */
+export async function describeLogoForOptimization(
+  imageBase64: string,
+  opts?: { fineModel?: string },
+): Promise<string> {
+  const model = opts?.fineModel || "my-vl";
+  try {
+    const text = await ocrWithModel(model, LOGO_SPEC_PROMPT, imageBase64);
+    return (text || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * 工单 042：组装“优化版”提示词——保留客户图形语义，按品牌分析色板重新配色，
+ * 品牌名由平台写入；遵循 023 约束（现代扁平、白底、每字一次、禁印章/篆书/雕刻）。
+ * 纯函数（可单测）；品牌名/颜色均来自显式参数，禁止硬编码具体客户素材。
+ */
+export function buildOptimizedLogoPrompt(opts: {
+  description: string;
+  brandName: string;
+  brandColors: string[];
+  mode?: LogoTextMode;
+}): string {
+  const { description, brandName, brandColors, mode = "chinese" } = opts;
+  const colorText = brandColors.length > 0 ? `，品牌色：${brandColors.join("、")}` : "";
+  if (mode === "pinyin") {
+    const pinyin = brandName.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return (
+      `基于客户上传Logo的优化设计：保留原有图形语义（${description}）。` +
+      `品牌名以「${pinyin}」拼音大字呈现，No Chinese characters，现代简约扁平、白色背景` +
+      `${colorText}。禁止印章/篆书/雕刻；品牌名是唯一文字主角。`
+    );
+  }
+  return (
+    `基于客户上传Logo的优化设计：保留原有图形语义（${description}）。` +
+    `中文品牌名「${brandName}」清晰为主视觉，现代简约扁平、白色背景，` +
+    `每个字只出现一次、无重复、无多余文字、无错字` +
+    `${colorText}。` +
+    `禁止 seal stamp、印章、篆书、雕刻、engraved、环形小字、仿古纹样。`
+  );
+}

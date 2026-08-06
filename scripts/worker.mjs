@@ -25,7 +25,7 @@ import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from '../src/lib/vi-manual/brand-visual-rules';
 import { normalizeLogoTextLanguage } from '../src/lib/core/consultation-schema';
-import { runLogoVisionCheck, runMascotVisionCheck, runSceneVisionCheck, extractExpectedText, extractMascotCharacterSpec, runThreeViewConsistencyCheck } from '../src/lib/vision-check';
+import { runLogoVisionCheck, runMascotVisionCheck, runSceneVisionCheck, extractExpectedText, extractMascotCharacterSpec, runThreeViewConsistencyCheck, isValidUploadedLogoAssets, describeLogoForOptimization, buildOptimizedLogoPrompt } from '../src/lib/vision-check';
 // 工单 030：ComfyUI 健康门与生命周期（崩溃探测→自动重启→就绪→冷却）。
 import { ensureComfyUIReady, gpuSnapshot, comfyuiPids, killComfyUI } from './_comfyui-lifecycle.mjs';
 // 工单 030：Logo 批次循环编排（生成→统一校验→不合格下一轮统一重生成）。
@@ -362,8 +362,7 @@ async function processLogoGeneration(project) {
     return;
   }
 
-  // Step 4: Generate logos via ComfyUI（工单 030 批次循环：生成→统一校验→不合格下一轮统一重生成）
-  log('INFO', `[LOGO] ${projectId}: Generating ${logoPrompts.length} logos via ComfyUI (mode=${logoTextMode}, 批次化)...`);
+  // Step 4: Generate logos（工单 030 批次循环；工单 042：客户上传 Logo → 4 槽方案）
   const companyName = normalizedCompanyName || 'Brand';
   const hanCount = (normalizedCompanyName.match(/[\u4e00-\u9fff]/g) || []).length;
   const qualityNote = logoTextMode === 'chinese' && hanCount > 4
@@ -376,31 +375,142 @@ async function processLogoGeneration(project) {
   }
 
   const negativePrompt = 'deformed, blurry, low quality, distorted, 3d render, shadow, gradient, complex background, watermark, text, extra limbs, bad anatomy';
-  const { results: logoResults, paused: batchPaused } = await runLogoBatchFlow({
-    prompts: logoPrompts,
-    generate: async ({ prompt, seed }) => comfyuiGenerateLogo({
-      prompt: prompt + ', logo design on clean white background, centered composition',
-      negativePrompt,
-      size: '1024x1024',
-      mode: logoTextMode,
-      seed,
-    }),
-    check: async ({ imageBase64, prompt }) => runLogoVisionCheck({
-      imageBase64,
-      prompt,
-      expectedText,
-      mode: logoTextMode,
-    }),
-    ensureReady: () => ensureComfyUIReady({ log }),
-    isAvailable: () => isComfyUIAvailable(),
-    // 工单 034：校验前确保 ComfyUI 完全停止并释放显存（停止而非仅空闲）
-    beforeCheck: () => ensureVisionVramFree({ log }),
-    log,
-    gpuSnapshot,
-    maxRounds: MAX_LOGO_BATCH_ROUNDS,
-    maxAttempts: MAX_LOGO_GEN_ATTEMPTS,
-    retryGapMs: LOGO_RETRY_GAP_MS,
-  });
+  // 工单 042：客户上传 Logo 检测（真实素材校验，禁止仅凭布尔/非空对象判断）
+  const uploadCheck = isValidUploadedLogoAssets(clientInfo.logoAssets);
+  const uploadMode = uploadCheck.valid && !!uploadCheck.url;
+
+  let logoResults = [];
+  let batchPaused = false;
+
+  if (uploadMode) {
+    log('INFO', `[LOGO] ${projectId}: 客户上传Logo模式（4槽：原图/优化版/AI×2）`);
+    const palette = (brandProfile.colorPalette || []).map((c) => c && c.hex).filter(Boolean);
+    // 槽1＝客户上传原图（直接展示，跳过内容校验）
+    logoResults.push({
+      index: 0,
+      prompt: '客户上传原图',
+      imageUrl: uploadCheck.url,
+      error: null,
+      vision: { status: 'passed', mode: logoTextMode, expectedText, coarseModel: '-', fineModel: '-', reason: 'customer_upload' },
+      slot: 'original',
+      slotLabel: '原图',
+      source: 'uploaded',
+    });
+    // 槽2＝优化版：7B 提取上传 Logo 特征 → 拼品牌分析色板 → nvfp4 重绘（动态生成，不硬编码）
+    try {
+      const imgResp = await fetch(uploadCheck.url);
+      if (!imgResp.ok) throw new Error(`download upload logo failed: ${imgResp.status}`);
+      const b64 = Buffer.from(await imgResp.arrayBuffer()).toString('base64');
+      const description = await describeLogoForOptimization(b64);
+      const optPrompt = buildOptimizedLogoPrompt({
+        description: description || '客户上传Logo',
+        brandName: normalizedCompanyName || '品牌',
+        brandColors: palette,
+        mode: logoTextMode,
+      });
+      const seed = Math.floor(Math.random() * 2147483647);
+      const genResult = await comfyuiGenerateLogo({
+        prompt: optPrompt + ', logo design on clean white background, centered composition',
+        negativePrompt,
+        size: '1024x1024',
+        mode: logoTextMode,
+        seed,
+      });
+      await ensureVisionVramFree({ log });
+      const vision = await runLogoVisionCheck({ imageBase64: genResult.imageUrl, prompt: optPrompt, expectedText, mode: logoTextMode });
+      logoResults.push({
+        index: 1,
+        prompt: optPrompt,
+        imageUrl: genResult.imageUrl,
+        error: null,
+        vision,
+        slot: 'optimized',
+        slotLabel: '优化版',
+        source: 'ai-optimized',
+        seed,
+        model: genResult.model,
+        durationMs: genResult.durationMs,
+      });
+    } catch (err) {
+      log('WARN', `[LOGO] ${projectId}: 优化版生成失败: ${err.message}`);
+      logoResults.push({
+        index: 1,
+        prompt: '优化版生成失败',
+        imageUrl: null,
+        error: err.message,
+        vision: null,
+        slot: 'optimized',
+        slotLabel: '优化版',
+        source: 'ai-optimized',
+      });
+    }
+    // 槽3/4＝AI 生成（取前 2 条 023 提示词，走批次＋校验门）
+    const aiPrompts = (logoPrompts || []).slice(0, 2);
+    if (aiPrompts.length > 0) {
+      const aiBatch = await runLogoBatchFlow({
+        prompts: aiPrompts,
+        generate: async ({ prompt, seed }) => comfyuiGenerateLogo({
+          prompt: prompt + ', logo design on clean white background, centered composition',
+          negativePrompt,
+          size: '1024x1024',
+          mode: logoTextMode,
+          seed,
+        }),
+        check: async ({ imageBase64, prompt }) => runLogoVisionCheck({
+          imageBase64,
+          prompt,
+          expectedText,
+          mode: logoTextMode,
+        }),
+        ensureReady: () => ensureComfyUIReady({ log }),
+        isAvailable: () => isComfyUIAvailable(),
+        // 工单 034：校验前确保 ComfyUI 完全停止并释放显存（停止而非仅空闲）
+        beforeCheck: () => ensureVisionVramFree({ log }),
+        log,
+        gpuSnapshot,
+        maxRounds: MAX_LOGO_BATCH_ROUNDS,
+        maxAttempts: MAX_LOGO_GEN_ATTEMPTS,
+        retryGapMs: LOGO_RETRY_GAP_MS,
+      });
+      aiBatch.results.forEach((r, i) => {
+        r.index = i + 2;
+        r.slot = 'ai';
+        r.slotLabel = `AI方案${i + 1}`;
+        r.source = 'ai';
+        logoResults.push(r);
+      });
+      batchPaused = aiBatch.paused;
+    }
+  } else {
+    log('INFO', `[LOGO] ${projectId}: Generating ${logoPrompts.length} logos via ComfyUI (mode=${logoTextMode}, 批次化)...`);
+    const batch = await runLogoBatchFlow({
+      prompts: logoPrompts,
+      generate: async ({ prompt, seed }) => comfyuiGenerateLogo({
+        prompt: prompt + ', logo design on clean white background, centered composition',
+        negativePrompt,
+        size: '1024x1024',
+        mode: logoTextMode,
+        seed,
+      }),
+      check: async ({ imageBase64, prompt }) => runLogoVisionCheck({
+        imageBase64,
+        prompt,
+        expectedText,
+        mode: logoTextMode,
+      }),
+      ensureReady: () => ensureComfyUIReady({ log }),
+      isAvailable: () => isComfyUIAvailable(),
+      // 工单 034：校验前确保 ComfyUI 完全停止并释放显存（停止而非仅空闲）
+      beforeCheck: () => ensureVisionVramFree({ log }),
+      log,
+      gpuSnapshot,
+      maxRounds: MAX_LOGO_BATCH_ROUNDS,
+      maxAttempts: MAX_LOGO_GEN_ATTEMPTS,
+      retryGapMs: LOGO_RETRY_GAP_MS,
+    });
+    logoResults = batch.results;
+    batchPaused = batch.paused;
+  }
 
   if (batchPaused) {
     log('ERROR', `[LOGO] ${projectId}: 批次已暂停（ComfyUI 不可用），等待人工处理`);
@@ -424,7 +534,7 @@ async function processLogoGeneration(project) {
 
   // Step 5: Persist base64 images to Supabase Storage
   const successCount = logoResults.filter(r => r.imageUrl).length;
-  log('INFO', `[LOGO] ${projectId}: ${successCount}/${logoPrompts.length} logos generated, persisting...`);
+  log('INFO', `[LOGO] ${projectId}: ${successCount}/${logoResults.length} logos generated, persisting...`);
 
   for (const r of logoResults) {
     if (r.imageUrl && r.imageUrl.startsWith('data:')) {
@@ -460,16 +570,17 @@ async function processLogoGeneration(project) {
         client_info: {
           ...finalInfo,
           generationStatus: 'logo_generated',
-          generationMessage: `Logo生成完成 (${successCount}/${logoPrompts.length})`,
+          generationMessage: `Logo生成完成 (${successCount}/${logoResults.length})`,
           brandProfile: {
             ...finalBP,
-            logoGenerationResults: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error, vision: r.vision })),
+            logoSlotScheme: uploadMode ? 'uploaded' : 'ai',
+            logoGenerationResults: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error, vision: r.vision, slot: r.slot, slotLabel: r.slotLabel, source: r.source })),
             logoGeneratedAt: new Date().toISOString(),
           },
           logoGenerationStatus: {
-            total: logoPrompts.length,
-            completed: logoPrompts.length,
-            results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error, vision: r.vision })),
+            total: logoResults.length,
+            completed: logoResults.length,
+            results: logoResults.map(r => ({ index: r.index, prompt: r.prompt, imageUrl: r.imageUrl, error: r.error, vision: r.vision, slot: r.slot, slotLabel: r.slotLabel, source: r.source })),
             completedAt: new Date().toISOString(),
           },
         },

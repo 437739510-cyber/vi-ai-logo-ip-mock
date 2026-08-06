@@ -9,11 +9,12 @@ import { MascotSection } from "@/components/client/MascotSection";
 import { LogoLightbox } from "@/components/client/LogoLightbox";
 import Link from "next/link";
 
-interface LogoItem {
-  index: number;
-  imageUrl: string;
-  prompt?: string;
-}
+  interface LogoItem {
+    index: number;
+    imageUrl: string;
+    prompt?: string;
+    slotLabel?: string;
+  }
 
 interface LogoRound {
   logos: LogoItem[];
@@ -449,7 +450,12 @@ export default function ViewLogoPage() {
                     </div>
                     <div className="p-3 border-t border-neutral-100">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-neutral-700">方案 {i + 1}</span>
+                        <span className="text-sm font-medium text-neutral-700">
+                          方案 {i + 1}
+                          {logo.slotLabel && (
+                            <span className="ml-2 text-xs font-normal text-neutral-500 border border-neutral-200 rounded px-1.5 py-0.5">{logo.slotLabel}</span>
+                          )}
+                        </span>
                         {selectedIdx === logo.index && (
                           <span className="flex items-center gap-1 text-xs text-primary font-medium">
                             <CheckCircle className="w-3.5 h-3.5" />

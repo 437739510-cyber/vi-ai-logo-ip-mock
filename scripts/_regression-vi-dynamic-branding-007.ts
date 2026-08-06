@@ -29,7 +29,7 @@ import { getMaterialSpecs } from "../src/lib/vi-manual/material-specs";
 import { getIndustryType } from "../src/lib/brand/industry-types";
 import { getLogoMisuseRules, normalizeLogoColorSet, extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from "../src/lib/vi-manual/brand-visual-rules";
 import { MASCOT_EMOTION_NAMES, MASCOT_SCENE_NAMES } from "../src/lib/vi-manual/mascot-assets";
-import { normalizeForCompare, extractExpectedText, looksGarbled, stripDataUriPrefix } from "../src/lib/vision-check";
+import { normalizeForCompare, extractExpectedText, looksGarbled, stripDataUriPrefix, isValidUploadedLogoAssets, buildOptimizedLogoPrompt } from "../src/lib/vision-check";
 import { filterCustomerLogos } from "../src/lib/vi-manual/customer-logo-filter";
 
 const ONE_PX_PNG_BASE64 =
@@ -1300,6 +1300,72 @@ async function main(): Promise<void> {
     "038-5 038 基线未削弱（追加前数量=90）",
     baselineCount038 === 90 && baselineAllPass038,
     `baseline=${baselineCount038} allPass=${baselineAllPass038}`
+  );
+
+  // ============ 042 组：客户上传 Logo 4 槽方案 ============
+  const baselineCount042 = checks.length;
+  const baselineAllPass042 = checks.every((c) => c.pass);
+  const workerSrc042 = readFileSync(new URL("../scripts/worker.mjs", import.meta.url), "utf8");
+  const viewSrc042 = readFileSync("src/app/(client)/view/page.tsx", "utf8");
+  const vcSrc042 = readFileSync("src/lib/vision-check/index.ts", "utf8");
+
+  check(
+    "042-1 上传素材校验：非空数组+http(s) URL 才算有效（禁止仅凭非空对象）",
+    isValidUploadedLogoAssets([{ url: "https://x/y.png" }]).valid === true &&
+      isValidUploadedLogoAssets([{ url: "file:///tmp/x" }]).valid === false &&
+      isValidUploadedLogoAssets([]).valid === false &&
+      isValidUploadedLogoAssets([{ url: "" }]).valid === false &&
+      isValidUploadedLogoAssets(null).valid === false,
+    `valid=${isValidUploadedLogoAssets([{ url: "https://x/y.png" }]).valid} empty=${isValidUploadedLogoAssets([]).valid}`
+  );
+
+  const optPrompt042 = buildOptimizedLogoPrompt({
+    description: "碗形图形与麦穗元素",
+    brandName: "老碗香",
+    brandColors: ["#C0392B", "#F9A825"],
+    mode: "chinese",
+  });
+  check(
+    "042-2 优化版提示词：保留描述语义＋品牌名＋品牌分析色板＋023 约束，无硬编码素材",
+    optPrompt042.includes("碗形图形与麦穗元素") &&
+      optPrompt042.includes("老碗香") &&
+      optPrompt042.includes("#C0392B") &&
+      optPrompt042.includes("#F9A825") &&
+      optPrompt042.includes("每个字只出现一次") &&
+      optPrompt042.includes("禁止 seal stamp") &&
+      !optPrompt042.includes("某客户") &&
+      buildOptimizedLogoPrompt({ description: "d", brandName: "LWX", brandColors: [], mode: "pinyin" }).includes("No Chinese characters"),
+    `has=品牌名/色板/约束 描述=${optPrompt042.includes("碗形图形")}`
+  );
+
+  check(
+    "042-3 worker 上传模式分流：槽1原图直用、槽2优化版（描述+色板）、槽3/4 AI×2、logoSlotScheme",
+    workerSrc042.includes("isValidUploadedLogoAssets") &&
+      workerSrc042.includes("describeLogoForOptimization") &&
+      workerSrc042.includes("buildOptimizedLogoPrompt") &&
+      workerSrc042.includes("slotLabel: '原图'") &&
+      workerSrc042.includes("slotLabel: '优化版'") &&
+      workerSrc042.includes("AI方案") &&
+      workerSrc042.includes(".slice(0, 2)") &&
+      workerSrc042.includes("logoSlotScheme") &&
+      workerSrc042.includes("runLogoBatchFlow") &&
+      vcSrc042.includes("export function isValidUploadedLogoAssets") &&
+      vcSrc042.includes("export function buildOptimizedLogoPrompt"),
+    `vc=${vcSrc042.includes("buildOptimizedLogoPrompt")} slots=${workerSrc042.includes("AI方案")}`
+  );
+
+  check(
+    "042-4 客户界面槽位标注（slotLabel 徽标）",
+    viewSrc042.includes("slotLabel") && viewSrc042.includes("logo.slotLabel"),
+    `label=${viewSrc042.includes("slotLabel")}`
+  );
+
+  check(
+    "042-5 042 基线未削弱＋无上传单仍走原 4 张 AI 批次（else 分支 prompts: logoPrompts）",
+    baselineCount042 === 95 &&
+      baselineAllPass042 &&
+      /prompts: logoPrompts,/.test(workerSrc042),
+    `baseline=${baselineCount042} allPass=${baselineAllPass042} aiElse=${/prompts: logoPrompts,/.test(workerSrc042)}`
   );
 
   console.log("=== 007 动态品牌规则定向回归 ===");
