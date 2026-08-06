@@ -139,7 +139,7 @@ export const consultationSchema = z.object({
     .optional()
     .or(z.literal("")),
   // 工单 024：Logo 文字语言显式单选（中文/拼音；未选由表单默认/提交归一化为中文）
-  logoTextLanguage: z.enum(["中文", "拼音"]).optional(),
+  logoTextLanguage: z.enum(["中文", "拼音"]).optional().or(z.literal("")),
   avoidElements: z
     .string()
     .max(300, "避免元素不超过 300 个字符")

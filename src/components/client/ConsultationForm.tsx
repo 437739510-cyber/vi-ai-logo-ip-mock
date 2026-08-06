@@ -131,6 +131,11 @@ export function ConsultationForm() {
     }
   }, []);
 
+  // 工单 041（线上热修）：logoTextLanguage 显式默认「中文」，避免隐藏输入提交空串触发 zod invalid_enum
+  useEffect(() => {
+    setValue("logoTextLanguage", "中文");
+  }, [setValue]);
+
   const restoreDraft = () => {
     if (!draftData) return;
     Object.entries(draftData).forEach(([key, value]) => {
