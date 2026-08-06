@@ -27,7 +27,7 @@ import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, re
 import { normalizeLogoTextLanguage } from '../src/lib/core/consultation-schema';
 import { runLogoVisionCheck, runMascotVisionCheck, runSceneVisionCheck, extractExpectedText, extractMascotCharacterSpec, runThreeViewConsistencyCheck } from '../src/lib/vision-check';
 // 工单 030：ComfyUI 健康门与生命周期（崩溃探测→自动重启→就绪→冷却）。
-import { ensureComfyUIReady, gpuSnapshot } from './_comfyui-lifecycle.mjs';
+import { ensureComfyUIReady, gpuSnapshot, comfyuiPids, killComfyUI } from './_comfyui-lifecycle.mjs';
 // 工单 030：Logo 批次循环编排（生成→统一校验→不合格下一轮统一重生成）。
 import { runLogoBatchFlow } from './_logo-batch.mjs';
 import { promises as fs } from 'fs';
@@ -230,6 +230,32 @@ function buildScenePromptsFromSuggestions(suggestions, companyName, industryType
 }
 // === 021 scene prompts helper end ===
 
+// ========== 034 校验前显存约定 ==========
+// 工单 034：校验阶段 ComfyUI 必须完全停止并释放显存（停止而非仅空闲），
+// 否则 my-vl（7B 终审）会因显存不足回退 CPU 超时→误 skipped。
+async function ensureVisionVramFree({ log }) {
+  try {
+    const pids = comfyuiPids();
+    if (pids.length === 0) {
+      log('INFO', '[VISION] 校验前 ComfyUI 进程已停止，显存无占用');
+      return;
+    }
+    log('WARN', `[VISION] 校验前发现 ComfyUI 仍在运行（pid=${pids.join(',')}），先停止并等待显存释放`);
+    killComfyUI();
+    const deadline = Date.now() + 60_000;
+    while (Date.now() < deadline) {
+      if (comfyuiPids().length === 0) {
+        log('INFO', '[VISION] ComfyUI 已停止，显存释放确认');
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 2_000));
+    }
+    log('WARN', '[VISION] ComfyUI 进程 60s 内未退出，继续校验（3B 粗检兜底，7B 复核可能降级）');
+  } catch (e) {
+    log('WARN', `[VISION] 校验前显存确认异常（继续校验，3B 粗检兜底）: ${e.message}`);
+  }
+}
+
 // ========== Logo Generation ==========
 
 async function processLogoGeneration(project) {
@@ -359,6 +385,8 @@ async function processLogoGeneration(project) {
     }),
     ensureReady: () => ensureComfyUIReady({ log }),
     isAvailable: () => isComfyUIAvailable(),
+    // 工单 034：校验前确保 ComfyUI 完全停止并释放显存（停止而非仅空闲）
+    beforeCheck: () => ensureVisionVramFree({ log }),
     log,
     gpuSnapshot,
     maxRounds: MAX_LOGO_BATCH_ROUNDS,
@@ -583,6 +611,8 @@ async function processManualGeneration(project) {
     check: async ({ imageBase64 }) => runSceneVisionCheck({ imageBase64, expectedText: sceneExpectedText, mode: sceneTextMode }),
     ensureReady: () => ensureComfyUIReady({ log }),
     isAvailable: () => isComfyUIAvailable(),
+    // 工单 034：校验前确保 ComfyUI 完全停止并释放显存（停止而非仅空闲）
+    beforeCheck: () => ensureVisionVramFree({ log }),
     log,
     gpuSnapshot,
     maxRounds: 2,
@@ -850,14 +880,17 @@ async function processMascotSampleGeneration(project) {
   const { results: sampleResults, paused: batchPaused } = await runLogoBatchFlow({
     prompts: stylePrompts.map((p) => p.prompt),
     generate: async ({ prompt }) => comfyGenerateImage({ prompt, negativePrompt, width: 1024, height: 1024 }),
-    check: async ({ imageBase64, index }) =>
+    check: async ({ imageBase64 }) =>
       runMascotVisionCheck({
         imageBase64,
-        // 工单 031 补验：场景图天然非纯白背景，跳过 whiteBackground 判定
-        requireWhiteBackground: (allItems[index] || {}).cat !== "scene",
+        // 工单 034：样稿均为正面白底图，固定启用白底判定；原误引用全套函数的
+        // allItems 导致 ReferenceError→校验被静默 skipped（033 真实验证发现）
+        requireWhiteBackground: true,
       }),
     ensureReady: () => ensureComfyUIReady({ log }),
     isAvailable: () => isComfyUIAvailable(),
+    // 工单 034：校验前确保 ComfyUI 完全停止并释放显存（停止而非仅空闲）
+    beforeCheck: () => ensureVisionVramFree({ log }),
     log,
     gpuSnapshot,
     maxRounds: 2,
@@ -1031,6 +1064,8 @@ async function processMascotFullGeneration(project) {
       }),
     ensureReady: () => ensureComfyUIReady({ log }),
     isAvailable: () => isComfyUIAvailable(),
+    // 工单 034：校验前确保 ComfyUI 完全停止并释放显存（停止而非仅空闲）
+    beforeCheck: () => ensureVisionVramFree({ log }),
     log,
     gpuSnapshot,
     maxRounds: 2,

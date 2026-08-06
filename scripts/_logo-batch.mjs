@@ -21,6 +21,9 @@ export async function runLogoBatchFlow(opts) {
     maxRounds = 2,
     maxAttempts = 3,
     retryGapMs = 30_000,
+    // 工单 034：校验前钩子（如停止 ComfyUI、确认显存释放）。失败不阻塞批次，
+    // 由调用方决定告警，粗检通道仍会兜底运行。
+    beforeCheck = async () => {},
   } = opts;
   const tag = label.toUpperCase();
 
@@ -110,10 +113,16 @@ export async function runLogoBatchFlow(opts) {
     log('INFO', `[GPU] 生成后 ${await gpuSnapshot()}`);
     if (paused) break;
 
-    // 统一校验（Ollama 校验阶段，ComfyUI 已空闲；逐张单图请求，keep_alive=0 由 vision-check 控制）
     const toCheck = todo.filter((x) => x.status === 'generated' && x.imageUrl);
     if (toCheck.length > 0) {
-      log('INFO', `[VISION] 批次统一校验 ${toCheck.length} 张（Ollama 校验阶段，ComfyUI 已空闲）`);
+      // 工单 034：统一校验（Ollama 校验阶段，ComfyUI 必须完全停止并释放显存，
+      // 非仅空闲；逐张单图请求，keep_alive=0 由 vision-check 控制）
+      try {
+        await beforeCheck();
+      } catch (e) {
+        log('WARN', `[VISION] beforeCheck 异常（继续校验，3B 粗检兜底）: ${(e && e.message) || e}`);
+      }
+      log('INFO', `[VISION] 批次统一校验 ${toCheck.length} 张（Ollama 校验阶段，ComfyUI 已停止/显存已释放）`);
       log('INFO', `[GPU] 校验前 ${await gpuSnapshot()}`);
       for (const item of toCheck) {
         let vision = null;

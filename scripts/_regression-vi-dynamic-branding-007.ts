@@ -1160,6 +1160,42 @@ async function main(): Promise<void> {
     `baseline=${baselineCount033} allPass=${baselineAllPass033}`
   );
 
+  // ===== 工单 034：公仔样稿批次校验接线修复＋校验前显存约定 =====
+  const baselineCount034 = checks.length;
+  const baselineAllPass034 = checks.every((c) => c.pass);
+  const workerSrc034 = readFileSync("scripts/worker.mjs", "utf8");
+  const batchSrc034 = readFileSync("scripts/_logo-batch.mjs", "utf8");
+
+  check(
+    "034-1 样稿 check 不再引用全套 allItems（requireWhiteBackground: true；allItems[index] 仅全套保留 1 处）",
+    workerSrc034.includes("requireWhiteBackground: true") &&
+      (workerSrc034.match(/allItems\[index\]/g) || []).length === 1,
+    `sampleFixed=${workerSrc034.includes("requireWhiteBackground: true")} allItemsRef=${(workerSrc034.match(/allItems\[index\]/g) || []).length}`
+  );
+  check(
+    "034-2 批次模块支持 beforeCheck 钩子（校验前调用，失败不阻塞）",
+    batchSrc034.includes("beforeCheck = async () => {}") &&
+      batchSrc034.includes("await beforeCheck()"),
+    `hook=${batchSrc034.includes("beforeCheck")}`
+  );
+  check(
+    "034-3 worker 四个批次（Logo/Scene/MascotSample/MascotFull）均接入 beforeCheck",
+    (workerSrc034.match(/beforeCheck: \(\) => ensureVisionVramFree/g) || []).length >= 4,
+    `beforeCheckCount=${(workerSrc034.match(/beforeCheck: \(\) => ensureVisionVramFree/g) || []).length}`
+  );
+  check(
+    "034-4 校验前显存约定：ComfyUI 停止而非仅空闲（killComfyUI＋等待进程退出）",
+    workerSrc034.includes("ensureVisionVramFree") &&
+      workerSrc034.includes("killComfyUI()") &&
+      workerSrc034.includes("comfyuiPids().length === 0"),
+    `helper=${workerSrc034.includes("ensureVisionVramFree")} kill=${workerSrc034.includes("killComfyUI()")}`
+  );
+  check(
+    "034-5 034 基线未削弱（追加前数量=79）",
+    baselineCount034 === 79 && baselineAllPass034,
+    `baseline=${baselineCount034} allPass=${baselineAllPass034}`
+  );
+
   console.log("=== 007 动态品牌规则定向回归 ===");
   for (const c of checks) {
     console.log(`${c.pass ? "PASS" : "FAIL"} ${c.name}${c.evidence ? `  | 证据: ${c.evidence}` : ""}`);
