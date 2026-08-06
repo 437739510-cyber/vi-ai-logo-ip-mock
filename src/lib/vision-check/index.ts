@@ -11,6 +11,7 @@ import { execFile } from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import sharp from "sharp";
 
 export type VisionStatus = "passed" | "suspect" | "needs_review" | "skipped";
 export type LogoTextMode = "chinese" | "pinyin";
@@ -62,6 +63,28 @@ function runCurl(
       },
     );
   });
+}
+
+/** 从模型文本中提取最后一个 JSON 对象（模型常先描述画面再输出 JSON）。 */
+function extractJsonObjectFromText(text: string): Record<string, unknown> | null {
+  const start = text.lastIndexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    try {
+      return JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
+    } catch {
+      /* 继续 */
+    }
+  }
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) {
+    try {
+      return JSON.parse(fence[1].trim()) as Record<string, unknown>;
+    } catch {
+      /* 继续 */
+    }
+  }
+  return null;
 }
 
 /** Ollama 服务是否可达（只探活，不占显存）。工单 029：超时放宽到 10s，允许 1 次重试。 */
@@ -325,6 +348,63 @@ export async function runSceneVisionCheck(opts: {
     };
   }
   return textCheck;
+}
+
+/**
+ * 工单 044：照片→场景图专用校验。门店照片天然含其它墙面文字，因此采用
+ * “品牌名出现在 OCR 文本中”的子串语义（而非整图文字全等）：
+ * 3B 粗筛包含→passed；否则 my-vl 终审包含→passed；仍不含→suspect。
+ */
+export async function runPhotoSceneVisionCheck(opts: {
+  imageBase64: string;
+  expectedText: string;
+  mode: LogoTextMode;
+  coarseModel?: string;
+  fineModel?: string;
+}): Promise<VisionCheckResult> {
+  const mode = opts.mode;
+  const coarseModel = opts.coarseModel || "qwen2.5vl:3b";
+  const fineModel = opts.fineModel || "my-vl";
+  const expectedText = opts.expectedText;
+  const base: VisionCheckResult = {
+    status: "skipped",
+    mode,
+    expectedText,
+    coarseModel,
+    fineModel,
+    checkedAt: new Date().toISOString(),
+  };
+  if (!expectedText) return { ...base, reason: "expected_text_unavailable" };
+  if (!(await isOllamaAvailable())) return { ...base, reason: "ollama_unavailable" };
+
+  const expectedNorm = normalizeForCompare(expectedText, mode);
+  if (!expectedNorm) return { ...base, reason: "expected_text_unavailable" };
+
+  const coarse = await ocrWithRetry(coarseModel, OCR_PROMPT, opts.imageBase64);
+  if (!coarse.garbled) {
+    const coarseNorm = normalizeForCompare(coarse.text, mode);
+    if (coarseNorm.includes(expectedNorm)) {
+      return { ...base, status: "passed", coarseText: coarse.text };
+    }
+  }
+
+  // 粗筛不含（或乱码）→ 7B 终审（子串语义）
+  let fineText = "";
+  try {
+    fineText = await ocrWithModel(fineModel, OCR_PROMPT, opts.imageBase64);
+  } catch (e) {
+    return {
+      ...base,
+      status: "suspect",
+      coarseText: coarse.text,
+      reason: `fine_error: ${(e as Error).message.slice(0, 120)}`,
+    };
+  }
+  const fineNorm = normalizeForCompare(fineText, mode);
+  if (fineNorm.includes(expectedNorm)) {
+    return { ...base, status: "passed", coarseText: coarse.text, fineText };
+  }
+  return { ...base, status: "suspect", coarseText: coarse.text, fineText };
 }
 
 /** 解析公仔完整性 JSON（容错：剥离代码围栏、正则回退）。 */
@@ -697,4 +777,331 @@ export function buildOptimizedLogoPrompt(opts: {
     `${colorText}。` +
     `禁止 seal stamp、印章、篆书、雕刻、engraved、环形小字、仿古纹样。`
   );
+}
+
+// ========== 工单 044：门店照片→场景图（定位/蒙版/核色） ==========
+
+export interface TextRegion {
+  /** 归一化百分比坐标（0-100，左上原点） */
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+/**
+ * 容错解析 7B 返回的 bbox JSON。支持两种格式：
+ * 1) 百分比单框对象 {"x1":..,"y1":..,"x2":..,"y2":..}
+ * 2) 像素 bbox 数组 [{"bbox_2d":[x1,y1,x2,y2],"label":..},...]（自动取并集，
+ *    需传入图片宽高转百分比）
+ * 正则回退：连续 4 个数字。
+ */
+export function parseTextRegionJson(
+  text: string,
+  opts?: { width?: number; height?: number },
+): TextRegion | null {
+  const cleaned = (text || "")
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    parsed = null;
+  }
+  let x1: number;
+  let y1: number;
+  let x2: number;
+  let y2: number;
+  const w = opts?.width || 100;
+  const h = opts?.height || 100;
+  if (Array.isArray(parsed)) {
+    const boxes = (parsed as Array<{ bbox_2d?: number[] }>)
+      .map((b) => (b && Array.isArray(b.bbox_2d) ? b.bbox_2d.map(Number) : null))
+      .filter((b): b is number[] => !!b && b.length >= 4 && b.every(Number.isFinite));
+    if (boxes.length === 0) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const b of boxes) {
+      minX = Math.min(minX, b[0]);
+      minY = Math.min(minY, b[1]);
+      maxX = Math.max(maxX, b[2]);
+      maxY = Math.max(maxY, b[3]);
+    }
+    x1 = (minX / w) * 100;
+    y1 = (minY / h) * 100;
+    x2 = (maxX / w) * 100;
+    y2 = (maxY / h) * 100;
+  } else if (parsed && typeof parsed === "object") {
+    const o = parsed as Record<string, unknown>;
+    x1 = Number(o.x1);
+    y1 = Number(o.y1);
+    x2 = Number(o.x2);
+    y2 = Number(o.y2);
+  } else {
+    const nums = (text.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+    if (nums.length < 4) return null;
+    [x1, y1, x2, y2] = nums;
+    if (x1 > 100 || y1 > 100 || x2 > 100 || y2 > 100) {
+      x1 = (x1 / w) * 100;
+      y1 = (y1 / h) * 100;
+      x2 = (x2 / w) * 100;
+      y2 = (y2 / h) * 100;
+    }
+  }
+  if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+  if (x1 < 0 || y1 < 0 || x2 > 100 || y2 > 100 || x2 <= x1 || y2 <= y1) return null;
+  return { x1, y1, x2, y2 };
+}
+
+const TEXT_REGION_PROMPT =
+  "门店照片文字定位任务。请找出图片中所有文字的边界框，只输出 JSON 数组，" +
+  '每个元素格式：{"bbox_2d":[x1,y1,x2,y2],"label":"文字内容"}，' +
+  "x/y 为像素坐标（图片左上角为原点，x1<x2，y1<y2），覆盖全部主要文字。" +
+  "不要输出任何其他文字或解释。";
+
+/** 用 my-vl（7B）定位照片中的文字区域（动态，禁止硬编码坐标）。失败返回 null。 */
+export async function locateTextRegion(
+  imagePath: string,
+  opts?: { model?: string },
+): Promise<TextRegion | null> {
+  try {
+    const buf = await fs.promises.readFile(imagePath);
+    const meta = await sharp(imagePath).metadata();
+    const width = meta.width || 1024;
+    const height = meta.height || 1024;
+    const text = await ocrWithModel(
+      opts?.model || "my-vl",
+      TEXT_REGION_PROMPT,
+      buf.toString("base64"),
+    );
+    return parseTextRegionJson(text || "", { width, height });
+  } catch {
+    return null;
+  }
+}
+
+const STOREFRONT_PROMPT =
+  '请判断这张照片是否包含门店/店铺的正立面、门头或招牌。只输出 JSON：' +
+  '{"isStorefront":true或false}。不要解释。';
+
+/** 判断一张照片是否为门店正立面/门头照（7B）。失败返回 false。 */
+export async function isStorefrontPhoto(
+  imagePath: string,
+  opts?: { model?: string },
+): Promise<boolean> {
+  try {
+    const buf = await fs.promises.readFile(imagePath);
+    const text = await ocrWithModel(
+      opts?.model || "my-vl",
+      STOREFRONT_PROMPT,
+      buf.toString("base64"),
+    );
+    try {
+      const obj = extractJsonObjectFromText(text || "") as { isStorefront?: unknown } | null;
+      if (obj) {
+        if (typeof obj?.isStorefront === "boolean") return obj.isStorefront;
+        if (obj?.isStorefront === "true") return true;
+        if (obj?.isStorefront === "false") return false;
+      }
+    } catch {
+      /* 回退到关键字 */
+    }
+    const cleaned = (text || "").replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    try {
+      const obj = JSON.parse(cleaned) as { isStorefront?: unknown };
+      if (typeof obj?.isStorefront === "boolean") return obj.isStorefront;
+      if (obj?.isStorefront === "true") return true;
+      if (obj?.isStorefront === "false") return false;
+    } catch {
+      /* 回退到关键字 */
+    }
+    return /^\s*yes\b/i.test(text || "");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 按 bbox 生成带 alpha 的蒙版 PNG：区域内 alpha=0（透明=重绘区），区域外
+ * alpha=255（保留），边缘羽化。与 043 实测一致（LoadImage alpha → mask）。
+ */
+export async function generateInpaintMaskPng(
+  inputImagePath: string,
+  region: TextRegion,
+  outPath: string,
+  opts?: { featherPx?: number },
+): Promise<{ width: number; height: number }> {
+  const feather = Math.max(1, opts?.featherPx ?? 24);
+  const { data, info } = await sharp(inputImagePath)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const { width, height, channels } = info;
+  const buf = Buffer.from(data);
+  const x1 = Math.round((region.x1 / 100) * width);
+  const x2 = Math.round((region.x2 / 100) * width);
+  const y1 = Math.round((region.y1 / 100) * height);
+  const y2 = Math.round((region.y2 / 100) * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const aIdx = (y * width + x) * channels + 3;
+      const dx = Math.max(x1 - x, 0, x - x2);
+      const dy = Math.max(y1 - y, 0, y - y2);
+      const dist = Math.max(dx, dy);
+      if (dist <= 0) buf[aIdx] = 0;
+      else if (dist >= feather) buf[aIdx] = 255;
+      else buf[aIdx] = Math.round(255 * (dist / feather));
+    }
+  }
+  await sharp(buf, { raw: { width, height, channels } }).png().toFile(outPath);
+  return { width, height };
+}
+
+export interface BrandColorCheckResult {
+  status: "passed" | "suspect" | "skipped";
+  avgHex?: string;
+  distances?: number[];
+  reason?: string;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace("#", "");
+  const v = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const n = parseInt(v, 16);
+  if (Number.isNaN(n) || v.length !== 6) return { r: 128, g: 128, b: 128 };
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const c = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${c(r)}${c(g)}${c(b)}`.toUpperCase();
+}
+
+/**
+ * 核色门：采样输出图（优先 bbox 区域）平均色，与品牌色板比对。
+ * 启发式门禁（合理色差阈值内 passed）；解码/无色板 → skipped，不阻塞。
+ */
+export async function checkBrandColors(opts: {
+  imageBase64: string;
+  region?: TextRegion | null;
+  palette: { hex: string; name?: string }[];
+  threshold?: number;
+}): Promise<BrandColorCheckResult> {
+  const threshold = opts.threshold ?? 150;
+  const palette = (opts.palette || []).map((p) => p.hex).filter(Boolean);
+  if (palette.length === 0) return { status: "skipped", reason: "no_palette" };
+  try {
+    const buf = Buffer.from(stripDataUriPrefix(opts.imageBase64), "base64");
+    const { data, info } = await sharp(buf)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const { width, height, channels } = info;
+    const x1 = Math.round(((opts.region?.x1 ?? 0) / 100) * width);
+    const x2 = Math.round(((opts.region?.x2 ?? 100) / 100) * width);
+    const y1 = Math.round(((opts.region?.y1 ?? 0) / 100) * height);
+    const y2 = Math.round(((opts.region?.y2 ?? 100) / 100) * height);
+    let sumR = 0, sumG = 0, sumB = 0, n = 0;
+    for (let y = Math.max(0, y1); y < Math.min(height, y2); y++) {
+      for (let x = Math.max(0, x1); x < Math.min(width, x2); x++) {
+        const idx = (y * width + x) * channels;
+        sumR += data[idx];
+        sumG += data[idx + 1];
+        sumB += data[idx + 2];
+        n++;
+      }
+    }
+    if (n === 0) return { status: "skipped", reason: "empty_region" };
+    const avgR = sumR / n, avgG = sumG / n, avgB = sumB / n;
+    const avgHex = rgbToHex(avgR, avgG, avgB);
+    const distances = palette.map((hex) => {
+      const c = hexToRgb(hex);
+      return Math.sqrt((avgR - c.r) ** 2 + (avgG - c.g) ** 2 + (avgB - c.b) ** 2);
+    });
+    const min = Math.min(...distances);
+    return {
+      status: min <= threshold ? "passed" : "suspect",
+      avgHex,
+      distances,
+      reason: min <= threshold ? undefined : `min_distance=${min.toFixed(0)}>${threshold}`,
+    };
+  } catch {
+    return { status: "skipped", reason: "decode_error" };
+  }
+}
+
+/** 组装照片重绘提示词（文本替换版 + 品牌色重涂版）。纯函数可单测。 */
+export function buildPhotoScenePrompts(opts: {
+  brandName: string;
+  brandColors?: { hex: string; name?: string }[];
+}): { textPrompt: string; colorPrompt: string | null } {
+  const name = opts.brandName || "品牌";
+  const textPrompt =
+    `把图片中墙面/招牌区域的现有文字替换为品牌招牌文字「${name}」，` +
+    "现代简洁品牌风格，字体清晰端正，每个字只出现一次、无重复、无多余文字；" +
+    "其余墙面、装饰、光线与结构保持不变。";
+  const colors = (opts.brandColors || []).filter((c) => c && c.hex);
+  if (colors.length === 0) return { textPrompt, colorPrompt: null };
+  const colorDesc = colors
+    .map((c, i) => (i === 0 ? `${c.name || "主色"}(${c.hex})为主色` : `${c.name || "点缀色"}(${c.hex})点缀`))
+    .join("，");
+  const colorPrompt =
+    textPrompt +
+    `同时把店内墙面、门头与陈设按品牌色板重新配色：${colorDesc}，整体温馨专业、统一和谐。`;
+  return { textPrompt, colorPrompt };
+}
+
+const LOGO_HAS_TEXT_PROMPT =
+  "请判断这张图片中是否存在任何文字（汉字/拼音/英文/数字）。只输出 JSON：" +
+  '{"hasText":true或false,"text":"若存在则逐字列出全部文字，不存在则为空字符串"}。不要解释。';
+
+/** 检测图片是否含可识别文字。用于“客户 logo 无文字（纯图形）”分支。 */
+export async function detectLogoHasText(
+  imageBase64: string,
+  opts?: { model?: string },
+): Promise<boolean> {
+  try {
+    const model = opts?.model || "my-vl";
+    const ans = await ocrWithModel(model, LOGO_HAS_TEXT_PROMPT, imageBase64);
+    try {
+      const obj = extractJsonObjectFromText(ans || "") as { hasText?: unknown; text?: string } | null;
+      if (typeof obj?.hasText === "boolean") return obj.hasText;
+      if (obj?.hasText === "true") return true;
+      if (obj?.hasText === "false") return false;
+      if (typeof obj?.text === "string") {
+        // text 字段给了逐字内容：有汉字或≥3 个连续字母才算有字
+        const cn = (obj.text.match(/[\u4e00-\u9fff]/g) || []).length;
+        const en = (obj.text.replace(/\s/g, "").match(/[A-Za-z]{3,}/g) || []).length;
+        return cn > 0 || en > 0;
+      }
+    } catch {
+      /* 走 OCR 兜底 */
+    }
+    const cleaned = (ans || "").replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    try {
+      const obj = JSON.parse(cleaned) as { hasText?: unknown; text?: string };
+      if (typeof obj?.hasText === "boolean") return obj.hasText;
+      if (obj?.hasText === "true") return true;
+      if (obj?.hasText === "false") return false;
+      if (typeof obj?.text === "string") {
+        const cn = (obj.text.match(/[\u4e00-\u9fff]/g) || []).length;
+        const en = (obj.text.replace(/\s/g, "").match(/[A-Za-z]{3,}/g) || []).length;
+        return cn > 0 || en > 0;
+      }
+    } catch {
+      /* 走 OCR 兜底 */
+    }
+    // 兜底：OCR 逐字提取；描述性散文（含常见词/空格）视为无字
+    const text = await ocrWithModel(model, OCR_PROMPT, imageBase64);
+    const cn = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+    if (cn > 0) return true;
+    const cleanedText = (text || "").replace(/[\s\p{P}\p{S}]/gu, "");
+    if (cleanedText.length >= 3 && !/\b(the|image|logo|appears|provided|feature|design|stylized|emblem|this|that|with|you)\b/i.test(text || "")) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }

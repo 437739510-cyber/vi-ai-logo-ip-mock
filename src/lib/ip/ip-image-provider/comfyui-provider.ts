@@ -366,6 +366,70 @@ export async function comfyGenerateScene(options: {
 
 }
 
+/**
+ * 工单 044：门店照片→场景图（T2 蒙版局部重绘主路，043 实测参数）。
+ * 输入：已放在 ComfyUI input 目录的带 alpha PNG（透明区=重绘区）。
+ * 工作流：UNETLoader(nvfp4)/UnetLoaderGGUF(Q4) → CLIPLoader(qwen_image) →
+ *   VAELoader(ae) → LoadImage(alpha) → VAEEncodeForInpaint(grow_mask_by=6) →
+ *   SamplerCustomAdvanced(euler/simple/steps=4/denoise=1.0) → VAEDecode → SaveImage
+ */
+export async function comfyuiInpaintPhoto(options: {
+  imageFile: string; // ComfyUI input 目录下的文件名（由调用方写入）
+  prompt: string;
+  negativePrompt?: string;
+  seed?: number;
+  variant?: "nvfp4" | "q4";
+  filenamePrefix?: string;
+}): Promise<{ imageUrl: string; durationMs: number; model: string; seed: number }> {
+  const seed = options.seed ?? Math.floor(Math.random() * 2_147_483_647);
+  const variant = options.variant === "q4" ? "q4" : "nvfp4";
+  const neg = options.negativePrompt || "blurry, low quality, distorted, watermark, text errors, bad typography";
+  const workflow: Record<string, any> = {
+    "1": variant === "q4"
+      ? { class_type: "UnetLoaderGGUF", inputs: { unet_name: "z-image-turbo-Q4_K_M.gguf" } }
+      : { class_type: "UNETLoader", inputs: { unet_name: "z_image_turbo_nvfp4.safetensors", weight_dtype: "default" } },
+    "2": {
+      class_type: "CLIPLoader",
+      inputs: { clip_name: "qwen_3_4b_fp8_mixed.safetensors", type: "qwen_image" },
+    },
+    "3": { class_type: "VAELoader", inputs: { vae_name: "ae.safetensors" } },
+    "4": { class_type: "CLIPTextEncode", inputs: { text: options.prompt, clip: ["2", 0] } },
+    "5": { class_type: "CLIPTextEncode", inputs: { text: neg, clip: ["2", 0] } },
+    "6": { class_type: "LoadImage", inputs: { image: options.imageFile } },
+    "7": {
+      class_type: "VAEEncodeForInpaint",
+      inputs: { pixels: ["6", 0], vae: ["3", 0], mask: ["6", 1], grow_mask_by: 6 },
+    },
+    "8": { class_type: "BasicGuider", inputs: { model: ["1", 0], conditioning: ["4", 0] } },
+    "9": { class_type: "BasicScheduler", inputs: { model: ["1", 0], scheduler: "simple", steps: 4, denoise: 1.0 } },
+    "10": { class_type: "KSamplerSelect", inputs: { sampler_name: "euler" } },
+    "11": { class_type: "RandomNoise", inputs: { noise_seed: seed } },
+    "12": {
+      class_type: "SamplerCustomAdvanced",
+      inputs: {
+        noise: ["11", 0],
+        guider: ["8", 0],
+        sampler: ["10", 0],
+        sigmas: ["9", 0],
+        latent_image: ["7", 0],
+      },
+    },
+    "13": { class_type: "VAEDecode", inputs: { samples: ["12", 0], vae: ["3", 0] } },
+    "14": {
+      class_type: "SaveImage",
+      inputs: { filename_prefix: options.filenamePrefix || "comfyui_zt_inpaint", images: ["13", 0] },
+    },
+  };
+  const { filename, durationMs } = await submitAndWait(workflow);
+  const imageUrl = await readImageAsBase64(filename);
+  return {
+    imageUrl,
+    durationMs,
+    model: variant === "q4" ? "z-image-turbo-Q4_K_M" : "z_image_turbo_nvfp4",
+    seed,
+  };
+}
+
 // ========== Aliases (route compatibility) ==========
 
 export const comfyuiGenerateLogo = comfyGenerateLogo;

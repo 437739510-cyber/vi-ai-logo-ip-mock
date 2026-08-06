@@ -17,7 +17,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { comfyuiGenerateLogo, comfyuiGenerateScene, comfyGenerateImage, isComfyUIAvailable } from '../src/lib/ip/ip-image-provider/comfyui-provider';
+import { comfyuiGenerateLogo, comfyuiGenerateScene, comfyGenerateImage, comfyuiInpaintPhoto, isComfyUIAvailable } from '../src/lib/ip/ip-image-provider/comfyui-provider';
 import { planPages } from '../src/lib/vi-manual/page-planner';
 import { renderPptxToBuffer } from '../src/lib/pptx/render-pptx';
 import { normalizeBrandName } from '../src/lib/vi-manual/brand-name-normalizer';
@@ -25,7 +25,7 @@ import { buildMascotAssetSetFromClientInfo, validateMascotAssets, MASCOT_EMOTION
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from '../src/lib/vi-manual/brand-visual-rules';
 import { normalizeLogoTextLanguage } from '../src/lib/core/consultation-schema';
-import { runLogoVisionCheck, runMascotVisionCheck, runSceneVisionCheck, extractExpectedText, extractMascotCharacterSpec, runThreeViewConsistencyCheck, isValidUploadedLogoAssets, describeLogoForOptimization, buildOptimizedLogoPrompt } from '../src/lib/vision-check';
+import { runLogoVisionCheck, runMascotVisionCheck, runSceneVisionCheck, runPhotoSceneVisionCheck, extractExpectedText, extractMascotCharacterSpec, runThreeViewConsistencyCheck, isValidUploadedLogoAssets, describeLogoForOptimization, buildOptimizedLogoPrompt, locateTextRegion, generateInpaintMaskPng, checkBrandColors, isStorefrontPhoto, buildPhotoScenePrompts, detectLogoHasText } from '../src/lib/vision-check';
 // 工单 030：ComfyUI 健康门与生命周期（崩溃探测→自动重启→就绪→冷却）。
 import { ensureComfyUIReady, gpuSnapshot, comfyuiPids, killComfyUI } from './_comfyui-lifecycle.mjs';
 // 工单 030：Logo 批次循环编排（生成→统一校验→不合格下一轮统一重生成）。
@@ -33,6 +33,7 @@ import { runLogoBatchFlow } from './_logo-batch.mjs';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import sharp from 'sharp';
 
 // ========== Config ==========
 
@@ -41,6 +42,8 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || '';
 const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const POLL_INTERVAL_MS = 10_000;
+// 工单 044：ComfyUI input 目录（照片/蒙版写入位置；LoadImage 只认该目录内文件）
+const COMFYUI_INPUT_DIR = process.env.COMFYUI_INPUT_DIR || 'D:/ComfyUI-backup/input';
 const DEEPSEEK_TIMEOUT_MS = 60_000;
 const MAX_LOGO_GEN_RETRIES = 2;
 // 工单 027：Logo 视觉校验不合格时换 seed 重试次数（校验失败不计入生成重试）。
@@ -262,6 +265,200 @@ async function ensureVisionVramFree({ log }) {
   } catch (e) {
     log('WARN', `[VISION] 校验前显存确认异常（继续校验，3B 粗检兜底）: ${e.message}`);
   }
+}
+
+// ========== 工单 044：门店照片→场景图（照片重绘主路） ==========
+
+async function fetchSubmissionStorePhotos(project) {
+  const ci = project.client_info || {};
+  if (Array.isArray(ci.storePhotos) && ci.storePhotos.length > 0) return ci.storePhotos;
+  if (!project.submission_id) return [];
+  try {
+    const { data } = await supabase
+      .from('submissions')
+      .select('store_photos')
+      .eq('id', project.submission_id)
+      .maybeSingle();
+    if (data && Array.isArray(data.store_photos)) return data.store_photos;
+  } catch (err) {
+    log('WARN', `[PHOTO] store_photos 查询失败: ${err.message}`);
+  }
+  return [];
+}
+
+/**
+ * 选择门店正立面照：7B 逐张判断（最多 3 张），失败取第一张。
+ * 必须在 ComfyUI 启动前调用（Ollama 需要显存）。
+ */
+async function chooseStorefrontPhotoUrl(photoUrls, { log }) {
+  let chosen = photoUrls[0];
+  for (let i = 0; i < Math.min(3, photoUrls.length); i++) {
+    const url = photoUrls[i];
+    const tmpPath = path.join(COMFYUI_INPUT_DIR, `044_pick_${Date.now()}_${i}.jpg`);
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      await fs.writeFile(tmpPath, Buffer.from(await resp.arrayBuffer()));
+      const ok = await isStorefrontPhoto(tmpPath);
+      log('INFO', `[PHOTO] 照片 ${i + 1}/${photoUrls.length} 正立面判断: ${ok ? 'yes' : 'no'}`);
+      if (ok) { chosen = url; break; }
+    } catch (err) {
+      log('WARN', `[PHOTO] 照片 ${i + 1} 判断失败: ${err.message}`);
+    } finally {
+      await fs.unlink(tmpPath).catch(() => {});
+    }
+  }
+  return chosen;
+}
+
+/**
+ * 照片预处理（必须在 ComfyUI 启动前）：下载→压到 ≤1280px→7B 定位文字区→
+ * 生成 alpha 蒙版 PNG（透明=重绘区）。任何一步失败返回 null（回退原文生图）。
+ */
+async function preparePhotoScene({ project, clientInfo, brandProfile, companyName, log, logoData, uploadedLogoUrl }) {
+  if (clientInfo.logoTextLanguage === 'pinyin') {
+    log('INFO', '[PHOTO] 拼音订单暂不走照片链路（本地无可靠拼音转写），回退文生图');
+    return null;
+  }
+  const storePhotos = await fetchSubmissionStorePhotos(project);
+  const photoUrls = (storePhotos || [])
+    .map((p) => (typeof p === 'string' ? p : (p && p.url)))
+    .filter(Boolean);
+  if (photoUrls.length === 0) {
+    log('INFO', '[PHOTO] 无客户门店照片，维持原文生图场景');
+    return null;
+  }
+  log('INFO', `[PHOTO] 客户门店照片 ${photoUrls.length} 张，开始照片→场景图链路`);
+
+  const chosenUrl = await chooseStorefrontPhotoUrl(photoUrls, { log });
+  const prefix = `044_${project.id}_${Date.now()}`;
+  const photoFile = `${prefix}_photo.png`;
+  const maskedFile = `${prefix}_masked.png`;
+  const photoPath = path.join(COMFYUI_INPUT_DIR, photoFile);
+  const maskedPath = path.join(COMFYUI_INPUT_DIR, maskedFile);
+
+  try {
+    const resp = await fetch(chosenUrl);
+    if (!resp.ok) throw new Error(`照片下载失败 ${resp.status}`);
+    await fs.writeFile(photoPath, Buffer.from(await resp.arrayBuffer()));
+    // 压到 ≤1280px 宽（保持长宽比），并转 PNG
+    await sharp(photoPath)
+      .resize({ width: 1280, withoutEnlargement: true })
+      .png()
+      .toFile(photoPath + '.tmp');
+    await fs.rename(photoPath + '.tmp', photoPath);
+
+    const region = await locateTextRegion(photoPath);
+    if (!region) {
+      log('WARN', '[PHOTO] 7B 未能定位文字区域，回退文生图');
+      return null;
+    }
+    log('INFO', `[PHOTO] 文字区域定位: ${JSON.stringify(region)}`);
+    await generateInpaintMaskPng(photoPath, region, maskedPath, { featherPx: 24 });
+
+    const prompts = buildPhotoScenePrompts({
+      brandName: companyName,
+      brandColors: (brandProfile.colorPalette || []).map((c) => ({ hex: c.hex, name: c.name })),
+    });
+  const expectedText = extractExpectedText(prompts.textPrompt, 'chinese', companyName);
+  // 工单 044 v2：客户 logo 可能无文字（纯图形）——检测并记录，叠加合成留 045。
+  let logoHasText = null;
+  try {
+    if (uploadedLogoUrl) {
+      const resp = await fetch(uploadedLogoUrl);
+      if (resp.ok) {
+        const buf = Buffer.from(await resp.arrayBuffer());
+        logoHasText = await detectLogoHasText('data:image/png;base64,' + buf.toString('base64'));
+      }
+    } else if (logoData) {
+      logoHasText = await detectLogoHasText(logoData);
+    }
+  } catch (err) {
+    log('WARN', `[PHOTO] logo 文字检测失败: ${err.message}`);
+  }
+  if (logoHasText !== null) {
+    log('INFO', `[PHOTO] 客户上传 Logo 含文字: ${logoHasText}（false=纯图形，图形叠加合成留 045）`);
+  }
+    return {
+      imageFile: maskedFile,
+      photoPath,
+      maskedPath,
+      region,
+      textPrompt: prompts.textPrompt,
+      colorPrompt: prompts.colorPrompt,
+      expectedText,
+      brandPalette: (brandProfile.colorPalette || []).map((c) => ({ hex: c.hex, name: c.name })),
+      logoHasText,
+    };
+  } catch (err) {
+    log('WARN', `[PHOTO] 预处理失败（回退文生图）: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * 单张照片重绘 + 校验（生成→停止 ComfyUI→Ollama 核字→失败换 seed 重试）。
+ * checkColor=true 时附加品牌色核色门（启发式，不阻塞）。
+ */
+async function generatePhotoSceneWithRetry({
+  imageFile,
+  prompt,
+  expectedText,
+  variant = 'nvfp4',
+  region = null,
+  brandPalette = [],
+  checkColor = false,
+  log,
+  maxAttempts = 3,
+}) {
+  let last = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (!(await isComfyUIAvailable())) {
+      const ok = await ensureComfyUIReady({ log });
+      if (!ok) return { status: 'paused', error: 'ComfyUI 不可用' };
+    }
+    const seed = Math.floor(Math.random() * 2147483647);
+    log('INFO', `[PHOTO] 生成 attempt ${attempt}/${maxAttempts} seed=${seed} variant=${variant}`);
+    try {
+      const gen = await comfyuiInpaintPhoto({ imageFile, prompt, seed, variant });
+      await ensureVisionVramFree({ log }).catch(() => {});
+      const vision = await runPhotoSceneVisionCheck({ imageBase64: gen.imageUrl, expectedText, mode: 'chinese' });
+      const result = { ...gen, vision, status: vision.status };
+      if (checkColor && (vision.status === 'passed' || vision.status === 'skipped')) {
+        const color = await checkBrandColors({
+          imageBase64: gen.imageUrl,
+          region,
+          palette: brandPalette,
+        });
+        result.colorStatus = color.status;
+        log('INFO', `[PHOTO] 核色门: ${color.status}${color.reason ? ` (${color.reason})` : ''} avg=${color.avgHex || 'n/a'}`);
+      }
+      if (vision.status === 'passed' || vision.status === 'skipped') return result;
+      log('WARN', `[PHOTO] 校验 ${vision.status}，换 seed 重试`);
+      last = result;
+    } catch (err) {
+      log('WARN', `[PHOTO] 生成失败 attempt ${attempt}: ${err.message}`);
+      last = { status: 'needs_review', error: err.message };
+      await ensureComfyUIReady({ log }).catch(() => {});
+    }
+  }
+  return last || { status: 'needs_review' };
+}
+
+/** 选择照片产物顶替的场景槽位：文字版=门头/店面槽（无则 marketing-1）；色重涂版=另一个营销槽。 */
+function pickPhotoSceneKeys(suggestions) {
+  const keys = ['stationery-1', 'packaging-1', 'packaging-2', 'marketing-1', 'marketing-2'];
+  let textKey = null;
+  if (Array.isArray(suggestions)) {
+    suggestions.forEach((s, i) => {
+      const t = String((s && (s.zh || s.en)) || '');
+      if (!textKey && /门头|店面|店招|门面|storefront|sign/i.test(t)) textKey = keys[i];
+    });
+  }
+  textKey = textKey || 'marketing-1';
+  const marketingKeys = keys.filter((k) => k.startsWith('marketing') && k !== textKey);
+  const colorKey = marketingKeys[0] || (textKey === 'marketing-1' ? 'marketing-2' : 'marketing-1');
+  return { textKey, colorKey };
 }
 
 // ========== Logo Generation ==========
@@ -705,6 +902,13 @@ async function processManualGeneration(project) {
     'stationery-1': '品牌应用系统', 'packaging-1': '产品包装系统',
     'packaging-2': '产品包装系统', 'marketing-1': '营销展示系统', 'marketing-2': '营销展示系统',
   };
+  const sceneVision = {};
+  const photoReplacedKeys = new Set();
+  // 工单 044：照片预处理（下载/选正立面/7B 定位文字区/蒙版）——必须在
+  // ComfyUI 启动前执行（Ollama 需要显存），失败回退原文生图。
+  const uploadedLogoUrl = (clientInfo.logoAssets && clientInfo.logoAssets[0] && clientInfo.logoAssets[0].url) || null;
+  const photoPrep = await preparePhotoScene({ project, clientInfo, brandProfile, companyName, log, logoData, uploadedLogoUrl });
+  const photoKeys = pickPhotoSceneKeys(sceneSuggestions);
 
   // 工单 030：手册阶段生图前 ComfyUI 健康门（自动重启尝试）
   const comfyReady = await ensureComfyUIReady({ log });
@@ -717,11 +921,57 @@ async function processManualGeneration(project) {
     return;
   }
 
+  // 工单 044：照片→场景图（文字替换 + 品牌色重涂）
+  const photoScenes = { text: null, color: null };
+  if (photoPrep) {
+    photoScenes.text = await generatePhotoSceneWithRetry({
+      ...photoPrep,
+      prompt: photoPrep.textPrompt,
+      variant: 'nvfp4',
+      log,
+    });
+    if (photoPrep.colorPrompt) {
+      photoScenes.color = await generatePhotoSceneWithRetry({
+        ...photoPrep,
+        prompt: photoPrep.colorPrompt,
+        variant: 'nvfp4',
+        checkColor: true,
+        log,
+      });
+    }
+    if (photoScenes.text && photoScenes.text.imageUrl) {
+      photoReplacedKeys.add(photoKeys.textKey);
+      sceneImages[photoKeys.textKey] = photoScenes.text.imageUrl;
+      sceneVision[photoKeys.textKey] = photoScenes.text.vision?.status || (photoScenes.text.status === 'needs_review' ? 'needs_review' : 'skipped');
+      log('INFO', `[MANUAL] ${projectId}: 照片门头场景 OK (key=${photoKeys.textKey}, vision=${sceneVision[photoKeys.textKey]})`);
+    } else if (photoScenes.text) {
+      log('WARN', `[MANUAL] ${projectId}: 照片重绘未产出可用图（${photoScenes.text.status || 'failed'}），该槽回退 AI 生成`);
+    }
+    if (photoScenes.color && photoScenes.color.imageUrl) {
+      photoReplacedKeys.add(photoKeys.colorKey);
+      sceneImages[photoKeys.colorKey] = photoScenes.color.imageUrl;
+      sceneVision[photoKeys.colorKey] = photoScenes.color.vision?.status || 'skipped';
+      log('INFO', `[MANUAL] ${projectId}: 品牌色重涂场景 OK (key=${photoKeys.colorKey}, vision=${sceneVision[photoKeys.colorKey]}, color=${photoScenes.color.colorStatus || 'n/a'})`);
+    }
+    clientInfo.photoScenes = {
+      text: photoScenes.text && photoScenes.text.imageUrl
+        ? { url: photoScenes.text.imageUrl, vision: sceneVision[photoKeys.textKey], seed: photoScenes.text.seed, durationMs: photoScenes.text.durationMs }
+        : null,
+      color: photoScenes.color && photoScenes.color.imageUrl
+        ? { url: photoScenes.color.imageUrl, vision: sceneVision[photoKeys.colorKey], colorStatus: photoScenes.color.colorStatus, seed: photoScenes.color.seed, durationMs: photoScenes.color.durationMs }
+        : null,
+    };
+    if (photoPrep.logoHasText !== null) {
+      clientInfo.logoHasText = photoPrep.logoHasText;
+    }
+  }
+
   // 工单 031：场景批次循环＋统一校验（品牌文字按 024 契约；空/乱码→skipped）
   const sceneTextMode = (clientInfo.logoTextLanguage === 'pinyin') ? 'pinyin' : 'chinese';
   const sceneExpectedText = extractExpectedText(scenePrompts[0]?.prompt, sceneTextMode, normalizedCompanyName);
+  const activeScenePrompts = scenePrompts.filter((sp) => !photoReplacedKeys.has(sp.key));
   const { results: sceneResults, paused: scenePaused } = await runLogoBatchFlow({
-    prompts: scenePrompts.map((p) => p.prompt),
+    prompts: activeScenePrompts.map((p) => p.prompt),
     generate: async ({ prompt }) => comfyuiGenerateScene({
       prompt,
       negativePrompt: 'blurry, low quality, distorted, watermark, text overlay',
@@ -747,8 +997,7 @@ async function processManualGeneration(project) {
     }).eq('id', projectId);
     return;
   }
-  const sceneVision = {};
-  scenePrompts.forEach((sp, i) => {
+  activeScenePrompts.forEach((sp, i) => {
     const r = sceneResults[i];
     sceneVision[sp.key] = (r && r.vision && r.vision.status) || (r && r.status) || 'failed';
     if (r && r.imageUrl) {
