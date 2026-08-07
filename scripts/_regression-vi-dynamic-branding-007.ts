@@ -721,12 +721,12 @@ async function main(): Promise<void> {
   check(
     "023-1 brand-analysis route 模板已统一为中文新模板（无旧 seal/拼音/overlay 措辞）",
     !oldWording023.test(routeSrc023) &&
-      routeSrc023.includes("023-chinese-v1") &&
+      routeSrc023.includes("023-chinese-v2") &&
       routeSrc023.includes("每个字只出现一次") &&
       routeSrc023.includes("品牌Logo设计：现代简约品牌标志") &&
       routeSrc023.includes("BRAND_ANALYSIS_TEMPLATE_VERSION") &&
       routeSrc023.includes("analysisTemplateVersion: BRAND_ANALYSIS_TEMPLATE_VERSION"),
-    `oldWording=${oldWording023.test(routeSrc023)} hasVersion=${routeSrc023.includes("023-chinese-v1")}`
+    `oldWording=${oldWording023.test(routeSrc023)} hasVersion=${routeSrc023.includes("023-chinese-v2")}`
   );
   check(
     "023-2 worker 对已存 prompts 做模板版本校验，缺失/不一致强制重跑品牌分析",
