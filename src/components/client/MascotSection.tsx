@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { CheckCircle, Loader2, Clock, Download } from "lucide-react";
+import { filterMascotSamples } from "@/lib/vi-manual/customer-logo-filter";
 
 interface MascotSample {
   id: string;
   imageUrl: string;
   label: string;
-  description?: string;
+  desc?: string;
+  status?: string;
+  vision?: { status?: string; reason?: string } | null;
 }
 
 interface MascotSectionProps {
@@ -41,10 +44,10 @@ export function MascotSection({ generationStatus, projectId, projectData, onStat
 
   useEffect(() => {
     setDeliveryDate(countWorkdaysFromNow());
-    // Load samples from projectData.client_info.mascotSamples
+    // 工单 050：读取真实样稿并过滤（vision passed/skipped 展示；失败/待审隐藏）
     const ci = projectData?.client_info || {};
     if (ci.mascotSamples && Array.isArray(ci.mascotSamples)) {
-      setSamples(ci.mascotSamples);
+      setSamples(filterMascotSamples(ci.mascotSamples));
     }
     if (ci.mascotSelectedId) {
       setSelectedId(ci.mascotSelectedId);
@@ -86,35 +89,38 @@ export function MascotSection({ generationStatus, projectId, projectData, onStat
       {showSamples && !saved && (
         <div>
           <p className="text-gray-600 mb-4">请选择您偏好的公仔风格方向：</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { id: "a", label: "A · 经典款", desc: "米白椰肉 + 蝴蝶结" },
-              { id: "b", label: "B · 清新款", desc: "绿色椰青 + 草帽" },
-              { id: "c", label: "C · 匠人款", desc: "围裙匠人风" },
-              { id: "d", label: "D · Q版款", desc: "Q 版超圆润" },
-            ].map((s) => (
-              <button
-                key={s.id}
-                onClick={() => handleSelect(s.id)}
-                disabled={saving}
-                className={`relative border-2 rounded-lg p-4 text-center transition-all hover:shadow-md ${
-                  selectedId === s.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
-                }`}
-              >
-                <div className="w-full aspect-square bg-gray-100 rounded-md mb-2 flex items-center justify-center text-gray-400">
-                  样稿 {s.label[0]}
-                </div>
-                <div className="font-medium text-sm">{s.label}</div>
-                <div className="text-xs text-gray-500">{s.desc}</div>
-                {saving && selectedId === s.id && (
-                  <Loader2 className="absolute top-2 right-2 w-4 h-4 animate-spin text-blue-500" />
-                )}
-                {selectedId === s.id && !saving && (
-                  <CheckCircle className="absolute top-2 right-2 w-4 h-4 text-blue-500" />
-                )}
-              </button>
-            ))}
-          </div>
+          {samples.length === 0 ? (
+            <p className="text-gray-500 text-sm">公仔样稿生成中，请稍后刷新查看</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {samples.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => handleSelect(s.id)}
+                  disabled={saving}
+                  className={`relative border-2 rounded-lg p-4 text-center transition-all hover:shadow-md ${
+                    selectedId === s.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                  }`}
+                >
+                  <div className="w-full aspect-square rounded-md mb-2 overflow-hidden bg-gray-100">
+                    {s.imageUrl ? (
+                      <img src={s.imageUrl} alt={s.label || "公仔样稿"} className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">样稿生成中</div>
+                    )}
+                  </div>
+                  <div className="font-medium text-sm">{s.label || "样稿"}</div>
+                  {s.desc ? <div className="text-xs text-gray-500">{s.desc}</div> : null}
+                  {saving && selectedId === s.id && (
+                    <Loader2 className="absolute top-2 right-2 w-4 h-4 animate-spin text-blue-500" />
+                  )}
+                  {selectedId === s.id && !saving && (
+                    <CheckCircle className="absolute top-2 right-2 w-4 h-4 text-blue-500" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

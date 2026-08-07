@@ -123,6 +123,13 @@ export async function POST(req: NextRequest) {
     // Get preferred logo
     const preferredLogo = brandProfile.preferredLogo || null;
 
+    // 工单 050：客户查看页公仔区数据（sanitized，不返回 viewPassword 等敏感字段）
+    const clientInfoForView = {
+      wantMascot: clientInfo.wantMascot || "",
+      mascotSamples: Array.isArray(clientInfo.mascotSamples) ? clientInfo.mascotSamples : [],
+      mascotSelectedId: clientInfo.mascotSelectedId || null,
+    };
+
     return NextResponse.json({
       success: true,
       project: {
@@ -136,6 +143,8 @@ export async function POST(req: NextRequest) {
         selectedLogo,
         preferredLogo,
         logoHistory,
+        client_info: clientInfoForView,
+        submission: { wantMascot: clientInfo.wantMascot || "" },
       },
     });
   } catch (error: any) {

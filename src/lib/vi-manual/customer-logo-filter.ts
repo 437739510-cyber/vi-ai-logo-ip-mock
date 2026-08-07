@@ -22,3 +22,20 @@ export function filterCustomerLogos<T extends CustomerLogoLike>(logos: T[]): T[]
     return true;
   });
 }
+
+/**
+ * 工单 050：公仔样稿客户可见过滤——复用同一展示口径（以 vision.status 为准）。
+ * 说明：worker 记录的顶层 status 可能残留 failed（如重生成成功后未回写），
+ * 但 vision.status=passed 的样稿真实有效，仍应展示；needs_review/failed/error
+ * 的 vision 状态才隐藏（与 036 精神一致）。
+ */
+export interface CustomerMascotLike extends CustomerLogoLike {
+  id?: string;
+  label?: string;
+  desc?: string;
+  status?: string;
+}
+
+export function filterMascotSamples<T extends CustomerMascotLike>(samples: T[]): T[] {
+  return filterCustomerLogos(samples);
+}
