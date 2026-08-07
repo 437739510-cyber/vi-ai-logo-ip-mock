@@ -35,7 +35,7 @@ export async function gpuSnapshot() {
 function psScript() {
   return [
     "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" |",
-    "Where-Object { $_.CommandLine -like '*ComfyUI-backup*main.py*' } |",
+    "Where-Object { $_.CommandLine -like '*main.py*' -and ($_.CommandLine -like '*ComfyUI*' -or $_.CommandLine -like '*8188*') } |",
     'Select-Object -ExpandProperty ProcessId',
   ].join(' ');
 }
@@ -77,7 +77,10 @@ export function killComfyUI() {
 }
 
 /** 启动 ComfyUI（detached，隐藏窗口，不阻塞）。 */
-export function startComfyUI() {
+export async function startComfyUI() {
+  // 工单 047：先杀残留再单实例启动，防两个实例抢 8188 端口（假活）。
+  killComfyUI();
+  await new Promise((r) => setTimeout(r, 1_000));
   try {
     const child = spawn(PYTHON, [MAIN, ...ARGS], { cwd: CWD, detached: true, stdio: 'ignore', windowsHide: true });
     child.unref();
@@ -87,8 +90,8 @@ export function startComfyUI() {
   }
 }
 
-/** 轮询 /api 就绪（默认每 5s 一次，上限 90s）。 */
-export async function waitForComfyUIReady(timeoutMs = 90_000, pollMs = 5_000) {
+/** 轮询 /api 就绪（默认每 5s 一次，上限 180s；本机启动实测 90~140s）。 */
+export async function waitForComfyUIReady(timeoutMs = 180_000, pollMs = 5_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await isComfyUIAvailable()) return true;
@@ -112,7 +115,8 @@ export async function ensureComfyUIReady(opts = {}) {
   const probeGapMs = opts.probeGapMs ?? 5_000;
   const restartAttempts = opts.restartAttempts ?? 2;
   const restartGapMs = opts.restartGapMs ?? 20_000;
-  const readyTimeoutMs = opts.readyTimeoutMs ?? 90_000;
+  // 工单 047：90s→180s，匹配本机 90~140s 启动时长，避免误判后重复实例。
+  const readyTimeoutMs = opts.readyTimeoutMs ?? 180_000;
   const coolMs = opts.coolMs ?? 10_000;
   const startFn = opts.startFn || startComfyUI;
 
