@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { checkLegacyWebGenerationGate } from "@/lib/core/legacy-web-generation-gate";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -10,6 +11,8 @@ export const dynamic = "force-dynamic";
  * 实际生图由本地ComfyUI Worker执行分段生成（三视图→表情→场景）
  */
 export async function POST(req: NextRequest) {
+  const gate = await checkLegacyWebGenerationGate(req);
+  if (!gate.allowed) return NextResponse.json({ error: gate.message, code: gate.code }, { status: gate.status });
   try {
     const body = await req.json();
     const { projectId } = body;

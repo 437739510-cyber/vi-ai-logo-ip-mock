@@ -1,7 +1,7 @@
 /**
  * API: POST /api/ai/generate-mascot
  *
- * Generate IP mascot images via ark-seedream cloud provider.
+ * Generate IP mascot images via local ComfyUI.
  *
  * Flow:
  * 1. Validates project wants mascot (wantMascot == "yes")
@@ -13,22 +13,17 @@
  *    - 3-view composite sheet
  * 4. Uploads to processed-assets/{projectId}/ bucket
  * 5. Updates mascotStatus to "mascot_generated" or "mascot_failed"
- * 6. Tracks cost via arkUsageLog
+ * 6. Preserves the existing usage summary structure
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { recommendMascot } from "@/agents/mascot-designer";
 import type { MascotRecommendationInput } from "@/agents/mascot-designer";
 import { generateMascotPromptSet, type MascotPromptInput } from "@/lib/ip/mascot-prompt-strategy";
-import { estimateArkCost } from "@/lib/ip/ip-image-provider/ark-seedream-provider";
-import { LiblibAIProvider } from "@/lib/ip/ip-image-provider/liblibai-provider";
 import { MASCOT_SCENES_MIN } from "@/lib/vi-manual/mascot-assets";
 // 本地 ComfyUI 优先（免费），与 LOGO 路由同源
 import { comfyGenerateImage, isComfyUIAvailable } from "@/lib/ip/ip-image-provider/comfyui-provider";
-
-// 公仔是否允许回退到付费 ARK：默认关闭，避免未获 Kevin 点头前烧钱。
-// 上线放量时由 Kevin 在 Zeabur 环境变量设 MASCOT_ARK_PAID=1 开启。
-const MASCOT_ARK_PAID_ENABLED = process.env.MASCOT_ARK_PAID === "1";
+import { checkLegacyWebGenerationGate } from "@/lib/core/legacy-web-generation-gate";
 
 const _DEV = process.env.NODE_ENV === "development";
 
@@ -37,15 +32,7 @@ export const dynamic = "force-dynamic";
 
 // ========== Constants ==========
 
-const ARK_API_URL = "https://ark.cn-beijing.volces.com/api/v3/images/generations";
-const TIMEOUT_MS = 60_000;
 const MASCOT_BUCKET = "processed-assets";
-
-const ARK_MODELS = [
-  "doubao-seedream-4-0-250828",
-  "doubao-seedream-4-5-251128",
-  "doubao-seedream-5-0-260128",
-];
 
 const EMOTION_MAP: Record<string, { label: string; expression: string; pose: string }> = {
   smile: { label: "微笑", expression: "warm gentle smile, friendly expression", pose: "standing relaxed, hands together" },
@@ -72,45 +59,6 @@ const EMOTION_NAMES = Object.keys(EMOTION_MAP);
 
 // ========== Pure Helpers ==========
 
-/** Call ARK API directly — explicit ark-seedream, never comfyui */
-async function arkGenerate(opts: {
-  prompt: string;
-  negativePrompt?: string;
-  size?: string;
-}): Promise<{ imageUrl: string; durationMs: number; model: string } | null> {
-  const apiKey = process.env.ARK_API_KEY;
-  if (!apiKey) { console.error("[mascot] ARK_API_KEY missing"); return null; }
-
-  const size = opts.size || "1024x1024";
-  for (const model of ARK_MODELS) {
-    try {
-      const payload: Record<string, unknown> = {
-        model, prompt: opts.prompt,
-        sequential_image_generation: "disabled",
-        response_format: "url", size, watermark: false,
-      };
-      if (opts.negativePrompt) payload.negative_prompt = opts.negativePrompt;
-
-      const start = Date.now();
-      const resp = await fetch(ARK_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-      const dur = Date.now() - start;
-      if (!resp.ok) { console.warn("[mascot] " + model + " HTTP " + resp.status); continue; }
-      const data: any = await resp.json();
-      if (data.error) { console.warn("[mascot] " + model + " err: " + data.error.message); continue; }
-      const url: string = data?.data?.[0]?.url || "";
-      if (!url) continue;
-      _DEV && console.log("[mascot] " + model + " in " + dur + "ms");
-      return { imageUrl: url, durationMs: dur, model };
-    } catch (e: any) { console.warn("[mascot] " + model + " threw: " + e.message); }
-  }
-  return null;
-}
-
 /** Download URL -> Buffer (supports both https and data: URLs) */
 async function downloadImage(url: string): Promise<Buffer | null> {
   try {
@@ -125,39 +73,6 @@ async function downloadImage(url: string): Promise<Buffer | null> {
     const resp = await fetch(url, { signal: AbortSignal.timeout(30_000) });
     return resp.ok ? Buffer.from(await resp.arrayBuffer()) : null;
   } catch { return null; }
-}
-
-// LiblibAI free-tier client (singleton, serial by design). Returns null on any failure so caller falls back to ark.
-let _liblibai: LiblibAIProvider | null = null;
-async function generateViaLiblibAI(
-  prompt: string,
-  negativePrompt: string,
-  size?: string
-): Promise<{ imageUrl: string } | null> {
-  try {
-    if (!process.env.LIBLIBAI_ACCESS_KEY) return null;
-    if (!_liblibai) _liblibai = new LiblibAIProvider();
-    const dim = (size || "1024x1024").split("x").map(Number);
-    const w = dim[0] || 1024, h = dim[1] || 1024;
-    const genP = _liblibai.generateImage({
-      brandContext: { brandName: "", industry: "", brandPositioning: "", brandPersona: [], visualDirection: "" },
-      ipProfile: { type: "mascot", personality: [], visualTraits: [], colorDirection: [] },
-      step: { stepId: "mascot", label: "mascot", description: "" },
-      prompt,
-      negativePrompt: negativePrompt || "",
-      output: { width: w, height: h, format: "png" },
-    });
-    // 防止 LiblibAI 接口无响应时永久挂起整批生成；短超时快速降级 ark（arkGenerate 自带 60s 超时）
-    // Zeabur 函数 maxDuration=300s，LiblibAI 必须快速失败以免整批超时被杀
-    const res = await Promise.race([
-      genP,
-      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("LiblibAI timeout 15s")), 15000)),
-    ]);
-    return { imageUrl: res.imageUrl };
-  } catch (e: any) {
-    console.warn("[mascot] LiblibAI failed, fallback ark: " + (e?.message || "unknown"));
-    return null;
-  }
 }
 
 /** Upload Buffer to Supabase Storage: processed-assets/{projectId}/{name} */
@@ -187,50 +102,43 @@ async function composeThreeView(front: Buffer, side: Buffer, back: Buffer): Prom
   } catch (e) { console.error("[mascot] Sharp fail: " + (e as Error).message); return null; }
 }
 
-/** Generate one image: ComfyUI(local,free) -> LiblibAI(free) -> Ark(paid, opt-in) */
-async function genOne(projectId: string, fileName: string, prompt: string, negativePrompt: string, size?: string):
+interface MascotLocalDeps {
+  isLocalAvailable?: () => Promise<boolean>;
+  generateLocal?: (options: { prompt: string; negativePrompt: string; width: number; height: number }) => Promise<{ imageUrl?: string | null }>;
+  downloadLocalImage?: (url: string) => Promise<Buffer | null>;
+  uploadLocalAsset?: (projectId: string, fileName: string, buffer: Buffer) => Promise<string | null>;
+}
+
+/** Generate one image through local ComfyUI only. */
+async function genOne(
+  projectId: string,
+  fileName: string,
+  prompt: string,
+  negativePrompt: string,
+  size?: string,
+  deps: MascotLocalDeps = {},
+):
   Promise<{ url: string | null; cost: number; model: string | null }> {
   const dim = (size || "1024x1024").split("x").map(Number);
   const w = dim[0] || 1024, h = dim[1] || 1024;
+  const isLocalAvailable = deps.isLocalAvailable || isComfyUIAvailable;
+  const generateLocal = deps.generateLocal || comfyGenerateImage;
+  const downloadLocalImage = deps.downloadLocalImage || downloadImage;
+  const uploadLocalAsset = deps.uploadLocalAsset || uploadToStorage;
 
-  // 0) ComfyUI 本地优先（免费，不烧钱）
   try {
-    if (await isComfyUIAvailable()) {
-      const c = await comfyGenerateImage({ prompt, negativePrompt: negativePrompt || "", width: w, height: h });
+    if (await isLocalAvailable()) {
+      const c = await generateLocal({ prompt, negativePrompt: negativePrompt || "", width: w, height: h });
       if (c?.imageUrl) {
-        const buf = await downloadImage(c.imageUrl);
+        const buf = await downloadLocalImage(c.imageUrl);
         if (buf) {
-          const url = await uploadToStorage(projectId, fileName, buf);
+          const url = await uploadLocalAsset(projectId, fileName, buf);
           if (url) return { url, cost: 0, model: "comfyui-z-image-turbo" };
         }
       }
     }
-  } catch (e: any) {
-    console.warn("[mascot] ComfyUI failed, fallback:", e?.message);
-  }
-
-  // 1) LiblibAI free tier -> 2) Ark paid fallback（默认关闭，需 MASCOT_ARK_PAID=1）
-  for (let i = 0; i < 2; i++) {
-    const li = await generateViaLiblibAI(prompt, negativePrompt, size);
-    if (li?.imageUrl) {
-      const buf = await downloadImage(li.imageUrl);
-      if (buf) {
-        const url = await uploadToStorage(projectId, fileName, buf);
-        if (url) return { url, cost: 0, model: "liblibai-star3-alpha" };
-      }
-    }
-    // Ark 付费回退：默认禁用，避免未获授权烧钱
-    let r = null as null | { imageUrl: string; durationMs: number; model: string };
-    if (MASCOT_ARK_PAID_ENABLED) {
-      r = await arkGenerate({ prompt, negativePrompt, size });
-    } else if (i === 0) {
-      console.warn("[mascot] Ark paid fallback disabled (MASCOT_ARK_PAID != 1); skip to avoid cost");
-    }
-    if (!r) continue;
-    const buf = await downloadImage(r.imageUrl);
-    if (!buf) continue;
-    const url = await uploadToStorage(projectId, fileName, buf);
-    if (url) { return { url, cost: estimateArkCost(r.model, 1), model: r.model }; }
+  } catch {
+    console.warn("[mascot] Local ComfyUI or local asset processing failed");
   }
   return { url: null, cost: 0, model: null };
 }
@@ -251,6 +159,8 @@ function styleSuffix(pref: string): string {
 // ========== Main Handler ==========
 
 export async function POST(req: NextRequest) {
+  const gate = await checkLegacyWebGenerationGate(req);
+  if (!gate.allowed) return NextResponse.json({ error: gate.message, code: gate.code }, { status: gate.status });
   try {
     const body = await req.json();
     const projectId: string = body.projectId || "";

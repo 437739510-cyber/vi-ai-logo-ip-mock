@@ -3,17 +3,16 @@ export const dynamic = "force-dynamic"
 // 大学生为客户上传照片到已有内容记录
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const role = cookieStore.get("admin_role")?.value;
-    const userId = cookieStore.get("admin_user_id")?.value;
+    const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
 
-    if (role !== "student" || !userId) {
+    if (session?.role !== "student") {
       return NextResponse.json({ success: false, error: "仅大学生可操作" }, { status: 403 });
     }
+    const userId = session.userId;
 
     const formData = await req.formData();
     const contentId = formData.get("contentId") as string;

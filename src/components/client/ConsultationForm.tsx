@@ -83,7 +83,6 @@ export function ConsultationForm() {
   const [mascotStylePref, setMascotStylePref] = useState<string[]>([]);
   const [mascotPersonalityPref, setMascotPersonalityPref] = useState<string[]>([]);
   const [mascotUsageScenes, setMascotUsageScenes] = useState<string[]>([]);
-  const [mascotSceneCount, setMascotSceneCount] = useState<number>(6);
 
 
   const [selectedIndustryCategory, setSelectedIndustryCategory] = useState("");
@@ -269,7 +268,7 @@ export function ConsultationForm() {
         const errStepMap: Record<string, number> = {};
         stepFields[1] && stepFields[1].forEach(k => errStepMap[k] = 1);
         ["brandHighlight","customerProfile","brandVision","coreValues","targetMarket","brandPersonality","competitorReference"].forEach(k => errStepMap[k] = 2);
-        ["existingBrandColor","logoStyle","logoUsage","avoidElements","existingSignagePain","brandColors","description","wantMascot","mascotTypePref","mascotStylePref","mascotPersonalityPref","mascotUsageScenes","mascotColorHint","mascotRefIdea","mascotSceneCount"].forEach(k => errStepMap[k] = 3);
+        ["existingBrandColor","logoStyle","logoUsage","avoidElements","existingSignagePain","brandColors","description","wantMascot","mascotTypePref","mascotStylePref","mascotPersonalityPref","mascotUsageScenes","mascotColorHint","mascotRefIdea"].forEach(k => errStepMap[k] = 3);
         ["logoPhilosophy","mascotPhilosophy"].forEach(k => errStepMap[k] = 4);
         const firstErrKey = errKeys[0];
         const targetStep = errStepMap[firstErrKey] || 1;
@@ -658,17 +657,6 @@ export function ConsultationForm() {
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">参考灵感 <span className="text-neutral-400 text-xs">（选填）</span></label>
                 <textarea {...register("mascotRefIdea" as any)} rows={2} placeholder="例：类似 Line Friends 那种风格" className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">场景图数量 <span className="text-neutral-400 text-xs">（影响生成时间和手册页数）</span></label>
-                <div className="flex flex-wrap gap-2">
-                  {[3, 4, 6, 8, 12, 16].map((n) => (
-                    <TagBtn key={n} label={String(n)}
-                      selected={mascotSceneCount === n}
-                      onClick={() => {{ setMascotSceneCount(n); setValue("mascotSceneCount" as any, n as any); }}} />
-                  ))}
-                </div>
-                <input type="hidden" {...register("mascotSceneCount" as any)} />
               </div>
             </div>
           )}

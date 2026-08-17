@@ -2,14 +2,57 @@
  * IP 公仔素材统一契约（工单 006G）
  *
  * 平台唯一权威的素材完整性判定：
- *   name 非空 + front/side/back 三张独立视图 + emotions>=8 + scenes>=4。
+ *   name 非空 + front/side/back 三张独立视图 + emotions>=6 + scenes>=4。
  * Worker、公仔生成 API、手册 API、PagePlanner、PPTX Renderer 与离线测试
  * 全部复用本模块，避免各自维护一套阈值。
  */
 
 export const MASCOT_VIEW_MIN = 3;
-export const MASCOT_EMOTIONS_MIN = 8;
+export const MASCOT_EMOTIONS_MIN = 6;
 export const MASCOT_SCENES_MIN = 4;
+
+/**
+ * 工单 086-R4：3D 公仔比例规则（标准 / Q 版，可配置）。
+ * 生成提示词与手册文案都从这里取数，禁止写死比例。
+ */
+export interface MascotRatioRule {
+  id: "standard" | "q";
+  label: string;
+  headToBody: string;
+  promptText: string;
+  pageText: string;
+}
+
+export const MASCOT_RATIO_RULES: Record<MascotRatioRule["id"], MascotRatioRule> = {
+  standard: {
+    id: "standard",
+    label: "标准公仔",
+    headToBody: "1:3.5",
+    promptText: "stylized 3D mascot proportions, head-to-body ratio about 1:3.5 (head:body), slightly larger expressive head, compact cute body, NOT realistic human proportions",
+    pageText: "头身比约 1:3.5（标准公仔），总高度以品牌实际设定为准（约20-35cm）。",
+  },
+  q: {
+    id: "q",
+    label: "Q 版公仔",
+    headToBody: "1:1.8",
+    promptText: "chibi Q-version mascot proportions, head-to-body ratio about 1:1.8 (head:body), big round head, tiny cute body, NOT realistic human proportions",
+    pageText: "头身比约 1:1.8（Q 版公仔），头部占比大、身形小巧，总高度以品牌实际设定为准。",
+  },
+};
+
+/** 依据客户偏好解析公仔比例规则：显式 mascotRatio 优先，其次 Q 版偏好，默认标准。 */
+export function resolveMascotRatioRule(pref?: {
+  mascotRatio?: string | null;
+  mascotTypePref?: string | string[] | null;
+}): MascotRatioRule {
+  const explicit = typeof pref?.mascotRatio === "string" ? pref.mascotRatio.trim().toLowerCase() : "";
+  if (explicit === "q" || /^q\s*版|q\s*version|q版/.test(explicit)) return MASCOT_RATIO_RULES.q;
+  const typeText = Array.isArray(pref?.mascotTypePref)
+    ? pref.mascotTypePref.join(" ")
+    : String(pref?.mascotTypePref || "");
+  if (/Q\s*版|Q\s*version/i.test(typeText)) return MASCOT_RATIO_RULES.q;
+  return MASCOT_RATIO_RULES.standard;
+}
 
 /**
  * 工单 032：公仔全套失败后的自动重试上限（超过后转人工，不再弹回样稿，
@@ -27,16 +70,14 @@ export function shouldRetryMascotFull(attempt: number): boolean {
   return attempt <= MASCOT_FULL_RETRY_LIMIT;
 }
 
-/** 完整公仔生成器统一使用的 8 个通用中文表情。 */
+/** 工单 086-R4：完整公仔生成器统一使用的 6 个通用中文表情（每图单公仔）。 */
 export const MASCOT_EMOTION_NAMES = [
   "微笑",
-  "欢迎",
-  "专注",
-  "惊喜",
-  "安心",
   "开心",
+  "安心",
   "引导",
   "俏皮",
+  "专注",
 ] as const;
 
 /** 完整公仔生成器统一使用的 4 类真实品牌触点。 */

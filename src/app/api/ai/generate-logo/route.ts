@@ -19,6 +19,7 @@ import { getDefaultRegistry, type GenerateImageResult } from "@/lib/ip/ip-image-
 import { overlayChineseText } from "@/lib/ip/overlay-chinese";
 import { preGenerationGuard, postGenerationGuard } from "@/lib/vi-manual/asset-guardian";
 import { STORAGE_BUCKET } from "@/config/storage";
+import { checkLegacyWebGenerationGate } from "@/lib/core/legacy-web-generation-gate";
 const _DEV = process.env.NODE_ENV === "development";
 
 
@@ -49,6 +50,8 @@ async function persistLogoBase64(projectId: string, index: number, base64DataUrl
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await checkLegacyWebGenerationGate(req);
+  if (!gate.allowed) return NextResponse.json({ error: gate.message, code: gate.code }, { status: gate.status });
   try {
     const body = await req.json();
     const projectId: string = body.projectId || "";

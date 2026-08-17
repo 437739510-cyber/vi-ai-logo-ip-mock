@@ -35,9 +35,9 @@ export interface ProportionSpec {
 }
 
 export const DEFAULT_PROPORTION_SPEC: ProportionSpec = {
-  headBodyRatio: "1:2.0",
+  headBodyRatio: "1:3.5",
   totalHeight: "约20-35cm（以品牌实际设定为准）",
-  notes: "头身比固定 1:2.0，公仔整体比例应协调、可爱、易于记忆",
+  notes: "头身比约 1:3~1:4，成熟体态、专业温润、可信赖的东方养生调性，不萌不 Q 版",
 };
 
 /** 最小使用尺寸规范 */

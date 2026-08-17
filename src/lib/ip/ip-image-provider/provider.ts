@@ -1,13 +1,9 @@
 ﻿/**
  * IP Image Provider Layer — Provider Registry
  *
- * Manages available image providers and selects the best one.
- * Priority chain controlled by IMAGE_PROVIDER env var:
- *   liblibai:  liblibai(10) -> comfyui(5) -> ark(3) -> mock(0)
- *   comfyui:   comfyui(10) -> liblibai(5) -> ark(3) -> mock(0)
- *   ark:       ark(10) -> liblibai(5) -> comfyui(3) -> mock(0)
- *   mock:      mock(10)
- *   default:   comfyui(10) -> liblibai(5) -> ark(3) -> mock(0)
+ * Manages available image providers and selects the configured provider.
+ * The default registry is local-only. Paid providers require exact opt-in gates,
+ * and Mock is restricted to explicit non-production use.
  *
  * All registered providers are automatically wrapped with
  * MetricsProvider for transparent call statistics.
@@ -28,47 +24,43 @@ import {
 
 // ========== Priority Configurations ==========
 
-type ProviderKey = "liblibai" | "comfyui" | "ark" | "mock";
+type ProviderSelection = "liblibai" | "comfyui" | "ark" | "mock";
 
-interface PriorityConfig {
-  providers: { name: string; priority: number }[];
+export class ProviderRegistryError extends Error {
+  constructor(
+    public readonly code:
+      | "NO_IMAGE_PROVIDER_AVAILABLE"
+      | "UNKNOWN_IMAGE_PROVIDER"
+      | "PAID_IMAGE_PROVIDER_DISABLED"
+      | "MOCK_IMAGE_PROVIDER_DISABLED",
+    message: string,
+  ) {
+    super(message);
+    this.name = "ProviderRegistryError";
+  }
 }
 
-const PRIORITY_MAP: Record<string, PriorityConfig> = {
-  liblibai: {
-    providers: [
-      { name: "liblibai", priority: 10 },
-      { name: "comfyui", priority: 5 },
-      { name: "ark-seedream", priority: 3 },
-      { name: "mock", priority: 0 },
-    ],
-  },
-  comfyui: {
-    providers: [
-      { name: "comfyui", priority: 10 },
-      { name: "liblibai", priority: 5 },
-      { name: "ark-seedream", priority: 3 },
-      { name: "mock", priority: 0 },
-    ],
-  },
-  ark: {
-    providers: [
-      { name: "ark-seedream", priority: 10 },
-      { name: "liblibai", priority: 5 },
-      { name: "comfyui", priority: 3 },
-      { name: "mock", priority: 0 },
-    ],
-  },
-  mock: {
-    providers: [
-      { name: "mock", priority: 10 },
-    ],
-  },
-};
+function getProviderSelection(): ProviderSelection {
+  const selected = process.env.IMAGE_PROVIDER;
+  if (selected === undefined) return "comfyui";
+  if (selected === "comfyui" || selected === "ark" || selected === "liblibai" || selected === "mock") {
+    return selected;
+  }
+  throw new ProviderRegistryError("UNKNOWN_IMAGE_PROVIDER", "Unknown IMAGE_PROVIDER configuration");
+}
 
-function getPriorityConfig(): PriorityConfig {
-  const provider = (process.env.IMAGE_PROVIDER || "comfyui").toLowerCase();
-  return PRIORITY_MAP[provider] || PRIORITY_MAP.comfyui;
+function assertSelectionEnabled(selected: ProviderSelection): void {
+  if (selected === "ark") {
+    if (process.env.BB_PAID_IMAGE_PROVIDERS_ENABLED !== "1" || process.env.BB_ARK_IMAGE_PROVIDER_ENABLED !== "1") {
+      throw new ProviderRegistryError("PAID_IMAGE_PROVIDER_DISABLED", "Paid image provider is disabled");
+    }
+  } else if (selected === "liblibai") {
+    if (process.env.BB_PAID_IMAGE_PROVIDERS_ENABLED !== "1" || process.env.BB_LIBLIBAI_IMAGE_PROVIDER_ENABLED !== "1") {
+      throw new ProviderRegistryError("PAID_IMAGE_PROVIDER_DISABLED", "Paid image provider is disabled");
+    }
+  } else if (selected === "mock" && process.env.NODE_ENV === "production") {
+    throw new ProviderRegistryError("MOCK_IMAGE_PROVIDER_DISABLED", "Mock image provider is disabled in production");
+  }
 }
 
 // ========== Provider Factory ==========
@@ -93,6 +85,7 @@ function createProviderByName(name: string): ImageProvider {
 export class ProviderRegistry {
   private providers: Map<string, ImageProvider> = new Map();
   private priorityOrder: string[] = [];
+  private priorities: Map<string, number> = new Map();
 
   /**
    * Register a provider with optional priority.
@@ -102,9 +95,11 @@ export class ProviderRegistry {
   register(provider: ImageProvider, priority: number = 0): void {
     const wrapped = new MetricsProvider(provider);
     this.providers.set(provider.name, wrapped);
+    this.priorities.set(provider.name, priority);
     if (!this.priorityOrder.includes(provider.name)) {
       this.priorityOrder.push(provider.name);
     }
+    this.priorityOrder.sort((a, b) => (this.priorities.get(b) || 0) - (this.priorities.get(a) || 0));
   }
 
   /**
@@ -116,7 +111,7 @@ export class ProviderRegistry {
 
   /**
    * Get the currently active (first available) provider.
-   * Falls back to MockProvider if nothing else is available.
+   * Throws explicitly if no registered provider is available.
    */
   async getActive(): Promise<ImageProvider> {
     for (const name of this.priorityOrder) {
@@ -126,15 +121,7 @@ export class ProviderRegistry {
       }
     }
 
-    if (this.providers.has("mock")) {
-      return this.providers.get("mock")!;
-    }
-
-    const mock = new MockProvider();
-    const wrapped = new MetricsProvider(mock);
-    this.providers.set("mock", wrapped);
-    this.priorityOrder.push("mock");
-    return wrapped;
+    throw new ProviderRegistryError("NO_IMAGE_PROVIDER_AVAILABLE", "No image provider is available");
   }
 
   /**
@@ -187,23 +174,17 @@ let _defaultRegistry: ProviderRegistry | null = null;
 
 /**
  * Get the default provider registry.
- * Reads IMAGE_PROVIDER env var for priority configuration.
- * Registers all providers on first access.
+ * Reads IMAGE_PROVIDER and registers exactly one explicitly allowed provider.
  */
 export function getDefaultRegistry(): ProviderRegistry {
   if (!_defaultRegistry) {
-    _defaultRegistry = new ProviderRegistry();
-    const config = getPriorityConfig();
-
-    // Register all providers in priority config
-    for (const { name, priority } of config.providers) {
-      _defaultRegistry.register(createProviderByName(name), priority);
-    }
-
-    console.log(
-      `[ProviderRegistry] IMAGE_PROVIDER=${process.env.IMAGE_PROVIDER || "comfyui"}: ` +
-        config.providers.map((p) => `${p.name}(${p.priority})`).join(" -> ")
-    );
+    const selected = getProviderSelection();
+    assertSelectionEnabled(selected);
+    const providerName = selected === "ark" ? "ark-seedream" : selected;
+    const registry = new ProviderRegistry();
+    registry.register(createProviderByName(providerName), 10);
+    _defaultRegistry = registry;
+    console.log(`[ProviderRegistry] selected provider: ${providerName}`);
   }
   return _defaultRegistry;
 }

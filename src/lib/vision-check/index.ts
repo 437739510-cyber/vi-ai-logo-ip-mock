@@ -24,17 +24,316 @@ export interface VisionCheckResult {
   fineModel: string;
   coarseText?: string;
   fineText?: string;
+  /** 工单 090：Agnes 免费视觉交叉复核证据（默认关闭，启用后才写入）。 */
+  agnesText?: string;
+  agnesStatus?: string;
   reason?: string;
   checkedAt?: string;
 }
 
 const OLLAMA_API = "http://127.0.0.1:11434";
+// 工单 090：Agnes AI 免费视觉通道（OpenAI 兼容网关，key 走环境变量，默认关闭）。
+const AGNES_API_BASE = "https://apihub.agnes-ai.com/v1";
+const AGNES_MODEL = "agnes-2.5-flash";
+const AGNES_MAX_IMAGE_PX = 1280;
+const AGNES_TIMEOUT_MS = 60_000;
+const AGNES_429_BACKOFF_MS = 2_500;
 const OCR_PROMPT =
   "请把图片里面所有可见的汉字、拼音、英文全部逐字完整提取出来，不要总结描述，只输出图片上出现的文字。";
 const MASCOT_CHECK_PROMPT =
   '请评估这张3D卡通公仔图的完整性，只输出JSON：{"complete":true或false,"singleSubject":true或false,"whiteBackground":true或false,"noWatermark":true或false,"reason":"一句话"}。检查：1)主体是否完整（无缺肢、畸形、多肢体） 2)是否单主体居中 3)背景是否纯白 4)有无乱码或水印。';
 const CLARITY_PROMPT =
   "请判断这张图片是否清晰、无乱码、无水印、无模糊。只回答：清晰 或 有问题。";
+const LOGO_FIDELITY_PROMPT =
+  '两张图片按顺序分别是：图1原始Logo参考，图2商业场景候选图。只输出JSON：{"logoPresent":true或false,"shapePreserved":true或false,"keyElementsPreserved":true或false,"sceneComplete":true或false,"integrationNatural":true或false,"reason":"一句话"}。必须逐项判断：候选图是否出现Logo、轮廓是否保持、关键图形元素是否保持、是否为完整商业环境而非孤立Logo、Logo透视材质光影是否自然融合。无法确认时填false。';
+
+/** 工单 090：Agnes 通道是否启用（VISION_ENABLE_AGNES=1 且配置了 key）。 */
+export function isAgnesVisionEnabled(): boolean {
+  return process.env.VISION_ENABLE_AGNES === "1" && Boolean(String(process.env.AGNES_API_KEY || "").trim());
+}
+
+/** 缩图到 ≤1280px（沿用 vision-check 既有的 ≤1280 缩图口径），返回 data URL。 */
+async function resizeImageDataUrlToMax(imageBase64: string, maxPx = AGNES_MAX_IMAGE_PX): Promise<string> {
+  const buf = Buffer.from(stripDataUriPrefix(imageBase64), "base64");
+  const meta = await sharp(buf).metadata();
+  if ((meta.width || 0) <= maxPx && (meta.height || 0) <= maxPx) {
+    return `data:image/${meta.format || "png"};base64,${buf.toString("base64")}`;
+  }
+  const resized = await sharp(buf)
+    .resize({ width: maxPx, height: maxPx, fit: "inside", withoutEnlargement: true })
+    .png()
+    .toBuffer();
+  return `data:image/png;base64,${resized.toString("base64")}`;
+}
+
+const sleepMs = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export interface AgnesVisionTextResult {
+  ok: boolean;
+  text?: string;
+  reason?: string;
+}
+
+/**
+ * 工单 090：Agnes 免费视觉文字通道（OpenAI 兼容）。默认关闭；失败/超时/429
+ * 一律返回 { ok:false } 交由既有降级，绝不抛错、不重试风暴。
+ */
+export async function agnesVisionText(
+  prompt: string,
+  imageBase64: string,
+  opts: { baseUrl?: string; timeoutMs?: number } = {},
+): Promise<AgnesVisionTextResult> {
+  if (process.env.VISION_ENABLE_AGNES !== "1") {
+    return { ok: false, reason: "disabled" };
+  }
+  const apiKey = String(process.env.AGNES_API_KEY || "").trim();
+  if (!apiKey) {
+    return { ok: false, reason: "missing_key" };
+  }
+  try {
+    const dataUrl = await resizeImageDataUrlToMax(imageBase64);
+    const baseUrl = String(opts.baseUrl || AGNES_API_BASE).replace(/\/+$/, "");
+    const resp = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: AGNES_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
+          },
+        ],
+        max_tokens: 800,
+        temperature: 0,
+      }),
+      signal: AbortSignal.timeout(opts.timeoutMs || AGNES_TIMEOUT_MS),
+    });
+    if (resp.status === 429) {
+      // RPM 限流：短暂退避一次后交回既有降级，不重试风暴。
+      await sleepMs(AGNES_429_BACKOFF_MS);
+      return { ok: false, reason: "rate_limited" };
+    }
+    if (!resp.ok) {
+      return { ok: false, reason: `http_${resp.status}` };
+    }
+    const json = (await resp.json()) as { choices?: Array<{ message?: { content?: unknown } }> };
+    const content = json.choices?.[0]?.message?.content;
+    const text = typeof content === "string" ? content.trim() : typeof content === "object" ? JSON.stringify(content) : "";
+    if (!text) {
+      return { ok: false, reason: "empty_response" };
+    }
+    return { ok: true, text };
+  } catch (error) {
+    return { ok: false, reason: `error:${(error as Error).name || "unknown"}` };
+  }
+}
+
+export interface LogoFidelityFacts {
+  logoPresent: boolean;
+  shapePreserved: boolean;
+  keyElementsPreserved: boolean;
+  sceneComplete: boolean;
+  integrationNatural: boolean;
+  reason: string;
+}
+
+export interface LogoFidelityResult extends LogoFidelityFacts {
+  status: "passed" | "failed" | "needs_review" | "skipped";
+  model: string;
+  raw?: string;
+  checkedAt: string;
+}
+
+export interface MascotSceneFusionResult {
+  status: "passed" | "failed" | "skipped";
+  reason?: string;
+  models: Array<{ model: string; parsed: Record<string, unknown> | null }>;
+}
+
+export interface AIDrawnSceneCheckResult {
+  status: "passed" | "failed" | "needs_review" | "skipped";
+  reason?: string;
+  models: Array<{ model: string; parsed: Record<string, unknown> | null }>;
+}
+
+export interface SingleMascotStrictResult {
+  status: "passed" | "failed" | "skipped";
+  reason?: string;
+  models: Array<{ model: string; parsed: Record<string, unknown> | null }>;
+}
+
+const STRICT_SINGLE_PROMPT =
+  '请显式数出图片里的人物/公仔数量并逐个列出姿态，只输出JSON：{"characterCount":number,"poses":["front","side","back","other"],"noAnimalFeatures":true或false,"noWatermark":true或false,"personaOk":true或false,"reason":"一句话"}。characterCount=画面中的人物/公仔个数（多视角/多姿态也算多个，逐个数出来）；poses=每个姿态；noAnimalFeatures=true 仅当无角/兽耳/尾巴等动物特征；noWatermark=true 仅当无水印；personaOk=true 仅当符合温婉人类女神、玫瑰金/粉金配色人设。';
+
+/** 工单 091-R4：单公仔严格判定=显式数人数+列姿态，双模型都过才算；多姿态/多角色即失败。 */
+export async function runSingleMascotStrictCheck(
+  imageBase64: string,
+  opts: { models?: string[]; expectedPose?: "front" | "side" | "back" } = {},
+): Promise<SingleMascotStrictResult> {
+  const models = opts.models || ["qwen2.5vl:latest", "my-vl:latest"];
+  await isOllamaAvailable(15_000).catch(() => false);
+  let results: Array<{ model: string; parsed: Record<string, unknown> | null }> = [];
+  for (let round = 0; round < 3; round++) {
+    results = [];
+    for (const model of models) {
+      try {
+        const raw = await aiDrawnOllamaGenerate(model, STRICT_SINGLE_PROMPT, imageBase64);
+        let parsed: Record<string, unknown> | null = null;
+        try {
+          const s = raw.indexOf("{");
+          const e = raw.lastIndexOf("}");
+          parsed = JSON.parse(raw.slice(s, e + 1)) as Record<string, unknown>;
+        } catch {
+          /* keep null */
+        }
+        results.push({ model, parsed });
+      } catch {
+        results.push({ model, parsed: null });
+      }
+    }
+    if (results.filter((r) => r.parsed).length >= 2 || round === 2) break;
+    await sleepMs(5000);
+  }
+  const valid = results.filter((r) => r.parsed);
+  if (valid.length < 2) return { status: "skipped", reason: "vision_unavailable", models: results };
+  const expected = opts.expectedPose;
+  const passed = valid.every((r) => {
+    const p = r.parsed as Record<string, unknown>;
+    const poses = Array.isArray(p.poses) ? p.poses : [];
+    return (
+      p.characterCount === 1 &&
+      poses.length === 1 &&
+      (!expected || String(poses[0] || "").toLowerCase() === expected) &&
+      p.noAnimalFeatures === true &&
+      p.noWatermark === true &&
+      p.personaOk === true
+    );
+  });
+  return { status: passed ? "passed" : "failed", reason: passed ? undefined : "multi_subject_or_multi_pose_or_check_failed", models: results };
+}
+
+/** AI 入景验收专用 Ollama 直连（fetch，模型常驻 5 分钟，避免 ComfyUI 刚停时加载不稳）。 */
+async function aiDrawnOllamaGenerate(model: string, prompt: string, imageBase64: string): Promise<string> {
+  const payload = {
+    model,
+    prompt,
+    images: [stripDataUriPrefix(imageBase64)],
+    stream: false,
+    keep_alive: "5m",
+    options: { temperature: 0, num_predict: 400 },
+  };
+  const resp = await fetch(`${OLLAMA_API}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(180_000),
+  });
+  if (!resp.ok) return "";
+  const json = (await resp.json()) as { response?: string };
+  return String(json.response || "").trim();
+}
+
+const AI_DRAWN_SCENE_PROMPT =
+  '请评估这张品牌场景图中的 LOGO 呈现，只输出JSON：{"logoPresent":true或false,"noGarbledChinese":true或false,"noWatermark":true或false,"paletteOk":true或false,"sceneComplete":true或false,"reason":"一句话"}。logoPresent=场景物料上是否出现品牌 LOGO 图形（非空白底板）；noGarbledChinese=true 仅当无乱码/错字中文；noWatermark=true 仅当无水印；paletteOk=true 仅当配色符合玫瑰金/粉金品牌色系；sceneComplete=true 仅当是完整商业场景而非孤立 LOGO。无法确认填 false。';
+
+/** 工单 091-R2：AI 入景绘制场景验收（LOGO 在场/无乱码中文/无水印/配色/场景完整；双模型）。 */
+export async function runAIDrawnSceneCheck(
+  imageBase64: string,
+  opts: { models?: string[] } = {},
+): Promise<AIDrawnSceneCheckResult> {
+  const models = opts.models || ["qwen2.5vl:latest", "my-vl:latest"];
+  let results: Array<{ model: string; parsed: Record<string, unknown> | null }> = [];
+  // 工单 091-R2：ComfyUI 停止后 Ollama 模型需重载，先探活再重试（最多 3 轮×5s），
+  // 避免把「视觉暂不可用」误判为场景不合格。
+  await isOllamaAvailable(15_000).catch(() => false);
+  for (let round = 0; round < 3; round++) {
+    results = [];
+    for (const model of models) {
+      try {
+        const raw = await aiDrawnOllamaGenerate(model, AI_DRAWN_SCENE_PROMPT, imageBase64);
+        let parsed: Record<string, unknown> | null = null;
+        try {
+          const s = raw.indexOf("{");
+          const e = raw.lastIndexOf("}");
+          parsed = JSON.parse(raw.slice(s, e + 1)) as Record<string, unknown>;
+        } catch {
+          /* keep null */
+        }
+        results.push({ model, parsed });
+      } catch {
+        results.push({ model, parsed: null });
+      }
+    }
+    const valid = results.filter((r) => r.parsed);
+    if (valid.length >= 2 || round === 2) break;
+    await sleepMs(5000);
+  }
+  const valid = results.filter((r) => r.parsed);
+  if (valid.length < 2) {
+    return { status: "skipped", reason: "vision_unavailable", models: results };
+  }
+  // 工单 091-R2：AI 入景绘制验收——无水印双模型严格；
+  // LOGO 在场/无乱码中文/配色/场景完整按多数（本地模型对抽象 LOGO 易误报，
+  // 最终以 Chris 目检为准）。
+  const maj = (fn: (p: Record<string, unknown>) => boolean) => valid.filter((r) => fn(r.parsed as Record<string, unknown>)).length >= Math.ceil(valid.length / 2);
+  const noWm = valid.every((r) => (r.parsed as Record<string, unknown>).noWatermark === true);
+  // sceneComplete 仅记录（产品/物料特写不属于「完整商业场景」，不作为过关条件）；
+  // 过关=无水印（严格）+ LOGO 在场/无乱码中文/配色（多数）。
+  const passed = noWm && maj((p) => p.logoPresent === true) && maj((p) => p.noGarbledChinese === true) && maj((p) => p.paletteOk === true);
+  return {
+    status: passed ? "passed" : "needs_review",
+    reason: passed ? undefined : "ai_drawn_scene_check_failed",
+    models: results,
+  };
+}
+
+const MASCOT_SCENE_FUSION_PROMPT =
+  '请评估这张场景图中的 IP 公仔是否自然融入场景，只输出JSON：{"naturalIntegration":true或false,"contactShadow":true或false,"matchingLighting":true或false,"noTextOverlap":true或false,"noHardEdges":true或false,"reason":"一句话"}。公仔脚下有接触阴影、光影与场景一致、文字/LOGO不与公仔主体重叠、边缘无硬抠图感才算通过；无法确认填false。';
+
+/** 工单 091（P28）：场景融合双模型交叉断言（默认不进主流程，仅在公仔场景替换时调用）。 */
+export async function runMascotSceneFusionCheck(
+  imageBase64: string,
+  opts: { models?: string[] } = {},
+): Promise<MascotSceneFusionResult> {
+  const models = opts.models || ["qwen2.5vl:latest", "my-vl:latest"];
+  const results: Array<{ model: string; parsed: Record<string, unknown> | null }> = [];
+  for (const model of models) {
+    try {
+      const raw = await ocrWithModel(model, MASCOT_SCENE_FUSION_PROMPT, imageBase64);
+      let parsed: Record<string, unknown> | null = null;
+      try {
+        const s = raw.indexOf("{");
+        const e = raw.lastIndexOf("}");
+        parsed = JSON.parse(raw.slice(s, e + 1)) as Record<string, unknown>;
+      } catch {
+        /* keep null */
+      }
+      results.push({ model, parsed });
+    } catch {
+      results.push({ model, parsed: null });
+    }
+  }
+  const valid = results.filter((r) => r.parsed);
+  if (valid.length < 2) {
+    return { status: "skipped", reason: "vision_unavailable", models: results };
+  }
+  const passed = valid.every((r) => {
+    const p = r.parsed as Record<string, unknown>;
+    return p.noHardEdges === true && p.noTextOverlap === true && p.contactShadow === true;
+  });
+  return {
+    status: passed ? "passed" : "failed",
+    reason: passed ? undefined : "fusion_not_confirmed",
+    models: results,
+  };
+}
 
 /**
  * 工单 029：剥离 data URI 前缀。Ollama 的 images 字段只接受裸 base64；
@@ -149,6 +448,112 @@ async function ocrWithModel(model: string, prompt: string, imageBase64: string):
   }
 }
 
+export function buildLogoFidelityPayload(
+  model: string,
+  referenceImageBase64: string,
+  candidateImageBase64: string,
+): Record<string, unknown> {
+  return {
+    model,
+    prompt: LOGO_FIDELITY_PROMPT,
+    images: [stripDataUriPrefix(referenceImageBase64), stripDataUriPrefix(candidateImageBase64)],
+    stream: false,
+    keep_alive: 0,
+    options: { temperature: 0, num_predict: 300 },
+  };
+}
+
+export function evaluateLogoFidelityFacts(facts: LogoFidelityFacts): LogoFidelityResult["status"] {
+  const allPass = facts.logoPresent && facts.shapePreserved && facts.keyElementsPreserved
+    && facts.sceneComplete && facts.integrationNatural;
+  if (allPass) return "passed";
+  if (!facts.logoPresent || !facts.sceneComplete) return "failed";
+  return "needs_review";
+}
+
+export function parseLogoFidelityResult(raw: string, model = "my-vl"): LogoFidelityResult {
+  const parsed = extractJsonObjectFromText(raw);
+  const keys = ["logoPresent", "shapePreserved", "keyElementsPreserved", "sceneComplete", "integrationNatural"] as const;
+  const valid = parsed && keys.every((key) => typeof parsed[key] === "boolean");
+  const facts: LogoFidelityFacts = {
+    logoPresent: valid ? parsed.logoPresent === true : false,
+    shapePreserved: valid ? parsed.shapePreserved === true : false,
+    keyElementsPreserved: valid ? parsed.keyElementsPreserved === true : false,
+    sceneComplete: valid ? parsed.sceneComplete === true : false,
+    integrationNatural: valid ? parsed.integrationNatural === true : false,
+    reason: valid && typeof parsed.reason === "string" ? parsed.reason : "invalid_or_incomplete_json",
+  };
+  return {
+    ...facts,
+    status: valid ? evaluateLogoFidelityFacts(facts) : "needs_review",
+    model,
+    raw,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+async function logoFidelityWithModel(
+  model: string,
+  referenceImageBase64: string,
+  candidateImageBase64: string,
+): Promise<string> {
+  const payload = buildLogoFidelityPayload(model, referenceImageBase64, candidateImageBase64);
+  const tmpIn = path.join(os.tmpdir(), `logo-fidelity-in-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const tmpOut = tmpIn + ".out";
+  await fs.promises.writeFile(tmpIn, JSON.stringify(payload), "utf8");
+  try {
+    const response = await runCurl([
+      "-sS", "-m", "240", "-X", "POST", `${OLLAMA_API}/api/generate`,
+      "-H", "Content-Type: application/json", "--data-binary", `@${tmpIn}`, "--output", tmpOut,
+    ], 250000);
+    if (response.code !== 0) throw new Error(`curl failed: ${response.stderr.slice(0, 200)}`);
+    const raw = await fs.promises.readFile(tmpOut, "utf8");
+    const parsed = JSON.parse(raw) as { response?: string };
+    return String(parsed.response || "").trim();
+  } finally {
+    fs.promises.unlink(tmpIn).catch(() => {});
+    fs.promises.unlink(tmpOut).catch(() => {});
+  }
+}
+
+/** 工单 073：同一次请求把原 Logo 与候选场景送入本地视觉模型，五项全真才通过。 */
+export async function runLogoFidelityVisionCheck(options: {
+  referenceImageBase64: string;
+  candidateImageBase64: string;
+  model?: string;
+}): Promise<LogoFidelityResult> {
+  const model = options.model || "my-vl";
+  if (!(await isOllamaAvailable())) {
+    return {
+      logoPresent: false,
+      shapePreserved: false,
+      keyElementsPreserved: false,
+      sceneComplete: false,
+      integrationNatural: false,
+      reason: "ollama_unavailable",
+      status: "skipped",
+      model,
+      checkedAt: new Date().toISOString(),
+    };
+  }
+  try {
+    const raw = await logoFidelityWithModel(model, options.referenceImageBase64, options.candidateImageBase64);
+    return parseLogoFidelityResult(raw, model);
+  } catch (error) {
+    return {
+      logoPresent: false,
+      shapePreserved: false,
+      keyElementsPreserved: false,
+      sceneComplete: false,
+      integrationNatural: false,
+      reason: `vision_error: ${(error as Error).message.slice(0, 160)}`,
+      status: "needs_review",
+      model,
+      checkedAt: new Date().toISOString(),
+    };
+  }
+}
+
 /**
  * 工单 029：OCR 带 1 次重试。空/乱码结果视为 OCR 失败，返回 garbled=true，
  * 由调用方决定重试/降级，绝不把“空 OCR”当作内容不合格。
@@ -224,7 +629,7 @@ export function looksGarbled(text: string): boolean {
  * - 3B 疑似/不符 → 7B（my-vl）终审；7B 与期望一致 → passed，否则 suspect；
  * - Ollama 不可达 / 期望文本缺失 / OCR 调用失败 → skipped（未初检），带 reason。
  */
-export async function runTextVisionCheck(opts: {
+async function runTextVisionCheckLocal(opts: {
   imageBase64: string;
   prompt?: string;
   expectedText: string;
@@ -290,6 +695,41 @@ export async function runTextVisionCheck(opts: {
     return { ...base, status: "passed", coarseText, fineText };
   }
   return { ...base, status: "suspect", coarseText, fineText };
+}
+
+/**
+ * 工单 090：Agnes 交叉复核接线。默认关闭（VISION_ENABLE_AGNES=1 才启用）；
+ * 启用后本地 passed 但 Agnes OCR 与期望不符 → 降级 suspect（fail-closed，
+ * 不静默放行）；Agnes 不可用 → 保持本地结果不变（走既有降级）。
+ */
+export async function runTextVisionCheck(opts: {
+  imageBase64: string;
+  prompt?: string;
+  expectedText: string;
+  mode: LogoTextMode;
+  coarseModel?: string;
+  fineModel?: string;
+}): Promise<VisionCheckResult> {
+  const result = await runTextVisionCheckLocal(opts);
+  if (process.env.VISION_ENABLE_AGNES !== "1") {
+    return result;
+  }
+  const agnes = await agnesVisionText(OCR_PROMPT, opts.imageBase64);
+  if (!agnes.ok || !agnes.text) {
+    return { ...result, agnesStatus: `unavailable:${agnes.reason || "unknown"}` };
+  }
+  const agnesNorm = normalizeForCompare(agnes.text, opts.mode);
+  const expectedNorm = normalizeForCompare(opts.expectedText, opts.mode);
+  if (result.status === "passed" && (agnesNorm !== expectedNorm || looksGarbled(agnes.text))) {
+    return {
+      ...result,
+      status: "suspect",
+      reason: "agnes_cross_check_mismatch",
+      agnesText: agnes.text,
+      agnesStatus: "checked",
+    };
+  }
+  return { ...result, agnesText: agnes.text, agnesStatus: "checked" };
 }
 
 /**
@@ -505,6 +945,103 @@ export async function runMascotVisionCheck(opts: {
     coarseText: coarse.text,
     fineText: fine.text,
     reason: fine.parsed?.reason || coarse.parsed?.reason || "mascot_integrity",
+  };
+}
+
+// ===== 工单 062：公仔场景校验门（场景完整性 + 五官 + 核色） =====
+
+const MASCOT_SCENE_EVAL_PROMPT =
+  "Analyze this mascot scene image. Output ONLY a JSON object: " +
+  '{"sceneComplete": true/false, "faceComplete": true/false, "reason": "short note"}. ' +
+  "sceneComplete=true only if a recognizable commercial scene/background exists " +
+  "(e.g. storefront, packaging, membership card, interior) and the mascot is placed IN the scene, " +
+  "NOT a close-up element-only portrait on an empty background. " +
+  "faceComplete=true only if the mascot has clear facial features (eyes, nose, mouth visible). " +
+  "Do not output anything else.";
+
+export interface MascotSceneEval {
+  sceneComplete: boolean;
+  faceComplete: boolean;
+  reason?: string;
+}
+
+/** 容错解析公仔场景评估 JSON（剥代码围栏、取首尾花括号）。失败返回 null。 */
+export function parseMascotSceneEval(text: string): MascotSceneEval | null {
+  const cleaned = (text || "").replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>;
+    return {
+      sceneComplete: parsed.sceneComplete === true,
+      faceComplete: parsed.faceComplete === true,
+      reason: typeof parsed.reason === "string" ? parsed.reason : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export type MascotSceneVisionCheckResult = VisionCheckResult & {
+  sceneComplete?: boolean;
+  faceComplete?: boolean;
+  palette?: BrandColorCheckResult;
+};
+
+/**
+ * 公仔场景校验门（工单 062）：3B 粗筛 → 疑似 7B 终审；
+ * 判定=场景完整性 + 五官完整 + （可选）核色。Ollama 不可用 → skipped。
+ */
+export async function runMascotSceneVisionCheck(opts: {
+  imageBase64: string;
+  coarseModel?: string;
+  fineModel?: string;
+  expectedColors?: { hex: string; name?: string }[];
+  colorThreshold?: number;
+}): Promise<MascotSceneVisionCheckResult> {
+  const coarseModel = opts.coarseModel || "qwen2.5vl:3b";
+  const fineModel = opts.fineModel || "my-vl";
+  const base: VisionCheckResult = {
+    status: "skipped",
+    mode: "chinese",
+    expectedText: "",
+    coarseModel,
+    fineModel,
+    checkedAt: new Date().toISOString(),
+  };
+  if (!(await isOllamaAvailable())) {
+    return { ...base, reason: "ollama_unavailable" };
+  }
+  const coarse = await ocrWithModel(coarseModel, MASCOT_SCENE_EVAL_PROMPT, opts.imageBase64);
+  let parsed = parseMascotSceneEval(coarse);
+  if (!parsed || !parsed.sceneComplete || !parsed.faceComplete) {
+    const fine = await ocrWithModel(fineModel, MASCOT_SCENE_EVAL_PROMPT, opts.imageBase64);
+    const fineParsed = parseMascotSceneEval(fine);
+    if (fineParsed) parsed = fineParsed;
+  }
+  const sceneComplete = parsed?.sceneComplete === true;
+  const faceComplete = parsed?.faceComplete === true;
+  let palette: BrandColorCheckResult | undefined;
+  if (opts.expectedColors && opts.expectedColors.length) {
+    palette = await checkBrandColors({
+      imageBase64: opts.imageBase64,
+      palette: opts.expectedColors,
+      threshold: opts.colorThreshold,
+    });
+  }
+  const paletteOk = !palette || palette.status === "skipped" || palette.status === "passed";
+  const ok = sceneComplete && faceComplete && paletteOk;
+  return {
+    ...base,
+    status: ok ? "passed" : "suspect",
+    reason: ok
+      ? undefined
+      : `sceneComplete=${sceneComplete},faceComplete=${faceComplete},palette=${palette?.status || "n/a"}`,
+    coarseText: coarse,
+    sceneComplete,
+    faceComplete,
+    palette,
   };
 }
 

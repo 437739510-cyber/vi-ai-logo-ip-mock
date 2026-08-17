@@ -47,11 +47,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) => pathname.startsWith(href);
 
   const handleLogout = async () => {
-    await fetch("/api/admin/login", { method: "DELETE" }).catch(() => {});
-    document.cookie = "admin_auth=; path=/; max-age=0";
-    document.cookie = "admin_role=; path=/; max-age=0";
-    document.cookie = "admin_user_id=; path=/; max-age=0";
-    window.location.href = "/admin/login";
+    try {
+      const response = await fetch("/api/admin/login", { method: "DELETE" });
+      if (response.ok || response.status === 401) window.location.href = "/admin/login";
+    } catch {
+      // 保持当前页面，避免网络失败时假装服务端 HttpOnly 会话已清除。
+    }
   };
 
   if (isLoginPage) return <>{children}</>;

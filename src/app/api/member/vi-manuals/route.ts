@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { cookies } from "next/headers";
+import { normalizeViManualHistory } from "@/lib/vi-manual/manual-delivery";
 
 export async function GET() {
   try {
@@ -45,8 +46,6 @@ export async function GET() {
     const manuals = projects.map(p => {
       const ci = (p.client_info as Record<string, any>) || {};
       const bp = ci.brandProfile || {};
-      const history = ci.viGenerationHistory || [];
-      const completedHistory = history.filter((h: any) => h.status === "completed");
       const selectedLogo = bp.selectedLogo || null;
       const logoResults = bp.logoGenerationResults || [];
 
@@ -65,29 +64,8 @@ export async function GET() {
           selectedAt: selectedLogo.selectedAt,
         } : null,
         logoCount: logoResults.filter((l: any) => l.imageUrl).length,
-        // VI Manual info (history + pptxResult fallback)
-        viManuals: (() => {
-          const fromHistory = completedHistory.map((h: any) => ({
-            id: h.id,
-            format: h.format || "pptx",
-            pageCount: h.pageCount || 0,
-            completedAt: h.completedAt,
-            downloadUrl: h.downloadUrl || h.storageUrl || null,
-            fileName: h.fileName || "",
-          }));
-          // Fallback: no history but pptxResult exists (custom script generation)
-          if (fromHistory.length === 0 && ci.pptxResult) {
-            fromHistory.push({
-              id: "pptx-" + Date.now(),
-              format: "pptx",
-              pageCount: ci.pptxResult.pageCount || 0,
-              completedAt: new Date().toISOString(),
-              downloadUrl: ci.pptxResult.downloadUrl || ci.pptxResult.storageUrl || ci.pptxResult.url || null,
-              fileName: ci.pptxResult.fileName || "",
-            });
-          }
-          return fromHistory;
-        })(),
+        // Canonical delivery contract normalizes nested/flat history and deterministic fallback.
+        viManuals: normalizeViManualHistory(ci),
       };
     });
 

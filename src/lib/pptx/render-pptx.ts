@@ -26,6 +26,8 @@ import {
   countUsableRecordEntries,
 } from "@/lib/vi-manual/mascot-assets";
 import { getMaterialSpecs, resolveIndustryType, type MaterialSpec } from "@/lib/vi-manual/material-specs";
+// 工单 086-R1：行业 IP 应用知识固化（丽人/美业等可复用规则表）
+import { getIndustryIpApplicationRules, getIndustrySceneMaterials } from "@/lib/vi-manual/industry-ip-application-rules";
 import {
   normalizeLogoColorSet,
   getLogoMisuseRules,
@@ -35,6 +37,47 @@ import {
 
 import { renderTypographyPng, renderColorSpecPng } from "./spec-page-renderer";
 const _DEV = process.env.NODE_ENV === "development";
+
+/** 解析 PNG/JPEG 数据 URI 的原始宽高（同步；用于图片等比适配，禁止拉伸）。 */
+function imageDimsSync(dataUri: string): { w: number; h: number } | null {
+  try {
+    const b64 = String(dataUri).split(",")[1] || String(dataUri);
+    const buf = Buffer.from(b64, "base64");
+    if (buf.length >= 24 && buf.readUInt32BE(0) === 0x89504e47) {
+      return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+    }
+    if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+      let i = 2;
+      while (i + 9 < buf.length) {
+        if (buf[i] !== 0xff) { i += 1; continue; }
+        const marker = buf[i + 1];
+        if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7)) { i += 2; continue; }
+        if (i + 4 > buf.length) break;
+        const len = buf.readUInt16BE(i + 2);
+        if (marker >= 0xc0 && marker <= 0xc3) {
+          return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+        }
+        i += 2 + len;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+/**
+ * 等比适配（fit）：在 box 内完整保留图片（居中留白），禁止拉伸变形。
+ * 返回图片实际 frame（宽高比与源图一致）+ 居中偏移；取不到源图比例时退回 box（保持旧行为）。
+ */
+function fitInBox(dataUri: string, boxX: number, boxY: number, boxW: number, boxH: number) {
+  const dims = imageDimsSync(dataUri);
+  if (!dims || dims.w <= 0 || dims.h <= 0 || boxW <= 0 || boxH <= 0) {
+    return { x: boxX, y: boxY, w: boxW, h: boxH };
+  }
+  const scale = Math.min(boxW / dims.w, boxH / dims.h);
+  const w = dims.w * scale;
+  const h = dims.h * scale;
+  return { x: boxX + (boxW - w) / 2, y: boxY + (boxH - h) / 2, w, h };
+}
 
 
 const SW = 8.27;
@@ -83,6 +126,8 @@ export interface RenderPptxOptions {
   colorPaletteMeanings?: { primary?: string; secondary?: string; accent?: string };  // V103: 各色彩含义
   // V112: 富文本叙事
   brandStory?: string;
+  /** 工单 086-R1：品牌口号（与正式愿景分开展示） */
+  slogan?: string;
   colorDescriptions?: string;
   mascotEmotions?: Record<string, string> | null;
   mascotScenes?: Record<string, string> | null;
@@ -179,7 +224,7 @@ function getSceneConfigs(industry: IndustryType, aiTitles?: Record<string, strin
     },
     beauty: {
       stationery: { title: "美容应用系统", desc: "品牌在美容服务场景中的标准化应用" },
-      packaging: { title: "美容包装系统", desc: "产品与礼品物料的品牌化呈现" },
+      packaging: { title: "美容包装系统", desc: "美业（美容/美体/美甲）服务与物料的品牌化呈现" },
       marketing: { title: "美容营销系统", desc: "门店宣传与客户维护物料" },
     },
     fashion: {
@@ -317,7 +362,8 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
     _DEV && console.log("[render-pptx] Compressing images...");
     const compressedScenes: Record<string, string> = {};
     for (const [key, imgData] of Object.entries(sceneImages)) {
-      compressedScenes[key] = await compressImage(imgData, { maxWidth: 640, quality: 85, isLogo: false });
+      // 工单 091-R1：应用/包装场景图清晰度提升到 ≥1024，降低“糊/贴图”观感。
+      compressedScenes[key] = await compressImage(imgData, { maxWidth: 1024, quality: 88, isLogo: false });
     }
     sceneImages = compressedScenes;
     // Logo在PPTX中会被多次引用，缩小到256px足够显示
@@ -433,6 +479,7 @@ async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
     case "digital-media": renderDigitalMedia(slide, bp, opts, bc, industry); break;
     case "summary": renderSummary(slide, bp, opts, bc); break;
     case "material-priority": renderMaterialPriority(slide, bp, opts, bc); break;
+    case "file-output": renderFileOutput(slide, bp, opts, bc); break;
     case "wayfinding": renderWayfinding(slide, bp, opts, bc); break;
     case "logo-output": renderLogoOutput(slide, bp, opts, bc); break;
     case "mascot-gallery": renderMascotGallery(slide, bp, opts, bc); break;
@@ -649,7 +696,8 @@ function renderCover(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
 
   // IP公仔 — 右下角
   if (opts.mascotData) {
-    slide.addImage({ data: normImg(opts.mascotData), x: SW - 3.8, y: 7.2, w: 3.2, h: 3.0, sizing: { type: "contain", w: 3.2, h: 3.0 }, transparency: 5 });
+    const f = fitInBox(opts.mascotData, SW - 3.8, 7.2, 3.2, 3.0);
+    slide.addImage({ data: normImg(opts.mascotData), x: f.x, y: f.y, w: f.w, h: f.h, transparency: 5 });
   }
 
   // 底部信息
@@ -666,7 +714,8 @@ function renderClosing(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPp
   slide.addShape("rect", { x: (SW - 2.0) / 2, y: SH / 2 - 0.6, w: 2.0, h: 0.04, fill: { color: bc.acc } });
   slide.addText(`${cn} · 品牌视觉识别系统 (VI) 规范手册`, { x: MARGIN, y: SH / 2 - 0.3, w: CONTENT_W, h: 0.5, fontSize: 14, color: "FFFFFF", align: "center", transparency: 20 });
   if (opts.mascotData) {
-    slide.addImage({ data: normImg(opts.mascotData), x: (SW - 2.5) / 2, y: SH / 2 + 0.5, w: 2.5, h: 2.8, sizing: { type: "contain", w: 2.5, h: 2.8 }, transparency: 10 });
+    const f = fitInBox(opts.mascotData, (SW - 2.5) / 2, SH / 2 + 0.5, 2.5, 2.8);
+    slide.addImage({ data: normImg(opts.mascotData), x: f.x, y: f.y, w: f.w, h: f.h, transparency: 10 });
   }
   slide.addText(`如有疑问，请联系 ${cn}`, { x: MARGIN, y: SH - 1.5, w: CONTENT_W, h: 0.4, fontSize: 12, color: "FFFFFF", align: "center", transparency: 30 });
   slide.addShape("rect", { x: 0, y: SH - 0.1, w: SW, h: 0.1, fill: { color: bc.acc } });
@@ -682,6 +731,10 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
     { label: "核心价值", content: sanitizeText(opts.coreValues || fta(bp, ["ph-values-content","core-values-content","values-content"]) || "待品牌方补充") },
     { label: "目标市场", content: sanitizeText(opts.targetMarket || fta(bp, ["ph-market-content","target-market-content","market-content"]) || "待品牌方补充") },
   ];
+  // 工单 086-R1：品牌愿景用正式表述，品牌口号分开展示（避免口号被当作愿景）。
+  if (opts.slogan) {
+    sections[0].content = sections[0].content + "\n\n品牌口号：" + sanitizeText(opts.slogan);
+  }
 
   const cx = MARGIN + LEFT_BAR_W;
   const colGap = 0.25;
@@ -736,7 +789,8 @@ function renderPhilosophy(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rende
 
   // IP公仔 — 右下角半透明装饰
   if (opts.mascotData) {
-    slide.addImage({ data: normImg(opts.mascotData), x: SW - 2.2, y: SH - 3.5, w: 1.8, h: 2.2, sizing: { type: "contain", w: 1.8, h: 2.2 }, transparency: 70 });
+    const f = fitInBox(opts.mascotData, SW - 2.2, SH - 3.5, 1.8, 2.2);
+    slide.addImage({ data: normImg(opts.mascotData), x: f.x, y: f.y, w: f.w, h: f.h, transparency: 70 });
   }
 
   // 004: 愿景→LOGO/IP 落地表达（020：无 IP 手册不含 IP 文案，与 Planner 同源判断）
@@ -801,20 +855,19 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
   const phiY = 4.8;
   slide.addShape("rect", { x: cx, y: phiY, w: 0.06, h: 0.35, fill: { color: bc.pri }, rectRadius: 0.02 });
   slide.addText("设计理念", { x: cx + 0.2, y: phiY, w: 2, h: 0.35, fontSize: 22, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
-  slide.addText(philosophy, { x: cx + 0.2, y: phiY + 0.45, w: CONTENT_W - 0.4, h: 3.0, fontSize: 14, color: "444444", lineSpacingMultiple: 1.5, fontFace: "Noto Sans SC" });
+  slide.addText(philosophy, { x: cx + 0.2, y: phiY + 0.45, w: CONTENT_W - 0.4, h: 2.2, fontSize: 14, color: "444444", lineSpacingMultiple: 1.5, fontFace: "Noto Sans SC" });
 
-
-
-  // IP公仔区域
-  if (opts.mascotData) {
-    const ipY = 9.0;
-    slide.addShape("rect", { x: cx, y: ipY, w: 0.06, h: 0.35, fill: { color: bc.sec }, rectRadius: 0.02 });
-    slide.addText("IP 角色介绍", { x: cx + 0.2, y: ipY, w: CONTENT_W, h: 0.4, fontSize: 18, bold: true, color: bc.sec, fontFace: "Noto Sans SC" });
-    const ipW = 1.8, ipH = 2.2;
-    slide.addShape("rect", { x: (SW - ipW - 0.3) / 2, y: ipY + 0.5, w: ipW + 0.3, h: ipH + 0.2, fill: { color: "F5F5F5" }, rectRadius: 0.08 });
-    slide.addImage({ data: normImg(opts.mascotData), x: (SW - ipW) / 2, y: ipY + 0.6, w: ipW, h: ipH, sizing: { type: "contain", w: ipW, h: ipH } });
-    const mascotDesc = opts.mascotPhilosophy || fta(bp, ["mascot-philosophy","mascot-meaning","ip-intro"]) || "品牌IP公仔，承载品牌个性与亲和力。";
-    slide.addText(mascotDesc, { x: cx, y: SH - 0.8, w: CONTENT_W, h: 0.4, fontSize: 14, color: "666666", align: "center", lineSpacingMultiple: 1.4, fontFace: "Noto Sans SC" });
+  // 工单 086-R1：按真实 LOGO 元素输出 2-3 句具体设计寓意（替换套话）；
+  // 元素来自显式 logoElements，无已知元素映射时不输出，避免编造寓意。
+  const elementMeanings = interpretLogoElements(opts.logoElements);
+  if (elementMeanings.length > 0) {
+    const ey = phiY + 2.9;
+    slide.addShape("rect", { x: cx, y: ey, w: 0.06, h: 0.35, fill: { color: bc.acc }, rectRadius: 0.02 });
+    slide.addText("LOGO 元素释义", { x: cx + 0.2, y: ey, w: 2.5, h: 0.35, fontSize: 18, bold: true, color: bc.acc, fontFace: "Noto Sans SC" });
+    slide.addText(elementMeanings.slice(0, 3).join("\n"), {
+      x: cx + 0.2, y: ey + 0.42, w: CONTENT_W - 0.4, h: 1.5,
+      fontSize: 13, color: "555555", lineSpacingMultiple: 1.4, fontFace: "Noto Sans SC",
+    });
   }
 }
 
@@ -1238,6 +1291,28 @@ async function renderColors(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Ren
   }
 }
 
+/** 工单 086-R1：LOGO 元素 → 具体设计寓意（仅映射已知语义，禁止编造）。 */
+function interpretLogoElements(elements?: string[] | null): string[] {
+  const source = (elements || []).map((e) => String(e || "")).filter(Boolean);
+  if (source.length === 0) return [];
+  const meanings: Array<{ keys: RegExp; sentence: string }> = [
+    { keys: /水滴|水珠|露/, sentence: "「水滴」寓意滋养渗透，传递润泽焕活、由内而外的品牌感受。" },
+    { keys: /∞|无限|循环/, sentence: "「∞ 循环」寓意循环再生与可持续，表达长期陪伴与自然平衡。" },
+    { keys: /三角|山峰|箭头/, sentence: "「三角/箭头」寓意方向与引导，象征专业方向感与向上进取。" },
+    { keys: /叶|叶片/, sentence: "「叶片」寓意自然生机与本草能量，呼应健康养护的核心价值。" },
+    { keys: /碗|面碗/, sentence: "「碗形」寓意家的温度与踏实满足，传递一碗好面的亲切感。" },
+    { keys: /面条|线条|丝/, sentence: "「面条线条」寓意匠心手作与绵长传承，体现工艺与坚持。" },
+    { keys: /圆|环/, sentence: "「圆/环」寓意圆满包容与循环共生，强化亲和与完整。" },
+    { keys: /星/, sentence: "「星」寓意品质闪耀与值得信赖，塑造高端可信的识别记忆。" },
+    { keys: /花|瓣/, sentence: "「花瓣」寓意绽放与柔美，呼应美丽焕新的品牌气质。" },
+    { keys: /手|捧/, sentence: "「双手/捧」寓意呵护与关怀，传达专业守护的服务承诺。" },
+    { keys: /翅|羽/, sentence: "「翅膀」寓意轻盈向上与自信绽放，呼应蜕变焕新。" },
+  ];
+  const joined = source.join(" ");
+  const hits = meanings.filter((m) => m.keys.test(joined));
+  return hits.slice(0, 3).map((m) => m.sentence);
+}
+
 
 // ========== Typography ==========
 // ========== Typography — V108: 图片化规范页 ==========
@@ -1322,6 +1397,9 @@ function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
   if (pageImages.length > 0) {
     // ===== V100: 有AI场景图，混合布局（上氛围+下Logo规范）=====
     renderMixedLayout(slide, opts, bc, type, industry, pageImages, cx, logoForScene);
+  } else if (type === "marketing") {
+    // 工单 085-A-R2：A 类营销场景缺图时渲染显式「待补」占位页，不崩溃、不吞掉其他页面。
+    renderMarketingPendingPlaceholder(slide, config, cx);
   } else {
     // ===== 降级: 无AI图，回退到色块方案 =====
     renderSceneFallback(slide, opts, bc, type, industry, cx);
@@ -1329,6 +1407,28 @@ function renderScene(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptx
 
   // 排版坐标卡：安全区虚线框 + LOGO 占位 + 尺寸标注
   renderMaterialSpecCards(slide, bc, type, industry, 8.55);
+}
+
+/**
+ * 工单 085-A-R2：A 类营销场景缺失时的显式待补占位页。
+ * 仅在项目走「测试单降级通道」（marketing 槽位 missing=pending_074）时出现，
+ * 文案明确标注「待补：A 类场景候选 074」，不冒充完整交付。
+ */
+function renderMarketingPendingPlaceholder(slide: PptxGenJS.Slide, config: SceneConfig, cx: number): void {
+  const bx = cx;
+  const by = 2.0;
+  const bw = CONTENT_W;
+  const bh = 5.0;
+  slide.addShape("rect", { x: bx, y: by, w: bw, h: bh, fill: { color: "FFF7E6" }, line: { color: "CC8800", width: 1 }, rectRadius: 0.1 });
+  slide.addShape("rect", { x: bx, y: by, w: bw, h: 0.09, fill: { color: "CC8800" }, rectRadius: 0.02 });
+  slide.addText("营销应用系统（待补：A 类场景候选 074）", {
+    x: bx + 0.5, y: by + 0.9, w: bw - 1.0, h: 0.9,
+    fontSize: 22, bold: true, color: "B26A00", align: "center", valign: "middle", fontFace: "Noto Sans SC",
+  });
+  slide.addText("A 类营销场景（门头 / 海报）尚未通过 074 参考锚定验收。\n本页按测试单降级通道显式标记「待补」，不冒充完整交付。", {
+    x: bx + 1.0, y: by + 1.9, w: bw - 2.0, h: 1.4,
+    fontSize: 14, color: "8A6D3B", align: "center", valign: "middle", lineSpacingMultiple: 1.3, fontFace: "Noto Sans SC",
+  });
 }
 
 function logoPlacement(pos: string, sx: number, sy: number, sw: number, sh: number): { x: number; y: number } {
@@ -1341,7 +1441,12 @@ function logoPlacement(pos: string, sx: number, sy: number, sw: number, sh: numb
 }
 
 function renderMaterialSpecCards(slide: PptxGenJS.Slide, bc: BC, pageType: string, industry: IndustryType, yStart: number): void {
-  const specs: MaterialSpec[] = getMaterialSpecs(pageType, industry);
+  // 工单 086-R1：应用/包装/营销三页物料按行业映射表替换硬编码通用模板；
+  // 未命中行业映射时回退原通用物料表（行为不变）。
+  const specs: MaterialSpec[] =
+    (pageType === "stationery" || pageType === "packaging" || pageType === "marketing")
+      ? (getIndustrySceneMaterials(industry, pageType) || getMaterialSpecs(pageType, industry))
+      : getMaterialSpecs(pageType, industry);
   if (!specs.length) return;
   const cx = MARGIN + LEFT_BAR_W;
   slide.addText("排版坐标卡", { x: cx, y: yStart, w: CONTENT_W, h: 0.35, fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
@@ -1403,12 +1508,10 @@ function renderMixedLayout(
     });
 
     // 插入AI写实图
-    slide.addImage({
-      data: normImg(imgData),
-      x: imgX, y: IMG_Y, w: imgW, h: FULL_H,
-      sizing: { type: "cover", w: imgW, h: FULL_H },
-      rounding: true,
-    });
+    {
+      const f = fitInBox(imgData, imgX, IMG_Y, imgW, FULL_H);
+      slide.addImage({ data: normImg(imgData), x: f.x, y: f.y, w: f.w, h: f.h, rounding: true });
+    }
 
     // 右下角Logo水印
     if (logoForScene) {
@@ -1515,12 +1618,10 @@ function renderSceneWithImages(
       });
 
       // 插入AI写实图
-      slide.addImage({
-        data: normImg(imgData),
-        x: imgX, y: startY, w: imgW, h: imgH,
-        sizing: { type: "cover", w: imgW, h: imgH },
-        rounding: true,
-      });
+      {
+        const f = fitInBox(imgData, imgX, startY, imgW, imgH);
+        slide.addImage({ data: normImg(imgData), x: f.x, y: f.y, w: f.w, h: f.h, rounding: true });
+      }
       // V99: 在场景图右下角叠加Logo水印，确认Logo一致性
       if (logoForScene) {
         slide.addImage({
@@ -1559,12 +1660,10 @@ function renderSceneWithImages(
       });
 
       // 插入AI写实图
-      slide.addImage({
-        data: normImg(imgData),
-        x: imgX, y: imgY, w: colW, h: imgH,
-        sizing: { type: "cover", w: colW, h: imgH },
-        rounding: true,
-      });
+      {
+        const f = fitInBox(imgData, imgX, imgY, colW, imgH);
+        slide.addImage({ data: normImg(imgData), x: f.x, y: f.y, w: f.w, h: f.h, rounding: true });
+      }
       // V99: 在场景图右下角叠加Logo水印
       if (logoForScene) {
         slide.addImage({
@@ -2001,7 +2100,8 @@ export interface TocItem {
   pageId: string;
 }
 
-const TOC_SECTION_ORDER: TocItem["section"][] = ["基础规范", "应用系统", "IP公仔", "收尾"];
+// 工单 086-R1：目录顺序修正为 基础规范 → 应用系统 → 收尾 → IP 章节（各一次不重复）。
+const TOC_SECTION_ORDER: TocItem["section"][] = ["基础规范", "应用系统", "收尾", "IP公仔"];
 
 function renderTocGroup(
   slide: PptxGenJS.Slide, section: TocItem["section"], items: TocItem[],
@@ -2100,7 +2200,8 @@ export function getTocItems(industry: IndustryType, aiTitles?: Record<string, st
     { section: "基础规范", title: "色彩使用规范", pageId: "color-taboos" },
     { section: "基础规范", title: "字体系统", pageId: "typography" },
     { section: "基础规范", title: "字体版权说明", pageId: "font-copyright" },
-    { section: "基础规范", title: "基础规范", pageId: "basic-spec" },
+    // 工单 086-R1：basic-spec 页条目名与分区名区分开，避免目录视觉重复。
+    { section: "基础规范", title: "LOGO 保护空间与最小尺寸", pageId: "basic-spec" },
     { section: "基础规范", title: "Logo误用规范", pageId: "logo-misuse" },
     { section: "应用系统", title: configs.stationery.title, pageId: "stationery" },
     { section: "应用系统", title: configs.packaging.title, pageId: "packaging" },
@@ -2192,7 +2293,10 @@ async function renderMascotGallery(slide: PptxGenJS.Slide, bp: PageBlueprint, op
   if (threeView) {
     slide.addText('三视图', { x: MARGIN, y: yPos, w: CONTENT_W, h: 0.35, fontSize: 14, bold: true, color: bc.pri, fontFace: 'Noto Sans SC' });
     const vw = 6.0, vh = 2.0;
-    slide.addImage({ data: normImg(threeView), x: (SW - vw) / 2, y: yPos + 0.4, w: vw, h: vh, sizing: { type: 'contain', w: vw, h: vh } });
+    {
+      const f = fitInBox(threeView, (SW - vw) / 2, yPos + 0.4, vw, vh);
+      slide.addImage({ data: normImg(threeView), x: f.x, y: f.y, w: f.w, h: f.h });
+    }
     yPos += vh + 0.6;
   }
 
@@ -2210,7 +2314,8 @@ async function renderMascotGallery(slide: PptxGenJS.Slide, bp: PageBlueprint, op
       const ey = yPos + row * (emoSize + 0.35);
       const b64 = emo![key];
       if (b64) {
-        slide.addImage({ data: normImg(b64), x: ex, y: ey, w: emoSize, h: emoSize, sizing: { type: 'contain', w: emoSize, h: emoSize } });
+        const f = fitInBox(b64, ex, ey, emoSize, emoSize);
+        slide.addImage({ data: normImg(b64), x: f.x, y: f.y, w: f.w, h: f.h });
         slide.addText(key, { x: ex, y: ey + emoSize + 0.02, w: emoSize, h: 0.3, fontSize: 8, color: '666666', align: 'center', fontFace: 'Noto Sans SC' });
       }
     });
@@ -2231,7 +2336,8 @@ async function renderMascotGallery(slide: PptxGenJS.Slide, bp: PageBlueprint, op
       const ey = yPos + row * (scSize + 0.35);
       const b64 = sc![key];
       if (b64) {
-        slide.addImage({ data: normImg(b64), x: ex, y: ey, w: scSize, h: scSize, sizing: { type: 'contain', w: scSize, h: scSize } });
+        const f = fitInBox(b64, ex, ey, scSize, scSize);
+        slide.addImage({ data: normImg(b64), x: f.x, y: f.y, w: f.w, h: f.h });
         slide.addText(key, { x: ex, y: ey + scSize + 0.02, w: scSize, h: 0.3, fontSize: 8, color: '666666', align: 'center', fontFace: 'Noto Sans SC' });
       }
     });
@@ -2240,7 +2346,7 @@ async function renderMascotGallery(slide: PptxGenJS.Slide, bp: PageBlueprint, op
 
 // ========== IP 五章页渲染（整改：消费 mascot* 字段，确保各页都有图）==========
 // 文字块以「标题 + 正文」双列卡片排版，图片放在下半区，避免与正文重叠。
-function renderMascotTextPairs(slide: PptxGenJS.Slide, bp: PageBlueprint, bc: BC, startY: number): number {
+function renderMascotTextPairs(slide: PptxGenJS.Slide, bp: PageBlueprint, bc: BC, startY: number, contentWidthRatio = 1): number {
   const textEls = bp.elements.filter((el) => el.type === "text" && el.content && !el.id.endsWith("-title"));
   const pairs: { title: string; body: string }[] = [];
   for (let i = 0; i + 1 < textEls.length; i += 2) {
@@ -2253,7 +2359,7 @@ function renderMascotTextPairs(slide: PptxGenJS.Slide, bp: PageBlueprint, bc: BC
 
   const gap = 0.15;
   const cardH = 1.05;
-  const cardW = (CONTENT_W - gap) / 2;
+  const cardW = (CONTENT_W * contentWidthRatio - gap) / 2;
   const rows = Math.ceil(pairs.length / 2);
 
   pairs.forEach((p, i) => {
@@ -2277,12 +2383,29 @@ function renderMascotChapterPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
   const textEnd = renderMascotTextPairs(slide, bp, bc, 1.55);
   const startY = Math.min(Math.max(textEnd + 0.15, 3.2), 7.6);
   if (bp.pageId === "mascot-threeview") {
-    // 工单 006G：三视图页必须使用 front/side/back 三个独立视图（threeView 不能凑数）。
+    // 工单 091（P26）：页面按 正/侧/背 三张单图布局（Chris 要求拆分展示）；
+    // 合拼版仍保留在 mascotAssets.threeView 供下载/后续使用；
+    // 拆分视图不足时才回退合拼横版，再回退正面图。
     const views = (opts.mascotSplitViews || []).filter((v) => isUsableImageRef(v)).slice(0, MASCOT_VIEW_MIN);
-    if (views.length >= MASCOT_VIEW_MIN) renderMascotSplitGrid(slide, views, "三视图", startY, bc, MASCOT_VIEW_MIN);
+    if (views.length >= MASCOT_VIEW_MIN) {
+      renderMascotSplitGrid(slide, views, "三视图", startY, bc, MASCOT_VIEW_MIN);
+    } else {
+      const sheet = (opts.mascotThreeViewData || "").trim();
+      if (isUsableImageRef(sheet)) {
+        const vw = CONTENT_W;
+        const vh = Math.min(vw * (1194 / 3152), SH - startY - 0.4);
+        const f = fitInBox(sheet, MARGIN + LEFT_BAR_W, startY, vw, vh);
+        slide.addImage({ data: normImg(sheet), x: f.x, y: f.y, w: f.w, h: f.h });
+      } else if (opts.mascotData) {
+        const vw = 3.2, vh = Math.min(SH - startY - 0.5, 4.6);
+        const f = fitInBox(opts.mascotData, (SW - vw) / 2, startY, vw, vh);
+        slide.addImage({ data: normImg(opts.mascotData), x: f.x, y: f.y, w: f.w, h: f.h });
+      }
+    }
   } else if (bp.pageId === "mascot-emotions") {
-    // A4 竖版 4×2 表情网格：完整展示 8 个中文表情，不再截断为 6 个。
-    renderMascotRecordGrid(slide, opts.mascotEmotions, "表情库", startY, bc, 4);
+    // 工单 086-R4：表情库 6 个，A4 竖版 3×2 网格，列数随素材数量数据驱动。
+    const emotionCount = Object.keys(opts.mascotEmotions || {}).filter((k) => k && isUsableImageRef(opts.mascotEmotions?.[k])).length;
+    renderMascotRecordGrid(slide, opts.mascotEmotions, "表情库", startY, bc, emotionCount <= 6 ? 3 : 4);
   } else if (bp.pageId === "mascot-scenes") {
     // A4 竖版 2×2 场景网格：完整展示 4 个真实应用场景，不再截断为 3 个。
     renderMascotRecordGrid(slide, opts.mascotScenes, "场景应用", startY, bc, 2);
@@ -2297,7 +2420,8 @@ function renderMascotChapterPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
     const posImg = opts.mascotData || opts.mascotThreeViewData || opts.mascotSplitViews?.[0];
     if (posImg) {
       const vw = 3.4, vh = Math.min(SH - startY - 0.5, 4.0);
-      slide.addImage({ data: normImg(posImg), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
+      const f = fitInBox(posImg, (SW - vw) / 2, startY, vw, vh);
+      slide.addImage({ data: normImg(posImg), x: f.x, y: f.y, w: f.w, h: f.h });
     }
   }
 }
@@ -2305,15 +2429,22 @@ function renderMascotChapterPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts
 function renderMascotSupportPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, bp.label || bp.pageId, bc);
 
-  const textEnd = renderMascotTextPairs(slide, bp, bc, 1.55);
-  const startY = Math.min(Math.max(textEnd + 0.15, 3.2), 7.6);
+  // 工单 091（P30）：规范文字双栏占左 64%，公仔示例独立成右列专区，互不遮挡。
+  renderMascotTextPairs(slide, bp, bc, 1.55, 0.64);
   const supportImg = opts.mascotData || opts.mascotThreeViewData || opts.mascotSplitViews?.[0];
   if (supportImg) {
-    const vw = 3.4, vh = Math.min(SH - startY - 0.5, 3.2);
-    slide.addImage({ data: normImg(supportImg), x: (SW - vw) / 2, y: startY, w: vw, h: vh, sizing: { type: "contain", w: vw, h: vh } });
+    const imgX = MARGIN + LEFT_BAR_W + CONTENT_W * 0.64 + 0.25;
+    const imgW = CONTENT_W * 0.36 - 0.25;
+    const imgH = Math.min(SH - 1.9 - 1.55, 5.8);
+    const imgY = 1.55 + (SH - 1.55 - imgH) / 2 - 0.4;
+    slide.addShape("rect", { x: imgX, y: imgY - 0.15, w: imgW, h: imgH + 0.3, fill: { color: "F5F5F5" }, line: { color: "E8E8E8", width: 0.3 }, rectRadius: 0.1 });
+    {
+      const f = fitInBox(supportImg, imgX, imgY, imgW, imgH);
+      slide.addImage({ data: normImg(supportImg), x: f.x, y: f.y, w: f.w, h: f.h });
+    }
   } else {
-    slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: startY, w: CONTENT_W, h: 0.8, fill: { color: "FDECEA" }, rectRadius: 0.06 });
-    slide.addText("素材待补，禁止交付", { x: MARGIN + LEFT_BAR_W, y: startY, w: CONTENT_W, h: 0.8, fontSize: 16, bold: true, color: "CC3333", align: "center", valign: "middle" });
+    slide.addShape("rect", { x: MARGIN + LEFT_BAR_W, y: 6.2, w: CONTENT_W, h: 0.8, fill: { color: "FDECEA" }, rectRadius: 0.06 });
+    slide.addText("素材待补，禁止交付", { x: MARGIN + LEFT_BAR_W, y: 6.2, w: CONTENT_W, h: 0.8, fontSize: 16, bold: true, color: "CC3333", align: "center", valign: "middle" });
   }
 }
 
@@ -2373,7 +2504,8 @@ function renderMascotSplitGrid(
     const ex = startX + col * (size + gap);
     const ey = yPos + row * (size + 0.35);
     if (b64) {
-      slide.addImage({ data: normImg(b64), x: ex, y: ey, w: size, h: size, sizing: { type: "contain", w: size, h: size } });
+      const f = fitInBox(b64, ex, ey, size, size);
+      slide.addImage({ data: normImg(b64), x: f.x, y: f.y, w: f.w, h: f.h });
     }
   });
 }
@@ -2535,6 +2667,26 @@ function drawAuxDemoStripes(slide: PptxGenJS.Slide, x: number, y: number, w: num
   }
 }
 
+/**
+ * 工单 086-R1：文件输出规范页——保留蓝图内容并补导出分辨率数值
+ * （印刷 300dpi / 喷绘 150dpi / 数字 72-150dpi / Logo 矢量不限）。
+ */
+function renderFileOutput(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
+  renderGeneric(slide, bp, opts, bc);
+  const cx = MARGIN + LEFT_BAR_W;
+  const y = 8.1;
+  slide.addShape("rect", { x: cx, y: y, w: 0.1, h: 0.35, fill: { color: bc.pri }, rectRadius: 0.03 });
+  slide.addText("导出分辨率标准", { x: cx + 0.25, y: y, w: 4, h: 0.35, fontSize: 15, bold: true, color: bc.pri, fontFace: "Noto Sans SC" });
+  const rows = [
+    [{ text: "用途", options: { fontSize: 10, bold: true, color: "FFFFFF" } }, { text: "分辨率", options: { fontSize: 10, bold: true, color: "FFFFFF" } }],
+    [{ text: "印刷", options: { fontSize: 10, color: "333333" } }, { text: "300 dpi（CMYK）", options: { fontSize: 10, color: "333333" } }],
+    [{ text: "喷绘/展架", options: { fontSize: 10, color: "333333" } }, { text: "150 dpi（按实际尺寸）", options: { fontSize: 10, color: "333333" } }],
+    [{ text: "数字媒体（屏幕）", options: { fontSize: 10, color: "333333" } }, { text: "72–150 dpi（RGB）", options: { fontSize: 10, color: "333333" } }],
+    [{ text: "LOGO 源文件", options: { fontSize: 10, color: "333333" } }, { text: "矢量格式，分辨率不限", options: { fontSize: 10, color: "333333" } }],
+  ];
+  slide.addTable(rows, { x: cx, y: y + 0.45, w: CONTENT_W, colW: [3.2, 3.87], border: { pt: 0.5, color: "E0E0E0" }, rowH: [0.32, 0.32, 0.32, 0.32, 0.32], autoPage: false });
+}
+
 function renderAuxGraphicsMisuse(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC): void {
   addContentFrame(slide, bp.label || "辅助图形禁用规范", bc);
   const cx = MARGIN + LEFT_BAR_W;
@@ -2595,8 +2747,10 @@ function renderColorTaboos(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
   const cx = MARGIN + LEFT_BAR_W;
   let y = 1.5;
 
+  // 工单 086-R1：区分「品牌标准色」（LOGO/核心识别）与「品牌基底色」（大面积铺陈），
+  // 消除与标准色彩规范页（P8）的表述矛盾。
   const rules = [
-    { title: "主色禁用大面积铺满", desc: (COLOR_NAME_MAP[bc.pri] || "品牌主色") + " #" + bc.pri + " 仅作点缀色（LOGO、装饰线、强调文字），占画面比例不超过20%。避免大面积铺满产生压迫感，保持品牌调性统一。", icon: "⚠" },
+    { title: "品牌标准色仅作核心识别", desc: (COLOR_NAME_MAP[bc.pri] || "品牌标准色") + " #" + bc.pri + " 用于 LOGO 与核心识别；大面积画面请使用品牌基底色（辅助色/留白），标准色占比建议不超过 20%，避免压迫感并保持调性统一。", icon: "⚠" },
     { title: "三色搭配比例", desc: "主色 10-25% / 辅助色 15-30% / 背景留白 50-70%。保持视觉呼吸感与层次。", icon: "📐" },
     { title: "禁止搭配色", desc: "避免与高饱和度绿色、荧光色、纯黑 #000000 混搭，破坏品牌温柔轻奢质感。", icon: "🚫" },
     { title: "单色印刷规范", desc: "黑白/单色印刷时使用灰度版本，保留品牌色明度阶梯。主色→70%灰、辅助色→50%灰、强调色→30%灰。", icon: "🖨" },
@@ -2614,7 +2768,7 @@ function renderColorTaboos(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Rend
   const grayRow = [
     ...(logoColors?.navy ? [{ label: logoColors.navy.name + " → 70% 灰", color: logoColors.navy.hex, gray: "B3B3B3" }] : []),
     ...(logoColors?.gold ? [{ label: logoColors.gold.name + " → 50% 灰", color: logoColors.gold.hex, gray: "808080" }] : []),
-    { label: "品牌主色 → 70% 灰", color: bc.pri, gray: "B3B3B3" },
+    { label: "品牌标准色 → 70% 灰", color: bc.pri, gray: "B3B3B3" },
     { label: "辅助色 → 50% 灰", color: bc.sec, gray: "808080" },
     { label: "强调色 → 30% 灰", color: bc.acc, gray: "4D4D4D" },
   ].slice(0, 3);
@@ -2683,9 +2837,24 @@ function renderMaterialPriority(slide: PptxGenJS.Slide, bp: PageBlueprint, opts:
     slide.addText(items[i].desc, { x: cx + 2.45, y: rowY + 0.08, w: 4.5, h: 0.34, fontSize: 10, color: "666666" });
   }
 
-  slide.addText("门店分批落地建议：首批完成必做物料，第二批补齐建议物料，第三批按需扩展可选物料。具体清单根据行业动态配置。", {
-    x: cx, y: 7.35, w: CONTENT_W, h: 0.3, fontSize: 11, color: "999999", align: "center",
-  });
+  // 工单 086-R1：有 IP 版时展示行业 IP 应用触点（丽人/美业规则表，可复用、无品牌写死）。
+  if (opts.mascotData) {
+    const ipRules = getIndustryIpApplicationRules(opts.industry);
+    slide.addShape("rect", { x: cx, y: 7.3, w: CONTENT_W, h: 1.0, fill: { color: "FDF2F8" }, rectRadius: 0.06 });
+    slide.addText("IP 应用触点（" + (opts.industry || "通用") + "）", {
+      x: cx + 0.2, y: 7.38, w: CONTENT_W - 0.4, h: 0.3, fontSize: 10, bold: true, color: "B03A66",
+    });
+    slide.addText("线上：" + ipRules.online.join(" / ") + "\n线下：" + ipRules.offline.join(" / "), {
+      x: cx + 0.2, y: 7.66, w: CONTENT_W - 0.4, h: 0.58, fontSize: 8.5, color: "8A4A63", lineSpacingMultiple: 1.15,
+    });
+    slide.addText("门店分批落地建议：首批完成必做物料，第二批补齐建议物料，第三批按需扩展可选物料。具体清单根据行业动态配置。", {
+      x: cx, y: 8.4, w: CONTENT_W, h: 0.3, fontSize: 11, color: "999999", align: "center",
+    });
+  } else {
+    slide.addText("门店分批落地建议：首批完成必做物料，第二批补齐建议物料，第三批按需扩展可选物料。具体清单根据行业动态配置。", {
+      x: cx, y: 7.35, w: CONTENT_W, h: 0.3, fontSize: 11, color: "999999", align: "center",
+    });
+  }
 }
 
 
@@ -2713,23 +2882,25 @@ function renderDigitalMedia(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: Ren
   slide.addShape("rect", { x: ax, y: sy, w: avatarW, h: avatarH, fill: { color: "F7F7F7" }, line: { color: bc.pri, width: 0.75, dashType: "dash" }, rectRadius: 0.08 });
   slide.addShape("ellipse", { x: ax + 0.17, y: sy + 0.17, w: 1.0, h: 1.0, fill: { type: "none" }, line: { color: bc.pri, width: 0.75, dashType: "dash" } });
   slide.addShape("ellipse", { x: ax + 0.45, y: sy + 0.45, w: 0.45, h: 0.45, fill: { color: bc.pri, transparency: 25 } });
-  slide.addText("社媒头像 1024x1024px\n圆形安全区 80%", { x: ax - 0.2, y: sy + avatarH + 0.05, w: avatarW + 0.4, h: 0.5, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
+  // 工单 086-R1：有 IP 版统一「公仔+LOGO」口径（头像=公仔头部、封面=公仔+LOGO、Banner=LOGO主+公仔辅）
+  slide.addText(opts.mascotData ? "IP头像 1024x1024px\n公仔头部·圆形安全区 80%" : "社媒头像 1024x1024px\n圆形安全区 80%", { x: ax - 0.2, y: sy + avatarH + 0.05, w: avatarW + 0.4, h: 0.5, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
 
   const vx = ax + 1.75, vw = 0.9, vh = 1.35;
   slide.addShape("rect", { x: vx, y: sy, w: vw, h: vh, fill: { color: "F7F7F7" }, line: { color: bc.pri, width: 0.75, dashType: "dash" }, rectRadius: 0.05 });
   slide.addShape("rect", { x: vx + vw - 0.34, y: sy + 0.1, w: 0.24, h: 0.18, fill: { color: bc.pri, transparency: 25 } });
   slide.addText("LOGO", { x: vx + vw - 0.34, y: sy + 0.11, w: 0.24, h: 0.16, fontSize: 6, bold: true, color: "FFFFFF", align: "center", fontFace: "Noto Sans SC" });
-  slide.addText("短视频封面 1080x1920px\nLOGO 右上角", { x: vx - 0.25, y: sy + vh + 0.05, w: vw + 0.5, h: 0.5, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
+  slide.addText(opts.mascotData ? "IP封面 1080x1920px\n公仔+LOGO·右上角" : "短视频封面 1080x1920px\nLOGO 右上角", { x: vx - 0.25, y: sy + vh + 0.05, w: vw + 0.5, h: 0.5, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
 
   const bx = ax + 2.95, bw = 2.35, bh = 1.32;
   slide.addShape("rect", { x: bx, y: sy, w: bw, h: bh, fill: { color: "F7F7F7" }, line: { color: bc.pri, width: 0.75, dashType: "dash" }, rectRadius: 0.06 });
   slide.addShape("rect", { x: bx + 0.15, y: sy + bh / 2 - 0.14, w: 0.5, h: 0.28, fill: { color: bc.pri, transparency: 25 } });
   slide.addText("LOGO", { x: bx + 0.15, y: sy + bh / 2 - 0.12, w: 0.5, h: 0.24, fontSize: 7, bold: true, color: "FFFFFF", align: "center", fontFace: "Noto Sans SC" });
-  slide.addText("网页 Banner 1920x1080px\nLOGO 左侧 10% 区域", { x: bx - 0.4, y: sy + bh + 0.05, w: bw + 0.8, h: 0.5, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
+  slide.addText(opts.mascotData ? "IP Banner 1920x1080px\nLOGO 主·公仔辅" : "网页 Banner 1920x1080px\nLOGO 左侧 10% 区域", { x: bx - 0.4, y: sy + bh + 0.05, w: bw + 0.8, h: 0.5, fontSize: 8, color: "666666", align: "center", fontFace: "Noto Sans SC" });
 
   // 底部排版坐标卡文本
   const specs = getMaterialSpecs("digital-media", industry);
-  slide.addText(specs.map((s) => "排版坐标卡：" + s.name + " " + s.size + "，LOGO " + s.logoPosition + "，LOGO " + s.logoSize + "，安全区 " + s.safeZone + "。").join("\n"), {
+  const ipNote = opts.mascotData ? "IP 版统一口径：头像=公仔头部，封面=公仔+LOGO，Banner=LOGO 主视觉+公仔辅助。\n" : "";
+  slide.addText(ipNote + specs.map((s) => "排版坐标卡：" + s.name + " " + s.size + "，LOGO " + s.logoPosition + "，LOGO " + s.logoSize + "，安全区 " + s.safeZone + "。").join("\n"), {
     x: cx, y: sy + 1.95, w: CONTENT_W, h: 1.2,
     fontSize: 9, color: "555555", valign: "top", lineSpacingMultiple: 1.4, fontFace: "Noto Sans SC",
   });

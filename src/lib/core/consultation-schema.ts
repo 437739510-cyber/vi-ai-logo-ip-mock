@@ -120,7 +120,10 @@ export const consultationSchema = z.object({
     .or(z.literal("")),
   mascotColorHint: z.string().max(200).optional().or(z.literal("")),
   mascotRefIdea: z.string().max(500).optional().or(z.literal("")),
-  mascotSceneCount: z.number().int().min(3).max(16).default(6).optional().or(z.literal("")),
+  // 工单 083：客户不再选择 IP 场景图数量，平台固定 4 张；缺失/空串默认 4。
+  // 注意：zodResolver 要求 schema 输入/输出类型一致，此处不使用 transform/preprocess；
+  // 旧值归一化由 submit（固定 4）与动态简报（sceneCount 固定 4）保证。
+  mascotSceneCount: z.number().int().default(4).optional().or(z.literal("")),
 
   // V58: 品牌个性与视觉偏好
   brandPersonality: z

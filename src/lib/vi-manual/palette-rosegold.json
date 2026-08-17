@@ -1,0 +1,19 @@
+{
+  "name": "Rosegold Pink",
+  "industry_defaults": ["beauty", "nail", "fashion"],
+  "source_files": [
+    "mascot_front.png",
+    "mascot_3view_sheet.png",
+    "mascot_scene_storefront.png",
+    "mascot_scene_interior.png",
+    "mascot_scene_membership.png",
+    "mascot_scene_packaging.png"
+  ],
+  "palette": [
+    { "hex": "#D6C0C2", "rgb": [214, 192, 194], "share": 0.638, "role": "primary_pink" },
+    { "hex": "#BB8887", "rgb": [187, 136, 135], "share": 0.246, "role": "accent_rose" },
+    { "hex": "#9F5D57", "rgb": [159, 93, 87], "share": 0.074, "role": "deep_rose" },
+    { "hex": "#FCFCFC", "rgb": [252, 252, 252], "share": 0.025, "role": "background" },
+    { "hex": "#784848", "rgb": [120, 72, 72], "share": 0.018, "role": "dark_rose" }
+  ]
+}

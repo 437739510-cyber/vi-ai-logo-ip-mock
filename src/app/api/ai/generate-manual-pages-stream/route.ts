@@ -559,10 +559,14 @@ async function assemblePage(
 
 // ===== POST 主流程 =====
 export async function POST(req: Request) {
+  return Response.json(
+    { error: "旧网页 PNG 手册生成已停用，正式交付由本地 Worker 生成 PPTX。", code: "LEGACY_MANUAL_PAGES_STREAM_DISABLED" },
+    { status: 410 },
+  );
   const { projectId, clientInfo, brandColors, logoUrl, mascotUrl, maxPages, refId, startPage } = await req.json();
   const companyName = clientInfo?.companyName || '';  const startIdx = startPage ?? 0;
   const totalToGenerate = maxPages || PAGE_DEFS.length;
-  if (!projectId) return new Response(JSON.stringify({ error: "projectId required" }), { status: 400 });  const aliyunKey = process.env.ALIYUN_API_KEY;
+  if (!projectId) return new Response(JSON.stringify({ error: "projectId required" }), { status: 400 });  const aliyunKey = process.env.ALIYUN_API_KEY as string;
   if (!aliyunKey) return new Response(JSON.stringify({ error: "API keys not configured" }), { status: 500 });
 
   const stream = new ReadableStream({

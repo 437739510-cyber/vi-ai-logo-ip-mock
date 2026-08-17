@@ -1,17 +1,16 @@
 export const dynamic = "force-dynamic"
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const role = cookieStore.get("admin_role")?.value;
-    const userId = cookieStore.get("admin_user_id")?.value;
+    const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
 
-    if (!role) {
+    if (!session) {
       return NextResponse.json({ success: false, error: "未登录" }, { status: 401 });
     }
+    const { role, userId } = session;
 
     let memberPhones: string[] = [];
     let brandMap: Record<string, string> = {};

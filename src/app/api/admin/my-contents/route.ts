@@ -1,17 +1,16 @@
 export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const role = cookieStore.get("admin_role")?.value;
-    const userId = cookieStore.get("admin_user_id")?.value;
+    const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
 
-    if (role !== "student" || !userId) {
+    if (session?.role !== "student") {
       return NextResponse.json({ success: false, error: "仅大学生可访问" }, { status: 403 });
     }
+    const userId = session.userId;
 
     // 查找该大学生生成的内容（含images字段）
     const { data: contents, error } = await supabaseAdmin

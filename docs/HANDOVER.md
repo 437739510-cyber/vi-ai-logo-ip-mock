@@ -68,8 +68,8 @@
 - **端口**: 3003
 - **ngrok 域名**: defensive-clump-bonnet.ngrok-free.dev
 - **API Keys** (`.env.local`):
-  - `DEEPSEEK_API_KEY=sk-f10a2e2e846f4b50982de464795e6149`
-  - `ALIYUN_API_KEY=sk-1337d8b2d6944fd792f0650c004aa43a`
+  - `DEEPSEEK_API_KEY=<已移入 .env.local>`
+  - `ALIYUN_API_KEY=<已移入 .env.local>`
 
 ---
 

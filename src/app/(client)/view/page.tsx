@@ -7,6 +7,12 @@ import { Eye, CheckCircle, Loader2, ArrowLeft, ImageIcon, Phone, Key, RefreshCw,
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { MascotSection } from "@/components/client/MascotSection";
 import { LogoLightbox } from "@/components/client/LogoLightbox";
+import type { CustomerFormEcho } from "@/lib/vi-manual/customer-form-echo";
+import {
+  getGenerationStateLabel,
+  type CanonicalGenerationState,
+  type GenerationStateSource,
+} from "@/lib/core/generation-state";
 import Link from "next/link";
 
   interface LogoItem {
@@ -28,7 +34,10 @@ interface ProjectData {
   companyName: string;
   industry: string;
   mainProducts: string;
-  generationStatus: string;
+  generationStatus: CanonicalGenerationState | null;
+  generationStateSource: GenerationStateSource;
+  generationStateNeedsReview: boolean;
+  generationStateMirrorMatches: boolean;
   logos: LogoItem[];
   selectedLogo: {
     imageUrl: string;
@@ -40,6 +49,67 @@ interface ProjectData {
     savedAt: string;
   } | null;
   logoHistory: LogoRound[];
+  client_info?: {
+    wantMascot?: string;
+    mascotSamples?: unknown[];
+    mascotSelectedId?: string | null;
+    formEcho?: CustomerFormEcho;
+  };
+}
+
+/** 工单 087：我的填写资料只读回显（纯文本展示，无任何编辑控件）。 */
+function FormEchoSection({ echo }: { echo?: CustomerFormEcho }) {
+  if (!echo) return null;
+  const rows: Array<{ label: string; value: string }> = [];
+  const push = (label: string, value: string | undefined | null | Array<string> | { primary?: string | null; secondary?: string | null; accent?: string | null }) => {
+    if (value === undefined || value === null) return;
+    if (typeof value === "string") {
+      if (value.trim()) rows.push({ label, value });
+      return;
+    }
+    if (Array.isArray(value)) {
+      const joined = value.map((v) => String(v)).filter(Boolean).join("、");
+      if (joined) rows.push({ label, value: joined });
+      return;
+    }
+    if (typeof value === "object") {
+      const parts: string[] = [];
+      if (value.primary) parts.push(`主色 ${value.primary}`);
+      if (value.secondary) parts.push(`辅助色 ${value.secondary}`);
+      if (value.accent) parts.push(`强调色 ${value.accent}`);
+      if (parts.length) rows.push({ label, value: parts.join(" / ") });
+    }
+  };
+  push("Logo 风格", echo.logoStyle);
+  push("Logo 用途", echo.logoUsage);
+  push("品牌色", echo.brandColors);
+  push("Logo 文字语言", echo.logoTextLanguage);
+  push("上传的 Logo 文件", echo.logoFileNames);
+  push("是否选择公仔", echo.wantMascot);
+  push("公仔类型偏好", echo.mascotTypePref);
+  push("公仔风格偏好", echo.mascotStylePref);
+  push("公仔人设/性格偏好", echo.mascotPersonalityPref);
+  push("公仔颜色提示", echo.mascotColorHint);
+  push("公仔期望应用场景", echo.mascotUsageScenes);
+  push("公仔参考图/灵感", echo.mascotRefIdea);
+  push("提交时间", echo.submittedAt ? new Date(echo.submittedAt).toLocaleString("zh-CN") : undefined);
+  if (rows.length === 0) return null;
+  return (
+    <div className="bg-white border border-neutral-100 rounded-2xl p-6 shadow-sm mb-6">
+      <h2 className="text-base font-semibold text-neutral-900 mb-4">我的填写资料</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+        {rows.map((row) => (
+          <div key={row.label} className="text-sm">
+            <span className="block text-xs text-neutral-400">{row.label}</span>
+            <span className="block mt-0.5 text-neutral-700 break-words">{row.value}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 text-xs text-neutral-400">
+        以上为提交时填写的资料（只读），如需更正请通过客服或重新提交流程处理。
+      </p>
+    </div>
+  );
 }
 
 export default function ViewLogoPage() {
@@ -168,6 +238,8 @@ export default function ViewLogoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: projectData.id,
+          phone: phone.trim(),
+          viewPassword: viewPassword.trim(),
           logoImageUrl: logo.imageUrl,
           logoIndex: selectedIdx,
           companyName: projectData.companyName,
@@ -203,36 +275,6 @@ export default function ViewLogoPage() {
     }
     setRegenConfirmType("has_selection");
     setShowRegenConfirm(true);
-  };
-
-  const getStatusText = (status: string) => {
-    const map: Record<string, string> = {
-      pending: "等待处理",
-      brand_analyzing: "AI品牌分析中",
-      logo_generating: "Logo生成中",
-      logo_generated: "Logo已生成",
-      mascot_generating: "公仔生成中",
-      mascot_generated: "公仔生成完成",
-      mascot_failed: "公仔生成失败",
-      mascot_sample_fail: "公仔样稿生成失败",
-      mascot_full_fail: "公仔全套生成失败",
-      mascot_pending: "等待公仔生成",
-      waiting_manual_review: "人工校准中（3个工作日交付）",
-      manual_review_complete: "人工校验完成",
-      manual_render_fail: "手册渲染失败",
-      scene_rendering: "场景渲染中",
-      pptx_assembling: "手册组装中",
-      submitted: "已提交",
-      payment_uploaded: "待确认付款",
-      paid: "已付款",
-      confirmed: "需求确认中",
-      designing: "设计制作中",
-      reviewing: "审核中",
-      delivered: "已交付",
-      completed: "已完成",
-      failed: "生成失败",
-    };
-    return map[status] || status;
   };
 
   // Get the logos to display based on current history round
@@ -319,7 +361,7 @@ export default function ViewLogoPage() {
                 <p className="font-mono font-medium">{projectData.id}</p>
               </div>
               <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
-                {getStatusText(projectData.generationStatus)}
+                {getGenerationStateLabel(projectData.generationStatus)}
               </span>
             </div>
             <div className="mt-3 flex gap-4 text-sm text-neutral-600">
@@ -329,13 +371,21 @@ export default function ViewLogoPage() {
             </div>
           </div>
 
+          {/* 工单 087：我的填写资料只读回显 */}
+          <FormEchoSection echo={projectData.client_info?.formEcho} />
+
+          {(projectData.generationStatus === null || projectData.generationStateNeedsReview) && (
+            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              项目状态正在同步，部分进度待核查。请稍后刷新；如长时间未更新，请联系客服。
+            </div>
+          )}
+
           {/* Logo生成中 */}
-          {(projectData.generationStatus === "logo_generating" ||
-            projectData.generationStatus === "brand_analyzing") && (
+          {projectData.generationStatus === "logo_generating" && (
             <div className="bg-white border border-neutral-100 rounded-2xl p-12 shadow-sm text-center">
               <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
               <h3 className="text-lg font-medium text-neutral-900 mb-2">Logo正在生成中</h3>
-              <p className="text-neutral-500 text-sm">AI正在为您设计Logo方案，约2-5分钟</p>
+              <p className="text-neutral-500 text-sm">本地生产流程正在准备您的 Logo 方案</p>
               <button
                 onClick={handleView}
                 className="mt-4 px-4 py-2 text-sm text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
@@ -347,20 +397,19 @@ export default function ViewLogoPage() {
 
           {/* 等待付款/确认中 */}
           {(projectData.generationStatus === "submitted" ||
-            projectData.generationStatus === "pending" ||
-            projectData.generationStatus === "payment_uploaded") && (
+            projectData.generationStatus === "pending_logo") && (
             <div className="bg-white border border-neutral-100 rounded-2xl p-12 shadow-sm text-center">
-              {projectData.generationStatus === "payment_uploaded" ? (
+              {projectData.status === "payment_uploaded" ? (
                 <>
                   <CheckCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-neutral-900 mb-2">付款截图已上传</h3>
-                  <p className="text-neutral-500 text-sm">我们正在确认您的付款，确认后3个工作日内出Logo方案</p>
+                  <p className="text-neutral-500 text-sm">我们正在确认您的付款，确认后进入 Logo 生产队列</p>
                 </>
               ) : (
                 <>
                   <ImageIcon className="w-12 h-12 text-amber-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-neutral-900 mb-2">方案准备中</h3>
-                  <p className="text-neutral-500 text-sm">确认付款后3个工作日内出Logo方案</p>
+                  <p className="text-neutral-500 text-sm">确认付款后将进入 Logo 生产队列</p>
                 </>
               )}
             </div>
@@ -565,11 +614,11 @@ export default function ViewLogoPage() {
 
           {/* 无Logo（非生成/待处理） */}
           {displayLogos.length === 0 &&
+            projectData.generationStatus !== null &&
+            !projectData.generationStateNeedsReview &&
             projectData.generationStatus !== "logo_generating" &&
-            projectData.generationStatus !== "brand_analyzing" &&
             projectData.generationStatus !== "submitted" &&
-            projectData.generationStatus !== "pending" &&
-            projectData.generationStatus !== "payment_uploaded" && (
+            projectData.generationStatus !== "pending_logo" && (
               <div className="bg-white border border-neutral-100 rounded-2xl p-12 shadow-sm text-center">
                 <ImageIcon className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-neutral-900 mb-2">暂无Logo方案</h3>
@@ -583,11 +632,10 @@ export default function ViewLogoPage() {
               generationStatus={projectData.generationStatus}
               projectId={projectData.id}
               projectData={projectData}
-              onStatusChange={(newStatus: string) => {
-                if (newStatus === "waiting_manual_review") {
-                  setDeliveryConfirmType("mascot");
-                  setShowDeliveryConfirm(true);
-                }
+              phone={phone.trim()}
+              viewPassword={viewPassword.trim()}
+              onStatusChange={(newStatus) => {
+                setProjectData((current) => current ? { ...current, generationStatus: newStatus } : current);
               }}
             />
           )}
@@ -679,8 +727,8 @@ export default function ViewLogoPage() {
             </h3>
             <p className="mt-3 text-sm text-neutral-600 leading-relaxed whitespace-pre-line">
               {deliveryConfirmType === "logo"
-                ? "您的 Logo 已确认，我们将人工校准整套品牌视觉规范，3 个工作日内完成 14 页标准 VI 手册并通知您下载，可随时在本页面查看制作进度。"
-                : "您的品牌 Logo 与全套 IP 公仔形象已确认，工作人员会统一校准配色、画风、规范细节，3 个工作日内交付 22 页完整版 IP-VI 手册，进度实时可查。"}
+                ? "您的 Logo 已确认，本地生产流程将继续制作 VI 手册。您可以随时在本页面查看状态。"
+                : "您的品牌 Logo 与 IP 公仔方向已确认，本地生产流程将继续制作完整素材和 VI 手册。"}
             </p>
             <button
               onClick={() => {

@@ -36,6 +36,7 @@ _*.py
 _*.tsx
 _*.mjs
 _*.cjs
+__pycache__/
 
 # generated images
 public/generated/
@@ -92,3 +93,5 @@ C:\\Users\\**
 scripts/.patrol_config.json
 scripts/.admin_jar.txt
 scripts/.seen_orders.json
+# 主窗-侧窗信号桥状态文件（本地临时）
+_bridge/chain/signal.json

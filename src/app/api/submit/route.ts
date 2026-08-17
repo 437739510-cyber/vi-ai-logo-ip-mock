@@ -200,7 +200,8 @@ export async function POST(req: NextRequest) {
           companyScale,
           companyScaleLabel: getScaleLabel(companyScale),
           companyScaleReason: scaleReason,
-          generationStatus: "pending_logo",
+          // 工单 077：新提交只等待确认付款；不得直接进入 Worker 队列。
+          generationStatus: "submitted",
           brandPersonality: body.brandPersonality || "",
           logoUsage: body.logoUsage || "",
           logoStyle: body.logoStyle || "",
@@ -220,7 +221,8 @@ export async function POST(req: NextRequest) {
           mascotUsageScenes: body.mascotUsageScenes || null,
           mascotColorHint: body.mascotColorHint || "",
           mascotRefIdea: body.mascotRefIdea || "",
-          mascotSceneCount: body.mascotSceneCount || 6,
+          // 工单 083：客户不再选择 IP 场景图数量，平台固定 4 张。
+          mascotSceneCount: 4,
         },
         created_at: isoNow,
         updated_at: isoNow,

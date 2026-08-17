@@ -1,6 +1,27 @@
 export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { ADMIN_SESSION_COOKIE, adminSessionCookieOptions, createAdminSession } from "@/lib/core/admin-session";
+
+const LEGACY_COOKIES = ["admin_auth", "admin_role", "admin_user_id"] as const;
+
+function clearLegacyCookies(res: NextResponse) {
+  for (const name of LEGACY_COOKIES) res.cookies.set(name, "", adminSessionCookieOptions(0));
+}
+
+async function authenticatedResponse(role: "admin" | "student", userId: string, name: string) {
+  const token = await createAdminSession(role, userId);
+  if (!token) {
+    const unavailable = NextResponse.json({ success: false, error: "后台会话配置不可用" }, { status: 503 });
+    unavailable.cookies.set(ADMIN_SESSION_COOKIE, "", adminSessionCookieOptions(0));
+    clearLegacyCookies(unavailable);
+    return unavailable;
+  }
+  const res = NextResponse.json({ success: true, role, name });
+  res.cookies.set(ADMIN_SESSION_COOKIE, token, adminSessionCookieOptions());
+  clearLegacyCookies(res);
+  return res;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,12 +31,8 @@ export async function POST(req: NextRequest) {
     const adminPhone = process.env.ADMIN_PHONE || "13413049752";
     const adminPassword = process.env.ADMIN_PASSWORD;
 
-    if (phone === adminPhone && password === adminPassword) {
-      const res = NextResponse.json({ success: true, role: "admin", name: "管理员" });
-      res.cookies.set("admin_auth", "true", { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 8, path: "/" });
-      res.cookies.set("admin_role", "admin", { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 8, path: "/" });
-      res.cookies.set("admin_user_id", "admin", { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 8, path: "/" });
-      return res;
+    if (adminPassword && phone === adminPhone && password === adminPassword) {
+      return authenticatedResponse("admin", "admin", "管理员");
     }
 
     // 大学生登录：查student_accounts表
@@ -37,11 +54,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "手机号或密码错误" }, { status: 401 });
     }
 
-    const res = NextResponse.json({ success: true, role: "student", name: student.name });
-    res.cookies.set("admin_auth", "true", { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 8, path: "/" });
-    res.cookies.set("admin_role", "student", { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 8, path: "/" });
-    res.cookies.set("admin_user_id", student.id, { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 8, path: "/" });
-    return res;
+    return authenticatedResponse("student", student.id, student.name);
   } catch {
     return NextResponse.json({ success: false, error: "请求格式错误" }, { status: 400 });
   }
@@ -50,8 +63,7 @@ export async function POST(req: NextRequest) {
 // DELETE: 退出登录
 export async function DELETE() {
   const res = NextResponse.json({ success: true });
-  res.cookies.set("admin_auth", "", { httpOnly: true, sameSite: "lax", maxAge: 0, path: "/" });
-  res.cookies.set("admin_role", "", { httpOnly: true, sameSite: "lax", maxAge: 0, path: "/" });
-  res.cookies.set("admin_user_id", "", { httpOnly: true, sameSite: "lax", maxAge: 0, path: "/" });
+  res.cookies.set(ADMIN_SESSION_COOKIE, "", adminSessionCookieOptions(0));
+  clearLegacyCookies(res);
   return res;
 }

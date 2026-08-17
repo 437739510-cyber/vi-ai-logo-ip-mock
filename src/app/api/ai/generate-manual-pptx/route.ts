@@ -26,6 +26,7 @@ import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek
 import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
 import { validateAndBlockAsync, checkColorNarrativeConsistency } from "@/lib/vi-manual/quality-check";
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from "@/lib/vi-manual/brand-visual-rules";
+import { checkLegacyWebGenerationGate } from "@/lib/core/legacy-web-generation-gate";
 const _DEV = process.env.NODE_ENV === "development";
 
 
@@ -410,6 +411,8 @@ function mapSceneToPage(zhLabel: string): "stationery" | "packaging" | "marketin
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await checkLegacyWebGenerationGate(req);
+  if (!gate.allowed) return NextResponse.json({ error: gate.message, code: gate.code }, { status: gate.status });
   // Parse request body first
   let projectId: string | null = null;
   let body: any = {};

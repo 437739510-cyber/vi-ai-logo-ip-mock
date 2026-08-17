@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { ensurePaymentConfirmed, evaluatePaymentGate } from "@/lib/core/payment-gate";
 
 /**
  * POST /api/ai/regenerate-logo
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     // Step 2: Find project
     const { data: project, error: projErr } = await supabaseAdmin
       .from("projects")
-      .select("id, client_info, submission_id")
+      .select("id, status, client_info, submission_id")
       .eq("submission_id", submission.id)
       .single();
 
@@ -50,6 +51,19 @@ export async function POST(req: NextRequest) {
     if (storedPassword !== viewPassword) {
       return NextResponse.json({ error: "Invalid password" }, { status: 403 });
     }
+
+    // 工单 077：查看密码只证明客户身份；付款证据仍必须独立成立。
+    const payment = evaluatePaymentGate(project.status, clientInfo);
+    if (!payment.allowed) {
+      return NextResponse.json({
+        error: "Payment confirmation required before logo regeneration",
+        code: "PAYMENT_REQUIRED",
+      }, { status: 402 });
+    }
+    const confirmedClientInfo = ensurePaymentConfirmed(clientInfo, new Date().toISOString());
+    clientInfo.paymentConfirmed = confirmedClientInfo.paymentConfirmed;
+    clientInfo.paymentConfirmedAt = confirmedClientInfo.paymentConfirmedAt;
+    delete clientInfo.paymentRequired;
 
     // Step 4: Save feedback to client_info
     const brandProfile = { ...(clientInfo.brandProfile || {}) };
@@ -85,7 +99,7 @@ export async function POST(req: NextRequest) {
 
     // 工单 038：改走本地 worker——写 pending_logo（worker 轮询接管），
     // 不再调外部 mock 域名，也不再使用旧的重生成状态（worker 不轮询）。
-    await supabaseAdmin
+    const { data: updatedProject, error: updateErr } = await supabaseAdmin
       .from("projects")
       .update({
         client_info: {
@@ -95,7 +109,14 @@ export async function POST(req: NextRequest) {
           logoGenerationStatus: { started: false, completed: 0, total: 4 },
         },
       })
-      .eq("id", project.id);
+      .eq("id", project.id)
+      .eq("status", project.status)
+      .select("id")
+      .maybeSingle();
+    if (updateErr) throw updateErr;
+    if (!updatedProject) {
+      return NextResponse.json({ error: "Project state changed; refresh and retry" }, { status: 409 });
+    }
 
     return NextResponse.json({
       success: true,

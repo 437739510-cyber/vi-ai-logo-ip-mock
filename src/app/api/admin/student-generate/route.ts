@@ -3,20 +3,19 @@ export const dynamic = "force-dynamic"
 // 大学生为老板的内容触发AI文案生成
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { cookies } from "next/headers";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
 import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
 
 const ALIYUN_API = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const role = cookieStore.get("admin_role")?.value;
-    const userId = cookieStore.get("admin_user_id")?.value;
+    const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
 
-    if (role !== "student" || !userId) {
+    if (session?.role !== "student") {
       return NextResponse.json({ success: false, error: "仅大学生可操作" }, { status: 403 });
     }
+    const userId = session.userId;
 
     const { contentId, platform = "xiaohongshu" } = await req.json();
     if (!contentId) {

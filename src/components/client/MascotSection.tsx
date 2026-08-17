@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, Loader2, Clock, Download } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
+import type { CanonicalGenerationState } from "@/lib/core/generation-state";
 import { filterMascotSamples } from "@/lib/vi-manual/customer-logo-filter";
 
 interface MascotSample {
@@ -14,36 +15,21 @@ interface MascotSample {
 }
 
 interface MascotSectionProps {
-  generationStatus: string;
+  generationStatus: CanonicalGenerationState | null;
   projectId: string;
   projectData: any;
-  onStatusChange: (newStatus: string) => void;
+  phone: string;
+  viewPassword: string;
+  onStatusChange: (newStatus: CanonicalGenerationState) => void;
 }
 
-function countWorkdaysFromNow(): string {
-  // 从今天起算 3 个工作日后的日期（跳过周末）
-  const now = new Date();
-  let daysAdded = 0;
-  const result = new Date(now);
-  while (daysAdded < 3) {
-    result.setDate(result.getDate() + 1);
-    const day = result.getDay();
-    if (day !== 0 && day !== 6) { // 不是周末
-      daysAdded++;
-    }
-  }
-  return `${result.getMonth() + 1}月${result.getDate()}日`;
-}
-
-export function MascotSection({ generationStatus, projectId, projectData, onStatusChange }: MascotSectionProps) {
+export function MascotSection({ generationStatus, projectId, projectData, phone, viewPassword, onStatusChange }: MascotSectionProps) {
   const [samples, setSamples] = useState<MascotSample[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [deliveryDate, setDeliveryDate] = useState("");
 
   useEffect(() => {
-    setDeliveryDate(countWorkdaysFromNow());
     // 工单 050：读取真实样稿并过滤（vision passed/skipped 展示；失败/待审隐藏）
     const ci = projectData?.client_info || {};
     if (ci.mascotSamples && Array.isArray(ci.mascotSamples)) {
@@ -62,28 +48,37 @@ export function MascotSection({ generationStatus, projectId, projectData, onStat
       const res = await fetch("/api/ai/save-mascot-preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, selectedSampleId: id }),
+        body: JSON.stringify({ projectId, selectedSampleId: id, phone, viewPassword }),
       });
       if (res.ok) {
         setSaved(true);
-        onStatusChange("mascot_pending");
+        onStatusChange("mascot_full_generating");
       }
     } catch {}
     setSaving(false);
   };
 
   // 状态判断
-  const showSamples = ["mascot_generated", "mascot_samples_ready"].includes(generationStatus);
-  const showSelected = ["mascot_pending", "mascot_generating", "mascot_generated", "mascot_full_fail"].includes(generationStatus);
-  const showReview = generationStatus === "waiting_manual_review";
-  const showComplete = generationStatus === "manual_review_complete";
-  const showFailed = ["mascot_failed", "mascot_sample_fail", "mascot_full_fail", "mascot_render_fail"].includes(generationStatus);
+  const showSampleGeneration = generationStatus === "mascot_generating";
+  const showSamples = generationStatus === "mascot_samples_ready";
+  const showFullGeneration = generationStatus === "mascot_full_generating";
+  const showManualStage = generationStatus === "pending_manual" || generationStatus === "manual_generating";
+  const showPaused = generationStatus === "paused_comfyui";
+  const showReview = generationStatus === "needs_review";
+  const showComplete = generationStatus === "completed";
+  const showFailed = generationStatus === "failed";
 
-  if (!showSamples && !showSelected && !showReview && !showComplete && !showFailed) return null;
+  if (!showSampleGeneration && !showSamples && !showFullGeneration && !showManualStage && !showPaused && !showReview && !showComplete && !showFailed) return null;
 
   return (
     <div className="mt-8 border-t pt-8">
       <h2 className="text-xl font-bold mb-4">IP 品牌公仔</h2>
+
+      {showSampleGeneration && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700 text-sm">
+          公仔样稿正在本地生产中，请稍后刷新查看。
+        </div>
+      )}
 
       {/* 选择样稿 */}
       {showSamples && !saved && (
@@ -125,55 +120,52 @@ export function MascotSection({ generationStatus, projectId, projectData, onStat
       )}
 
       {/* 已选择确认 */}
-      {saved && showSelected && (
+      {saved && showFullGeneration && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center gap-2 text-green-700">
             <CheckCircle className="w-5 h-5" />
             <span className="font-medium">已选择公仔方向：{selectedId?.toUpperCase()} 款</span>
           </div>
-          <p className="text-green-600 text-sm mt-1">等待管理员为您生成全套公仔素材</p>
+          <p className="text-green-600 text-sm mt-1">完整公仔素材正在本地生产中</p>
         </div>
       )}
 
-      {/* 3天交付倒计时 */}
+      {showFullGeneration && !saved && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700 text-sm">
+          已进入完整公仔素材生成阶段，请稍后刷新查看。
+        </div>
+      )}
+
+      {showManualStage && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700 text-sm">
+          公仔素材已进入 VI 手册制作阶段。
+        </div>
+      )}
+
+      {showPaused && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-700 text-sm">
+          本地生产暂时暂停，正在等待恢复，请稍后刷新查看。
+        </div>
+      )}
+
       {showReview && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <div className="flex items-center gap-2 text-amber-700 mb-2">
-            <Clock className="w-5 h-5" />
-            <span className="font-medium">人工校准中</span>
+            <span className="font-medium">人工复核中</span>
           </div>
           <p className="text-amber-600 text-sm">
-            您的品牌 Logo 与 IP 公仔形象已确认，工作人员正在统一校准配色与规范细节。
-          </p>
-          <p className="text-amber-700 font-bold mt-2">
-            预计交付日期：{deliveryDate}（3 个工作日内）
+            当前素材需要进一步核查，工作人员确认后会更新状态。
           </p>
         </div>
       )}
 
-      {/* 人工校验完成，可下载 */}
       {showComplete && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-green-700 mb-3">
+          <div className="flex items-center gap-2 text-green-700">
             <CheckCircle className="w-5 h-5" />
-            <span className="font-medium">VI 手册已就绪</span>
+            <span className="font-medium">VI 手册已完成</span>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => window.open(`/api/ai/download-manual?projectId=${projectId}&type=basic`, "_blank")}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-            >
-              <Download className="w-4 h-4" />
-              基础 VI 手册（14页）
-            </button>
-            <button
-              onClick={() => window.open(`/api/ai/download-manual?projectId=${projectId}&type=full`, "_blank")}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-            >
-              <Download className="w-4 h-4" />
-              完整 IP-VI 手册（22页）
-            </button>
-          </div>
+          <p className="text-green-600 text-sm mt-1">下载请以正式 PPTX 交付记录为准。</p>
         </div>
       )}
 

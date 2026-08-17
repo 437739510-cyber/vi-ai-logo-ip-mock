@@ -43,11 +43,11 @@ Server log captured during diagnosis:
 ```
 [diag] POST: request received
 [diag] json parsed, projectId: VI-20260528-NDKW-DIAG
-[mascot] fallback failed: ENOENT: .../public/sk-1337d8b2d6944fd792f0650c004aa43a
+[mascot] fallback failed: ENOENT: .../public/<已移入 .env.local>
 [generate] assemblePage error for cover: TypeError: Cannot read properties of undefined (reading 'primaryColor')
 ```
 
-The file path `sk-1337d8b2d6944fd792f0650c004aa43a` is the ALIYUN_API_KEY value, confirming the parameter shift.
+The file path `<已移入 .env.local>` is the ALIYUN_API_KEY value, confirming the parameter shift.
 
 ---
 

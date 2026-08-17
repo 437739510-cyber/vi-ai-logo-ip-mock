@@ -1,4 +1,4 @@
-""" 
+"""
 BrandBrain Vision Tool — call TokenHub (Tencent) vision model to analyze UI screenshots / logo / assets
 Default: TokenHub (Tengxin, working). Gemini available if API key renewed.
 Usage:   python scripts/playwright/vision-review.py <image_path> [tokenhub|gemini]
@@ -8,8 +8,25 @@ Proxy:   Set HTTPS_PROXY=http://127.0.0.1:22307 for Gemini
 import sys, base64, json, os
 import requests
 
+def _load_env_file(path: str) -> None:
+    """Load KEY=VALUE lines from a local env file without overriding existing vars."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, val = line.partition("=")
+                key = key.strip()
+                val = val.strip()
+                if key and not os.environ.get(key):
+                    os.environ[key] = val
+    except OSError:
+        pass
+
+_load_env_file(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env.local"))
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
-TOKENHUB_KEY = os.environ.get("TOKENHUB_API_KEY", "sk-HHEvdLIC8KQEU8Dhk4X335k4RsQra6Pc0w1NruoKGEYNJfUv")
+TOKENHUB_KEY = os.environ.get("TOKENHUB_API_KEY", "")
 TOKENHUB_MODEL = "hy-vision-2.0-instruct"
 TOKENHUB_URL = "https://tokenhub.tencentmaas.com/v1/chat/completions"
 
@@ -55,6 +72,13 @@ if __name__ == "__main__":
 
     img_path = sys.argv[1]
     provider = sys.argv[2] if len(sys.argv) > 2 else "tokenhub"
+
+    if provider == "tokenhub" and not TOKENHUB_KEY:
+        print("[VISION] TOKENHUB_API_KEY 未配置：请确认 .env.local 中存在 TOKENHUB_API_KEY（工具会自动从 .env.local 加载）。")
+        sys.exit(2)
+    if provider == "gemini" and not GEMINI_KEY:
+        print("[VISION] GEMINI_API_KEY 未配置：请确认 .env.local 中存在 GEMINI_API_KEY。")
+        sys.exit(2)
 
     with open(img_path, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()

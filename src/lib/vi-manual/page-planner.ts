@@ -18,7 +18,7 @@ import { generateMascotCharacter, type BrandMascotInfo, type MascotCharacter } f
 import { validateMascotBrandAlignment } from "../../../scripts/mascot-brand-check";
 import { IndustryCategory } from "../ip/mascot-optimization";
 import { normalizeBrandName, resolveFormalBrandName } from "./brand-name-normalizer";
-import { validateMascotAssets, MascotAssetsIncompleteError, type MascotAssetSet } from "./mascot-assets";
+import { validateMascotAssets, MascotAssetsIncompleteError, MASCOT_EMOTION_NAMES, MASCOT_EMOTIONS_MIN, MASCOT_RATIO_RULES, type MascotAssetSet } from "./mascot-assets";
 import { getMaterialSpecs, formatMaterialSpec } from "./material-specs";
 import { getLogoMisuseRules } from "./brand-visual-rules";
 
@@ -220,7 +220,7 @@ const INDUSTRY_SCENE_DESCS: Record<string, { stationery: string; packaging: stri
   general:     { stationery: "品牌在商务场景中的标准化应用", packaging: "产品包装与物料的品牌化呈现", marketing: "宣传与促销物料" },
   restaurant:  { stationery: "品牌在餐饮场景中的标准化应用", packaging: "餐饮食具与外带物料的品牌化呈现", marketing: "门店宣传与促销物料" },
   beverage:    { stationery: "品牌在饮品场景中的标准化应用", packaging: "饮品杯具与外带物料的品牌化呈现", marketing: "门店宣传与促销物料" },
-  beauty:      { stationery: "品牌在美业场景中的标准化应用", packaging: "美业产品与礼盒的品牌化呈现", marketing: "门店宣传与会员招募物料" },
+  beauty:      { stationery: "品牌在美业场景中的标准化应用", packaging: "美业（美容/美体/美甲）服务与物料的品牌化呈现", marketing: "门店宣传与会员招募物料" },
   education:   { stationery: "品牌在教育场景中的标准化应用", packaging: "教材与课程物料的品牌化呈现", marketing: "招生宣传与活动物料" },
   technology:  { stationery: "品牌在科技场景中的标准化应用", packaging: "科技产品与物料的品牌化呈现", marketing: "科技宣传与促销物料" },
   healthcare:  { stationery: "品牌在健康场景中的标准化应用", packaging: "健康产品与物料的品牌化呈现", marketing: "健康宣传与促销物料" },
@@ -335,6 +335,12 @@ async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprin
   let setting = "品牌IP公仔，风格与品牌视觉方向一致";
   let personality = "品牌调性相匹配的个性特征";
   let usageScenes = "手册封面/封底、品牌故事页、门店招牌、会员卡、社媒头像、包装礼盒";
+  // 工单 086-R4：显式 mascotCharacterSetting 优先（与真实生成资产一致的数据驱动
+  // 覆盖），避免 DeepSeek 按品牌色板生成与公仔形象矛盾的文案。
+  const explicitSetting = typeof input.clientInfo.mascotCharacterSetting === "string" && input.clientInfo.mascotCharacterSetting.trim()
+    ? input.clientInfo.mascotCharacterSetting.trim()
+    : "";
+  if (explicitSetting) setting = explicitSetting;
   try {
     const brandInfo: BrandMascotInfo = {
       companyName,
@@ -345,7 +351,7 @@ async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprin
     };
     const character = await generateMascotCharacter(brandInfo);
     if (character) {
-      setting = character.setting;
+      if (!explicitSetting) setting = character.setting;
       personality = character.personality;
       usageScenes = character.usageScenes;
     }
@@ -385,18 +391,18 @@ async function buildMascotChapter(input: PagePlannerInput): Promise<PageBlueprin
       blocks: [
         { title: "三视图规范", body: "提供正面/侧面/背面三视图，统一比例与配色，确保跨物料一致性。角色风格：" + setting },
         { title: "绘制要求", body: "纯白底、无场景；角色外观基于品牌色系，禁止添加非规范装饰元素。" },
-        { title: "比例规范", body: "头身比 = 1:2.0，总高度以品牌实际设定为准（约20-35cm）。" },
+        { title: "比例规范", body: MASCOT_RATIO_RULES.standard.pageText + " Q 版可配置为头身比约 " + MASCOT_RATIO_RULES.q.headToBody + "。" },
         { title: "最小使用尺寸", body: "印刷 15mm / 数字媒介 48px / 小礼品/周边 10mm" },
         { title: "安全留白", body: "公仔四周保留 ≥ 公仔高度 10% 的留白空间，确保在任何媒介上不被裁切或遮挡。" },
-        { title: "三视图制图要求", body: "正面/侧面/背面统一比例线；标注头部高度、身体宽度、总高度；头身比固定 1:2.0；三视图底部对齐同一水平线。" },
+        { title: "三视图制图要求", body: "正面/侧面/背面统一比例线；标注头部高度、身体宽度、总高度；头身比按配置（标准 " + MASCOT_RATIO_RULES.standard.headToBody + " / Q 版 " + MASCOT_RATIO_RULES.q.headToBody + "）；三视图底部对齐同一水平线。" },
       ],
     },
     {
       pageId: "mascot-emotions",
       label: "IP表情库",
       blocks: [
-        { title: "基础表情", body: "微笑/欢迎/专注/惊喜/安心/开心/引导/俏皮，至少8款，保持角色比例与配色一致。每款表情需统一眼睛大小、嘴型弧度范围。" },
-        { title: "使用说明", body: "门店迎宾用「欢迎」，包装说明用「安心」，社媒互动用「微笑」，节日促销用「开心」，导航指引用「引导」，节日限定用「俏皮」。" },
+        { title: "基础表情", body: MASCOT_EMOTION_NAMES.join("/") + "，至少" + MASCOT_EMOTIONS_MIN + "款，保持角色比例与配色一致。每款表情需统一眼睛大小、嘴型弧度范围。" },
+        { title: "使用说明", body: "社媒互动用「微笑」，节日促销用「开心」，包装说明用「安心」，导航指引用「引导」，节日限定用「俏皮」，服务接待用「专注」。" },
       ],
     },
     {
@@ -991,49 +997,6 @@ function buildLogoInterpElements(ctx: BuildContext): PageElement[] {
         content: `风格标签：${logoStyleTags.join("、")}`,
         position: "bottom-center", fontSize: 11,
         color: "#888", marginBottom: 120,
-      });
-    }
-  }
-
-  // IP 角色介绍
-  if (hasMascot && mascotName) {
-    const mascotY = 480;
-    elements.push({ type: "divider", id: "li-div-ip",
-      position: "center", widthPct: 70, color: acc.hex, opacity: 0.3, marginTop: mascotY });
-
-    elements.push({ type: "text", id: "li-ip-title",
-      content: "IP 角色介绍", position: "top-center",
-      fontSize: 16, fontWeight: 700, color: pri.hex,
-      marginTop: mascotY + 20 });
-
-    elements.push({ type: "text", id: "li-ip-name",
-      content: `角色名称：${mascotName}`,
-      position: "top-center", fontSize: 14, fontWeight: 500,
-      color: "#333", marginTop: mascotY + 50, marginLeft: 80,
-      params: { align: "left" },
-    });
-
-    if (mascotStyle || mascotPersonality) {
-      elements.push({ type: "text", id: "li-ip-desc",
-        content: [mascotStyle, mascotPersonality].filter(Boolean).join(" · "),
-        position: "top-center", fontSize: 13,
-        color: "#555", marginTop: mascotY + 75, marginLeft: 80,
-        params: { align: "left" },
-      });
-    }
-
-    if (mascotPhilosophy) {
-      elements.push({ type: "text", id: "li-ip-philosophy-title",
-        content: "设计理念",
-        position: "top-center", fontSize: 14, fontWeight: 600, color: pri.hex,
-        marginTop: mascotY + 100, marginLeft: 80,
-        params: { align: "left" },
-      });
-      elements.push({ type: "text", id: "li-ip-philosophy",
-        content: mascotPhilosophy,
-        position: "top-center", fontSize: 12, fontWeight: 400, color: "#555",
-        marginTop: mascotY + 125, marginLeft: 40, marginRight: 40,
-        params: { align: "left", lineHeight: 1.5 },
       });
     }
   }

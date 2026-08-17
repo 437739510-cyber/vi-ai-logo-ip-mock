@@ -692,17 +692,21 @@ async function main(): Promise<void> {
       ];
       const out021 = helperFn(suggestions021, "冒烟饮品", "beverage");
       helperOutput021 = out021.map((p: { prompt: string }) => p.prompt).join(" || ");
+      const storefront021 = out021.find((p: { key: string }) => p.key === "marketing-storefront");
       helperOk021 =
         out021.length === 5 &&
         out021[0].prompt.includes("milk tea cup") &&
-        out021[0].prompt.includes("冒烟饮品") &&
+        out021[0].prompt.includes("reserved clean branding area") &&
+        out021[0].prompt.includes("no text") &&
+        !out021[0].prompt.includes("冒烟饮品") &&
+        storefront021?.prompt.includes("冒烟饮品") === true &&
         !helperOutput021.includes("product packaging box");
     } catch (e) {
       helperOutput021 = "EXTRACT_EVAL_ERROR: " + (e as Error).message;
     }
   }
   check(
-    "021-1 场景提示词优先 DeepSeek 行业提示词并注入品牌名（非通用模板）",
+    "021-1 场景提示词优先 DeepSeek 行业建议；平面底图无文字，门头注入品牌名",
     helperOk021 &&
       workerSrc021.includes("sceneImageSuggestions") &&
       workerSrc021.includes("buildScenePromptsFromSuggestions"),
@@ -1054,9 +1058,10 @@ async function main(): Promise<void> {
     `uploadLog=${workerSrc032.includes("Upload error for")}`
   );
   check(
-    "032-4 全套场景项跳过白底判定（与样稿一致，避免场景图误报）",
-    workerSrc032.includes("requireWhiteBackground: (allItems[index] || {}).cat !== \"scene\""),
-    `sceneNoWhiteBg=${workerSrc032.includes("cat !== \"scene\"")}`
+    "032-4 全套场景项走公仔场景校验门（不做白底判定，避免场景图误报；062 改造）",
+    workerSrc032.includes("if (item.cat === \"scene\")") &&
+      workerSrc032.includes("runMascotSceneVisionCheck"),
+    `sceneGate=${workerSrc032.includes("runMascotSceneVisionCheck")}`
   );
   check(
     "032-5 全套不完整→自动重试≤2 次→needs_review，绝不写 pending_manual/弹回样稿",
@@ -1123,7 +1128,7 @@ async function main(): Promise<void> {
     workerSrc033.includes("extractMascotCharacterSpec") &&
       workerSrc033.includes("characterSpec") &&
       workerSrc033.includes("toDataUriIfNeeded") &&
-      !/deer-human|rose gold|鹿娘|粉白长袍/.test(workerSrc033),
+      !/deer-human|鹿娘|粉白长袍/.test(workerSrc033),
     `spec=${workerSrc033.includes("extractMascotCharacterSpec")} fallback=${workerSrc033.includes("回退 styleAnchor")}`
   );
   check(

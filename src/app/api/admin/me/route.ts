@@ -1,16 +1,16 @@
 export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
 
 export async function GET(req: NextRequest) {
-  const auth = req.cookies.get("admin_auth")?.value;
-  const role = req.cookies.get("admin_role")?.value as "admin" | "student" | undefined;
-  const userId = req.cookies.get("admin_user_id")?.value;
+  const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
 
-  if (auth !== "true" || !role) {
+  if (!session) {
     return NextResponse.json({ success: false, role: null }, { status: 401 });
   }
 
+  const { role, userId } = session;
   let name = role === "admin" ? "管理员" : "";
   let commissionRate = 0;
   let level = "";

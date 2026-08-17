@@ -32,10 +32,7 @@ export default function ProjectDetailPage({
 }) {
   const [project, setProject] = useState<Project | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
-  const [pptxLoading, setPptxLoading] = useState(false);
   const [pptxError, setPptxError] = useState("");
-  const [infoIncomplete, setInfoIncomplete] = useState<{missingFields: string[]; fieldLabels: Record<string,string>; analysisFailed: boolean; optionalFields?: {key: string; label: string}[]} | null>(null);
-  const [infoForm, setInfoForm] = useState<Record<string, string>>({});
   const [plans, setPlans] = useState<AiGenerationPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,13 +48,8 @@ export default function ProjectDetailPage({
   const [refHistory, setRefHistory] = useState<RefItem[]>([]);
   const [selectedRefId, setSelectedRefId] = useState<string | null>(null);
   const [generatedManuals, setGeneratedManuals] = useState<any[]>([]);
-  const [exportingPdf, setExportingPdf] = useState<string | null>(null);
   const [deletingManual, setDeletingManual] = useState<string | null>(null);
-  const [generatingPptx, setGeneratingPptx] = useState(false);
-  const pptxProgressRef = useRef('');
-  const [generationFormat, setGenerationFormat] = useState<'pdf'|'pptx'>('pdf');  // V32: 格式选择
   const [generationHistory, setGenerationHistory] = useState<any[]>([]);  // V32: 生成历史
-  const [arkBalance, setArkBalance] = useState<any>(null);  // V32: 方舟余额
   const [pptxResult, setPptxResult] = useState<{url: string; downloadUrl?: string; storageUrl?: string; pageCount: number; fileName: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleDeleteLogo = async (fileName: string) => {
@@ -82,11 +74,9 @@ export default function ProjectDetailPage({
   // V7: AI分析面板状态
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
-  const [generatingLogo, setGeneratingLogo] = useState(false);
   const [logoResult, setLogoResult] = useState<any>(null);
   const [selectingLogo, setSelectingLogo] = useState(false);
   // Phase 3: IP 公仔生成
-  const [generatingMascot, setGeneratingMascot] = useState(false);
   const [mascotStatus, setMascotStatus] = useState<string>("");
   const [mascotProgress, setMascotProgress] = useState("");
   const [mascotAssets, setMascotAssets] = useState<any>(null);
@@ -174,7 +164,6 @@ export default function ProjectDetailPage({
               sceneMaterials: {},
               pageCount: ci.pptxResult?.pageCount || 15,
               pageList: [],
-              costEstimate: { images: 5, costPerImage: 0.16, total: 0.8 },
             });
           }
         }
@@ -215,17 +204,6 @@ export default function ProjectDetailPage({
       if (res.ok) {
         const data = await res.json();
         setGenerationHistory(data.history || []);
-      }
-    } catch {}
-  };
-
-  // V32: 加载方舟余额
-  const loadArkBalance = async () => {
-    try {
-      const res = await fetch('/api/ai/ark-balance');
-      if (res.ok) {
-        const data = await res.json();
-        setArkBalance(data);
       }
     } catch {}
   };
@@ -444,12 +422,6 @@ export default function ProjectDetailPage({
                     brandProfileStatus: freshData.project.client_info.brandProfile.analysisStatus,
                   }));
                 }
-              // Auto-trigger logo generation after brand analysis completes
-              if (bp?.analysisStatus === "completed" && statusData.details?.brandProfile?.logoDesignSuggestions && !statusData.details?.logoGenerated) {
-                if (!generatingLogo) {
-                  handleGenerateLogo();
-                }
-              }
               }
             } catch (e) {
               // Silently retry
@@ -464,174 +436,6 @@ export default function ProjectDetailPage({
       setPptxError(e.message || "分析出错");
     } finally {
       setAnalyzing(false);
-    }
-  };
-
-  // V10: AI生成Logo（异步轮询模式 — 避免Zeabur 60秒超时）
-  const handleGenerateLogo = async () => {
-    if (!project) return;
-    setGeneratingLogo(true);
-    setPptxError("");
-    try {
-      const res = await fetch('/api/ai/generate-logo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: project.id }),
-      });
-      const data = await res.json();
-      
-      if (data.error) {
-        setPptxError(data.error);
-        setGeneratingLogo(false);
-        return;
-      }
-
-      // If already completed (edge case), show results directly
-      if (data.success && data.logos) {
-        setLogoResult(data);
-        setGeneratingLogo(false);
-        return;
-      }
-
-      // Async mode: API returned 202, poll for completion
-      if (data.success || res.status === 202) {
-        const pollInterval = setInterval(async () => {
-          try {
-            const statusRes = await fetch(`/api/ai/get-project-status?projectId=${project.id}`);
-            const statusData = await statusRes.json();
-            
-            // Update progress message
-            const genMsg = statusData.statusMessage || "";
-            if (genMsg.includes("Logo")) {
-              setPptxProgress(genMsg);
-            }
-
-            // Check if logo generation is done
-            if (statusData.status === "logo_generated" || statusData.status === "failed") {
-              clearInterval(pollInterval);
-              setPptxProgress("");
-              
-              if (statusData.status === "logo_generated") {
-                // Load full project data to get logo results
-                const dataRes = await fetch(`/api/get-project-data?projectId=${project.id}`);
-                const freshData = await dataRes.json();
-                const bp = freshData.project?.client_info?.brandProfile;
-                
-                if (bp?.logoGenerationResults) {
-                  const successLogos = bp.logoGenerationResults.filter((r: any) => r.imageUrl);
-                  if (successLogos.length > 0) {
-                    setLogoResult({
-                      success: true,
-                      projectId: project.id,
-                      companyName: data.companyName || freshData.project?.client_name,
-                      style: bp.logoDesignSuggestions?.style || "",
-                      concept: bp.logoDesignSuggestions?.concept || "",
-                      logos: successLogos.map((r: any) => ({
-                        index: r.index,
-                        prompt: r.prompt,
-                        imageUrl: r.imageUrl,
-                      })),
-                    });
-                  } else {
-                    setPptxError("Logo生成全部失败，请重试");
-                  }
-                }
-              } else {
-                setPptxError("Logo生成失败，请重试");
-              }
-              
-              setGeneratingLogo(false);
-              // Refresh project data
-              const freshProj = await getProjectById(project.id);
-              if (freshProj) {
-                setProject(freshProj);
-                const freshSub = await getSubmissionById(freshProj.submissionId);
-                if (freshSub) setSubmission(freshSub);
-              }
-            }
-          } catch (e) {
-            // Silently retry
-          }
-        }, 3000);
-        
-        // Safety timeout: 5 minutes (4 logos × ~60s each + polling)
-        setTimeout(() => {
-          clearInterval(pollInterval);
-          setGeneratingLogo(false);
-          setPptxProgress("");
-        }, 300000);
-      }
-    } catch (e: any) {
-      setPptxError(e.message || 'Logo生成出错');
-      setGeneratingLogo(false);
-    }
-  };
-
-
-  // Phase 3: AI生成IP公仔（异步轮询）
-  const handleGenerateMascot = async () => {
-    if (!project) return;
-    // 💰 UI 层收款门禁：未标记「已收款」拦截，避免误触烧钱（服务端 route 也有 402 双重保险）
-    if (project?.status !== "paid") {
-      setMascotError("请先点击「已收款」再生成公仔");
-      return;
-    }
-    setGeneratingMascot(true);
-    setMascotError("");
-    setMascotProgress("正在提交生成任务...");
-    try {
-      const res = await fetch('/api/ai/generate-mascot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: project.id }),
-      });
-      const data = await res.json();
-      if (data.error) { setMascotError(data.error); setGeneratingMascot(false); return; }
-
-      // Poll get-project-data for mascotStatus
-      const pollInterval = setInterval(async () => {
-        try {
-          const dataRes = await fetch(`/api/get-project-data?projectId=${project.id}`);
-          if (!dataRes.ok) return;
-          const freshData = await dataRes.json();
-          const ci = freshData.project?.client_info || {};
-          const mStatus = ci.mascotStatus || "";
-          const mProgress = ci.mascotProgress || {};
-
-          setMascotStatus(mStatus);
-          if (mProgress?.completed !== undefined) {
-            setMascotProgress(`${mProgress.completed}/${mProgress.total} 张`);
-          }
-
-          if (mStatus === "mascot_generated") {
-            clearInterval(pollInterval);
-            setMascotAssets(ci.mascotAssets || null);
-            setMascotProgress("生成完成");
-            setGeneratingMascot(false);
-            // Refresh project
-            const { getProjectById } = await import('@/lib/core/mock');
-            const fp = await getProjectById(project.id);
-            if (fp) { setProject(fp); const s = await (await import('@/lib/core/mock')).getSubmissionById(fp.submissionId); if (s) setSubmission(s); }
-          } else if (mStatus === "waiting_manual_review") {
-            setManualReviewStatus("pending");
-            setGeneratingMascot(false);
-            setMascotProgress("等待人工审核");
-          } else if (mStatus === "manual_review_complete") {
-            setManualReviewStatus("manual_review_complete");
-            setGeneratingMascot(false);
-            setMascotProgress("审核通过");
-          } else if (mStatus === "mascot_failed") {
-            clearInterval(pollInterval);
-            setMascotError(ci.mascotError || "公仔生成失败");
-            setGeneratingMascot(false);
-          }
-        } catch { /* retry */ }
-      }, 3000);
-
-      setTimeout(() => { clearInterval(pollInterval); setGeneratingMascot(false); setMascotProgress(""); }, 600000);
-    } catch (e: any) {
-      setMascotError(e.message || '公仔生成出错');
-      setGeneratingMascot(false);
     }
   };
 
@@ -668,204 +472,6 @@ export default function ProjectDetailPage({
       setPptxError(e.message || 'Logo选择出错');
     } finally {
       setSelectingLogo(false);
-    }
-  };
-
-  /** Generate PPTX via PptxGenJS engine + AI场景图 */
-  const [pptxProgress, setPptxProgress] = useState("");
-  const [pptxPercent, setPptxPercent] = useState(0);
-
-  const handleGeneratePptx = async (forceRegenerate = false) => {
-    if (!project) return;
-    setGeneratingPptx(true);
-    setPptxError("");
-    setPptxResult(null);
-    setPptxProgress("正在提交生成任务...");
-    setPptxPercent(0);
-    try {
-      // Step 1: 启动生成任务（立即返回202）
-      const res = await fetch('/api/ai/generate-manual-pptx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: project.id,
-          clientInfo: {
-            companyName: submission?.companyName || submission?.clientName || project.name || '',
-            brandVision: infoForm.brandVision || submission?.brandVision || '',
-            coreValues: infoForm.coreValues || submission?.coreValues || '',
-            targetMarket: infoForm.targetMarket || submission?.targetMarket || '',
-            industry: infoForm.industry || submission?.industry || '',
-            logoPhilosophy: submission?.logoPhilosophy || '',
-            mascotPhilosophy: submission?.mascotPhilosophy || '',
-          },
-          brandColors: submission?.brandColors || project.brandColors || {
-            primary: { hex: '#1A73E8' },
-            secondary: { hex: '#34A853' },
-            accent: { hex: '#FBBC04' },
-          },
-          format: generationFormat,  // V32: 格式选择
-          logoUrl: submission?.logoAssets?.[0]?.url || '',
-          mascotUrl: submission?.mascotAssets?.[0]?.files?.[0]?.url || '',
-          mascotFiles: submission?.mascotAssets?.flatMap((m: any) => m.files || []) || [],
-          force: forceRegenerate,
-        }),
-      });
-
-      // V88: 后端返回already_completed → 直接展示已有结果
-      if (res.status === 200) {
-        const data = await res.json();
-        if (data.status === "already_completed" && data.pptxResult) {
-          setPptxResult({ url: data.pptxResult.url, downloadUrl: data.pptxResult.downloadUrl || undefined, storageUrl: data.pptxResult.storageUrl || undefined, pageCount: data.pptxResult.pageCount, fileName: data.pptxResult.fileName });
-          setPptxProgress("已完成");
-          setPptxPercent(100);
-          setGeneratingPptx(false);
-          return;
-        }
-      }
-
-      // V106: 捕获品牌信息不完整响应
-      if (res.status === 400) {
-        const data = await res.json();
-        if (data.status === "info_incomplete") {
-          setInfoIncomplete({ missingFields: data.missingFields, fieldLabels: data.fieldLabels, analysisFailed: data.analysisFailed });
-          setInfoForm(Object.fromEntries(data.missingFields.map((k: string) => [k, ""])));
-          setGeneratingPptx(false);
-          setPptxError("");
-          return;
-        }
-        throw new Error(data.error || `服务器错误: ${res.status}`);
-      }
-
-      if (res.status !== 202 && !res.ok) {
-        throw new Error(`服务器错误: ${res.status}`);
-      }
-
-      setPptxProgress("生成任务已启动，正在后台处理..."); pptxProgressRef.current = "生成任务已启动";
-
-      // Step 2: 轮询项目状态
-      const pollInterval = setInterval(async () => {
-        try {
-          const statusRes = await fetch(`/api/ai/get-project-status?projectId=${project.id}`);
-          if (!statusRes.ok) return;
-          const statusData = await statusRes.json();
-
-          if (statusData.statusMessage) { setPptxProgress(statusData.statusMessage); pptxProgressRef.current = statusData.statusMessage; }
-          if (statusData.progress) setPptxPercent(statusData.progress);
-
-          if (statusData.status === 'completed') {
-            clearInterval(pollInterval);
-            // 从client_info获取pptxResult
-            const projRes = await fetch(`/api/get-project-data?projectId=${project.id}`);
-            if (projRes.ok) {
-              const projData = await projRes.json();
-              const pptxRes = projData?.project?.client_info?.pptxResult;
-              if (pptxRes) {
-                setPptxResult({ url: pptxRes.url, downloadUrl: pptxRes.downloadUrl || undefined, storageUrl: pptxRes.storageUrl || undefined, pageCount: pptxRes.pageCount, fileName: pptxRes.fileName });
-              }
-            }
-            await loadGeneratedManuals(project.id);
-            setPptxProgress("完成！");
-            setPptxPercent(100);
-            setGeneratingPptx(false);
-          } else if (statusData.status === 'failed') {
-            clearInterval(pollInterval);
-            // V106: 品牌信息不完整时弹窗，而非仅显示错误
-            if (statusData.infoIncomplete) {
-              const ii = statusData.infoIncomplete;
-              setInfoIncomplete({ missingFields: ii.missingFields || [], fieldLabels: ii.fieldLabels || {}, analysisFailed: ii.analysisFailed || false, optionalFields: ii.optionalFields });
-              setInfoForm(Object.fromEntries([...(ii.missingFields || []), ...(ii.optionalFields || []).map((f: any) => f.key)].map((k: string) => [k, ""])));
-              setPptxError("");
-            } else {
-              setPptxError(statusData.statusMessage || '生成失败');
-            }
-            setGeneratingPptx(false);
-          }
-        } catch { /* polling error, retry next interval */ }
-      }, 3000); // 每3秒轮询一次
-
-      // V83: 安全超时20分钟 + 自动续传
-      let lastProgress = '';
-      let stallCount = 0;
-      const stallCheck = setInterval(() => {
-        const cur = pptxProgressRef.current;
-        if (cur === lastProgress) {
-          stallCount++;
-          if (stallCount >= 40) { // 2分钟无进展 → 自动续传
-            console.log('[PPTX] Progress stalled, auto-resuming...');
-            clearInterval(stallCheck);
-            clearInterval(pollInterval);
-            // 自动续传
-            fetch('/api/ai/generate-manual-pptx', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ projectId: project.id, step: 'resume' }),
-            }).then(r => {
-              if (r.status === 202) {
-                setPptxProgress('正在续传生成...');
-                // 重新开始轮询
-                const resumeInterval = setInterval(async () => {
-                  try {
-                    const sRes = await fetch(`/api/ai/get-project-status?projectId=${project.id}`);
-                    if (!sRes.ok) return;
-                    const sData = await sRes.json();
-                    if (sData.statusMessage) setPptxProgress(sData.statusMessage);
-                    if (sData.progress) setPptxPercent(sData.progress);
-                    if (sData.status === 'completed') {
-                      clearInterval(resumeInterval);
-                      setPptxProgress('完成！');
-                      setPptxPercent(100);
-                      setGeneratingPptx(false);
-                      loadGeneratedManuals(project.id);
-                    } else if (sData.status === 'failed') {
-                      clearInterval(resumeInterval);
-                      setPptxError(sData.statusMessage || '生成失败');
-                      setGeneratingPptx(false);
-                    }
-                  } catch {}
-                }, 3000);
-                setTimeout(() => { clearInterval(resumeInterval); setGeneratingPptx(false); setPptxError('续传超时，请刷新页面'); }, 600000);
-              }
-            }).catch(() => {});
-          }
-        } else {
-          lastProgress = cur;
-          stallCount = 0;
-        }
-      }, 3000);
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        clearInterval(stallCheck);
-        setGeneratingPptx((prev) => {
-          if (prev) {
-            setPptxError('生成超时，请刷新页面查看状态');
-          }
-          return false;
-        });
-      }, 1200000);
-
-    } catch (e: any) {
-      setPptxError('生成失败：' + (e.message || '网络错误'));
-      setGeneratingPptx(false);
-    }
-  };
-
-  const handleExportPdf = async (manualId: string) => {
-    setExportingPdf(manualId);
-    try {
-      const res = await fetch("/api/ai/export-pdf-v6", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: manualId }),
-      });
-      if (!res.ok) throw new Error("导出失败");
-      const data = await res.json();
-      if (data.url) {
-        window.open(data.url, "_blank");
-      }
-    } catch (err: any) {
-      alert("PDF 导出失败: " + (err.message || "未知错误"));
-    } finally {
-      setExportingPdf(null);
     }
   };
 
@@ -1467,32 +1073,16 @@ export default function ProjectDetailPage({
               <div className="text-[11px] text-neutral-500">
                 共 {analysisResult.pageCount} 页：{analysisResult.pageList?.join(" → ")}
               </div>
-              {/* 费用预估 */}
-              <div className="flex items-center gap-2 text-[11px] text-amber-700 bg-amber-50 rounded-lg p-2">
-                <span>💰</span>
-                <span>预估费用：{analysisResult.costEstimate?.images}张AI场景图 × ¥{analysisResult.costEstimate?.costPerImage} = ¥{analysisResult.costEstimate?.total?.toFixed(2)}/份</span>
-              </div>
             </div>
             {/* V10: Logo生成区域 — 没有Logo时显示 */}
             {!submission?.logoAssets?.length && !logoResult && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2 text-amber-700 font-bold text-sm">
-                  <span>🎨</span> 客户未上传Logo — AI帮您生成
+                  <span>🎨</span> Logo 等待本地 Worker 处理
                 </div>
                 <p className="text-[11px] text-neutral-600">
-                  品牌分析已提取Logo设计建议，点击下方按钮AI将生成4个Logo方案供选择。
+                  付款确认后进入本地 Worker 队列。任务由本地 Worker 按订单状态自动处理，管理员无需手动启动生成。
                 </p>
-                <button
-                  onClick={handleGenerateLogo}
-                  disabled={generatingLogo}
-                  className="w-full py-2.5 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
-                >
-                  {generatingLogo ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> {pptxProgress || "AI 生成Logo中（约1-2分钟）"}</>
-                  ) : (
-                    <>🎨 AI生成Logo方案</>
-                  )}
-                </button>
               </div>
             )}
 
@@ -1530,7 +1120,7 @@ export default function ProjectDetailPage({
             {(submission?.logoAssets?.length ?? 0) > 0 && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-600" />
-                <span className="text-xs text-emerald-700">Logo已就绪（{submission!.logoAssets!.length}个文件），可直接生成VI手册</span>
+                <span className="text-xs text-emerald-700">Logo已就绪（{submission!.logoAssets!.length}个文件），客户选择后由现有状态机接力</span>
               </div>
             )}
 
@@ -1583,43 +1173,19 @@ export default function ProjectDetailPage({
                 )}
 
                 {/* 尚未生成 */}
-                {!mascotAssets && !generatingMascot && mascotStatus !== "mascot_generated" && (
+                {!mascotAssets && mascotStatus !== "mascot_generated" && (
                   <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
                     <div className="flex items-center gap-2 text-purple-700 font-bold text-sm">
-                      <span>🤖</span> 客户需要 IP 公仔 — 点击生成
+                      <span>🤖</span> IP 公仔等待本地 Worker 处理
                     </div>
                     <p className="text-[11px] text-neutral-600">
-                      AI将根据客户偏好生成16张公仔图（三视图+表情+场景），耗时约2-3分钟。
+                      客户选择 IP 后由现有状态机接力。任务由本地 Worker 按订单状态自动处理，管理员不得手动跳状态。
                     </p>
-                    <button
-                      onClick={handleGenerateMascot}
-                      disabled={generatingMascot}
-                      className="w-full py-2.5 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
-                    >
-                      {generatingMascot ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> {mascotProgress || "AI 生成公仔中（约2-3分钟）"}</>
-                      ) : (
-                        <>🤖 AI生成IP公仔</>
-                      )}
-                    </button>
-                  </div>
-                )}
-
-                {/* 生成中 */}
-                {generatingMascot && !mascotAssets && (
-                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-purple-700 text-sm">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>{mascotProgress || "正在生成公仔..."}</span>
-                    </div>
-                    <div className="w-full bg-purple-200 rounded-full h-2">
-                      <div className="bg-purple-600 h-2 rounded-full animate-pulse" style={{width: "60%"}} />
-                    </div>
                   </div>
                 )}
 
                 {/* 生成完毕 — 预览 */}
-                {mascotAssets && !generatingMascot && (
+                {mascotAssets && (
                   <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-purple-700 font-bold text-sm">
@@ -1726,171 +1292,35 @@ export default function ProjectDetailPage({
                         <div className="flex items-center gap-2 text-green-600 text-sm font-semibold">
                           <span>✅</span> 人工审核通过
                         </div>
-                        <button
-                          onClick={() => handleGeneratePptx()}
-                          disabled={generatingPptx}
-                          className="w-full py-2.5 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
-                        >
-                          {generatingPptx ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" /> 正在生成VI手册...</>
-                          ) : (
-                            <>📄 生成VI手册</>
-                          )}
-                        </button>
+                        <p className="text-[11px] text-neutral-600">审核结果已记录，VI 手册由现有状态机接力给本地 Worker。</p>
                       </div>
                     )}
                   </div>
                 )}
 
                 {/* 生成失败 */}
-                {mascotError && !generatingMascot && !mascotAssets && (
+                {mascotError && !mascotAssets && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
                     <div className="flex items-center gap-2 text-red-700 font-bold text-sm">
                       <AlertCircle className="w-4 h-4" />
                       <span>公仔生成失败</span>
                     </div>
                     <p className="text-xs text-red-600">{mascotError}</p>
-                    <button
-                      onClick={handleGenerateMascot}
-                      className="w-full py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all flex items-center justify-center gap-2 text-sm"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" /> 重新生成
-                    </button>
+                    <p className="text-[11px] text-neutral-600">请检查订单资料与本地 Worker；后台页面不会直接重试生产。</p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Phase 2: VI Manual generation (slow, customer gone) */}
+            {/* Phase 2: VI Manual delivery */}
             <div className="flex items-center gap-2 mt-2 mb-1">
               <span className="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded">Phase 2</span>
-              <span className="text-[11px] text-neutral-400">VI手册生成（客人离店后慢慢生成）</span>
+              <span className="text-[11px] text-neutral-400">VI 手册 PPTX 交付</span>
             </div>
 
-            {/* V32: 格式选择 + 确认按钮 */}
-            <div className="flex gap-2">
-              <div className="flex items-center gap-1 bg-neutral-100 rounded-xl p-1">
-                <button
-                  onClick={() => setGenerationFormat('pdf')}
-                  className={`px-3 py-2 text-xs font-medium rounded-lg transition-all ${generationFormat === 'pdf' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
-                >PDF</button>
-                <button
-                  onClick={() => setGenerationFormat('pptx')}
-                  className={`px-3 py-2 text-xs font-medium rounded-lg transition-all ${generationFormat === 'pptx' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
-                >PPTX</button>
-              </div>
-              <button
-                onClick={() => {
-                  // TASK-006: IP公仔未过审核时阻止生成
-                  if (ipEnabled && (submission as any)?.wantMascot === "yes" && manualReviewStatus !== "manual_review_complete") {
-                    alert("请先完成 IP 公仔人工审核");
-                    return;
-                  }
-                  if (pptxResult) {
-                    if (!confirm("已有VI手册，重新生成将花费约¥2.00，确定？")) return;
-                    handleGeneratePptx(true);
-                  } else {
-                    handleGeneratePptx(false);
-                  }
-                }}
-                disabled={generatingPptx}
-                className={`flex-1 py-3 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 ${pptxResult ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20" : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"}`}
-              >
-                {generatingPptx ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> {pptxProgress || "生成中..."} {pptxPercent > 0 && <span className="text-blue-200 text-xs">({pptxPercent}%)</span>}</>
-                ) : pptxResult ? (
-                  <><RefreshCw className="w-4 h-4" /> 重新生成(约¥2)</>
-                ) : (
-                  <>✅ 生成VI手册({generationFormat.toUpperCase()})</>
-                )}
-              </button>
-              <button
-                onClick={() => setAnalysisResult(null)}
-                disabled={generatingPptx}
-                className="px-4 py-3 border border-neutral-300 text-neutral-600 font-medium rounded-xl hover:bg-neutral-50 transition-all disabled:opacity-50"
-              >
-                返回
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* V106: 品牌信息不完整弹窗 */}
-        {infoIncomplete && (
-          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setInfoIncomplete(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                  <AlertCircle className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-neutral-900">
-                    {infoIncomplete.analysisFailed ? "AI分析失败" : `还需补充${infoIncomplete.missingFields.length}项`}
-                  </h3>
-                  <p className="text-xs text-neutral-500">
-                    {infoIncomplete.analysisFailed
-                      ? "品牌分析未成功，请补充信息后重试"
-                      : "信息不足会导致实景图跑偏，请补充后继续"}
-                  </p>
-                </div>
-              </div>
-
-              {infoIncomplete.analysisFailed ? (
-                <div className="mb-5">
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-3">
-                    <p className="text-xs text-amber-700">AI品牌分析未能成功，可补充以下信息帮助分析更准确</p>
-                  </div>
-                  {infoIncomplete.optionalFields && infoIncomplete.optionalFields.length > 0 && (
-                    <div className="space-y-2">
-                      {infoIncomplete.optionalFields.map(f => (
-                        <div key={f.key}>
-                          <label className="block text-xs font-medium text-neutral-700 mb-1">{f.label}（选填）</label>
-                          <input
-                            type="text"
-                            value={infoForm[f.key] || ""}
-                            onChange={e => setInfoForm(prev => ({...prev, [f.key]: e.target.value}))}
-                            placeholder={`请输入${f.label}`}
-                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3 mb-5">
-                  {infoIncomplete.missingFields.map(field => (
-                    <div key={field}>
-                      <label className="block text-xs font-medium text-neutral-700 mb-1">
-                        {infoIncomplete.fieldLabels[field] || field}
-                      </label>
-                      <input
-                        type="text"
-                        value={infoForm[field] || ""}
-                        onChange={e => setInfoForm(prev => ({...prev, [field]: e.target.value}))}
-                        placeholder={`请输入${infoIncomplete.fieldLabels[field] || field}`}
-                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setInfoIncomplete(null)}
-                  className="px-4 py-2.5 border border-neutral-300 text-neutral-600 text-sm font-medium rounded-xl hover:bg-neutral-50 transition-all"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={() => { setInfoIncomplete(null); handleGeneratePptx(false); }}
-                  disabled={!infoIncomplete.analysisFailed && infoIncomplete.missingFields.some(f => !infoForm[f]?.trim())}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {infoIncomplete.analysisFailed ? "重试生成" : "补充并生成"}
-                </button>
-              </div>
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+              <p className="text-sm font-semibold text-blue-800">线上接单、本地 Worker 生产</p>
+              <p className="mt-1 text-xs text-blue-700">任务由本地 Worker 按订单状态自动处理；页面只展示状态与 PPTX 交付结果，不会从浏览器启动或重试生成。</p>
             </div>
           </div>
         )}
@@ -1944,22 +1374,6 @@ export default function ProjectDetailPage({
               </div>
             ))}
           </div>
-        </section>
-      )}
-
-      {/* V32: 方舟余额 */}
-      {arkBalance && (
-        <section className="bg-white rounded-xl border border-neutral-100 p-5">
-          <h3 className="text-sm font-bold text-neutral-900 mb-3">方舟Seedream余额</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {arkBalance.models?.map((m: any) => (
-              <div key={m.model} className="bg-neutral-50 rounded-lg p-2.5">
-                <p className="text-[10px] text-neutral-500">{m.model.split('doubao-seedream-')[1]}</p>
-                <p className="text-sm font-bold text-neutral-900">{m.remaining}<span className="text-[10px] text-neutral-400">/{m.freeQuota}</span></p>
-              </div>
-            ))}
-          </div>
-          <p className="text-[10px] text-neutral-400 mt-2">总计剩余 {arkBalance.summary?.totalRemaining}/{arkBalance.summary?.totalFree} 张 (免费额度)</p>
         </section>
       )}
 

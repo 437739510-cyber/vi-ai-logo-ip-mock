@@ -2,7 +2,9 @@
 // Client view logo - verify by phone + password (or projectId + password for backward compat)
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { resolveGenerationState } from "@/lib/core/generation-state";
 import { filterCustomerLogos } from "@/lib/vi-manual/customer-logo-filter";
+import { buildCustomerFormEcho } from "@/lib/vi-manual/customer-form-echo";
 
 export const dynamic = "force-dynamic";
 
@@ -93,8 +95,7 @@ export async function POST(req: NextRequest) {
     const brandProfile = clientInfo.brandProfile || {};
     const logoResults = brandProfile.logoGenerationResults || [];
     const selectedLogo = brandProfile.selectedLogo || null;
-    // V90: 如果项目已完成，generationStatus强制为completed（防止卡在pptx_assembling）
-    const generationStatus = (clientInfo.generationStatus === "completed" || project.status === "completed") ? "completed" : ((clientInfo.generationStatus as string) || project.status || "pending");
+    const generationState = resolveGenerationState(clientInfo.generationStatus, project.status);
 
     // Get company name and industry from submission if available
     let companyName = clientInfo.companyName || "";
@@ -102,15 +103,17 @@ export async function POST(req: NextRequest) {
     let mainProducts = clientInfo.mainProducts || "";
     
     const submissionId = project.submission_id;
+    let submittedAt: string | null = null;
     if (submissionId) {
       const { data: sub } = await supabaseAdmin
         .from("submissions")
-        .select("company_name, industry")
+        .select("company_name, industry, submitted_at")
         .eq("id", submissionId)
         .single();
       if (sub) {
         companyName = companyName || sub.company_name || "";
         industry = industry || sub.industry || "";
+        submittedAt = sub.submitted_at || null;
       }
     }
 
@@ -124,10 +127,12 @@ export async function POST(req: NextRequest) {
     const preferredLogo = brandProfile.preferredLogo || null;
 
     // 工单 050：客户查看页公仔区数据（sanitized，不返回 viewPassword 等敏感字段）
+    // 工单 087：我的填写资料只读回显（仅 LOGO/IP 相关提交字段，白名单契约）。
     const clientInfoForView = {
       wantMascot: clientInfo.wantMascot || "",
       mascotSamples: Array.isArray(clientInfo.mascotSamples) ? clientInfo.mascotSamples : [],
       mascotSelectedId: clientInfo.mascotSelectedId || null,
+      formEcho: buildCustomerFormEcho(clientInfo, submittedAt),
     };
 
     return NextResponse.json({
@@ -138,7 +143,10 @@ export async function POST(req: NextRequest) {
         companyName,
         industry,
         mainProducts,
-        generationStatus,
+        generationStatus: generationState.state,
+        generationStateSource: generationState.source,
+        generationStateNeedsReview: generationState.hasResolutionAnomaly,
+        generationStateMirrorMatches: generationState.mirrorMatches,
         logos: validLogos,
         selectedLogo,
         preferredLogo,
