@@ -169,22 +169,24 @@ export interface SingleMascotStrictResult {
   models: Array<{ model: string; parsed: Record<string, unknown> | null }>;
 }
 
-const STRICT_SINGLE_PROMPT =
-  '请显式数出图片里的人物/公仔数量并逐个列出姿态，只输出JSON：{"characterCount":number,"poses":["front","side","back","other"],"noAnimalFeatures":true或false,"noWatermark":true或false,"personaOk":true或false,"reason":"一句话"}。characterCount=画面中的人物/公仔个数（多视角/多姿态也算多个，逐个数出来）；poses=每个姿态；noAnimalFeatures=true 仅当无角/兽耳/尾巴等动物特征；noWatermark=true 仅当无水印；personaOk=true 仅当符合温婉人类女神、玫瑰金/粉金配色人设。';
-
 /** 工单 091-R4：单公仔严格判定=显式数人数+列姿态，双模型都过才算；多姿态/多角色即失败。 */
 export async function runSingleMascotStrictCheck(
   imageBase64: string,
-  opts: { models?: string[]; expectedPose?: "front" | "side" | "back" } = {},
+  opts: { models?: string[]; expectedPose?: "front" | "side" | "back"; personaHint?: string } = {},
 ): Promise<SingleMascotStrictResult> {
   const models = opts.models || ["qwen2.5vl:latest", "my-vl:latest"];
+  // TICKET-118：人设门参数化——persona 描述由项目 mascot 数据传入；无数据用中性断言，不写死女神/玫瑰金/粉金。
+  const personaRule = opts.personaHint
+    ? `personaOk=true 仅当符合以下人设：${String(opts.personaHint).slice(0, 120)}`
+    : "personaOk=true 仅当为人物/公仔形象、无角/兽耳/尾巴等动物特征、无异常肢体（无法确认填 false）";
+  const prompt = `请显式数出图片里的人物/公仔数量并逐个列出姿态，只输出JSON：{"characterCount":number,"poses":["front","side","back","other"],"noAnimalFeatures":true或false,"noWatermark":true或false,"personaOk":true或false,"reason":"一句话"}。characterCount=画面中的人物/公仔个数（多视角/多姿态也算多个，逐个数出来）；poses=每个姿态；noAnimalFeatures=true 仅当无角/兽耳/尾巴等动物特征；noWatermark=true 仅当无水印；${personaRule}。`;
   await isOllamaAvailable(15_000).catch(() => false);
   let results: Array<{ model: string; parsed: Record<string, unknown> | null }> = [];
   for (let round = 0; round < 3; round++) {
     results = [];
     for (const model of models) {
       try {
-        const raw = await aiDrawnOllamaGenerate(model, STRICT_SINGLE_PROMPT, imageBase64);
+        const raw = await aiDrawnOllamaGenerate(model, prompt, imageBase64);
         let parsed: Record<string, unknown> | null = null;
         try {
           const s = raw.indexOf("{");
@@ -240,15 +242,17 @@ async function aiDrawnOllamaGenerate(model: string, prompt: string, imageBase64:
   return String(json.response || "").trim();
 }
 
-const AI_DRAWN_SCENE_PROMPT =
-  '请评估这张品牌场景图中的 LOGO 呈现，只输出JSON：{"logoPresent":true或false,"noGarbledChinese":true或false,"noWatermark":true或false,"paletteOk":true或false,"sceneComplete":true或false,"reason":"一句话"}。logoPresent=场景物料上是否出现品牌 LOGO 图形（非空白底板）；noGarbledChinese=true 仅当无乱码/错字中文；noWatermark=true 仅当无水印；paletteOk=true 仅当配色符合玫瑰金/粉金品牌色系；sceneComplete=true 仅当是完整商业场景而非孤立 LOGO。无法确认填 false。';
-
 /** 工单 091-R2：AI 入景绘制场景验收（LOGO 在场/无乱码中文/无水印/配色/场景完整；双模型）。 */
 export async function runAIDrawnSceneCheck(
   imageBase64: string,
-  opts: { models?: string[] } = {},
+  opts: { models?: string[]; paletteHint?: string } = {},
 ): Promise<AIDrawnSceneCheckResult> {
   const models = opts.models || ["qwen2.5vl:latest", "my-vl:latest"];
+  // TICKET-118：paletteOk 用客人真实品牌色板（参数传入）；无数据用中性商业场景配色断言，不写死玫瑰金。
+  const paletteRule = opts.paletteHint
+    ? `paletteOk=true 仅当画面配色符合客人品牌色板（${String(opts.paletteHint).slice(0, 120)}）`
+    : "paletteOk=true 仅当画面配色为正常商业品牌场景配色（无明显错色/荧光失真/灰暗失真；无法确认填 false）";
+  const prompt = `请评估这张品牌场景图中的 LOGO 呈现，只输出JSON：{"logoPresent":true或false,"noGarbledChinese":true或false,"noWatermark":true或false,"paletteOk":true或false,"sceneComplete":true或false,"reason":"一句话"}。logoPresent=场景物料上是否出现品牌 LOGO 图形（非空白底板）；noGarbledChinese=true 仅当无乱码/错字中文；noWatermark=true 仅当无水印；${paletteRule}；sceneComplete=true 仅当是完整商业场景而非孤立 LOGO。无法确认填 false。`;
   let results: Array<{ model: string; parsed: Record<string, unknown> | null }> = [];
   // 工单 091-R2：ComfyUI 停止后 Ollama 模型需重载，先探活再重试（最多 3 轮×5s），
   // 避免把「视觉暂不可用」误判为场景不合格。
@@ -257,7 +261,7 @@ export async function runAIDrawnSceneCheck(
     results = [];
     for (const model of models) {
       try {
-        const raw = await aiDrawnOllamaGenerate(model, AI_DRAWN_SCENE_PROMPT, imageBase64);
+        const raw = await aiDrawnOllamaGenerate(model, prompt, imageBase64);
         let parsed: Record<string, unknown> | null = null;
         try {
           const s = raw.indexOf("{");

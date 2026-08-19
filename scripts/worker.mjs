@@ -1217,6 +1217,12 @@ async function processManualGeneration(project) {
   const projectId = project.id;
   const clientInfo = (project.client_info || {});
   const brandProfile = clientInfo.brandProfile || {};
+  // TICKET-118：AI 入景场景验收用客人真实色板（无则中性），不写死玫瑰金。
+  const scenePaletteHint = (() => {
+    const pal = Array.isArray(brandProfile.colorPalette) ? brandProfile.colorPalette : [];
+    const hexes = pal.filter((c) => c && typeof c.hex === 'string' && c.hex).slice(0, 3).map((c) => c.hex);
+    return hexes.length ? hexes.join('/') : '';
+  })();
   const rawCompanyName = clientInfo.companyName || '';
   const normalizedCompanyName = normalizeBrandName(rawCompanyName);
   const mascotGate = evaluateMascotChapter(clientInfo);
@@ -1584,15 +1590,17 @@ async function processManualGeneration(project) {
             // 工单 091-R4：z-turbo 常把会员卡/海报画出乱码中文，核字门反复失败。
             // 先定位 AI 文字区并用 ComfyUI inpaint 清理（复用 044 链路），再代码贴字。
             finalImage = await cleanAiSceneText(generated.imageUrl, log);
-            const brandShort = String(normalizedCompanyName || '').slice(0, 3);
-            if (brandShort) {
+            // TICKET-118：品牌贴字通用化——≤4 字完整品牌名（3/4 字保证），≥5 字按 091-R2 约定省略；不再 slice(0,3)。
+            const cnLen = (String(normalizedCompanyName || '').match(/[\u4e00-\u9fff]/g) || []).length;
+            const brandText = cnLen > 0 && cnLen <= 4 ? String(normalizedCompanyName || '') : '';
+            if (brandText) {
               // 工单 091-R4：浅色墙面/前台场景用深玫瑰字+浅色光晕（白字+发光会被
               // 视觉模型判为半透明水印；strokeColor 不得传 "none"——satori 对
               // undefined textShadow 抛错导致贴字失败）。
               const signLike = request.key === 'stationery-1';
               const overlaid = await overlayBrandTextOnScene({
                 background: finalImage,
-                text: brandShort,
+                text: brandText,
                 xRatio: 0.5,
                 yRatio: 0.12,
                 textHeightRatio: 0.09,
@@ -1601,24 +1609,27 @@ async function processManualGeneration(project) {
               });
               if (overlaid.ok) {
                 finalImage = overlaid.imageUrl;
-                log('INFO', `[MANUAL] ${projectId}: Scene ${request.key} 代码贴入品牌字「${brandShort}」`);
+                log('INFO', `[MANUAL] ${projectId}: Scene ${request.key} 代码贴入品牌字「${brandText}」`);
               }
             }
           }
-          const aiCheck = await runAIDrawnSceneCheck(finalImage, { models: [VISION_FINE_MODEL || 'my-vl:latest', VISION_COARSE_MODEL || 'qwen2.5vl:latest'] });
+          const aiCheck = await runAIDrawnSceneCheck(finalImage, { models: [VISION_FINE_MODEL || 'my-vl:latest', VISION_COARSE_MODEL || 'qwen2.5vl:latest'], paletteHint: scenePaletteHint });
           if (aiCheck.status === 'passed') {
             let textOk = true;
             if (['stationery-1', 'packaging-1', 'packaging-2', 'marketing-storefront', 'marketing-1'].includes(request.key)) {
-              const textCheck = await runSceneVisionCheck({ imageBase64: finalImage, expectedText: '百疗萃', mode: 'chinese', coarseModel: VISION_COARSE_MODEL, fineModel: VISION_FINE_MODEL });
-              textOk = textCheck.status === 'passed';
-              log('INFO', `[MANUAL] ${projectId}: Scene ${request.key} 「百疗萃」核字=${textCheck.status}`);
+              // TICKET-118：核字期望文本=真实品牌名（与贴字一致）；无贴字（≥5字/非中文）则跳过核字（无文字可接受）。
+              const textCheck = brandText
+                ? await runSceneVisionCheck({ imageBase64: finalImage, expectedText: brandText, mode: 'chinese', coarseModel: VISION_COARSE_MODEL, fineModel: VISION_FINE_MODEL })
+                : { status: 'skipped', reason: 'no_brand_text_pasted' };
+              textOk = !brandText || textCheck.status === 'passed';
+              log('INFO', `[MANUAL] ${projectId}: Scene ${request.key} 核字=${textCheck.status}（期望「${brandText || '无（未贴字）'}」）`);
             }
             if (textOk) {
               sceneResultByKey.set(request.key, { ...generated, imageUrl: finalImage, sceneKey: request.key, vision: aiCheck, aiDrawn: aiCheck });
               log('INFO', `[MANUAL] ${projectId}: Scene ${request.key} AI 入景绘制验收通过（第${attempt}次）`);
               done = true;
             } else {
-              log('WARN', `[MANUAL] ${projectId}: Scene ${request.key} 「百疗萃」核字未过（第${attempt}次）${attempt === 8 ? '，第8次仍未过，标记 needs_review（不静默交付，交交付门拦截）' : '，继续重试'}`);
+              log('WARN', `[MANUAL] ${projectId}: Scene ${request.key} 「${brandText || '贴字'}」核字未过（第${attempt}次）${attempt === 8 ? '，第8次仍未过，标记 needs_review（不静默交付，交交付门拦截）' : '，继续重试'}`);
               // 工单 091-R4：核字门最终失败时 vision 也置 needs_review，
               // 交付门（evaluateLogoSceneDeliveryGate）才能拦截；否则 sceneVision=passed
               // 会让乱码图静默嵌入（R4 复现教训）。
@@ -1673,7 +1684,7 @@ async function processManualGeneration(project) {
     if (!scenePaused && anchorCandidates.length > 0) {
       await ensureVisionVramFree({ log });
       for (const candidate of anchorCandidates) {
-        const aiCheck = await runAIDrawnSceneCheck(candidate.generated.imageUrl, { models: [VISION_FINE_MODEL || 'my-vl:latest', VISION_COARSE_MODEL || 'qwen2.5vl:latest'] });
+        const aiCheck = await runAIDrawnSceneCheck(candidate.generated.imageUrl, { models: [VISION_FINE_MODEL || 'my-vl:latest', VISION_COARSE_MODEL || 'qwen2.5vl:latest'], paletteHint: scenePaletteHint });
         if (aiCheck.status === 'passed') {
           sceneResultByKey.set(candidate.request.key, {
             ...candidate.generated,
@@ -1690,7 +1701,7 @@ async function processManualGeneration(project) {
             const seed2 = Math.floor(Math.random() * 2147483647);
             const retried = await referenceGenerate({ request: candidate.request, seed: seed2 });
             await ensureVisionVramFree({ log }).catch(() => {});
-            const retryCheck = await runAIDrawnSceneCheck(retried.imageUrl, { models: [VISION_FINE_MODEL || 'my-vl:latest', VISION_COARSE_MODEL || 'qwen2.5vl:latest'] });
+            const retryCheck = await runAIDrawnSceneCheck(retried.imageUrl, { models: [VISION_FINE_MODEL || 'my-vl:latest', VISION_COARSE_MODEL || 'qwen2.5vl:latest'], paletteHint: scenePaletteHint });
             if (retryCheck.status === 'passed') {
               sceneResultByKey.set(candidate.request.key, { ...retried, sceneKey: candidate.request.key, vision: retryCheck, aiDrawn: retryCheck });
             } else {
@@ -2192,8 +2203,9 @@ function mascotSceneFamily(industryType) {
   }
 }
 
-// 提示词色板词：丽人/美容/时尚默认粉红玫瑰金（062 色板库，动态读取），其余回退品牌分析色
+// TICKET-118：提示词色板词——优先客人真实品牌色板；无品牌色板时丽人/美容/时尚才用玫瑰金兜底（062 色板库）
 function mascotScenePaletteWords(industryType, colorDesc) {
+  if (colorDesc) return `brand colors ${colorDesc}`;
   if (isBeautyLikeIndustry(industryType)) {
     const p = loadRosegoldPalette();
     if (p && Array.isArray(p.palette) && p.palette.length) {
@@ -2201,18 +2213,20 @@ function mascotScenePaletteWords(industryType, colorDesc) {
       return `brand color scheme: rose gold pink (${hexes})`;
     }
   }
-  return colorDesc ? `brand colors ${colorDesc}` : "";
+  return "";
 }
 
-// 校验用色板：丽人默认粉红玫瑰金（前 3 色），其余用品牌分析色板
+// TICKET-118：校验用色板——优先客人真实色板；无品牌色板时丽人才用玫瑰金兜底
 function mascotSceneColorPalette(industryType, profileColors) {
+  const colors = (profileColors || []).filter((c) => c && c.hex);
+  if (colors.length > 0) return colors;
   if (isBeautyLikeIndustry(industryType)) {
     const p = loadRosegoldPalette();
     if (p && Array.isArray(p.palette) && p.palette.length) {
       return p.palette.slice(0, 3).map((c) => ({ hex: c.hex, name: c.role || c.hex }));
     }
   }
-  return (profileColors || []).filter((c) => c && c.hex);
+  return [];
 }
 
 // ========== 工单 086-R3：三视图平台智能生成子流程 ==========
