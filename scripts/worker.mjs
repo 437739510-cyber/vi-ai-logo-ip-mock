@@ -2230,6 +2230,20 @@ const THREEVIEW_CFG = {
   visionModels: String(process.env.THREEVIEW_VISION_MODELS || 'qwen2.5vl:latest,my-vl:latest').split(',').map((s) => s.trim()).filter(Boolean),
 };
 
+// ========== TICKET-117：B 量产配方（TICKET-107/108 定案，禁止回退旧 z-turbo 抽卡） ==========
+// 蒸馏 True-v2 4步/CFG1 + refcontrol_v2_poses@0.7 + 姿态骨架(图1) + 身份参考(图2)。
+const THREEVIEW_B_MODEL = 'Flux2-Klein-9B-True-v2-nvfp4mixed.safetensors';
+const THREEVIEW_B_CLIP = 'qwen_3_8b_fp8mixed.safetensors';
+const THREEVIEW_B_VAE = 'flux2-vae.safetensors';
+const THREEVIEW_B_LORA = 'refcontrol_v2_poses.safetensors';
+const THREEVIEW_B_LORA_STRENGTH = 0.7;
+const THREEVIEW_B_SKELETON_SIDE = 'D:/disk/HermesDisk/bb-clean/logs/117/skeletons/side-skeleton.png';
+const THREEVIEW_B_SKELETON_BACK = 'D:/disk/HermesDisk/bb-clean/logs/108/skeletons/back-skeleton.png';
+const THREEVIEW_B_SKELETON_SHEET = 'D:/disk/HermesDisk/bb-clean/logs/108/skeletons/threeview-skeleton.png';
+const THREEVIEW_B_NEGATIVE =
+  'floating hand, disconnected limb, detached palm, bad anatomy, deformed fingers, extra fingers, missing fingers, mutated hands, floating limbs, disembodied hand, duplicate limb, text, watermark, multiple people, blurry, multi-panel, triptych, split screen, grid, collage';
+const THREEVIEW_B_TRIGGER = 'apply pose from image 1 with reference from image 2';
+
 /** 负面词按公仔类型动态化：人形禁动物；动物形不禁动物+防串味；通用项恒有。 */
 function buildMascotTypeNegativePrompt(typePref, roleType) {
   const universal = 'watermark, text, letters, logo, blurry, low quality, distorted, deformed, extra limbs, bad anatomy, 2d illustration, flat art';
@@ -2296,6 +2310,66 @@ function buildMascotViewReferenceWorkflow({ prompt, referenceImageName, seed, wi
   };
 }
 
+/** TICKET-117：B 配方 refcontrol 工作流（图1=姿态骨架、图2=身份参考；蒸馏 4步/CFG1/euler）。 */
+function buildBRecipeRefWorkflow({ prompt, negative, poseName, refName, seed }) {
+  return {
+    "1": { class_type: "UNETLoader", inputs: { unet_name: THREEVIEW_B_MODEL, weight_dtype: "default" } },
+    "2": { class_type: "CLIPLoader", inputs: { clip_name: THREEVIEW_B_CLIP, type: "flux2", device: "default" } },
+    "3": { class_type: "VAELoader", inputs: { vae_name: THREEVIEW_B_VAE } },
+    "4": { class_type: "CLIPTextEncode", inputs: { clip: ["2", 0], text: prompt } },
+    "5": { class_type: "CLIPTextEncode", inputs: { clip: ["2", 0], text: negative } },
+    "6": { class_type: "LoadImage", inputs: { image: poseName } },
+    "7": { class_type: "ImageScaleToTotalPixels", inputs: { image: ["6", 0], upscale_method: "nearest-exact", megapixels: 1, resolution_steps: 1 } },
+    "8": { class_type: "GetImageSize", inputs: { image: ["7", 0] } },
+    "9": { class_type: "EmptyFlux2LatentImage", inputs: { width: ["8", 0], height: ["8", 1], batch_size: 1 } },
+    "10": { class_type: "Flux2Scheduler", inputs: { steps: 4, width: ["8", 0], height: ["8", 1] } },
+    "11": { class_type: "KSamplerSelect", inputs: { sampler_name: "euler" } },
+    "12": { class_type: "RandomNoise", inputs: { noise_seed: seed } },
+    "13": { class_type: "LoadImage", inputs: { image: refName } },
+    "14": { class_type: "ImageScaleToTotalPixels", inputs: { image: ["13", 0], upscale_method: "nearest-exact", megapixels: 1, resolution_steps: 1 } },
+    "15": { class_type: "VAEEncode", inputs: { pixels: ["7", 0], vae: ["3", 0] } },
+    "16": { class_type: "VAEEncode", inputs: { pixels: ["14", 0], vae: ["3", 0] } },
+    "17": { class_type: "ReferenceLatent", inputs: { conditioning: ["4", 0], latent: ["15", 0] } },
+    "18": { class_type: "ReferenceLatent", inputs: { conditioning: ["5", 0], latent: ["15", 0] } },
+    "19": { class_type: "ReferenceLatent", inputs: { conditioning: ["17", 0], latent: ["16", 0] } },
+    "20": { class_type: "ReferenceLatent", inputs: { conditioning: ["18", 0], latent: ["16", 0] } },
+    "21": { class_type: "LoraLoaderModelOnly", inputs: { model: ["1", 0], lora_name: THREEVIEW_B_LORA, strength_model: THREEVIEW_B_LORA_STRENGTH, strength_clip: THREEVIEW_B_LORA_STRENGTH } },
+    "22": { class_type: "CFGGuider", inputs: { model: ["21", 0], positive: ["19", 0], negative: ["20", 0], cfg: 1.0 } },
+    "23": { class_type: "SamplerCustomAdvanced", inputs: { noise: ["12", 0], guider: ["22", 0], sampler: ["11", 0], sigmas: ["10", 0], latent_image: ["9", 0] } },
+    "24": { class_type: "VAEDecode", inputs: { samples: ["23", 0], vae: ["3", 0] } },
+    "25": { class_type: "SaveImage", inputs: { filename_prefix: "bb_mascot_threeview_B", images: ["24", 0] } },
+  };
+}
+
+/** TICKET-117：骨架 + 身份参考写入 ComfyUI input（LoadImage 只认该目录），返回输入文件名。 */
+async function prepareBInputFiles(poseSkelPath, refDataUri) {
+  const refName = `threeview-ref-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+  const skelName = path.basename(poseSkelPath);
+  await fs.copyFile(poseSkelPath, path.join(COMFYUI_INPUT_DIR, skelName));
+  const mm = String(refDataUri || '').match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
+  if (!mm) throw new Error('invalid identity reference data uri');
+  await fs.writeFile(path.join(COMFYUI_INPUT_DIR, refName), Buffer.from(mm[2], 'base64'));
+  return { skelName, refName };
+}
+
+async function cleanupBInputFiles(names) {
+  for (const n of names) await fs.unlink(path.join(COMFYUI_INPUT_DIR, n)).catch(() => {});
+}
+
+/** TICKET-117：sheet 切三面板（等宽三等分），返回 front/side/back data URI。 */
+async function cropSheetPanels(dataUri) {
+  const mm = String(dataUri || '').match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
+  if (!mm) throw new Error('invalid sheet data uri');
+  const buf = Buffer.from(mm[2], 'base64');
+  const meta = await sharp(buf).metadata();
+  const w = Math.floor(meta.width / 3);
+  const crop = async (left) => {
+    const out = await sharp(buf).extract({ left, top: 0, width: w, height: meta.height }).png().toBuffer();
+    return `data:image/png;base64,${out.toString('base64')}`;
+  };
+  return { front: await crop(0), side: await crop(w), back: await crop(w * 2) };
+}
+
 /** 单张视图验收：数量=1、姿态、反向「有无动物特征」、人设、无水印；双模型交叉。 */
 async function validateMascotView(imageBase64, expectedOrient, charBaseHint) {
   const prompt = 'Analyze this mascot character image. Output ONLY JSON: {"characterCount":number,"singleSubject":true/false,"orientation":"front|side|back|other","noAnimalFeatures":true/false,"personaOk":true/false,"noWatermark":true/false,"reason":"short"}. characterCount=number of distinct figures in the frame; singleSubject=true only if exactly one; orientation=body direction (a three-quarter view counts as side; never front unless directly facing the camera); noAnimalFeatures=true only if NO horns/antlers/animal ears/tail/fur/claws/hooves/snout or any animal feature; personaOk=true only if it matches the described character (' + String(charBaseHint || '').slice(0, 140) + '); noWatermark=true only if no watermark/text/logo.';
@@ -2327,60 +2401,55 @@ async function validateMascotView(imageBase64, expectedOrient, charBaseHint) {
 }
 
 /**
- * 三视图平台子流程：front(文生图) → 验收 → front 作 reference 生成 side/back →
- * 验收 → 跨视图一致性 → 合拼 → 合拼版验收。失败自动换种子重试（≤3），
- * 整组不一致重试一组；仍失败抛错由上层 stall。
+ * TICKET-117：三视图平台子流程（B 量产配方，禁止旧 z-turbo/无参考抽卡）。
+ * front 复用选定样稿（不生成）→ side/back 走 B 配方（蒸馏 4步/CFG1 + refcontrol@0.7 +
+ * 姿态骨架 + 身份参考）→ 跨视图一致性 → 合拼验收；单视图不稳时兜底 sheet 路线
+ * （B 配方三面板整组，TICKET-108 验证 287s）→ 切分三面板。
  */
-async function generateThreeViewsPlatform({ mascotBrief, assetPlan, characterSpec, typePref, log }) {
+async function generateThreeViewsPlatform({ mascotBrief, assetPlan, characterSpec, typePref, log, frontRef }) {
   const roleType = mascotBrief.roleType;
   const charBase = cleanCharacterSpecOfAnimalFeatures(characterSpec || mascotBrief.identity, roleType) || mascotBrief.identity;
-  const negative = buildMascotTypeNegativePrompt(typePref, roleType);
-  const baseShared = String(assetPlan.views[0]?.prompt || '').replace(/Orthographic front view facing camera, neutral full-body stance, white background, clean studio lighting, no text, no watermark\.?$/i, '').trim();
-  const prompts = {
-    front: `${baseShared} Facing the camera directly, full-body front view, neutral stance, white background, clean studio lighting, no text, no watermark. Exactly one character in the frame.`,
-    side: `${baseShared} Body turned 90 degrees to the right, strict side profile with the face fully turned to the right (only one eye visible, nose at the silhouette edge), full body, white background, no text, no watermark. Exactly one character in the frame.`,
-    back: `${baseShared} Seen from behind, strict back view showing only the back of the head and no face, full body, white background, no text, no watermark. Exactly one character in the frame.`,
+  const negative = `${buildMascotTypeNegativePrompt(typePref, roleType)}, ${THREEVIEW_B_NEGATIVE}`;
+  const identityWords = `preserve the reference character identity exactly: same face, hairstyle, outfit, colors, proportions and accessories, ${String(charBase).slice(0, 260)}`;
+  const bPrompts = {
+    side: `${THREEVIEW_B_TRIGGER}, side view, body turned 90 degrees to the right, strict side profile, face fully turned to the right, only one eye visible, nose at the silhouette edge, full body, ${identityWords}, Pixar 3D style, 3D render, single character, plain solid white background, no text, no watermark`,
+    back: `${THREEVIEW_B_TRIGGER}, back view, facing away from camera, visible back of head and complete back view, full body, ${identityWords}, Pixar 3D style, 3D render, single character, plain solid white background, no text, no watermark`,
+    sheet: `${THREEVIEW_B_TRIGGER}, single character three-view sheet, exactly three panels side by side: front view / right side view / back view, same character in all three panels, ${identityWords}, Pixar 3D style, 3D render, plain solid white background, no text, no watermark`,
   };
-  const sizeParts = THREEVIEW_CFG.size.toLowerCase().split('x').map((v) => parseInt(v, 10));
-  const width = Number.isFinite(sizeParts[0]) ? sizeParts[0] : 1024;
-  const height = Number.isFinite(sizeParts[1]) ? sizeParts[1] : 1024;
-  const evidence = { charBase, negative, attempts: {} };
-  const viewAttemptDir = path.join("D:/disk/HermesDisk/bb-clean", "logs", "086", "views", "threeview-platform");
+  const evidence = { charBase, negative, route: 'single', attempts: {} };
+  const viewAttemptDir = path.join("D:/disk/HermesDisk/bb-clean", "logs", "117", "views");
+  await fs.mkdir(viewAttemptDir, { recursive: true });
 
-  async function generateOne(key, useReference, refDataUri) {
-    const seeds = THREEVIEW_CFG.seeds.length ? THREEVIEW_CFG.seeds : [12345, 67890, 11111];
+  const frontDataUri = frontRef ? await toDataUriIfNeeded(frontRef) : null;
+  if (!frontDataUri) throw new Error('缺少 front 定稿/样稿参考（frontRef）');
+  const front = { imageUrl: frontDataUri, attempts: [{ source: 'sample', vision: 'passed', note: 'front 复用选定样稿（已过样稿门），不生成' }] };
+  evidence.attempts.front = front.attempts;
+
+  async function generateBView(key, skelPath, expectedOrient, seeds) {
     const perKey = [];
-    await fs.mkdir(viewAttemptDir, { recursive: true });
     for (let i = 0; i < seeds.length; i++) {
       if (i >= THREEVIEW_CFG.maxAttempts) break;
-      const seed = seeds[i] + (key === 'front' ? 0 : key === 'side' ? 1000 : 2000);
-      // 工单 086-R3：side/back 优先用 front 作 reference（首轮）；参考法被姿态锁正面时，
-      // 后续重试回退到权威配方的强化文生图（严格侧影/背面，仅一瞳/不见脸）。
-      const useRefThisTry = useReference && i === 0;
-      log('INFO', `[THREEVIEW] ${key} attempt ${i + 1} seed=${seed} mode=${useRefThisTry ? 'reference' : 'text2img'}`);
+      const seed = seeds[i] + (key === 'side' ? 1000 : 2000);
+      log('INFO', `[THREEVIEW] ${key} attempt ${i + 1} seed=${seed} mode=B-recipe`);
       try {
-        let imageUrl = null;
-        if (useRefThisTry) {
-          if (!(await ensureComfyUIReady({ log }))) throw new Error('ComfyUI not ready');
-          const refName = await writeReferenceImageToInput(refDataUri);
-          const workflow = buildMascotViewReferenceWorkflow({ prompt: prompts[key], referenceImageName: refName, seed, width, height });
-          const out = await comfyGenerateFromWorkflow(workflow);
-          imageUrl = out.imageUrl;
-        } else {
-          if (!(await ensureComfyUIReady({ log }))) throw new Error('ComfyUI not ready');
-          const gen = await comfyGenerateImage({ prompt: prompts[key], negativePrompt: negative, width, height });
-          imageUrl = gen.imageUrl;
-        }
-        // 证据留档：每次尝试的图保存到 logs（失败产物仅日志目录，落库只留成功资产）。
+        if (!(await ensureComfyUIReady({ log }))) throw new Error('ComfyUI not ready');
+        const inputs = await prepareBInputFiles(skelPath, frontDataUri);
         try {
-          const mm = String(imageUrl || '').match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
-          if (mm) await fs.writeFile(path.join(viewAttemptDir, `${key}-${seed}-${useRefThisTry ? 'ref' : 't2i'}.png`), Buffer.from(mm[2], 'base64'));
-        } catch { /* 留档失败不阻断 */ }
-        await ensureVisionVramFree({ log }).catch(() => {});
-        const vision = await validateMascotView(imageUrl, key === 'front' ? ['front'] : key === 'side' ? ['side', 'threequarter'] : ['back'], charBase);
-        perKey.push({ seed, mode: useRefThisTry ? 'reference' : 'text2img', vision: vision.ok ? 'passed' : 'failed', reason: vision.reason, models: vision.results });
-        if (vision.ok) return { imageUrl, attempts: perKey };
-        log('WARN', `[THREEVIEW] ${key} 第${i + 1}次未通过：${vision.reason}`);
+          const workflow = buildBRecipeRefWorkflow({ prompt: bPrompts[key], negative, poseName: inputs.skelName, refName: inputs.refName, seed });
+          const out = await comfyGenerateFromWorkflow(workflow, { timeoutMs: 3_600_000 });
+          const imageUrl = out.imageUrl;
+          try {
+            const mm = String(imageUrl || '').match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
+            if (mm) await fs.writeFile(path.join(viewAttemptDir, `${key}-${seed}-B.png`), Buffer.from(mm[2], 'base64'));
+          } catch { /* 留档失败不阻断 */ }
+          await ensureVisionVramFree({ log }).catch(() => {});
+          const vision = await validateMascotView(imageUrl, expectedOrient, charBase);
+          perKey.push({ seed, mode: 'B-recipe', vision: vision.ok ? 'passed' : 'failed', reason: vision.reason, models: vision.results, ms: out.durationMs });
+          if (vision.ok) return { imageUrl, attempts: perKey };
+          log('WARN', `[THREEVIEW] ${key} 第${i + 1}次未通过：${vision.reason}`);
+        } finally {
+          await cleanupBInputFiles([inputs.skelName, inputs.refName]);
+        }
       } catch (error) {
         perKey.push({ seed, vision: 'error', reason: String(error.message) });
         log('WARN', `[THREEVIEW] ${key} 第${i + 1}次异常：${error.message}`);
@@ -2393,17 +2462,21 @@ async function generateThreeViewsPlatform({ mascotBrief, assetPlan, characterSpe
     throw err;
   }
 
-  // 整组重试 ≤2 组：跨视图一致性不过则整组重来。
+  // 路线一：单视图（side + back，B 配方）。整组重试 ≤2 组。
   for (let set = 1; set <= 2; set++) {
-    log('INFO', `[THREEVIEW] 第 ${set} 组生成开始`);
-    evidence.attempts[`set${set}`] = {};
-    const front = await generateOne('front', false, null);
-    evidence.attempts[`set${set}`].front = front.attempts;
-    const side = await generateOne('side', true, front.imageUrl);
+    log('INFO', `[THREEVIEW] 第 ${set} 组生成开始（B 配方单视图路线）`);
+    evidence.attempts[`set${set}`] = { front: 'sample-reused' };
+    let side = null;
+    let back = null;
+    try {
+      side = await generateBView('side', THREEVIEW_B_SKELETON_SIDE, ['side', 'threequarter'], THREEVIEW_CFG.seeds);
+      back = await generateBView('back', THREEVIEW_B_SKELETON_BACK, ['back'], THREEVIEW_CFG.seeds);
+    } catch (error) {
+      log('WARN', `[THREEVIEW] 单视图路线失败（${error.message}），转 sheet 路线`);
+      break;
+    }
     evidence.attempts[`set${set}`].side = side.attempts;
-    const back = await generateOne('back', true, front.imageUrl);
     evidence.attempts[`set${set}`].back = back.attempts;
-
     let consistency = null;
     try {
       consistency = await runThreeViewConsistencyCheck({ front: front.imageUrl, side: side.imageUrl, back: back.imageUrl, fineModel: VISION_FINE_MODEL });
@@ -2415,17 +2488,53 @@ async function generateThreeViewsPlatform({ mascotBrief, assetPlan, characterSpe
       const combined = await combineThreeViewSheet({ front: front.imageUrl, side: side.imageUrl, back: back.imageUrl, sheetWidth: 3152, sheetHeight: 1194 });
       if (!combined.ok) throw new Error('三视图合拼失败：' + combined.message);
       const sheetVision = await validateMascotSheet(combined.imageUrl);
-      if (!sheetVision.ok) {
-        log('WARN', `[THREEVIEW] 合拼版验收未通过（${sheetVision.reason}），整组重试`);
-        continue;
+      if (sheetVision.ok) {
+        evidence.attempts[`set${set}`].sheet = 'passed';
+        evidence.acceptedSet = set;
+        evidence.route = 'single';
+        return { front: front.imageUrl, side: side.imageUrl, back: back.imageUrl, threeView: combined.imageUrl, charBase, evidence };
       }
-      evidence.attempts[`set${set}`].sheet = 'passed';
-      evidence.acceptedSet = set;
-      return { front: front.imageUrl, side: side.imageUrl, back: back.imageUrl, threeView: combined.imageUrl, charBase, evidence };
+      log('WARN', `[THREEVIEW] 合拼版验收未通过（${sheetVision.reason}），整组重试`);
+      continue;
     }
     log('WARN', `[THREEVIEW] 第 ${set} 组跨视图一致性 ${consistency && consistency.status}，整组重试`);
   }
-  const err2 = new Error('三视图两组均未通过跨视图一致性/合拼验收');
+
+  // 路线二：sheet 整组（B 配方三面板，TICKET-108 验证 287s）→ 切分三面板。
+  log('INFO', '[THREEVIEW] 走 sheet 路线（B 配方三面板整组）');
+  evidence.route = 'sheet';
+  for (let i = 0; i < THREEVIEW_CFG.seeds.length; i++) {
+    if (i >= THREEVIEW_CFG.maxAttempts) break;
+    const seed = THREEVIEW_CFG.seeds[i] + 3000;
+    log('INFO', `[THREEVIEW] sheet attempt ${i + 1} seed=${seed} mode=B-recipe`);
+    try {
+      if (!(await ensureComfyUIReady({ log }))) throw new Error('ComfyUI not ready');
+      const inputs = await prepareBInputFiles(THREEVIEW_B_SKELETON_SHEET, frontDataUri);
+      try {
+        const workflow = buildBRecipeRefWorkflow({ prompt: bPrompts.sheet, negative, poseName: inputs.skelName, refName: inputs.refName, seed });
+        const out = await comfyGenerateFromWorkflow(workflow, { timeoutMs: 3_600_000 });
+        try {
+          const mm = String(out.imageUrl || '').match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
+          if (mm) await fs.writeFile(path.join(viewAttemptDir, `sheet-${seed}-B.png`), Buffer.from(mm[2], 'base64'));
+        } catch { /* 留档失败不阻断 */ }
+        await ensureVisionVramFree({ log }).catch(() => {});
+        const sheetVision = await validateMascotSheetRoute(out.imageUrl, charBase);
+        if (sheetVision.ok) {
+          const panels = await cropSheetPanels(out.imageUrl);
+          evidence.attempts.sheet = 'passed';
+          evidence.acceptedSet = 'sheet';
+          return { front: panels.front, side: panels.side, back: panels.back, threeView: out.imageUrl, charBase, evidence };
+        }
+        log('WARN', `[THREEVIEW] sheet 第${i + 1}次未通过：${sheetVision.reason}`);
+      } finally {
+        await cleanupBInputFiles([inputs.skelName, inputs.refName]);
+      }
+    } catch (error) {
+      log('WARN', `[THREEVIEW] sheet 第${i + 1}次异常：${error.message}`);
+    }
+    if (i < THREEVIEW_CFG.seeds.length - 1) await new Promise((r) => setTimeout(r, THREEVIEW_CFG.cooldownMs));
+  }
+  const err2 = new Error('三视图 B 配方单视图路线与 sheet 路线均未通过');
   err2.evidence = evidence;
   throw err2;
 }
@@ -2455,6 +2564,41 @@ async function validateMascotSheet(imageBase64) {
     return p.panelCount === 3 && p.sameCharacterAcrossPanels === true && p.singleCharacterPerPanel === true && p.noMissingPanel === true && p.noWatermark === true;
   });
   return { ok, results, reason: ok ? undefined : 'sheet_validation_failed' };
+}
+
+/** TICKET-117：AI 直接生成的三面板 sheet 验收（含姿态断言：正/侧/背）。 */
+async function validateMascotSheetRoute(imageBase64, charBaseHint) {
+  const prompt = 'Analyze this single three-view character sheet with three panels. Output ONLY JSON: {"panelCount":number,"poses":["front"|"side"|"back"|"other"],"sameCharacterAcrossPanels":true/false,"singleCharacterPerPanel":true/false,"personaOk":true/false,"noWatermark":true/false,"reason":"short"}. panelCount=number of panels (must be 3); poses=body direction of each panel in order (a three-quarter view counts as side; never front unless directly facing the camera); sameCharacterAcrossPanels=true only if all three panels show the same character; singleCharacterPerPanel=true only if each panel has exactly one character; personaOk=true only if the character matches (' + String(charBaseHint || '').slice(0, 140) + '); noWatermark=true only if no watermark/text/logo.';
+  const results = [];
+  for (const model of THREEVIEW_CFG.visionModels) {
+    try {
+      const raw = await ollamaOcr(model, prompt, imageBase64);
+      let parsed = null;
+      try {
+        const s = raw.indexOf('{');
+        const e = raw.lastIndexOf('}');
+        parsed = JSON.parse(raw.slice(s, e + 1));
+      } catch { /* keep null */ }
+      results.push({ model, parsed, raw: raw.slice(0, 200) });
+    } catch {
+      results.push({ model, parsed: null });
+    }
+  }
+  const valid = results.filter((r) => r.parsed);
+  if (valid.length < 2) return { ok: false, results, reason: 'vision_unavailable' };
+  const personaOk = valid.filter((r) => r.parsed.personaOk === true).length >= Math.ceil(valid.length / 2);
+  const ok = personaOk && valid.every((r) => {
+    const p = r.parsed;
+    const poses = Array.isArray(p.poses) ? p.poses.map((x) => String(x).toLowerCase()) : [];
+    return (
+      p.panelCount === 3 &&
+      ['front', 'side', 'back'].every((need) => poses.includes(need)) &&
+      p.sameCharacterAcrossPanels === true &&
+      p.singleCharacterPerPanel === true &&
+      p.noWatermark === true
+    );
+  });
+  return { ok, results, reason: ok ? undefined : 'sheet_route_validation_failed' };
 }
 
 async function processMascotFullGeneration(project) {
@@ -2522,6 +2666,7 @@ async function processMascotFullGeneration(project) {
     characterSpec,
     typePref: clientInfo.mascotTypePref,
     log,
+    frontRef: (selectedSample && (selectedSample.imageUrl || "")) || "",
   }).catch(async (error) => {
     log("ERROR", `[MASCOT-FULL] ${projectId}: 三视图平台子流程失败：${error.message}`);
     await supabase.from("projects").update({
