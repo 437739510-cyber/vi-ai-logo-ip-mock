@@ -1586,13 +1586,13 @@ async function processManualGeneration(project) {
           } catch { /* 留档失败不阻断 */ }
           await ensureVisionVramFree({ log }).catch(() => {});
           let finalImage = generated.imageUrl;
+          // TICKET-118：品牌贴字/核字通用化——≤4 字完整品牌名（3/4 字保证），≥5 字按 091-R2 约定省略；不再 slice(0,3)。
+          const cnLen = (String(normalizedCompanyName || '').match(/[\u4e00-\u9fff]/g) || []).length;
+          const brandText = cnLen > 0 && cnLen <= 4 ? String(normalizedCompanyName || '') : '';
           if (['stationery-1', 'packaging-1', 'packaging-2', 'marketing-storefront', 'marketing-1'].includes(request.key)) {
             // 工单 091-R4：z-turbo 常把会员卡/海报画出乱码中文，核字门反复失败。
             // 先定位 AI 文字区并用 ComfyUI inpaint 清理（复用 044 链路），再代码贴字。
             finalImage = await cleanAiSceneText(generated.imageUrl, log);
-            // TICKET-118：品牌贴字通用化——≤4 字完整品牌名（3/4 字保证），≥5 字按 091-R2 约定省略；不再 slice(0,3)。
-            const cnLen = (String(normalizedCompanyName || '').match(/[\u4e00-\u9fff]/g) || []).length;
-            const brandText = cnLen > 0 && cnLen <= 4 ? String(normalizedCompanyName || '') : '';
             if (brandText) {
               // 工单 091-R4：浅色墙面/前台场景用深玫瑰字+浅色光晕（白字+发光会被
               // 视觉模型判为半透明水印；strokeColor 不得传 "none"——satori 对
