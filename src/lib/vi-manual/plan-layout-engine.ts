@@ -9,6 +9,7 @@
 
 import type { PageElement } from "./page-planner";
 import { guardedDeepSeekCall } from "@/lib/core/billing/deepseek-guard";
+import { resolveDeepSeekModel } from "@/lib/core/billing/deepseek-pricing";
 
 export interface PlanLayoutParams {
   pageId: string;
@@ -42,6 +43,7 @@ export interface PlanLayoutResult {
 }
 
 export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLayoutResult> {
+  const model = resolveDeepSeekModel();
   const priHex = params.brandColors?.primary?.hex || "#1A73E8";
   const secHex = params.brandColors?.secondary?.hex || "#34A853";
   const accHex = params.brandColors?.accent?.hex || "#FBBC04";
@@ -57,7 +59,8 @@ export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLa
     const resp = await guardedDeepSeekCall({
       route: "plan-layout-engine",
       body: {
-        model: "deepseek-chat",
+        model,
+        thinking: { type: "disabled" },
         messages: [
           {
             role: "system",
@@ -138,6 +141,9 @@ export async function planLayoutEngine(params: PlanLayoutParams): Promise<PlanLa
       elements = JSON.parse(cleaned);
       if (!Array.isArray(elements)) {
         elements = [elements];
+      }
+      if (elements.length === 0) {
+        return { success: false, pageId: params.pageId, elements: [], count: 0, error: "AI_LAYOUT_EMPTY" };
       }
     } catch {
       return { success: false, pageId: params.pageId, elements: [], count: 0, error: "Failed to parse AI layout" };

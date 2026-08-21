@@ -5,7 +5,7 @@
  * 从 generate-manual-pptx/route.ts 提取，避免3处重复定义
  */
 
-export type IndustryType = "restaurant" | "fastfood" | "beverage" | "beauty" | "fashion" | "mother_baby" | "wedding" | "fitness" | "pharmacy" | "pet" | "retail" | "education" | "fresh_food" | "floral" | "home" | "nail" | "tea" | "general";
+export type IndustryType = "restaurant" | "fastfood" | "beverage" | "beauty" | "fashion" | "mother_baby" | "wedding" | "fitness" | "pharmacy" | "pet" | "retail" | "education" | "fresh_food" | "floral" | "home" | "nail" | "tea" | "car" | "general";
 
 /**
  * 已规范化行业值全集（与 IndustryType 枚举一致）。工单 008（007-R1 遗留风险收口）：
@@ -19,7 +19,7 @@ export type IndustryType = "restaurant" | "fastfood" | "beverage" | "beauty" | "
 const NORMALIZED_INDUSTRY_TYPES: ReadonlySet<string> = new Set<string>([
   "restaurant", "fastfood", "beverage", "beauty", "fashion", "mother_baby",
   "wedding", "fitness", "pharmacy", "pet", "retail", "education",
-  "fresh_food", "floral", "home", "nail", "tea", "general",
+  "fresh_food", "floral", "home", "nail", "tea", "car", "general",
 ]);
 
 export function getIndustryType(industry?: string): IndustryType {
@@ -54,7 +54,12 @@ export function getIndustryType(industry?: string): IndustryType {
       if (/养生/.test(sub)) return "beauty";
       return "pharmacy";
     }
-    if (cat === "汽车服务") return "retail";
+    // TICKET-122-R13：汽车服务按子类映射（洗车/美容/养护 → car；维修/保养 → general）
+    if (cat === "汽车服务") {
+      if (/洗车|美容|养护|清洁|detail|洗车美容|汽车美容/.test(sub)) return "car";
+      if (/维修|修理|保养|汽修|改装|钣金/.test(sub)) return "general";
+      return "car";
+    }
     if (cat === "公司企业") return "general";
     return "general";
   }
@@ -63,6 +68,9 @@ export function getIndustryType(industry?: string): IndustryType {
   // 1. 美容/美发（在零售之前拦截）
   if (/美甲|美睫|美足|纹绣/.test(s)) return "nail";
   if (/美容|美发|理发|spa|沙龙|造型|护肤|美体|剪发|烫发|养生/.test(s)) return "beauty";
+  // TICKET-122-R13：汽车服务子类（洗车/美容/养护 → car；维修/保养 → general）
+  if (/洗车|汽车美容|汽车养护|洗车美容|汽车清洁|car wash|auto detail/.test(s)) return "car";
+  if (/汽修|汽车维修|汽车保养|维修厂|汽车修理/.test(s)) return "general";
   // 2. 婚庆/摄影
   if (/婚|婚庆|婚纱|摄影|影楼|照相|写真|跟拍|司仪/.test(s)) return "wedding";
   // 3. 药店/诊所（含中医馆）
@@ -105,6 +113,7 @@ export const INDUSTRY_DEFAULTS: Record<string, { primary: string; secondary: str
   fastfood:    { primary: "#D32F2F", secondary: "#F9A825", accent: "#FFFFFF" },
   beverage:    { primary: "#00695C", secondary: "#D84315", accent: "#FFB300" },
   beauty:      { primary: "#E8576C", secondary: "#9B72CF", accent: "#F0D5A8" },
+  car:         { primary: "#1F3B4D", secondary: "#5C8D89", accent: "#F5F2E8" },
   fashion:     { primary: "#1A1A2E", secondary: "#C9A96E", accent: "#E8D5B7" },
   mother_baby: { primary: "#E8836B", secondary: "#5B9EA6", accent: "#F5C6AA" },
   wedding:     { primary: "#8B6F4E", secondary: "#D4A574", accent: "#F5E6D3" },
@@ -339,6 +348,16 @@ export const INDUSTRY_MATERIALS: Record<IndustryType, MaterialItem[]> = {
     { priority: '可选', category: '工服/围裙', desc: '茶艺师工服+围裙', color: '2E7D32' },
     { priority: '可选', category: '导视系统', desc: '茶室指引/包间标识', color: '2E7D32' },
     { priority: '可选', category: '活动海报/展架', desc: '茶会/品鉴活动物料', color: '2E7D32' },
+  ],
+  // TICKET-122-R13：汽车服务专属物料（洗车/美容/养护），禁止落到零售通用清单
+  car: [
+    { priority: '必做', category: '门头招牌', desc: '洗车/美容门店门头招牌+侧招，品牌线下第一视觉触点', color: '1F3B4D' },
+    { priority: '必做', category: '员工工服', desc: '洗车工/美容技师工服+工牌，统一门店形象', color: '1F3B4D' },
+    { priority: '必做', category: '会员卡/车钥匙牌', desc: '会员储值卡+车钥匙牌，客户留存与复购核心触点', color: '1F3B4D' },
+    { priority: '建议', category: '毛巾/物料', desc: '品牌毛巾、清洁物料包装，服务过程品牌露出', color: '5C8D89' },
+    { priority: '建议', category: '工位导视', desc: '洗车工位/功能分区标识，规范门店形象', color: '5C8D89' },
+    { priority: '可选', category: '活动海报/展架', desc: '会员活动/促销物料', color: '2E7D32' },
+    { priority: '可选', category: '线上头像/门头照片模板', desc: '社交平台头像与门头照片统一模板', color: '2E7D32' },
   ],
   general: [
     { priority: '必做', category: '门店招牌', desc: '门头招牌+侧招灯箱，品牌线下第一视觉触点', color: 'C62828' },

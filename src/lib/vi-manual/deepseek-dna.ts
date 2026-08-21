@@ -214,27 +214,27 @@ Generate exactly 4 differentiated Logos, each for a different application scenar
    If the user says primary=#1B4965, then EVERY logo_prompt color_main MUST be "#1B4965".
 
 【Scene Image Generation — Mandatory Rules】
-Generate exactly 8 scene images, strictly mapped to VI manual four modules.
+Generate exactly 5 scene images, strictly mapped to the VI manual five application slots.
 
-1. 8 scenes fixed categories:
-   - Application System (3): storefront signage real scene, core operational materials, staff uniforms
-   - Packaging System (2): main product packaging, tote/shopping bag
-   - Marketing System (2): in-store promotional materials, membership card/payment vouchers
-   - Wayfinding System (1): in-store signage/directional signs
+1. 5 scenes fixed categories (id keys MUST match exactly):
+   - id "stationery-1": brand stationery application (business cards / letterhead / membership card mockups)
+   - id "packaging-1": main product packaging
+   - id "packaging-2": secondary packaging / tote-shopping bag / product set
+   - id "marketing-storefront": storefront signage real scene
+   - id "marketing-1": promotional poster / in-store marketing materials
 
 2. Scene naming:
-   id: "scene_1" through "scene_8"
-   vi_module: one of "application", "packaging", "marketing", "wayfinding"
+   id: one of "stationery-1", "packaging-1", "packaging-2", "marketing-storefront", "marketing-1"
    name: descriptive name
-   priority: "required" for scenes 1-5, "optional" for scenes 6-8
+   priority: "required" for all five
 
 3. Universal negative prompt (ALL scene images MUST include):
    blurry, low quality, distorted logo, garbled text, clean studio, white background, 3d render, cartoon, watermark
 
 4. Scene prompts must describe brand logo/design applied to real-world physical items in photorealistic settings.
    Use "Professional product photography" style, 8k, cinematic lighting.
-5. IMPORTANT: Include the brand's actual products (e.g., shoes, food, beverages) as visual prop elements within each scene.
-6. CRITICAL: Each scene MUST include the brand's Chinese name characters as visible text (e.g., \'李记\' on a signboard) - write the actual brand name characters into the description.
+5. IMPORTANT: Include the brand's actual products (industry-appropriate) as visual prop elements within each scene.
+6. CRITICAL: Each scene MUST include the brand's Chinese name characters as visible text (e.g., {{BRAND}} on a signboard) - write the actual brand name characters into the description.
 
 【Output JSON — Fixed Structure】
 {
@@ -246,14 +246,11 @@ Generate exactly 8 scene images, strictly mapped to VI manual four modules.
     {"id": "logo_4", "name": "Stylized wordmark", "positive": "...", "negative": "...", "color_main": "#...", "color_accent": "#..."}
   ],
   "scene_prompts": [
-    {"id": "scene_1", "vi_module": "application", "name": "Storefront signage", "positive": "...", "negative": "...", "controlnet": [], "priority": "required"},
-    {"id": "scene_2", "vi_module": "application", "name": "Operational materials", "positive": "...", "negative": "...", "controlnet": [], "priority": "required"},
-    {"id": "scene_3", "vi_module": "application", "name": "Staff uniform", "positive": "...", "negative": "...", "controlnet": [], "priority": "required"},
-    {"id": "scene_4", "vi_module": "packaging", "name": "Product packaging", "positive": "...", "negative": "...", "controlnet": [], "priority": "required"},
-    {"id": "scene_5", "vi_module": "packaging", "name": "Shopping bag", "positive": "...", "negative": "...", "controlnet": [], "priority": "required"},
-    {"id": "scene_6", "vi_module": "marketing", "name": "Promotional poster", "positive": "...", "negative": "...", "controlnet": [], "priority": "optional"},
-    {"id": "scene_7", "vi_module": "marketing", "name": "Membership card", "positive": "...", "negative": "...", "controlnet": [], "priority": "optional"},
-    {"id": "scene_8", "vi_module": "wayfinding", "name": "In-store signage", "positive": "...", "negative": "...", "controlnet": [], "priority": "optional"}
+    {"id": "stationery-1", "name": "Brand stationery application", "positive": "...", "negative": "...", "controlnet": [], "priority": "required"},
+    {"id": "packaging-1", "name": "Main product packaging", "positive": "...", "negative": "...", "controlnet": [], "priority": "required"},
+    {"id": "packaging-2", "name": "Secondary packaging / tote bag", "positive": "...", "negative": "...", "controlnet": [], "priority": "required"},
+    {"id": "marketing-storefront", "name": "Storefront signage", "positive": "...", "negative": "...", "controlnet": [], "priority": "required"},
+    {"id": "marketing-1", "name": "Promotional poster / marketing materials", "positive": "...", "negative": "...", "controlnet": [], "priority": "required"}
   ]
 }`;
 }
@@ -359,6 +356,8 @@ export async function extractBrandDNA(input: BrandDNAInput): Promise<BrandDNARes
         }
       }
     }
+    // TICKET-122-R14：atlas 键契约归一化（模型偶发输出语义键而非 worker 5 键）
+    const normalizedAtlas = normalizeSceneAtlasToContract(atlas || {});
 
     return {
       success: true,
@@ -368,7 +367,7 @@ export async function extractBrandDNA(input: BrandDNAInput): Promise<BrandDNARes
         positive_en: logoPrompt.positive_en,
         negative_en: logoPrompt.negative_en,
       },
-      scene_atlas: atlas || DEFAULT_SCENE_TEMPLATES,
+      scene_atlas: Object.keys(normalizedAtlas).length > 0 ? normalizedAtlas : DEFAULT_SCENE_TEMPLATES,
     };
   } catch (error) {
     return {
@@ -380,6 +379,60 @@ export async function extractBrandDNA(input: BrandDNAInput): Promise<BrandDNARes
       error: error instanceof Error ? error.message : "extractBrandDNA failed",
     };
   }
+}
+
+/**
+ * TICKET-122-R14：把 DeepSeek scene_atlas 的键归一化为 worker 5 场景契约键
+ * （stationery-1/packaging-1/packaging-2/marketing-storefront/marketing-1）。
+ * 优先级：别名映射 → 已是契约键 → 位置兜底（按剩余顺序补缺）。
+ */
+const SCENE_CONTRACT_KEYS = ["stationery-1", "packaging-1", "packaging-2", "marketing-storefront", "marketing-1"] as const;
+const SCENE_KEY_ALIASES: Record<string, string> = {
+  storefront_sign: "marketing-storefront",
+  storefront: "marketing-storefront",
+  signage: "marketing-storefront",
+  signboard: "marketing-storefront",
+  service_counter: "stationery-1",
+  operational_materials: "stationery-1",
+  operational: "stationery-1",
+  stationery: "stationery-1",
+  business_cards: "stationery-1",
+  packaging_box: "packaging-1",
+  main_product_packaging: "packaging-1",
+  product_packaging: "packaging-1",
+  shopping_bag: "packaging-2",
+  tote_bag: "packaging-2",
+  tote: "packaging-2",
+  wash_voucher: "packaging-2",
+  marketing_banner: "marketing-1",
+  promotional_poster: "marketing-1",
+  poster: "marketing-1",
+  membership_card: "marketing-1",
+};
+
+export function normalizeSceneAtlasToContract(
+  atlas: Record<string, SceneAtlasEntry>,
+): Record<string, SceneAtlasEntry> {
+  const entries = Object.entries(atlas || {});
+  const out: Record<string, SceneAtlasEntry> = {};
+  const used = new Set<string>();
+  for (const [key, entry] of entries) {
+    const alias = SCENE_KEY_ALIASES[key.toLowerCase()];
+    const target = alias || ((SCENE_CONTRACT_KEYS as readonly string[]).includes(key) ? key : null);
+    if (target && !used.has(target)) {
+      out[target] = entry;
+      used.add(target);
+    }
+  }
+  const remaining = SCENE_CONTRACT_KEYS.filter((k) => !used.has(k));
+  const spare = entries.filter(([k]) => !used.has(k) && !(SCENE_CONTRACT_KEYS as readonly string[]).includes(k));
+  remaining.forEach((key, i) => {
+    if (spare[i]) {
+      out[key] = spare[i][1];
+      used.add(key);
+    }
+  });
+  return out;
 }
 
 /**

@@ -9,6 +9,7 @@
  */
 
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { DEEPSEEK_MODEL, guardedDeepSeekCall } from "@/lib/core/billing/deepseek-guard";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -180,7 +181,6 @@ export async function inferGeoContext(params: {
     if (cached) return cached;
   }
 
-  // Call DeepSeek via fetch
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) return EMPTY_GEO_CONTEXT;
 
@@ -192,29 +192,25 @@ export async function inferGeoContext(params: {
   ].filter(Boolean).join("\n");
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const response = await guardedDeepSeekCall({
+      route: "brand/geo-context",
+      projectId,
+      requestSummary: `Infer geo context: ${companyName}`,
+      model: DEEPSEEK_MODEL,
+      body: {
+        model: DEEPSEEK_MODEL,
         messages: [
           { role: "system", content: GEO_INFERENCE_PROMPT },
           { role: "user", content: userMessage },
         ],
         temperature: 0.3,
-        max_tokens: 1200,
+        // TICKET-122-R12：v4-flash 推理链曾占满 1200 token → finish=length、正文空、
+        // inferred=false 稳定回归；放大到 4096 并同步放宽超时。
+        max_tokens: 4096,
         response_format: { type: "json_object" },
-      }),
-      signal: controller.signal,
+      },
+      timeoutMs: 120000,
     });
-
-    clearTimeout(timeout);
 
     if (!response.ok) {
       console.warn("[geo-context] DeepSeek HTTP", response.status);

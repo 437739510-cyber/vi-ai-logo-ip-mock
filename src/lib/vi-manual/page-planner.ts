@@ -111,6 +111,13 @@ export interface PagePlannerInput {
     logoPhilosophy?: string;
     mascotPhilosophy?: string;
     industry?: string;
+    /** TICKET-122-R8：业务信息页数据（通用、可空；任一字段存在才生成该页） */
+    location?: string;
+    storeScale?: string;
+    customerMix?: string;
+    mainProducts?: string;
+    description?: string;
+    colorPalette?: { name?: string; hex: string }[];
   };
   /**
    * 正式品牌名（对客户展示）。来自收单/API 显式构造，优先于 clientInfo.companyName。
@@ -188,6 +195,7 @@ const PAGE_LABELS: Record<string, string> = {
   closing: "感谢观看",
   "digital-media": "线上数字应用",
   "wayfinding": "导视系统",
+  "business-overview": "门店概况与经营信息",
   "logo-output": "LOGO文件输出规范",
   "file-output": "文件输出规范",
   "modification-authority": "VI修改权限说明",
@@ -289,6 +297,19 @@ export async function planPages(input: PagePlannerInput): Promise<PageBlueprint[
   for (const pageId of pageIds) {
     const blueprint = await planSinglePage(pageId, input, template, perPageAnalysis, include);
     blueprints.push(blueprint);
+  }
+
+  // TICKET-122-R8：业务信息页（数据驱动，任一业务事实存在才生成；模板级通用）
+  const ci = input.clientInfo as unknown as {
+    location?: string; storeScale?: string; customerMix?: string;
+    mainProducts?: string; description?: string;
+    colorPalette?: { name?: string; hex: string }[];
+  };
+  const hasBusinessFacts = !!(ci.location || ci.storeScale || ci.customerMix || ci.mainProducts || (ci.colorPalette && ci.colorPalette.length > 0));
+  if (hasBusinessFacts) {
+    const businessPage = await planSinglePage("business-overview", input, template, perPageAnalysis, include);
+    const philosophyIdx = blueprints.findIndex((b) => b.pageId === "brand-philosophy");
+    blueprints.splice(philosophyIdx >= 0 ? philosophyIdx + 1 : 1, 0, businessPage);
   }
 
   // include 为真时才生成 IP 章节（无 IP 或「请求但未就绪」均不会到这里：前者 include=false，后者已在上方抛出）
@@ -537,10 +558,11 @@ async function planSinglePage(
   const rules = getRulesForPage(pageId);
   const sortedRules = sortRulesByPriority(rules);
 
-  // Phase 10: 尝试 AI 布局优先（仅关键页面，其余走硬编码fallback以节省时间）
+  // Phase 10: AI 布局仅在显式开关开启时用于关键页面；默认走确定性 fallback。
   const AI_LAYOUT_PAGES = new Set(["cover", "logo-interpretation", "summary"]);
+  const aiLayoutEnabled = process.env.DEEPSEEK_AI_LAYOUT_ENABLED === "1";
   let aiElements = null;
-  if (AI_LAYOUT_PAGES.has(pageId)) {
+  if (aiLayoutEnabled && AI_LAYOUT_PAGES.has(pageId)) {
     try {
       // 8秒超时，避免单页卡太久
       aiElements = await Promise.race([
@@ -750,6 +772,7 @@ function buildElements(pageId: string, ctx: BuildContext): PageElement[] {
   switch (pageId) {
     case "cover": return buildCoverElements(ctx);
     case "brand-philosophy": return buildPhilosophyElements(ctx);
+    case "business-overview": return buildBusinessOverviewElements(ctx);
     case "logo-interpretation": return buildLogoInterpElements(ctx);
     case "logo-variations": return buildLogoVariationsElements(ctx);
     case "logo-misuse": return buildLogoMisuseElements(ctx);
@@ -780,6 +803,45 @@ function buildElements(pageId: string, ctx: BuildContext): PageElement[] {
     case "closing": return buildClosingElements(ctx);
     default: return [];
   }
+}
+
+/** TICKET-122-R8：业务信息页元素（门店概况/服务范围/色彩说明；无数据字段不输出） */
+function buildBusinessOverviewElements(ctx: BuildContext): PageElement[] {
+  const ci = ctx.clientInfo as unknown as {
+    location?: string; storeScale?: string; customerMix?: string;
+    mainProducts?: string; description?: string;
+    colorPalette?: { name?: string; hex: string }[];
+  };
+  const elements: PageElement[] = [];
+  const textEl = (id: string, content: string, weight = 400, size = 13): PageElement => ({
+    type: "text", id, content, position: "top-center", fontSize: size, fontWeight: weight, marginTop: 8, marginLeft: 8, marginRight: 8,
+  });
+  if (ci.location) {
+    elements.push(textEl("bo-location-title", "门店位置", 600, 14));
+    elements.push(textEl("bo-location", ci.location));
+  }
+  if (ci.storeScale) {
+    elements.push(textEl("bo-scale-title", "经营规模", 600, 14));
+    elements.push(textEl("bo-scale", ci.storeScale));
+  }
+  if (ci.customerMix) {
+    elements.push(textEl("bo-customers-title", "客群结构", 600, 14));
+    elements.push(textEl("bo-customers", ci.customerMix));
+  }
+  if (ci.mainProducts) {
+    elements.push(textEl("bo-services-title", "服务范围", 600, 14));
+    elements.push(textEl("bo-services", ci.mainProducts));
+  }
+  if (ci.description) {
+    elements.push(textEl("bo-promise-title", "服务承诺", 600, 14));
+    elements.push(textEl("bo-promise", ci.description));
+  }
+  if (ci.colorPalette && ci.colorPalette.length > 0) {
+    const colorsText = ci.colorPalette.map((c) => `${c.name || c.hex}: ${c.hex}`).join("；");
+    elements.push(textEl("bo-colors-title", "品牌色彩说明", 600, 14));
+    elements.push(textEl("bo-colors", colorsText));
+  }
+  return elements;
 }
 
 // ---- 封面 ----
@@ -985,7 +1047,9 @@ function buildLogoInterpElements(ctx: BuildContext): PageElement[] {
         marginTop: yPos + 20, marginLeft: 80 });
 
       elements.push({ type: "text", id: "li-meaning",
-        content: logoMeaning + "\n\nLOGO 承载品牌识别，IP 公仔承载品牌温度；两者共用同一色彩与比例体系，保持调性一致。", position: "top-center",
+        content: logoMeaning + (hasMascot
+          ? "\n\nLOGO 承载品牌识别，IP 公仔承载品牌温度；两者共用同一色彩与比例体系，保持调性一致。"
+          : "\n\nLOGO 承载品牌识别与品牌温度；两者共用同一色彩与比例体系，保持调性一致。"), position: "top-center",
         fontSize: 13, fontWeight: 400, color: "#444",
         marginTop: yPos + 45, marginLeft: 40, marginRight: 40,
         params: { align: "left", lineHeight: 1.5 },

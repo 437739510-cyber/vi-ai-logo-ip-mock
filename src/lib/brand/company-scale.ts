@@ -6,7 +6,7 @@
  * 成本：~0.001元/次（DeepSeek v4-flash），几乎可忽略。
  */
 
-import { guardedDeepSeekCall } from "@/lib/core/billing/deepseek-guard";
+import { DEEPSEEK_MODEL, guardedDeepSeekCall } from "@/lib/core/billing/deepseek-guard";
 
 export type CompanyScale = "micro" | "small" | "medium" | "large";
 
@@ -60,7 +60,7 @@ export async function detectCompanyScale(
       route: "/api/submit/company-scale",
       requestSummary: `判断公司规模: ${companyName}`,
       body: {
-        model: "deepseek-chat",
+        model: DEEPSEEK_MODEL,
         messages: [
           {
             role: "system",

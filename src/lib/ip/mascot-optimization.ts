@@ -1029,7 +1029,13 @@ export function buildImagePromptBySegments(
   const consistencyConstraint =
     'strict character consistency, unified color scheme, complete character design, anthropomorphic bipedal character standing on two legs like a human';
 
-  const brandCtx = brandName ? 'brand mascot for ' + brandName + ', 鞋业零售 brand, humanoid character design, cute creature mascot, 亲民传统匠心温暖 personality, handmade craft heritage' : '';
+  // TICKET-122-R13：brandCtx 由 profile 行业 + 性格 + 视觉特征驱动，删除鞋业/手工固定串。
+  const personaWords = Array.isArray(profile.personality) && profile.personality.length ? profile.personality.join('、') : '';
+  const visualWords = Array.isArray(profile.visualTraits) && profile.visualTraits.length ? profile.visualTraits.join(', ') : '';
+  const industryWord = profile.industry ? String(profile.industry) : '';
+  const brandCtx = brandName
+    ? `brand mascot for ${brandName}${industryWord ? `, ${industryWord} industry` : ''}, humanoid character design, cute creature mascot${visualWords ? `, ${visualWords}` : ''}${personaWords ? `, ${personaWords} personality` : ''}`
+    : '';
 
   const segments = [
     baseQuality,

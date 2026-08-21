@@ -10,6 +10,7 @@
  */
 
 import type { GeoContext } from "./geo-context";
+import { DEEPSEEK_MODEL, guardedDeepSeekCall } from "@/lib/core/billing/deepseek-guard";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -83,17 +84,12 @@ export async function enhanceBrandPositioning(input: PositioningInput): Promise<
   ].filter(Boolean).join("\n");
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
+    const response = await guardedDeepSeekCall({
+      route: "brand/positioning-enhancer",
+      requestSummary: `Enhance brand positioning: ${input.companyName}`,
+      model: DEEPSEEK_MODEL,
+      body: {
+        model: DEEPSEEK_MODEL,
         messages: [
           { role: "system", content: POSITIONING_PROMPT },
           { role: "user", content: userMessage },
@@ -101,11 +97,9 @@ export async function enhanceBrandPositioning(input: PositioningInput): Promise<
         temperature: 0.5,
         max_tokens: 300,
         response_format: { type: "json_object" },
-      }),
-      signal: controller.signal,
+      },
+      timeoutMs: 8000,
     });
-
-    clearTimeout(timeout);
 
     if (!response.ok) {
       console.warn("[positioning] DeepSeek HTTP", response.status);

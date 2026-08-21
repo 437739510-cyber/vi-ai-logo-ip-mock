@@ -24,19 +24,50 @@ import { normalizeBrandName } from '../src/lib/vi-manual/brand-name-normalizer';
 import { buildMascotAssetSetFromClientInfo, validateMascotAssets, nextMascotFullAttempt, shouldRetryMascotFull } from '../src/lib/vi-manual/mascot-assets';
 import { buildMascotDesignBrief } from '../src/lib/vi-manual/mascot-design-brief';
 import { buildMascotFullAssetPlan } from '../src/lib/vi-manual/mascot-design-brief';
+// TICKET-122-R10：提示词合理性门（DeepSeek 核验 + 自动修正；PROMPT_GATE_ENABLED=1 时强制）
+import { runPromptGateWithAutoFix, buildGateRules } from '../src/lib/prompt-gate';
+// TICKET-122-R12：地理上下文推断（worker 主路接入，供提示词门地理矛盾核验）
+import { inferGeoContext } from '../src/lib/brand/geo-context';
+// TICKET-122-R9-R1：视觉仲裁主路接线（双通道不一致/空响应时 DeepSeek 仲裁）
+import { maybeArbitrateVision } from '../src/lib/vision-check/deepseek-arbitration';
+
+// TICKET-122-R9-R1：仲裁费用记录（logs/122-r9-r1/deepseek-attempts.json；失败不阻断）
+const VISION_ARB_LOG_DIR = path.join('logs', '122-r9-r1');
+function appendArbitrationAttempt(record) {
+  try {
+    mkdirSync(VISION_ARB_LOG_DIR, { recursive: true });
+    const file = path.join(VISION_ARB_LOG_DIR, 'deepseek-attempts.json');
+    let list = [];
+    try { list = JSON.parse(readFileSync(file, 'utf8')); } catch { /* new file */ }
+    list.push({ ...record, at: new Date().toISOString() });
+    writeFileSync(file, JSON.stringify(list, null, 2));
+  } catch (e) { /* 日志失败不阻断 */ }
+}
+async function arbitrateVisionIfNeeded({ imageBase64, prompt, verdictKeys, log: logger }) {
+  if (process.env.VISION_ARBITRATION_ENABLED !== '1') return null;
+  const arb = await maybeArbitrateVision({ imageBase64, prompt, verdictKeys, reporter: appendArbitrationAttempt });
+  if (arb.arbitrated && arb.outcome) {
+    logger('INFO', `[VISION-ARB] source=${arb.outcome.source} status=${arb.outcome.status} verdict=${JSON.stringify(arb.outcome.verdict || {})}`);
+    return arb.outcome;
+  }
+  logger('WARN', `[VISION-ARB] 仲裁不可用: ${arb.reason || 'n/a'}`);
+  return { unavailable: true, reason: arb.reason || 'n/a' };
+}
 import { buildLogoCompositeFallbackPrompt, compositeLogoOnScene, combineThreeViewSheet, evaluateLogoSceneDeliveryGate, getLogoSceneLayout, overlayBrandTextOnScene, partitionLogoSceneRequests, pasteLogoOnScene, removeOpaqueWhiteBackground, resolveSceneTextGate } from '../src/lib/vi-manual/logo-scene-compositor';
 import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from '../src/lib/vi-manual/brand-visual-rules';
 import { normalizeLogoTextLanguage } from '../src/lib/core/consultation-schema';
 import { buildPaymentRequiredClientInfo, ensurePaymentConfirmed, evaluatePaymentGate } from '../src/lib/core/payment-gate';
 import { buildCanonicalPptxResult, buildCompletedManualHistoryItem, VI_MANUAL_STORAGE_BUCKET } from '../src/lib/vi-manual/manual-delivery';
+import { guardedDeepSeekCall } from '../src/lib/core/billing/deepseek-guard';
+import { resolveDeepSeekModel } from '../src/lib/core/billing/deepseek-pricing';
 import { runLogoVisionCheck, runLogoFidelityVisionCheck, runMascotVisionCheck, runSceneVisionCheck, runPhotoSceneVisionCheck, extractExpectedText, extractMascotCharacterSpec, runThreeViewConsistencyCheck, isValidUploadedLogoAssets, describeLogoForOptimization, buildOptimizedLogoPrompt, locateTextRegion, generateInpaintMaskPng, checkBrandColors, isStorefrontPhoto, buildPhotoScenePrompts, detectLogoHasText as visionDetectLogoHasText, runMascotSceneVisionCheck, runMascotSceneFusionCheck, runAIDrawnSceneCheck, normalizeForCompare } from '../src/lib/vision-check';
 // 工单 030：ComfyUI 健康门与生命周期（崩溃探测→自动重启→就绪→冷却）。
 import { ensureComfyUIReady, gpuSnapshot, comfyuiPids, killComfyUI, runWithMidGenerationGuard } from './_comfyui-lifecycle.mjs';
 // 工单 030：Logo 批次循环编排（生成→统一校验→不合格下一轮统一重生成）。
 import { runLogoBatchFlow } from './_logo-batch.mjs';
 import { promises as fs } from 'fs';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import os from 'node:os';
 import path from 'path';
@@ -48,8 +79,7 @@ import sharp from 'sharp';
 
 const SUPABASE_URL = 'https://fzoscrutqhdfzwnjgjvs.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || '';
-const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_MODEL = resolveDeepSeekModel();
 const POLL_INTERVAL_MS = 10_000;
 // 工单 044：ComfyUI input 目录（照片/蒙版写入位置；LoadImage 只认该目录内文件）
 const COMFYUI_INPUT_DIR = process.env.COMFYUI_INPUT_DIR || 'D:/ComfyUI-backup/input';
@@ -243,23 +273,22 @@ function withMidGenGuard(label, generateFn) {
 
 // ========== DeepSeek API ==========
 
-async function callDeepSeek(systemPrompt, userPrompt, temperature = 0.7, maxTokens = 4096) {
-  const resp = await fetch(DEEPSEEK_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${DEEPSEEK_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
+async function callDeepSeek(systemPrompt, userPrompt, temperature = 0.7, maxTokens = 4096, projectId) {
+  const resp = await guardedDeepSeekCall({
+    route: 'worker-brand-analysis',
+    projectId,
+    requestSummary: 'Worker brand analysis',
+    model: DEEPSEEK_MODEL,
+    body: {
+      model: DEEPSEEK_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       temperature,
       max_tokens: maxTokens,
-    }),
-    signal: AbortSignal.timeout(DEEPSEEK_TIMEOUT_MS),
+    },
+    timeoutMs: DEEPSEEK_TIMEOUT_MS,
   });
 
   if (!resp.ok) {
@@ -508,18 +537,28 @@ function logoSceneFamily(rawIndustry, industryType) {
   return mascotSceneFamily(industryType);
 }
 
-/** 工单 091-R3：packaging-1/2 特色场景提示词（前台接待 / 美甲色卡，AI 入景）。 */
-function featureScenePromptFor(scene, base) {
+// 工单 122-R6：场景通用「无公仔/无装饰卡通」约束（AI 常把装饰公仔画入场景，
+// 污染无 IP 手册；对 LOGO 应用场景同样适用——公仔只能出现在专属公仔场景）。
+const NO_MASCOT_CLAUSE = 'no mascots, no dolls, no plush toys, no cartoon figures, no standees, no decorative characters, no toys, no 公仔, no 玩偶, no 吉祥物';
+
+/**
+ * 工单 091-R3：packaging-1/2 特色场景提示词（前台接待 / 美甲色卡，AI 入景）。
+ * 工单 122-R6：参数化——美业专属文案仅 beauty/nail/fashion 可用；
+ * 其余行业直接回退行业物料模板/建议原文（禁止跨行业套用美业硬编码）。
+ */
+function featureScenePromptFor(scene, base, industryType) {
+  const isBeautyIndustry = industryType === 'beauty' || industryType === 'nail' || industryType === 'fashion';
+  if (!isBeautyIndustry) return base;
   if (scene === 'packaging-1') {
     // 工单 091-R4：AI 画中文品牌字必乱码/重复 → 提示词不再写中文品牌名，
     // 品牌字由代码后贴 + 核字门（消除硬编码客户品牌名）。
-    return `Premium beauty & wellness reception scene: marble reception desk, warm rose-gold ambient lighting, elegant flowers, a wall backdrop with the brand logo mark (rose-gold teardrop-and-leaf) and a clean blank signboard area, no text, no letters, no words, no Chinese characters anywhere, clean welcoming atmosphere, ${base}`;
+    return `Premium beauty & wellness reception scene: marble reception desk, warm rose-gold ambient lighting, elegant flowers, a wall backdrop with the brand logo mark (rose-gold teardrop-and-leaf) and a clean blank signboard area, no text, no letters, no words, no Chinese characters anywhere, ${NO_MASCOT_CLAUSE}, clean welcoming atmosphere, ${base}`;
   }
   if (scene === 'packaging-2') {
-    return `Nail salon service scene: nail polish color card display with rows of rose-gold and pink nail polish bottles, manicure tools, elegant pink-gold ambiance, a wall with the brand logo mark (rose-gold teardrop-and-leaf) and a clean blank signboard area, no text, no letters, no words, no Chinese characters anywhere, ${base}`;
+    return `Nail salon service scene: nail polish color card display with rows of rose-gold and pink nail polish bottles, manicure tools, elegant pink-gold ambiance, a wall with the brand logo mark (rose-gold teardrop-and-leaf) and a clean blank signboard area, no text, no letters, no words, no Chinese characters anywhere, ${NO_MASCOT_CLAUSE}, ${base}`;
   }
   if (scene === 'stationery-1') {
-    return `Premium business-card & reception scene: elegant reception desk with branded business cards and letterhead (blank cards without printed text), warm rose-gold lighting, a wall backdrop with the brand logo mark (rose-gold teardrop-and-leaf) and a clean blank signboard area, no text, no letters, no words, no Chinese characters anywhere, clean professional atmosphere, ${base}`;
+    return `Premium business-card & reception scene: elegant reception desk with branded business cards and letterhead (blank cards without printed text), warm rose-gold lighting, a wall backdrop with the brand logo mark (rose-gold teardrop-and-leaf) and a clean blank signboard area, no text, no letters, no words, no Chinese characters anywhere, ${NO_MASCOT_CLAUSE}, clean professional atmosphere, ${base}`;
   }
   return base;
 }
@@ -537,12 +576,12 @@ function buildScenePrompts(companyName, industryType, rawIndustry, profileColors
   const brandMark = cnLen > 0 && cnLen <= 4 ? `the brand name "${name}" and the brand logo mark printed` : 'the brand logo mark printed';
   const aiDrawnLogo = `with ${brandMark} naturally on the carrier, integrated lighting and shadows, professional brand application, printed cleanly, no blank unprinted surface`;
   return [
-    buildLogoSceneItem('stationery-1', featureScenePromptFor('stationery-1', `professional product photography, ${LOGO_SCENE_RENDER}, ${paletteWords}, ${style}`)),
-    buildLogoSceneItem('packaging-1', featureScenePromptFor('packaging-1', `professional product photography, ${LOGO_SCENE_RENDER}, ${paletteWords}, ${style}`)),
-    buildLogoSceneItem('packaging-2', featureScenePromptFor('packaging-2', `professional product photography, ${LOGO_SCENE_RENDER}, ${paletteWords}, ${style}`)),
+    buildLogoSceneItem('stationery-1', featureScenePromptFor('stationery-1', `professional product photography of a ${materials.card}, ${NO_MASCOT_CLAUSE}, ${LOGO_SCENE_RENDER}, ${paletteWords}, ${style}`, industryType)),
+    buildLogoSceneItem('packaging-1', featureScenePromptFor('packaging-1', `professional product photography of a ${materials.pack1}, ${NO_MASCOT_CLAUSE}, ${LOGO_SCENE_RENDER}, ${paletteWords}, ${style}`, industryType)),
+    buildLogoSceneItem('packaging-2', featureScenePromptFor('packaging-2', `professional product photography of a ${materials.pack2}, ${NO_MASCOT_CLAUSE}, ${LOGO_SCENE_RENDER}, ${paletteWords}, ${style}`, industryType)),
     // 工单 091-R4：AI 画中文必乱码 → 门头/海报明令禁止任何文字，品牌字由代码后贴。
-    buildLogoSceneItem('marketing-storefront', `Professional product photography of a ${materials.storefront} with the brand logo mark displayed clearly on the signboard (clean blank area reserved for brand text), absolutely no text, no letters, no words, no Chinese characters, no numbers, no typography anywhere in the scene, ${LOGO_SCENE_RENDER}, ${paletteWords}, ${style}`),
-    buildLogoSceneItem('marketing-1', `Professional product photography of a ${materials.poster} with the brand logo mark displayed clearly on the poster (clean blank area reserved for brand text), absolutely no text, no letters, no words, no Chinese characters, no numbers, no typography anywhere in the scene, ${LOGO_SCENE_RENDER}, ${paletteWords}, ${style}`),
+    buildLogoSceneItem('marketing-storefront', `Professional product photography of a ${materials.storefront} with the brand logo mark displayed clearly on the signboard (clean blank area reserved for brand text), absolutely no text, no letters, no words, no Chinese characters, no numbers, no typography anywhere in the scene, ${NO_MASCOT_CLAUSE}, ${LOGO_SCENE_RENDER}, ${paletteWords}, ${style}`),
+    buildLogoSceneItem('marketing-1', `Professional product photography of a ${materials.poster} with the brand logo mark displayed clearly on the poster (clean blank area reserved for brand text), absolutely no text, no letters, no words, no Chinese characters, no numbers, no typography anywhere in the scene, ${NO_MASCOT_CLAUSE}, ${LOGO_SCENE_RENDER}, ${paletteWords}, ${style}`),
   ];
 }
 
@@ -553,6 +592,11 @@ function buildScenePromptsFromSuggestions(suggestions, companyName, industryType
   const keys = ['stationery-1', 'packaging-1', 'packaging-2', 'marketing-storefront', 'marketing-1'];
   const fallbacks = buildScenePrompts(companyName, industryType, rawIndustry, profileColors);
   const name = companyName || '品牌';
+  // 工单 122-R6：021 helper 块被回归隔离 eval（无模块级常量），typeof 回退保持沙箱可运行；
+  // 真实 Worker 运行仍取模块级 NO_MASCOT_CLAUSE。
+  const noMascotClause = typeof NO_MASCOT_CLAUSE !== 'undefined'
+    ? NO_MASCOT_CLAUSE
+    : 'no mascots, no dolls, no plush toys, no cartoon figures, no standees, no decorative characters, no toys, no 公仔, no 玩偶, no 吉祥物';
   // 工单 066：自包含硬化（007 021-1 会单独 eval 本函数，不得引用外部助手）
   const render =
     "professional product photography, studio quality render, volumetric lighting, soft shadows, " +
@@ -582,15 +626,15 @@ function buildScenePromptsFromSuggestions(suggestions, companyName, industryType
     const isSignPoster = key === 'marketing-storefront' || key === 'marketing-1';
     // 工单 091-R4：AI 画中文必乱码 → 门头/海报明令禁止任何文字，品牌字由代码后贴。
     let prompt = isSignPoster
-      ? `${base}, with the brand logo mark displayed clearly on the signboard/poster (clean blank area reserved for brand text), absolutely no text, no letters, no words, no Chinese characters, no numbers, no typography anywhere in the scene, ${render}, ${paletteWords}`
-      : `${base}, with ${brandMark} naturally on the carrier, integrated lighting and shadows, professional brand application, printed cleanly, no blank unprinted surface, ${render}, ${paletteWords}`;
+      ? `${base}, with the brand logo mark displayed clearly on the signboard/poster (clean blank area reserved for brand text), absolutely no text, no letters, no words, no Chinese characters, no numbers, no typography anywhere in the scene, ${noMascotClause}, ${render}, ${paletteWords}`
+      : `${base}, with ${brandMark} naturally on the carrier, integrated lighting and shadows, professional brand application, printed cleanly, no blank unprinted surface, ${noMascotClause}, ${render}, ${paletteWords}`;
     // 工单 091-R3：packaging-1/2 用特色场景提示词（前台接待/美甲色卡）。
-    if (key === 'packaging-1' || key === 'packaging-2') {
-      prompt = featureScenePromptFor(key, `${render}, ${paletteWords}`);
+    if (isBeauty && (key === 'packaging-1' || key === 'packaging-2')) {
+      prompt = featureScenePromptFor(key, `${render}, ${paletteWords}`, industryType);
     }
     // 工单 091-R4：应用效果图1（stationery-1）改前台接待/名片特色场景。
-    if (key === 'stationery-1') {
-      prompt = featureScenePromptFor(key, `${render}, ${paletteWords}`);
+    if (isBeauty && key === 'stationery-1') {
+      prompt = featureScenePromptFor(key, `${render}, ${paletteWords}`, industryType);
     }
     return {
       key,
@@ -895,7 +939,7 @@ async function processLogoGeneration(project) {
     }
     try {
       const analysisPrompt = buildAnalysisPrompt({ ...clientInfo, companyName: normalizedCompanyName });
-      const dsContent = await callDeepSeek(BRAND_ANALYSIS_SYSTEM, analysisPrompt, 0.7, 4096);
+      const dsContent = await callDeepSeek(BRAND_ANALYSIS_SYSTEM, analysisPrompt, 0.7, 4096, projectId);
       analysisProfile = parseDeepSeekJSON(dsContent);
       logoPrompts = analysisProfile.logoDesignSuggestions?.prompts;
 
@@ -1412,6 +1456,57 @@ async function processManualGeneration(project) {
   sceneGenerationRequests.forEach((request) => {
     log('INFO', `[MANUAL] ${projectId}: Logo scene route key=${request.key} strategy=${request.logoPlacement?.strategy || 'composite'} fallback=${request.logoPlacement?.fallback || 'none'} status=${request.routeStatus}`);
   });
+  // TICKET-122-R10：提示词合理性门（在最终完整提示词拼装后、ComfyUI 调用前）。
+  // PROMPT_GATE_ENABLED=1 时强制：fail 即停（抛错，不调用 ComfyUI、无绕过）；
+  // 自动修正后放行时，把场景提示词更新为修正后版本。
+  if (process.env.PROMPT_GATE_ENABLED === '1' && sceneGenerationRequests.length > 0) {
+    // TICKET-122-R12：主路推断 geoContext（inferred=false/失败 → 标空并计数，不猜不编）
+    let gateGeoContext = null;
+    try {
+      const inferredGeo = await inferGeoContext({
+        companyName,
+        mainProducts: clientInfo.mainProducts || clientInfo.products || undefined,
+        city: clientInfo.city || clientInfo.province || undefined,
+        industry: clientInfo.industry || undefined,
+        projectId,
+      });
+      gateGeoContext = inferredGeo && inferredGeo.inferred
+        ? { inferred: true, geoInsight: inferredGeo.geoInsight }
+        : { inferred: false };
+      log('INFO', `[GEO] ${projectId}: geoContext ${gateGeoContext.inferred ? 'inferred' : 'unavailable'}`);
+    } catch (geoErr) {
+      log('WARN', `[GEO] ${projectId}: inferGeoContext failed: ${geoErr.message}`);
+      gateGeoContext = { inferred: false };
+    }
+    const mascotIntent = clientInfo.wantMascot === 'yes' ? 'yes' : 'no';
+    const palette = (profileColors || []).map((c) => c && c.hex).filter(Boolean);
+    const industryFamily = String(rawIndustry || industryType || 'general');
+    for (const request of sceneGenerationRequests) {
+      const gateCtx = {
+        prompt: request.prompt,
+        industryFamily,
+        category: String(rawIndustry || ''),
+        brandName: companyName,
+        palette,
+        mascotIntent,
+        sceneKeys: [request.key],
+        province: clientInfo.province || undefined,
+        city: clientInfo.city || undefined,
+        geoContext: gateGeoContext,
+        rules: buildGateRules({ industryFamily, mascotIntent, sceneKeys: [request.key] }),
+        ticketCode: String(projectId || 'unknown'),
+      };
+      const gateResult = await runPromptGateWithAutoFix(gateCtx);
+      if (gateResult.final !== 'pass') {
+        throw new Error(`PROMPT_GATE_BLOCKED key=${request.key} ruleId=${gateResult.verdict?.ruleId || 'n/a'} prompt=${request.prompt.slice(0, 120)}`);
+      }
+      const lastBlocked = gateResult.blockedRecords[gateResult.blockedRecords.length - 1];
+      if (lastBlocked?.afterPrompt) {
+        request.prompt = lastBlocked.afterPrompt;
+        log('INFO', `[PROMPT-GATE] ${projectId}: scene ${request.key} 自动修正后放行（ruleId=${lastBlocked.ruleId}）`);
+      }
+    }
+  }
   let sceneResults = [];
   let scenePaused = false;
   const { ready: readySceneRequests, pending: pendingSceneRequests } = partitionLogoSceneRequests(sceneGenerationRequests);
@@ -1566,7 +1661,7 @@ async function processManualGeneration(project) {
   if (!scenePaused && aiDrawnSceneRequests.length > 0) {
     const aiGenerate = withMidGenGuard('SceneAIDrawn', async ({ request, seed }) => comfyGenerateImage({
       prompt: request.prompt,
-      negativePrompt: 'blurry, low quality, distorted, watermark, garbled text, chinese characters, 中文, letters, words, numbers, handwriting, logo text, multiple logos',
+      negativePrompt: 'blurry, low quality, distorted, watermark, garbled text, chinese characters, 中文, letters, words, numbers, handwriting, logo text, multiple logos, mascot, plush toy, doll, cartoon figure, standee, decorative character, 公仔, 玩偶, 吉祥物',
       width: 1024,
       height: 1024,
     }));
@@ -1614,6 +1709,13 @@ async function processManualGeneration(project) {
             }
           }
           const aiCheck = await runAIDrawnSceneCheck(finalImage, { models: [VISION_FINE_MODEL || 'my-vl:latest', VISION_COARSE_MODEL || 'qwen2.5vl:latest'], paletteHint: scenePaletteHint });
+          // TICKET-122-R9-R1：未通过时触发 DeepSeek 仲裁（仲裁不可用不静默放行，按既有多数制兜底）
+          const aiArb = aiCheck.status !== 'passed' ? await arbitrateVisionIfNeeded({
+            imageBase64: finalImage,
+            prompt: '只输出JSON：{"logoPresent":true或false,"noGarbledChinese":true或false,"noWatermark":true或false,"paletteOk":true或false}。评估品牌场景图：LOGO 是否在场、无乱码中文、无水印、配色符合品牌。',
+            verdictKeys: ['logoPresent', 'noGarbledChinese', 'noWatermark', 'paletteOk'],
+            log,
+          }) : null;
           if (aiCheck.status === 'passed') {
             let textOk = true;
             if (['stationery-1', 'packaging-1', 'packaging-2', 'marketing-storefront', 'marketing-1'].includes(request.key)) {
@@ -1633,11 +1735,11 @@ async function processManualGeneration(project) {
               // 工单 091-R4：核字门最终失败时 vision 也置 needs_review，
               // 交付门（evaluateLogoSceneDeliveryGate）才能拦截；否则 sceneVision=passed
               // 会让乱码图静默嵌入（R4 复现教训）。
-              if (attempt === 8) sceneResultByKey.set(request.key, { ...generated, imageUrl: finalImage, sceneKey: request.key, vision: { ...aiCheck, status: 'needs_review', reason: 'brand_text_gate_failed_after_8' }, aiDrawn: aiCheck, executorStatus: 'ai_drawn_needs_review' });
+              if (attempt === 8) sceneResultByKey.set(request.key, { ...generated, imageUrl: finalImage, sceneKey: request.key, vision: { ...aiCheck, status: 'needs_review', reason: 'brand_text_gate_failed_after_8', ...(aiArb ? { arbitration: aiArb } : {}) }, aiDrawn: aiCheck, executorStatus: 'ai_drawn_needs_review' });
             }
           } else {
             log('WARN', `[MANUAL] ${projectId}: Scene ${request.key} AI 入景验收 ${aiCheck.status}（第${attempt}次）${attempt === 8 ? '，第8次仍未过，标记 needs_review（交交付门拦截）' : '，继续重试'}`);
-            if (attempt === 8) sceneResultByKey.set(request.key, { ...generated, imageUrl: finalImage, sceneKey: request.key, vision: { ...aiCheck, status: 'needs_review' }, aiDrawn: aiCheck, executorStatus: 'ai_drawn_needs_review' });
+            if (attempt === 8) sceneResultByKey.set(request.key, { ...generated, imageUrl: finalImage, sceneKey: request.key, vision: { ...aiCheck, status: 'needs_review', ...(aiArb ? { arbitration: aiArb } : {}) }, aiDrawn: aiCheck, executorStatus: 'ai_drawn_needs_review' });
           }
         } catch (error) {
           log('WARN', `[MANUAL] ${projectId}: Scene ${request.key} AI 入景生成异常（第${attempt}次）：${error.message}`);
@@ -1785,8 +1887,8 @@ async function processManualGeneration(project) {
     updated_at: new Date().toISOString(),
   }).eq('id', projectId);
 
-  // Step 3: Plan pages via DeepSeek
-  log('INFO', `[MANUAL] ${projectId}: Planning pages...`);
+  // Step 3: Plan pages. AI layout is opt-in; deterministic layouts are the default.
+  log('INFO', `[MANUAL] ${projectId}: Planning pages (AI layout ${process.env.DEEPSEEK_AI_LAYOUT_ENABLED === '1' ? 'enabled' : 'disabled'})...`);
   let blueprints;
   try {
     const cp = brandProfile.colorPalette || [];
@@ -2859,6 +2961,14 @@ async function processMascotFullGeneration(project) {
       log("INFO", `[MASCOT-FULL] ${projectId}: 三视图一致性 ${threeViewConsistency.status}${threeViewConsistency.reason ? ` (${threeViewConsistency.reason})` : ""}`);
       if (threeViewConsistency.status !== "passed") {
         log("WARN", `[MASCOT-FULL] ${projectId}: 三视图不一致，标记 needs_review（不静默交付）`);
+        // TICKET-122-R9-R1：不一致时 DeepSeek 仲裁（记录证据，不改变既有判定）
+        const tvArb = await arbitrateVisionIfNeeded({
+          imageBase64: viewImageData.front,
+          prompt: '只输出JSON：{"sameCharacter":true或false,"reason":"一句话"}。三视图（正面/侧面/背面）是否展示同一角色（服饰/配色/外观一致）。',
+          verdictKeys: ['sameCharacter'],
+          log,
+        });
+        log("INFO", `[VISION-ARB] 三视图仲裁 ${tvArb ? `${tvArb.source}/${tvArb.status}` : "未启用"}`);
         for (const k of viewKeys) mascotVision[`view-${k}`] = "needs_review";
       }
     } catch (e) {
@@ -2914,6 +3024,14 @@ async function processMascotFullGeneration(project) {
         });
         if (vision.status !== "passed" && vision.status !== "skipped") {
           log("WARN", `[MASCOT-FULL] ${projectId}: IP 场景 ${sc.name} 复检 ${vision.status}（${vision.reason || ""}），不替换`);
+          // TICKET-122-R9-R1：未通过时 DeepSeek 仲裁（记录证据，不改变既有判定）
+          const msArb = await arbitrateVisionIfNeeded({
+            imageBase64: finalImage,
+            prompt: '只输出JSON：{"mascotPresent":true或false,"noOtherBrand":true或false,"noTextOverlap":true或false}。评估品牌公仔场景：公仔是否在场、无其它品牌、无文字遮挡。',
+            verdictKeys: ['mascotPresent', 'noOtherBrand', 'noTextOverlap'],
+            log,
+          });
+          log("INFO", `[VISION-ARB] 公仔场景仲裁 ${msArb ? `${msArb.source}/${msArb.status}` : "未启用"}`);
           return false;
         }
         // 工单 091（P28）：双模型融合断言（无硬边/无文字遮挡/有接触阴影），

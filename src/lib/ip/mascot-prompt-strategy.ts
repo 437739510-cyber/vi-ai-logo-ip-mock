@@ -590,9 +590,10 @@ export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptS
       coreAnchors.species = mascotProfile.visualDetails.species;
     }
 
-    // === 2026-07-29 李记整改 #1（强化版）：强制传统手工/鞋履品牌角色为「中年男性老北京布鞋匠人」 ===
-    // 不再依赖物种动态打分产出「熊」，直接锁定 human artisan 并覆盖打分结果（相当于跳过动物打分）。
-    if (isTraditionalCraftBrand(brandProfile, input.clientPreferences)) {
+    // === 2026-07-29 李记整改 #1（强化版）＋ TICKET-122-R13：匠人角色按「行业建议 + 客人偏好优先」 ===
+    // 仅当客人明确偏好匠人/手工，或行业属传统手工且客人未选动物/可爱人设时，才锁定 human artisan；
+    // 保留动物特征清洗（防御鹿角/熊等错误动物化）。
+    if (shouldForceArtisan(brandProfile, input.clientPreferences)) {
       coreAnchors.species = HUMAN_ARTISAN_SPECIES;
       // 同步覆盖动态打分产出的 speciesName，避免 profileLike.visualDetails.species 仍带动物名泄露到正文
       optimizationResult.speciesResult.speciesName = HUMAN_ARTISAN_SPECIES;
@@ -675,7 +676,7 @@ export function generateMascotPromptSet(input: MascotPromptInput): MascotPromptS
   // 无论物种打分是否成功，统一追加强约束，确保角色=中年男性黑瓜皮帽+帽顶小金球、藏青长衫、香槟金腰带、
   // 手持千层底布鞋、真人（非动物），并清除优化器内残留的 "cute creature mascot" 等动物化/萌化描述，
   // negative 追加 bear/teddy bear/panda/animal/furry/cute animal/cartoon animal/beast/animal ears/ears on top。
-  if (isCreateNew && isTraditionalCraftBrand(brandProfile, input.clientPreferences)) {
+  if (isCreateNew && shouldForceArtisan(brandProfile, input.clientPreferences)) {
     // 清除优化器 buildImagePromptBySegments 中硬编码的 "cute creature mascot / humanoid character design" 等动物化描述
     imagePrompt = (imagePrompt || "")
       .replace(/cute creature mascot/gi, "human artisan character")
@@ -756,6 +757,28 @@ function isTraditionalCraftBrand(
     "artisan", "老北京", "非遗", "匠", "制鞋",
   ];
   return keywords.some((k) => ind.includes(k.toLowerCase()) || ref.includes(k));
+}
+
+/** TICKET-122-R13：客人是否明确偏好匠人/手工人设。 */
+function customerPrefersArtisan(clientPreferences?: MascotPromptInput["clientPreferences"]): boolean {
+  const ref = String(clientPreferences?.mascotRefIdea || "");
+  return /匠|手工|布鞋|千层底|artisan|craft|老北京|非遗|制鞋|鞋匠/i.test(ref);
+}
+
+/** TICKET-122-R13：客人是否明确偏好动物/可爱/Q版人设（此类应尊重客人选择，不强制匠人）。 */
+function customerPrefersAnimalCute(clientPreferences?: MascotPromptInput["clientPreferences"]): boolean {
+  const ref = String(clientPreferences?.mascotRefIdea || "");
+  const style = (clientPreferences?.mascotStylePref || []).join(" ");
+  return /可爱|Q版|萌|动物|卡通|cute|animal|bear|panda|软萌|团子|圆润/i.test(ref + " " + style);
+}
+
+/** TICKET-122-R13：是否应用匠人强化（行业建议 + 客人偏好优先；保留动物特征清洗防御）。 */
+function shouldForceArtisan(
+  brandProfile: BrandProfile,
+  clientPreferences?: MascotPromptInput["clientPreferences"]
+): boolean {
+  return isTraditionalCraftBrand(brandProfile, clientPreferences) &&
+    (customerPrefersArtisan(clientPreferences) || !customerPrefersAnimalCute(clientPreferences));
 }
 
 // ========== Test helper: Quick verification without API ==========

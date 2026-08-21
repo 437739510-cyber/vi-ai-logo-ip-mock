@@ -102,6 +102,8 @@ export interface RenderPptxOptions {
   projectName?: string;
   companyName?: string;
   industry?: string;
+  /** TICKET-122-R8：是否含 IP 公仔章节；缺省由 blueprints 中是否存在 mascot-* 页推导。 */
+  hasMascot?: boolean;
   logoData?: string | null;
   mascotData?: string | null;
   mascotSplitViews?: string[] | null;
@@ -355,6 +357,8 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
   const bc = resolveBC(options, blueprints);
   const industry = resolveIndustryType(options.industry);
   let sceneImages = options.sceneImages || {};
+  // TICKET-122-R8：IP 章节存在性（渲染文案门控用；不从资产反推购买意图）
+  const hasMascot = !!options.hasMascot || blueprints.some((b) => String(b.pageId || "").startsWith("mascot"));
 
   // V32: 压缩图片减小PPTX/PDF体积
   // PptxGenJS内部会将所有图片重新编码为PNG，所以需要缩小像素而非靠JPEG压缩
@@ -380,7 +384,7 @@ export async function renderPptx(blueprints: PageBlueprint[], options: RenderPpt
 
   for (const bp of blueprints) {
     const slide = pptx.addSlide();
-    await renderSlide(slide, bp, options, bc, industry, sceneImages, pageNumberMap);
+    await renderSlide(slide, bp, options, bc, industry, sceneImages, pageNumberMap, hasMascot);
   }
   return pptx;
 }
@@ -391,7 +395,7 @@ export async function renderPptxToBuffer(blueprints: PageBlueprint[], options: R
   return Buffer.from(base64, "base64");
 }
 
-const PAGE_ORDER = ["cover","toc","brand-philosophy","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","digital-media","wayfinding","summary","material-priority","file-output","logo-output","modification-authority","mascot-positioning","mascot-threeview","mascot-emotions","mascot-scenes","mascot-usage","mascot-misuse","mascot-merchandise","mascot-compliance","closing"];
+const PAGE_ORDER = ["cover","toc","brand-philosophy","business-overview","logo-interpretation","logo-variations","logo-grid","auxiliary-graphics","aux-graphics-misuse","brand-colors","color-taboos","typography","font-copyright","basic-spec","logo-misuse","stationery","packaging","marketing","digital-media","wayfinding","summary","material-priority","file-output","logo-output","modification-authority","mascot-positioning","mascot-threeview","mascot-emotions","mascot-scenes","mascot-usage","mascot-misuse","mascot-merchandise","mascot-compliance","closing"];
 
 // 计算真实页序页码（整改 #5，Kevin 终选方案）：
 // 封面不编号 (=0)；其余页（目录、正文各页、封底）从 1 连续编号。
@@ -455,13 +459,14 @@ export function assertTocPageNumbers(blueprints: PageBlueprint[], options: Rende
   }
 }
 
-async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>, pageNumberMap: Record<string, number>): Promise<void> {
+async function renderSlide(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, sceneImages: Record<string, string>, pageNumberMap: Record<string, number>, hasMascot: boolean): Promise<void> {
   switch (bp.pageId) {
     case "cover": renderCover(slide, bp, opts, bc, industry); break;
     case "closing": renderClosing(slide, bp, opts, bc); break;
     case "toc": renderTableOfContents(slide, bp, opts, bc, industry, pageNumberMap); break;
     case "brand-philosophy": renderPhilosophy(slide, bp, opts, bc); break;
-    case "logo-interpretation": renderLogoPage(slide, bp, opts, bc, industry); break;
+    case "business-overview": renderGeneric(slide, bp, opts, bc); break;
+    case "logo-interpretation": renderLogoPage(slide, bp, opts, bc, industry, hasMascot); break;
     case "logo-variations": renderLogoVariations(slide, bp, opts, bc, industry); break;
     case "logo-grid": renderLogoGrid(slide, bp, opts, bc, industry); break;
     case "logo-misuse": renderLogoMisuse(slide, bp, opts, bc, industry); break;
@@ -822,7 +827,7 @@ function extractKeywords(text: string): string[] {
   }
   return result.slice(0, 6);
 }
-function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType): void {
+function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderPptxOptions, bc: BC, industry: IndustryType, hasMascot: boolean): void {
   addContentFrame(slide, "标识诠释", bc);
   const cx = MARGIN + LEFT_BAR_W;
 
@@ -850,7 +855,9 @@ function renderLogoPage(slide: PptxGenJS.Slide, bp: PageBlueprint, opts: RenderP
   // 设计理念
   const logoMeaningSrc = opts.logoPhilosophy || fta(bp, ["logo-philosophy","logo-meaning","logo-concept"]);
   const philosophy = logoMeaningSrc
-    ? logoMeaningSrc + "\n\nLOGO 承载品牌识别，IP 公仔承载品牌温度；两者共用同一色彩与比例体系，保持调性一致。"
+    ? logoMeaningSrc + (hasMascot
+      ? "\n\nLOGO 承载品牌识别，IP 公仔承载品牌温度；两者共用同一色彩与比例体系，保持调性一致。"
+      : "\n\nLOGO 承载品牌识别与品牌温度；两者共用同一色彩与比例体系，保持调性一致。")
     : "Logo 凝练了品牌核心视觉要素，体现品牌独特识别性。";
   const phiY = 4.8;
   slide.addShape("rect", { x: cx, y: phiY, w: 0.06, h: 0.35, fill: { color: bc.pri }, rectRadius: 0.02 });
@@ -2191,6 +2198,7 @@ export function getTocItems(industry: IndustryType, aiTitles?: Record<string, st
   const configs = getSceneConfigs(industry, aiTitles);
   return [
     { section: "基础规范", title: "品牌核心理念", pageId: "brand-philosophy" },
+    { section: "基础规范", title: "门店概况与经营信息", pageId: "business-overview" },
     { section: "基础规范", title: "标识诠释", pageId: "logo-interpretation" },
     { section: "基础规范", title: "Logo组合规范", pageId: "logo-variations" },
     { section: "基础规范", title: "LOGO网格制图规范", pageId: "logo-grid" },

@@ -189,6 +189,8 @@ interface RenderContext {
   brandPersona: string;
   logoPhilosophy: string;
   mascotPhilosophy: string;
+  /** TICKET-122-R8：IP 购买意图门控（client_info.wantMascot） */
+  wantMascot?: string;
   industry: string;
   primaryColor: { hex: string; name?: string; rgb?: string; cmyk?: string };
   secondaryColor: { hex: string; name?: string; rgb?: string; cmyk?: string };
@@ -761,6 +763,10 @@ function renderBasicSpec(ctx: RenderContext): string {
 function renderMascotSpec(ctx: RenderContext): string {
   const { companyName, mascotPhilosophy, mascotDataUri, primaryColor: pri, accentColor: acc } = ctx;
   let svg = "";
+  // TICKET-122-R8：IP 默认句按 wantMascot=yes 门控（无 IP 页面不出现公仔/IP 字样）
+  const philosophyCopy = ctx.wantMascot === "yes"
+    ? (mascotPhilosophy || "品牌IP公仔承载品牌亲和力与记忆点")
+    : (mascotPhilosophy || "承载品牌亲和力与记忆点");
 
   svg += pageBackground();
   svg += topBar(pri.hex);
@@ -785,7 +791,7 @@ function renderMascotSpec(ctx: RenderContext): string {
     const rightX = contentX + leftW + 24;
     const rightW = contentW - leftW - 24;
     svg += `<text x="${rightX}" y="${panelY + 24}" font-size="11" font-weight="700" fill="${pri.hex}">设计理念</text>`;
-    svg += renderTextBlock(rightX, panelY + 40, rightW, mascotPhilosophy || "品牌IP公仔承载品牌亲和力与记忆点", 11, 400, "#444", 1, 22, 1.7);
+    svg += renderTextBlock(rightX, panelY + 40, rightW, philosophyCopy, 11, 400, "#444", 1, 22, 1.7);
   } else {
     svg += `<text x="${contentX}" y="${panelY + 24}" font-size="11" font-weight="700" fill="${pri.hex}">IP公仔展示</text>`;
     svg += `<rect x="${contentX}" y="${panelY + 34}" width="280" height="200" rx="6" fill="#F8F8F8"/>`;
@@ -1330,6 +1336,7 @@ export function renderProfessionalPage(
     brandPersona: clientInfo?.brandPersona || "",
     logoPhilosophy: clientInfo?.logoPhilosophy || "",
     mascotPhilosophy: clientInfo?.mascotPhilosophy || "",
+    wantMascot: clientInfo?.wantMascot,
     industry: clientInfo?.industry || "",
     primaryColor: brandColors?.primary || { hex: "#1A73E8" },
     secondaryColor: brandColors?.secondary || { hex: "#34A853" },

@@ -130,6 +130,10 @@ async function main(): Promise<void> {
   const logoInterpText = pageText(withIp, "logo-interpretation");
   ok("logo interpretation contains IP 公仔承载品牌温度", logoInterpText.includes("IP 公仔承载品牌温度"));
   ok("logo interpretation contains 共用同一色彩与比例体系", logoInterpText.includes("共用同一色彩与比例体系"));
+  // TICKET-122-R8：无 IP 项目零公仔/IP 文案，输出非 IP 版本
+  const noIpLogoInterpText = pageText(noIp, "logo-interpretation");
+  ok("no-IP logo interpretation has zero 公仔/IP copy", !/公仔|吉祥物|IP 公仔|IP公仔/.test(noIpLogoInterpText));
+  ok("no-IP logo interpretation contains non-IP brand-temperature copy", noIpLogoInterpText.includes("LOGO 承载品牌识别与品牌温度"));
 
   const renderOptions: RenderPptxOptions = {
     companyName: "有间奶茶店",
