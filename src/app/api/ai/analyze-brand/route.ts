@@ -11,6 +11,7 @@ export const maxDuration = 120;
 
 
 const SCENE_MATERIALS: Record<IndustryType, Record<string, { title: string; items: string[] }>> = {
+  car: { stationery: { title: "汽车服务应用系统", items: ["工牌 / 胸卡", "会员卡"] }, packaging: { title: "汽车服务包装系统", items: ["养护用品包装", "手提袋"] }, marketing: { title: "汽车服务营销系统", items: ["促销海报", "洗车套餐卡"] } },
   restaurant: { stationery: { title: "餐饮应用系统", items: ["餐巾纸套 / 筷子套", "围裙 / 工服"] }, packaging: { title: "餐饮包装系统", items: ["外卖袋 / 手提袋", "打包盒"] }, marketing: { title: "餐饮营销系统", items: ["促销海报 / 展架", "评价卡 / 立牌"] } },
   fastfood: { stationery: { title: "快餐应用系统", items: ["围裙 / 工服", "点餐单"] }, packaging: { title: "快餐包装系统", items: ["外卖袋 / 手提袋", "汉堡盒 / 饮料杯"] }, marketing: { title: "快餐营销系统", items: ["招牌灯箱", "促销海报 / 立牌"] } },
   beverage: { stationery: { title: "茶饮应用系统", items: ["杯套 / 外带杯", "围裙"] }, packaging: { title: "茶饮包装系统", items: ["手提袋", "饮品瓶标签"] }, marketing: { title: "茶饮营销系统", items: ["促销海报", "会员卡"] } },
@@ -32,6 +33,7 @@ const SCENE_MATERIALS: Record<IndustryType, Record<string, { title: string; item
 };
 
 const INDUSTRY_LABELS: Record<IndustryType, { label: string; icon: string }> = {
+  car: { label: "汽车服务行业", icon: "🚗" },
   restaurant: { label: "餐饮行业", icon: "🍜" }, fastfood: { label: "快餐行业", icon: "🍔" }, beverage: { label: "饮品行业", icon: "🥤" },
   beauty: { label: "美容行业", icon: "💅" }, retail: { label: "零售行业", icon: "🛍️" },
   education: { label: "教育行业", icon: "📚" }, fresh_food: { label: "生鲜行业", icon: "🍎" }, floral: { label: "花艺行业", icon: "🌸" },
@@ -43,6 +45,7 @@ const INDUSTRY_LABELS: Record<IndustryType, { label: string; icon: string }> = {
 };
 
 const PAGE_LIST: Record<IndustryType, string[]> = {
+  car: ["封面","目录","品牌理念","标识诠释","标准色彩","字体系统","基础规范","汽车应用","汽车包装","汽车营销","总结","感谢观看"],
   restaurant: ["封面","目录","品牌理念","标识诠释","标准色彩","字体系统","基础规范","餐饮应用","餐饮包装","餐饮营销","总结","感谢观看"],
   fastfood: ["封面","目录","品牌理念","标识诠释","标准色彩","字体系统","基础规范","快餐应用","快餐包装","快餐营销","总结","感谢观看"],
   beverage: ["封面","目录","品牌理念","标识诠释","标准色彩","字体系统","基础规范","茶饮应用","茶饮包装","茶饮营销","总结","感谢观看"],

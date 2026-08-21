@@ -43,6 +43,13 @@ interface SceneImgDef {
 }
 
 const SCENE_IMG_DEFS: Record<IndustryType, SceneImgDef[]> = {
+  car: [
+    { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of branded car wash service business cards and membership cards, clean automotive workshop setting, studio lighting" },
+    { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a branded car care product bottle and tote bag with logo, clean studio background" },
+    { key: "packaging-2", page: "packaging", rawPrompt: "Professional product photography of branded car wash detergent packaging with clean minimal design, studio lighting" },
+    { key: "marketing-1", page: "marketing", rawPrompt: "Professional product photography of a car wash storefront sign with brand logo, bright clean design, daytime" },
+    { key: "marketing-2", page: "marketing", rawPrompt: "Professional product photography of a promotional standee poster for a car wash brand, clean studio setting" },
+  ],
   restaurant: [
     { key: "stationery-1", page: "stationery", rawPrompt: "Professional product photography of a restaurant napkin sleeve and chopstick cover set, placed on a wooden table, clean minimalist design, studio lighting, top-down angle" },
     { key: "packaging-1", page: "packaging", rawPrompt: "Professional product photography of a food delivery paper bag standing on a surface, minimalist design, clean studio background, side angle view" },

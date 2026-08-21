@@ -41,6 +41,20 @@ export interface IndustryKnowledge {
 
 const knowledgeMap: Record<IndustryType, IndustryKnowledge> = {
 
+  // ========== 汽车服务 ==========
+  car: {
+    type: "car",
+    category: "car",
+    label: "汽车服务",
+    designStyle: ["专业感", "可靠感", "清洁感", "技术感"],
+    colorTendency: ["深色系", "金属色", "蓝色系"],
+    typicalModules: ["品牌故事", "Logo规范", "品牌色", "字体系统", "门店系统", "营销物料", "会员系统"],
+    typographyStyle: ["现代无衬线", "简洁有力", "工程感排版"],
+    recommendedPageRange: [12, 16] as [number, number],
+    sampleBrands: ["途虎养车", "天猫养车", "洗车先生"],
+    visualKeywords: ["professional", "clean", "reliable", "automotive", "service"],
+  },
+
   // ========== 餐饮 ==========
   restaurant: {
     type: "restaurant",
