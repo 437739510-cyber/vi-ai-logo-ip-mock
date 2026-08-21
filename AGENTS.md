@@ -210,3 +210,10 @@ Chris 或产品负责人提供的任务 MD 定义当前目标，并可施加更�
 - 关键命令必须原样输出、不得过滤：`node ... signal-bridge.mjs ...`、JSON/哈希/清单类输出 → 用 `rtk proxy <cmd>` 或不用 rtk。
 - 未知命令 rtk 会原样透传，可放心前缀；内建命令（cd/echo/set）不要加 rtk；复合命令只包目标可执行，如 `cd x && rtk git status`。
 - 效果以 `rtk gain` 为准；若效率/质量退化，运行 `D:\360MoveData\Users\Administrator\Desktop\汇报\CODEX救回\GOBACKCODEX.bat` 一键还原。
+
+## 生产环境变量（2026-08-22 运维记录）
+
+- Zeabur 生产服务 `vi-ai-logo-ip-mock` 必须配置 `ADMIN_SESSION_SECRET`（≥32 字符，
+  与本地 `.env.local` 一致），否则管理后台登录返回 503「后台会话配置不可用」；
+  `ADMIN_PASSWORD`/`ADMIN_PHONE` 为管理员登录凭据（值存 Zeabur，不入库不入日志）。
+- 环境变量变更后需触发新部署（push 触发构建）才会生效；仅 restart 不保证应用新变量。
