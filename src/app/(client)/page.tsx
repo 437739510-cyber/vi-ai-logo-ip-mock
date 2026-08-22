@@ -10,6 +10,7 @@ import { CaseCarousel } from "@/components/client/CaseCarousel";
 import { AdvantageCards } from "@/components/client/AdvantageCards";
 import { FaqSection } from "@/components/client/FaqSection";
 import { PricingSection } from "@/components/client/PricingSection";
+import { ComparisonSection } from "@/components/client/ComparisonSection";
 import { DeliverableSection } from "@/components/client/DeliverableSection";
 import { TrustSection } from "@/components/client/TrustSection";
 import { BottomCtaSection } from "@/components/client/BottomCtaSection";
@@ -23,6 +24,7 @@ export default function HomePage() {
       <AdvantageCards />
       <DeliverableSection />
       <PricingSection />
+      <ComparisonSection />
       <TrustSection />
       <CaseCarousel />
       <FaqSection />
