@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
 import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
+import { checkMemberQuota, consumeMemberQuota } from "@/lib/brand-steward";
 
 const ALIYUN_API = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
@@ -32,6 +33,16 @@ export async function POST(req: NextRequest) {
 
     if (!content) {
       return NextResponse.json({ success: false, error: "内容不存在" }, { status: 404 });
+    }
+
+    // TICKET-122-R23：学生路径接入客户配额——生成前检查，超配额拒绝。
+    const quota = await checkMemberQuota(supabaseAdmin, content.member_id);
+    if (!quota.allowed) {
+      return NextResponse.json({
+        success: false,
+        error: quota.message,
+        needUpgrade: quota.needUpgrade,
+      }, { status: 400 });
     }
 
     // 更新状态为"生成中"
@@ -81,6 +92,9 @@ export async function POST(req: NextRequest) {
       status: "ready",
       platform: platform,
     }).eq("id", contentId);
+
+    // TICKET-122-R23：生成成功后扣减客户配额。
+    await consumeMemberQuota(supabaseAdmin, content.member_id);
 
     // V89: 写入qwen-vl成本到api_usage_log
     if (vlCost > 0) {

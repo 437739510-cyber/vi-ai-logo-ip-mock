@@ -17,6 +17,7 @@ export const NAV_CONFIG: NavItem[] = [
   { href: "/admin/projects", label: "项目列表", icon: "FolderKanban", roles: ["admin", "student"] },
   { href: "/admin/favorites", label: "收藏", icon: "Star", roles: ["admin"] },
   { href: "/admin/clients", label: "客户管理", icon: "Users", roles: ["admin"] },
+  { href: "/admin/student-applications", label: "学生申请审核", icon: "ShieldAlert", roles: ["admin"] },
   { href: "/admin/students", label: "大学生管理", icon: "GraduationCap", roles: ["admin"] },
   { href: "/admin/templates", label: "模板库", icon: "Grid3X3", roles: ["admin"] },
   { href: "/admin/logo-library", label: "Logo素材库", icon: "Palette", roles: ["admin"] },

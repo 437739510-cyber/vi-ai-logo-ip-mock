@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { hashPassword, verifyPassword, isPasswordHash } from "@/lib/password";
 import { cookies } from "next/headers";
 
 function generateToken(): string {
@@ -92,8 +93,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: "账号不存在" }, { status: 401 });
       }
 
-      if (member.password_hash && member.password_hash !== password) {
+      const stored = member.password_hash;
+      const isHash = isPasswordHash(stored);
+      // 复用 scrypt 校验：已是哈希走恒定时间校验；旧明文按明文顺延比对
+      if (!verifyPassword(password, stored)) {
         return NextResponse.json({ success: false, error: "密码错误" }, { status: 401 });
+      }
+
+      // 懒迁移：旧明文账号登录成功后立即用哈希覆盖该行，平滑无感升级
+      if (!isHash) {
+        const { error: migrateError } = await supabaseAdmin
+          .from("members")
+          .update({ password_hash: hashPassword(password) })
+          .eq("id", member.id);
+        if (migrateError) {
+          console.error("[member/login] Lazy password migration error:", migrateError);
+        }
       }
 
       userId = member.id;

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { cookies } from "next/headers";
+import { checkMemberQuota, consumeMemberQuota } from "@/lib/brand-steward";
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,15 +34,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "用户不存在" }, { status: 401 });
     }
 
-    // 检查配额
-    if (member.quota_used >= member.quota_total) {
-      const isFree = member.plan === "free" || !member.plan;
-      return NextResponse.json({ 
-        success: false, 
-        error: isFree 
-          ? "免费体验已用完，开通会员¥299/月，每月12条品牌内容" 
-          : "本月配额已用完，如需额外发布请咨询客服（¥30/条）",
-        needUpgrade: isFree,
+    // 检查配额（TICKET-122-R23：订阅状态机接入——到期/暂停直接拒绝）
+    const quota = await checkMemberQuota(supabaseAdmin, member.id);
+    if (!quota.allowed) {
+      const isFree = quota.member?.plan === "free" || !quota.member?.plan;
+      return NextResponse.json({
+        success: false,
+        error: quota.reason === "exhausted"
+          ? (isFree
+            ? "免费体验已用完，开通会员¥199/月，每月12条品牌内容"
+            : "本月配额已用完，如需额外发布请咨询客服（¥30/条）")
+          : quota.message,
+        needUpgrade: quota.needUpgrade,
       }, { status: 400 });
     }
 
@@ -100,11 +104,8 @@ export async function POST(req: NextRequest) {
       // 表可能还没建，但我们仍然返回成功（MVP兜底）
     }
 
-    // 更新配额
-    await supabaseAdmin
-      .from("members")
-      .update({ quota_used: member.quota_used + 1 })
-      .eq("id", member.id);
+    // 更新配额（TICKET-122-R23：走订阅感知服务层，保持既有扣减语义）
+    await consumeMemberQuota(supabaseAdmin, member.id);
 
     return NextResponse.json({ 
       success: true, 

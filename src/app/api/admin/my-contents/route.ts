@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     // 查找该大学生生成的内容（含images字段）
     const { data: contents, error } = await supabaseAdmin
       .from("member_contents")
-      .select("id, member_id, caption, status, confirmed, platform, created_at, note, images")
+      .select("id, member_id, caption, status, confirmed, platform, created_at, note, images, publish_link, publish_proof, published_at, published_by, updated_at, student_id")
       .eq("student_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);

@@ -8,6 +8,7 @@ import {
   evaluatePaymentRevocation,
 } from "@/lib/core/payment-gate";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
+import { activateSubscriptionForProject, SUBSCRIPTION_RULES } from "@/lib/brand-steward";
 
 export async function POST(req: NextRequest) {
   try {
@@ -92,6 +93,31 @@ export async function POST(req: NextRequest) {
     if (updateErr) throw updateErr;
     if (!updatedProject) {
       return NextResponse.json({ success: false, error: "订单状态已变化，请刷新后重试" }, { status: 409 });
+    }
+
+    // TICKET-122-R23：付款审核通过 → 品牌管家写订阅生效记录（不再靠人工改 plan/quota_total）。
+    // paidPlan 由客户付款截图上传页随截图提交（client_info.paidPlan）；
+    // 激活失败不阻塞付款确认（订单已收讫、Worker 正常排队），管理员可用
+    // POST /api/admin/subscriptions { action: "activate", projectId } 重试。
+    const paidPlan = String((ci as Record<string, unknown>).paidPlan || "").trim().toLowerCase();
+    if (paidPlan === SUBSCRIPTION_RULES.plan) {
+      try {
+        await activateSubscriptionForProject(supabaseAdmin, projectId, session.userId);
+        return NextResponse.json({
+          success: true,
+          status: "paid",
+          message: "已收款，正在生成",
+          subscription: { activated: true },
+        });
+      } catch (subErr) {
+        console.error("[mark-paid] 品牌管家订阅激活失败:", subErr);
+        return NextResponse.json({
+          success: true,
+          status: "paid",
+          message: "已收款，正在生成",
+          subscription: { activated: false, error: subErr instanceof Error ? subErr.message : "订阅激活失败" },
+        });
+      }
     }
 
     return NextResponse.json({ success: true, status: "paid", message: "已收款，正在生成" });

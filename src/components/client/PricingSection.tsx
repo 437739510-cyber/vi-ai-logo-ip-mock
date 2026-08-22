@@ -22,17 +22,17 @@ type PricingData = Record<string, PlanConfig>;
 // 默认（API不可用时的fallback）
 const FALLBACK_PLANS: PlanConfig[] = [
   {
-    name: "基础版", price: "49", period: "一次性", desc: "品牌基建，适合新店起步", enabled: true,
+    name: "基础版", price: "19", period: "一次性", desc: "品牌基建，适合新店起步", enabled: true,
     features: ["AI 生成品牌 Logo（多方案可选）", "品牌色板 + 字体规范", "基础 VI 手册（10-12 页）", "PDF 电子版交付", "3 个工作日交付", "商用版权全归你"],
     cta: "提交设计需求", href: "/consultation?plan=basic", highlight: false,
   },
   {
-    name: "标准版", price: "99", period: "一次性", desc: "全套打包，含 IP 公仔，适合老店焕新", enabled: true,
+    name: "标准版", price: "49", period: "一次性", desc: "全套打包，含 IP 公仔，适合老店焕新", enabled: true,
     features: ["基础版全部内容", "IP 公仔形象设计（设计师人工制作）", "完整 VI 手册（22+ 页）", "宣传物料 + 社媒模板", "PDF + PPTX 可编辑源文件", "1 次设计师精修", "5 个工作日交付", "商用版权全归你"],
     cta: "提交设计需求", href: "/consultation?plan=standard", highlight: true,
   },
   {
-    name: "品牌管家", price: "299", period: "/月", desc: "持续运营，拍照我们搞定", enabled: true,
+    name: "品牌管家", price: "199", period: "/月", desc: "持续运营，拍照我们搞定", enabled: true,
     features: ["每月 12 条品牌化内容", "每条 3-6 张成品图 + 文案", "AI 套品牌模板自动生成", "大学生代发小红书/抖音", "内容日历 + 排期管理", "停发即停费，不绑死"],
     cta: "开通品牌管家", href: "/member/login", highlight: false,
   },

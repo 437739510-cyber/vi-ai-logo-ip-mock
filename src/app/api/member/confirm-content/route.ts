@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { cookies } from "next/headers";
+import { generateSettlementForConfirmedContent } from "@/lib/student-settlement";
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,6 +37,14 @@ export async function POST(req: NextRequest) {
 
       if (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      }
+
+      // 确认事件 → 生成待结算流水（学生拿大头），并累计已确认单数/升级。
+      // 内容确认本身成功；结算生成失败不阻塞客户确认，仅记录错误。
+      try {
+        await generateSettlementForConfirmedContent(supabaseAdmin, contentId);
+      } catch (settleErr) {
+        console.error("[confirm-content] 生成结算流水失败:", settleErr);
       }
     } else {
       // 拒绝内容 — 标记为confirmed但状态回退

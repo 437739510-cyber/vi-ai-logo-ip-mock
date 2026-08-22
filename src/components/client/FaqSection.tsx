@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const FAQS = [
+const FALLBACK_PRICES = { basic: "19", standard: "49", manager: "199" } as const;
+
+function buildFaqs(p: { basic: string; standard: string; manager: string }) {
+  return [
   {
     q: "你们展示的案例为什么这么少？别的公司都标「服务过上千家」。",
     a: "我们宁可少、也要真。网站上每个案例都是真实客户、真实交付的 VI 手册，且都拿到客户本人书面授权才公开。我们过去也用过「服务 200+ 家」这类数字，但那不是真实能背书的，已全部删掉。案例会随我们拿到更多客户授权而一个个解锁——稳，但每一个都经得起查。",
@@ -51,20 +54,39 @@ const FAQS = [
   },
   {
     q: "怎么收费？",
-    a: "基础版 ¥49 / 标准版 ¥99 / 品牌管家 ¥299/月。新手建议先从标准版体验。",
+    a: `基础版 ¥${p.basic} / 标准版 ¥${p.standard} / 品牌管家 ¥${p.manager}/月。新手建议先从标准版体验。`,
   },
   {
-    q: "品牌管家 ¥299/月，比 ¥99 标准版多了啥？",
+    q: `品牌管家 ¥${p.manager}/月，比 ¥${p.standard} 标准版多了啥？`,
     a: "多了「有人管」：按月更新物料、换季出新图、随时改，不用您自己折腾，适合想长期经营的店。",
   },
   {
     q: "适合什么样的店？",
     a: "尤其适合实体小店（美容养生、餐饮、零售等）想低成本拥有品牌感。已展示真实案例：美容养生行业「百疗萃」。",
   },
-];
+  ];
+}
 
 export function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [pricing, setPricing] = useState<{ basic: string; standard: string; manager: string }>(FALLBACK_PRICES);
+
+  useEffect(() => {
+    fetch("/api/config/pricing")
+      .then((r) => r.json())
+      .then((d) => {
+        const p = d?.pricing;
+        if (!p) return;
+        setPricing({
+          basic: typeof p.basic?.price === "string" ? p.basic.price : FALLBACK_PRICES.basic,
+          standard: typeof p.standard?.price === "string" ? p.standard.price : FALLBACK_PRICES.standard,
+          manager: typeof p.manager?.price === "string" ? p.manager.price : FALLBACK_PRICES.manager,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const faqs = buildFaqs(pricing);
 
   return (
     <section className="py-20 bg-white" id="faq">
@@ -75,7 +97,7 @@ export function FaqSection() {
         </p>
 
         <div className="space-y-3">
-          {FAQS.map((faq, index) => {
+          {faqs.map((faq, index) => {
             const isOpen = openIndex === index;
             return (
               <div

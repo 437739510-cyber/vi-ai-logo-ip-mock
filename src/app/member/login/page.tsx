@@ -230,7 +230,7 @@ export default function MemberLoginPage() {
           </form>
 
           <p className="text-xs text-neutral-400 text-center mt-6">
-            开通会员¥299/月 · 注册即享2条免费体验
+            开通会员¥199/月 · 注册即享2条免费体验
           </p>
         </div>
 

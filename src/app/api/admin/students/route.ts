@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { hashPassword } from "@/lib/password";
 
 // GET: 获取大学生列表
 export async function GET() {
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from("student_accounts")
-      .insert({ phone, name, password_hash: password })
+      .insert({ phone, name, password_hash: hashPassword(password) })
       .select("id, phone, name, level, commission_rate, active, created_at")
       .single();
 

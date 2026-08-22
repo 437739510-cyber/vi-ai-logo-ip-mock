@@ -16,10 +16,12 @@ export default function StudentRegisterPage() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     try {
       const res = await fetch('/api/students/register', {
@@ -31,11 +33,17 @@ export default function StudentRegisterPage() {
       if (res.ok) {
         setSubmitted(true);
       } else {
-        // Even if API fails, show success for now (API may not exist yet)
-        setSubmitted(true);
+        let message = "提交失败，请稍后重试";
+        try {
+          const data = await res.json();
+          if (data && data.error) message = data.error;
+        } catch {
+          // 服务端返回非 JSON 时使用默认错误文案
+        }
+        setError(message);
       }
     } catch {
-      setSubmitted(true);
+      setError("网络错误，提交失败，请稍后重试");
     }
 
     setLoading(false);
@@ -135,6 +143,11 @@ export default function StudentRegisterPage() {
                 placeholder="简单说说您为什么想加入，有什么优势"
               />
             </div>
+            {error && (
+              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
             <button
               type="submit"
               disabled={loading}

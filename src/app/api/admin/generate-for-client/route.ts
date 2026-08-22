@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
+import { isClientAssigned } from "@/lib/student-assignment";
 
 // POST: 大学生为老板生成内容
 export async function POST(req: NextRequest) {
@@ -16,6 +17,11 @@ export async function POST(req: NextRequest) {
     const { memberId, note, platform } = await req.json();
     if (!memberId) {
       return NextResponse.json({ success: false, error: "请指定客户" }, { status: 400 });
+    }
+
+    // 越权门（GAP-C）：memberId 必须在该学生被分配的客户列表内，否则拒绝创建。
+    if (!(await isClientAssigned(supabaseAdmin, userId, memberId))) {
+      return NextResponse.json({ success: false, error: "无权限操作该客户（未分配）" }, { status: 403 });
     }
 
     // 获取大学生信息

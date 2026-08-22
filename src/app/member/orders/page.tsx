@@ -23,8 +23,8 @@ export default function MemberOrdersPage() {
         setOrders([
           {
             id: "ORD-20260601",
-            plan: "品牌管家 ¥299/月",
-            amount: 299,
+            plan: "品牌管家 ¥199/月",
+            amount: 199,
             status: "active",
             created_at: "2026-06-01",
           },

@@ -16,9 +16,9 @@ function PaymentContent() {
 
   // 动态定价（从管理后台配置读取）
   const FALLBACK: Record<string, { price: string; name: string; desc: string }> = {
-    basic: { price: "49", name: "基础版", desc: "Logo方案+VI手册" },
-    standard: { price: "99", name: "标准版", desc: "品牌故事+Logo+IP+完整VI" },
-    manager: { price: "299", name: "品牌管家", desc: "每月12条品牌化内容" },
+    basic: { price: "19", name: "基础版", desc: "Logo方案+VI手册" },
+    standard: { price: "49", name: "标准版", desc: "品牌故事+Logo+IP+完整VI" },
+    manager: { price: "199", name: "品牌管家", desc: "每月12条品牌化内容" },
   };
   const [planConfig, setPlanConfig] = useState(FALLBACK[plan] || FALLBACK.basic);
 
@@ -68,6 +68,7 @@ function PaymentContent() {
       const formData = new FormData();
       formData.append("file", screenshotFile);
       formData.append("projectId", projectId);
+      formData.append("plan", plan);
       const res = await fetch("/api/payment/upload-screenshot", {
         method: "POST",
         body: formData,

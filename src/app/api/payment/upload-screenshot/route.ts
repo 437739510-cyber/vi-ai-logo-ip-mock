@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const projectId = formData.get("projectId") as string;
+    const plan = (formData.get("plan") as string || "").trim();
 
     if (!file || !projectId) {
       return NextResponse.json({ error: "缺少文件或项目编号" }, { status: 400 });
@@ -59,6 +60,8 @@ export async function POST(req: NextRequest) {
     const clientInfo = (project.client_info as Record<string, any>) || {};
     clientInfo.paymentScreenshot = screenshotUrl;
     clientInfo.paymentUploadedAt = new Date().toISOString();
+    // TICKET-122-R23：随付款截图记录购买档位，供管理员确认付款时写订阅生效记录。
+    if (plan) clientInfo.paidPlan = plan.toLowerCase();
 
     const { error: updateErr } = await supabaseAdmin
       .from("projects")

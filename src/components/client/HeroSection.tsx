@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Sparkles, ArrowRight, CheckCircle } from "lucide-react";
@@ -12,6 +13,27 @@ const TRUST_ITEMS = [
 ];
 
 export function HeroSection() {
+  const [lowestPrice, setLowestPrice] = useState("19");
+
+  useEffect(() => {
+    fetch("/api/config/pricing")
+      .then((r) => r.json())
+      .then((d) => {
+        const pricing = d?.pricing;
+        if (!pricing) return;
+        const enabled = Object.values(pricing).filter(
+          (p: any) => p && typeof p.price === "string" && p.enabled !== false
+        );
+        if (enabled.length === 0) return;
+        const min = enabled.reduce(
+          (acc: number, p: any) => Math.min(acc, Number(p.price) || Infinity),
+          Infinity
+        );
+        if (Number.isFinite(min)) setLowestPrice(String(min));
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <section className="relative overflow-hidden bg-neutral-50">
       {/* Background glow */}
@@ -61,7 +83,7 @@ export function HeroSection() {
               transition={{ duration: 0.5, delay: 0.2 }}
             >
               不是你的错，是没人帮你。我们用 AI 生成 LOGO、IP 公仔、VI 手册，
-              低至 ¥49，让小巷深处的老店变成整条街最靓的铺。
+              低至 ¥{lowestPrice}，让小巷深处的老店变成整条街最靓的铺。
             </motion.p>
 
             {/* CTAs */}

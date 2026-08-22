@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogIn } from "lucide-react";
 import { cn } from "@/lib/core/utils";
+import { UnifiedLoginPanel } from "@/components/client/UnifiedLoginPanel";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -41,6 +43,13 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <Link href="/progress" className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors">
               进度查询
             </Link>
+            <button
+              onClick={() => setLoginOpen(true)}
+              className="inline-flex items-center gap-1.5 text-sm text-neutral-600 hover:text-neutral-900 transition-colors"
+            >
+              <LogIn className="w-4 h-4" />
+              登录
+            </button>
             <Link
               href="/consultation"
               className="inline-flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
@@ -70,6 +79,16 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <Link href="/progress" className="block text-sm text-neutral-600" onClick={() => setMenuOpen(false)}>
               进度查询
             </Link>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setLoginOpen(true);
+              }}
+              className="flex items-center gap-1.5 text-sm text-neutral-600"
+            >
+              <LogIn className="w-4 h-4" />
+              登录
+            </button>
           </div>
         )}
       </header>
@@ -93,6 +112,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           <p className="text-xs text-neutral-400">&copy; 2026 Brand Brain · 品牌顾问. All rights reserved.</p>
         </div>
       </footer>
+
+      <UnifiedLoginPanel open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   );
 }

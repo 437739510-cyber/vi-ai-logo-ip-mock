@@ -7,9 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 
 const DEFAULT_PRICING = {
-  basic: { price: "49", name: "基础版", period: "一次性", desc: "品牌基建，适合新店起步", enabled: true },
-  standard: { price: "99", name: "标准版", period: "一次性", desc: "全套打包，含 IP 公仔，适合老店焕新", enabled: true },
-  manager: { price: "299", name: "品牌管家", period: "/月", desc: "持续运营，拍照我们搞定", enabled: true },
+  basic: { price: "19", name: "基础版", period: "一次性", desc: "品牌基建，适合新店起步", enabled: true },
+  standard: { price: "49", name: "标准版", period: "一次性", desc: "全套打包，含 IP 公仔，适合老店焕新", enabled: true },
+  manager: { price: "199", name: "品牌管家", period: "/月", desc: "持续运营，拍照我们搞定", enabled: true },
 };
 
 const DEFAULT_LOGO_PRICING = {
@@ -19,9 +19,9 @@ const DEFAULT_LOGO_PRICING = {
 };
 
 const DEFAULT_COMMISSION = {
-  base: 30,
-  silver: 40,
-  gold: 50,
+  base: 72,
+  silver: 78,
+  gold: 83,
   upgradeOrders: { silver: 20, gold: 50 },
 };
 

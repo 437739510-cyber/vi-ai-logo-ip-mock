@@ -2,6 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -16,10 +17,42 @@ import {
   ChevronRight,
   Star,
   Zap,
+  ArrowRight,
 } from "lucide-react";
 import { PARTNER_CONFIG } from "@/lib/core/partner-config";
 
 const { contact, training } = PARTNER_CONFIG;
+
+interface PlanConfig {
+  key: string;
+  price: string;
+  name: string;
+  period: string;
+}
+
+interface CommissionConfig {
+  base: number;
+  silver: number;
+  gold: number;
+  upgradeOrders: { silver: number; gold: number };
+}
+
+const FALLBACK_PLANS: PlanConfig[] = [
+  { key: "basic", price: String(PARTNER_CONFIG.pricing.basic), name: "基础版", period: "一次性" },
+  { key: "standard", price: String(PARTNER_CONFIG.pricing.standard), name: "标准版", period: "一次性" },
+  { key: "premium", price: String(PARTNER_CONFIG.pricing.premium), name: "品牌管家", period: "/月" },
+];
+
+const FALLBACK_COMMISSION: CommissionConfig = {
+  base: PARTNER_CONFIG.commission.base,
+  silver: PARTNER_CONFIG.commission.silver,
+  gold: PARTNER_CONFIG.commission.gold,
+  upgradeOrders: { ...PARTNER_CONFIG.commission.upgradeOrders },
+};
+
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
 
 const steps = [
   {
@@ -48,6 +81,44 @@ const tasks = [
 
 
 export default function PartnerPage() {
+  const [plans, setPlans] = useState<PlanConfig[]>(FALLBACK_PLANS);
+  const [commission, setCommission] = useState<CommissionConfig>(FALLBACK_COMMISSION);
+
+  useEffect(() => {
+    fetch("/api/config/pricing")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.pricing && typeof d.pricing === "object") {
+          const dynamic = Object.entries(d.pricing as Record<string, { price: string | number; name: string; period?: string; enabled?: boolean }>)
+            .filter(([, p]) => p && p.enabled !== false)
+            .map(([key, p]) => ({ key, price: String(p.price), name: p.name, period: p.period || "" }));
+          if (dynamic.length > 0) setPlans(dynamic);
+        }
+        if (d?.commission && typeof d.commission === "object") {
+          const c = d.commission as CommissionConfig;
+          if (typeof c.base === "number" && typeof c.silver === "number" && typeof c.gold === "number") {
+            setCommission({
+              base: c.base,
+              silver: c.silver,
+              gold: c.gold,
+              upgradeOrders: {
+                silver: typeof c.upgradeOrders?.silver === "number" ? c.upgradeOrders.silver : FALLBACK_COMMISSION.upgradeOrders.silver,
+                gold: typeof c.upgradeOrders?.gold === "number" ? c.upgradeOrders.gold : FALLBACK_COMMISSION.upgradeOrders.gold,
+              },
+            });
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const standardPrice = parseFloat(plans.find((p) => p.key === "standard")?.price || "") || PARTNER_CONFIG.pricing.standard;
+  const tierRows = [
+    { name: "新手合伙人", ratio: commission.base, orders: 0, note: "起步即享" },
+    { name: "银级合伙人", ratio: commission.silver, orders: commission.upgradeOrders.silver, note: `累计 ${commission.upgradeOrders.silver} 单` },
+    { name: "金级合伙人", ratio: commission.gold, orders: commission.upgradeOrders.gold, note: `累计 ${commission.upgradeOrders.gold} 单` },
+  ];
+
   return (
     <div className="min-h-screen bg-white">
       {/* 顶栏 */}
@@ -206,6 +277,80 @@ export default function PartnerPage() {
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 收益与提成 */}
+        <section className="py-16 bg-white">
+          <div className="max-w-5xl mx-auto px-4">
+            <h2 className="text-2xl font-bold text-neutral-900 text-center mb-3">
+              收入怎么算
+            </h2>
+            <p className="text-center text-neutral-500 text-sm mb-12">
+              学生拿大头、平台拿小头，提成适用所有产品线
+            </p>
+
+            {/* 产品定价 */}
+            <div className="grid md:grid-cols-3 gap-6 mb-10">
+              {plans.map((plan) => (
+                <div
+                  key={plan.key}
+                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-center"
+                >
+                  <h3 className="font-bold text-neutral-900 mb-1">{plan.name}</h3>
+                  <p className="text-3xl font-bold text-primary">
+                    ¥{plan.price}
+                    {plan.period && (
+                      <span className="text-sm font-normal text-neutral-500 ml-1">
+                        {plan.period}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* 提成阶梯 */}
+            <div className="rounded-2xl border border-neutral-200 p-8">
+              <h3 className="font-bold text-neutral-900 mb-8 text-center">
+                提成阶梯（学生拿大头）
+              </h3>
+              <div className="flex flex-col md:flex-row items-stretch justify-center gap-4">
+                {tierRows.map((row, i) => (
+                  <div key={row.name} className="flex flex-col md:flex-row items-center gap-4">
+                    {i > 0 && (
+                      <ArrowRight className="w-5 h-5 text-neutral-300 shrink-0 hidden md:block" />
+                    )}
+                    <div
+                      className={`rounded-xl border px-6 py-5 text-center flex-1 min-w-[180px] ${
+                        i === 2
+                          ? "bg-amber-50 border-amber-200"
+                          : i === 1
+                            ? "bg-blue-50 border-blue-200"
+                            : "bg-neutral-50 border-neutral-200"
+                      }`}
+                    >
+                      <p className="text-sm text-neutral-500 mb-1">{row.name}</p>
+                      <p className="text-3xl font-bold text-neutral-900">{row.ratio}%</p>
+                      <p className="text-xs text-neutral-400 mt-1">平台 {100 - row.ratio}%</p>
+                      <p className="text-xs text-neutral-500 mt-2">{row.note}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-8 bg-neutral-50 rounded-xl p-4 text-sm text-neutral-600 text-center">
+                以标准版 ¥{standardPrice} 为例：新手每单约 ¥
+                {round2((standardPrice * commission.base) / 100).toFixed(2)}
+                ，银级每单约 ¥
+                {round2((standardPrice * commission.silver) / 100).toFixed(2)}
+                ，金级每单约 ¥
+                {round2((standardPrice * commission.gold) / 100).toFixed(2)}
+              </div>
+              <p className="text-xs text-neutral-400 text-center mt-4">
+                等级按累计已确认订单自动晋升（{commission.upgradeOrders.silver} 单银级 /{" "}
+                {commission.upgradeOrders.gold} 单金级），收益 = 客户实付价格 × 对应提成比例
+              </p>
             </div>
           </div>
         </section>

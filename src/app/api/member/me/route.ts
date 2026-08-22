@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { cookies } from "next/headers";
+import { getSubscription } from "@/lib/brand-steward";
 
 export async function GET() {
   try {
@@ -38,7 +39,15 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "用户不存在" }, { status: 401 });
     }
 
-    return NextResponse.json({ success: true, member });
+    // TICKET-122-R23：返回订阅状态（含周期起止），供「到期提醒」展示；订阅表未部署时静默降级。
+    let subscription = null;
+    try {
+      subscription = await getSubscription(supabaseAdmin, member.id);
+    } catch (e) {
+      console.error("[member/me] 查询订阅状态失败:", e);
+    }
+
+    return NextResponse.json({ success: true, member, subscription });
   } catch (err: any) {
     console.error("[member/me] Error:", err);
     return NextResponse.json({ success: false, error: "查询失败" }, { status: 500 });

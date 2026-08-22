@@ -1,10 +1,32 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 
 export function BottomCtaSection() {
+  const [lowestPrice, setLowestPrice] = useState("19");
+
+  useEffect(() => {
+    fetch("/api/config/pricing")
+      .then((r) => r.json())
+      .then((d) => {
+        const pricing = d?.pricing;
+        if (!pricing) return;
+        const enabled = Object.values(pricing).filter(
+          (p: any) => p && typeof p.price === "string" && p.enabled !== false
+        );
+        if (enabled.length === 0) return;
+        const min = enabled.reduce(
+          (acc: number, p: any) => Math.min(acc, Number(p.price) || Infinity),
+          Infinity
+        );
+        if (Number.isFinite(min)) setLowestPrice(String(min));
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <section className="py-20 bg-gradient-to-b from-white to-primary/5">
       <div className="max-w-3xl mx-auto px-4 text-center">
@@ -32,7 +54,7 @@ export function BottomCtaSection() {
               href="/member/login"
               className="inline-flex items-center px-8 py-3.5 border border-primary text-primary text-base font-medium rounded-xl hover:bg-primary/5 transition-colors"
             >
-              提交设计需求 ¥49起
+              提交设计需求 ¥{lowestPrice}起
             </Link>
             <Link
               href="/partner"

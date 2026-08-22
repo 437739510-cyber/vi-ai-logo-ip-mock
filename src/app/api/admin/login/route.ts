@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { ADMIN_SESSION_COOKIE, adminSessionCookieOptions, createAdminSession } from "@/lib/core/admin-session";
+import { hashPassword, verifyPassword, isPasswordHash } from "@/lib/password";
 
 const LEGACY_COOKIES = ["admin_auth", "admin_role", "admin_user_id"] as const;
 
@@ -50,8 +51,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "账号已停用，请联系管理员" }, { status: 403 });
     }
 
-    if (password !== student.password_hash) {
+    const stored = student.password_hash;
+    const isHash = isPasswordHash(stored);
+    if (!verifyPassword(password, stored)) {
       return NextResponse.json({ success: false, error: "手机号或密码错误" }, { status: 401 });
+    }
+
+    // 懒迁移：旧明文账号登录成功后，立即用哈希覆盖该行，平滑无感升级
+    if (!isHash) {
+      await supabaseAdmin
+        .from("student_accounts")
+        .update({ password_hash: hashPassword(password) })
+        .eq("id", student.id);
     }
 
     return authenticatedResponse("student", student.id, student.name);

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { cookies } from "next/headers";
 import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
+import { checkMemberQuota, consumeMemberQuota } from "@/lib/brand-steward";
 
 const ALIYUN_API = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
@@ -23,13 +24,16 @@ export async function POST(req: NextRequest) {
       .from("members").select("id, phone, plan, quota_used, quota_total").eq("id", session.member_id).single();
     if (!member) return NextResponse.json({ success: false, error: "用户不存在" }, { status: 401 });
 
-    // 检查配额
-    if (member.quota_used >= member.quota_total) {
-      const isFree = member.plan === "free" || !member.plan;
+    // 检查配额（TICKET-122-R23：订阅状态机接入——到期/暂停直接拒绝）
+    const quota = await checkMemberQuota(supabaseAdmin, member.id);
+    if (!quota.allowed) {
+      const isFree = quota.member?.plan === "free" || !quota.member?.plan;
       return NextResponse.json({
         success: false,
-        error: isFree ? "免费体验已用完，开通会员¥299/月" : "本月配额已用完",
-        needUpgrade: isFree,
+        error: quota.reason === "exhausted"
+          ? (isFree ? "免费体验已用完，开通会员¥199/月" : "本月配额已用完")
+          : quota.message,
+        needUpgrade: quota.needUpgrade,
       }, { status: 400 });
     }
 
@@ -82,8 +86,8 @@ export async function POST(req: NextRequest) {
       platform: platform,
     }).eq("id", contentId);
 
-    // 扣配额
-    await supabaseAdmin.from("members").update({ quota_used: member.quota_used + 1 }).eq("id", member.id);
+    // 扣配额（TICKET-122-R23：走订阅感知服务层，保持既有扣减语义）
+    await consumeMemberQuota(supabaseAdmin, member.id);
 
     // V89: 写入qwen-vl成本到api_usage_log
     if (vlCost > 0) {
