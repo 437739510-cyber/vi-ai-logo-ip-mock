@@ -150,8 +150,8 @@ pending → brand_analyzing → logo_generating → logo_selecting → scene_ren
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://fzoscrutqhdfzwnjgjvs.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
-DEEPSEEK_API_KEY=sk-f10a2e2e846f4b50982de464795e6149
-ALIYUN_API_KEY=sk-1337d8b2d6944fd792f0650c004aa43a
+DEEPSEEK_API_KEY=<已移入 .env.local>
+ALIYUN_API_KEY=<已移入 .env.local>
 ```
 
 ### Supabase Storage Buckets

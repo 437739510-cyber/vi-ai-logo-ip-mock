@@ -1,21 +1,53 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
-const COMPARISON_ROWS = [
+interface ComparisonRow {
+  label: string;
+  designer: string;
+  agency: string;
+  bb: string;
+  dynamicPrice?: boolean;
+}
+
+const PRICE_FALLBACK = "¥19 一次性";
+
+const COMPARISON_ROWS: ComparisonRow[] = [
   { label: "完整 VI 手册成册交付", designer: "多为零散素材", agency: "有但贵", bb: "22+ 页成册手册" },
   { label: "行业知识库（美甲/洗车/餐饮不串味）", designer: "通用套路", agency: "部分", bb: "按行业定制" },
   { label: "中文核字与质量门（不乱码）", designer: "靠个人经验", agency: "人工把关", bb: "双重质量门+视觉核字" },
   { label: "IP 公仔（三视图/表情/场景）", designer: "很少做", agency: "额外收费", bb: "标准版含" },
   { label: "需要自己动手", designer: "要", agency: "反复沟通", bb: "填表即可" },
-  { label: "价格", designer: "约 ¥1,000-5,000/套", agency: "约 ¥10,000-50,000/套", bb: "¥49 起/套（一次性）" },
+  { label: "价格", designer: "约 ¥1,000-5,000/套", agency: "约 ¥10,000-50,000/套", bb: PRICE_FALLBACK, dynamicPrice: true },
   { label: "交付时间", designer: "1-2 周", agency: "1-2 月", bb: "3-5 个工作日" },
   { label: "版权归属", designer: "视约定", agency: "归客户", bb: "商用版权 100% 归客户" },
 ];
 
 export function ComparisonSection() {
+  const [basicPrice, setBasicPrice] = useState<{ price: string; period: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/config/pricing")
+      .then((r) => r.json())
+      .then((d) => {
+        const basic = d?.pricing?.basic;
+        if (basic && basic.enabled !== false && typeof basic.price === "string") {
+          setBasicPrice({
+            price: basic.price,
+            period: typeof basic.period === "string" ? basic.period : "",
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const priceText = basicPrice
+    ? `¥${basicPrice.price} ${basicPrice.period}`.trim()
+    : PRICE_FALLBACK;
+
   return (
     <section className="py-20 bg-white" id="comparison">
       <div className="max-w-6xl mx-auto px-4">
@@ -76,7 +108,7 @@ export function ComparisonSection() {
                       {row.agency}
                     </td>
                     <td className="border-x-2 border-primary/40 bg-primary/5 px-6 py-4 text-center font-semibold text-neutral-900">
-                      {row.bb}
+                      {row.dynamicPrice ? priceText : row.bb}
                     </td>
                   </tr>
                 ))}
