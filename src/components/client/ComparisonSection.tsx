@@ -13,7 +13,7 @@ interface ComparisonRow {
   dynamicPrice?: boolean;
 }
 
-const PRICE_FALLBACK = "¥19 一次性";
+const PRICE_FALLBACK = "¥19 起 一次性";
 
 const COMPARISON_ROWS: ComparisonRow[] = [
   { label: "完整 VI 手册成册交付", designer: "多为零散素材", agency: "有但贵", bb: "22+ 页成册手册" },
@@ -45,7 +45,7 @@ export function ComparisonSection() {
   }, []);
 
   const priceText = basicPrice
-    ? `¥${basicPrice.price} ${basicPrice.period}`.trim()
+    ? `¥${basicPrice.price} 起 ${basicPrice.period}`.trim()
     : PRICE_FALLBACK;
 
   return (
