@@ -2,155 +2,58 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CaseCard } from "./CaseCard";
-
-interface FilterOption {
-  key: string;
-  label: string;
-}
-
-interface CaseItem {
-  id: string;
-  company: string;
-  industry: string;        // 用于筛选
-  industryLabel: string;   // 显示标签
-  deliverables: string[];  // 亮点标签
-  pageCount: number;       // 手册页数
-  coverImage: string;      // 主缩略图
-  images: string[];        // 更多截图（后续 lightbox 用）
-}
-
-
-const CASES: CaseItem[] = [
-  {
-    id: "bailiaocui-manual",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["VI 手册", "23 页完整设计"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/01-logo-primary.png",
-    images: [],
-  },
-  {
-    id: "bailiaocui-bottle",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["产品包装", "精油瓶贴设计"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/06-mockup-oil-bottle.jpg",
-    images: [],
-  },
-  {
-    id: "bailiaocui-gift",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["包装设计", "礼盒包装"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/07-mockup-gift-box.jpg",
-    images: [],
-  },
-  {
-    id: "bailiaocui-card",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["会员体系", "会员卡设计"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/05-mockup-membership-card.jpg",
-    images: [],
-  },
-  {
-    id: "bailiaocui-nail",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["物料设计", "美甲色板卡"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/04-mockup-nail-card.jpg",
-    images: [],
-  },
-  {
-    id: "bailiaocui-palette",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["VI 体系", "品牌色彩规范"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/02-color-palette.png",
-    images: [],
-  },
-  {
-    id: "bailiaocui-mascot",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["IP 公仔", "品牌角色设计"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/09-mascot.png",
-    images: [],
-  },
-  {
-    id: "bailiaocui-mascot-membership",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["IP 公仔", "会员场景应用"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/10-mascot-scene-membership.png",
-    images: [],
-  },
-  {
-    id: "bailiaocui-mascot-packaging",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["IP 公仔", "包装场景应用"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/11-mascot-scene-packaging.png",
-    images: [],
-  },
-  {
-    id: "bailiaocui-mascot-side",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["IP 公仔", "三视图·侧面"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/16-mascot-side.png",
-    images: [],
-  },
-  {
-    id: "bailiaocui-mascot-back",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["IP 公仔", "三视图·背面"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/17-mascot-back.png",
-    images: [],
-  },
-  {
-    id: "bailiaocui-mascot-3view",
-    company: "百疗萃",
-    industry: "beauty",
-    industryLabel: "美容养生",
-    deliverables: ["IP 公仔", "三视图合集"],
-    pageCount: 23,
-    coverImage: "/cases/bailiaocui/18-mascot-3view-sheet.png",
-    images: [],
-  },
-];
-
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { CASES, getCaseIndustries, type CaseInfo } from "@/lib/cases";
 
 const FILTERS = [
   { key: "all", label: "全部" },
-  { key: "beauty", label: "美容养生" },
+  ...getCaseIndustries().map((industry) => ({ key: industry, label: industry })),
 ];
 
-// ======== COMPONENT ========
+function CaseCard({ item }: { item: CaseInfo }) {
+  return (
+    <motion.div layout className="group h-full">
+      <Link
+        href={`/cases/${item.slug}`}
+        className="block h-full bg-white rounded-2xl overflow-hidden border border-neutral-100 shadow-sm hover:shadow-md transition-shadow"
+      >
+        {/* Cover image */}
+        <div className="relative aspect-[4/3] overflow-hidden bg-neutral-50">
+          <Image
+            src={item.cover}
+            alt={item.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 768px) 50vw, 33vw"
+          />
+          {/* Hover overlay */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">
+            <span className="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-1.5">
+              查看案例 <ArrowRight className="w-4 h-4" />
+            </span>
+          </div>
+        </div>
+
+        {/* Info */}
+        <div className="p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
+              {item.industry}
+            </span>
+            {item.city ? (
+              <span className="text-xs text-neutral-400">{item.city}</span>
+            ) : null}
+          </div>
+          <h3 className="text-sm font-semibold text-neutral-900">{item.name}</h3>
+          <p className="text-xs text-neutral-500 line-clamp-2">{item.tagline}</p>
+        </div>
+      </Link>
+    </motion.div>
+  );
+}
+
 export function CaseCarousel() {
   const [activeFilter, setActiveFilter] = useState("all");
 
@@ -215,18 +118,7 @@ export function CaseCarousel() {
               transition={{ duration: 0.3 }}
             >
               {filteredCases.map((c) => (
-                <CaseCard
-                  key={c.id}
-                  company={c.company}
-                  industryLabel={c.industryLabel}
-                  deliverables={c.deliverables}
-                  pageCount={c.pageCount}
-                  coverImage={c.coverImage}
-                  onClick={() => {
-                    // 后续可接 lightbox/详情 Modal
-                    // 当前版本点击无操作，hover 有提示
-                  }}
-                />
+                <CaseCard key={c.slug} item={c} />
               ))}
             </motion.div>
           </AnimatePresence>
