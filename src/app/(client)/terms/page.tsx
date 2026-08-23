@@ -19,20 +19,20 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-neutral-900">2. 服务套餐</h2>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong>基础版（¥19）</strong>：包含Logo方案生成，3个工作日内交付</li>
-            <li><strong>标准版（¥49）</strong>：包含Logo方案 + VI手册，3个工作日内交付</li>
+            <li><strong>基础版（¥19）</strong>：包含 Logo 方案生成 + 品牌色板与字体规范，3-5 个工作日内交付</li>
+            <li><strong>标准版（¥49）</strong>：包含 Logo 方案 + VI 手册，3-5 个工作日内交付</li>
             <li><strong>品牌管家（¥199/月）</strong>：包含每月品牌化内容生成与代发服务</li>
           </ul>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-neutral-900">3. 付款与退款</h2>
-          <p>付款后即开始服务流程。如对生成结果不满意，可在交付后7日内申请一次免费修改。因AI生成结果的特殊性，已交付的数字内容不支持全额退款。</p>
+          <p>付款后即开始服务流程。未开始人工服务前可申请全额退款；交付后 7 日内可申请免费修改（标准版 2 次）。因 AI 生成结果的特殊性，已交付的数字内容不支持全额退款。额外费用：加急 24 小时交付加收 50%；额外内容 ¥30/条；修改超出免费次数 ¥50/次。</p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-neutral-900">4. 知识产权</h2>
-          <p>您通过本平台生成的Logo和VI方案，在完成付款后其使用权归您所有。本平台保留在作品展示中使用匿名化案例的权利。</p>
+          <p>您通过本平台生成的Logo和VI方案，在完成付款后其使用权与商用许可归您所有。本平台保留在作品展示中使用匿名化案例的权利。</p>
         </section>
 
         <section>

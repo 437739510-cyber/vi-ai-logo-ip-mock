@@ -280,7 +280,7 @@ export function ChatWidget() {
       const result = await res.json();
       setStep("done");
       addBotMsg(
-        `✅ **提交成功！**\n\n您的项目编号：**${result.projectId}**\n查看密码：**${result.viewPassword}**\n\n我们将在1-2个工作日内为您完成品牌设计！🎉\n\n📱 请截图保存项目编号和密码，后续可查看进度`,
+        `✅ **提交成功！**\n\n您的项目编号：**${result.projectId}**\n查看密码：**${result.viewPassword}**\n\n我们将在3-5个工作日内为您完成品牌设计！🎉\n\n📱 请截图保存项目编号和密码，后续可查看进度`,
         "result"
       );
     } catch (err: any) {

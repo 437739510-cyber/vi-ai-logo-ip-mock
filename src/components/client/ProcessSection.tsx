@@ -18,7 +18,7 @@ const STEPS = [
   {
     icon: FileCheck,
     title: "专业交付",
-    description: "AI 生成 + 设计师精修后，交付完整 VI 手册。基础版 PDF 交付，标准版另含 PPTX 可编辑源文件，商用版权全归您",
+    description: "AI 生成 + 设计师精修后，交付完整 VI 手册。基础版 PDF 交付，标准版另含 PPTX 可编辑源文件，商用授权归您",
   },
 ];
 

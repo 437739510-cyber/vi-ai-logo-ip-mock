@@ -23,12 +23,12 @@ type PricingData = Record<string, PlanConfig>;
 const FALLBACK_PLANS: PlanConfig[] = [
   {
     name: "基础版", price: "19", period: "一次性", desc: "品牌基建，适合新店起步", enabled: true,
-    features: ["AI 生成品牌 Logo（多方案可选）", "品牌色板 + 字体规范", "基础 VI 手册（10-12 页）", "PDF 电子版交付", "3 个工作日交付", "商用版权全归你"],
+    features: ["AI 生成品牌 Logo（多方案可选）", "品牌色板 + 字体规范", "PDF 电子版交付", "3-5 个工作日交付", "商用授权归你"],
     cta: "提交设计需求", href: "/consultation?plan=basic", highlight: false,
   },
   {
     name: "标准版", price: "49", period: "一次性", desc: "全套打包，含 IP 公仔，适合老店焕新", enabled: true,
-    features: ["基础版全部内容", "IP 公仔形象设计（设计师人工制作）", "完整 VI 手册（22+ 页）", "宣传物料 + 社媒模板", "PDF + PPTX 可编辑源文件", "1 次设计师精修", "5 个工作日交付", "商用版权全归你"],
+    features: ["基础版全部内容", "IP 公仔形象设计（设计师人工制作）", "完整 VI 手册（22+ 页）", "宣传物料 + 社媒模板", "PDF + PPTX 可编辑源文件", "2 次设计师精修", "3-5 个工作日交付", "商用授权归你"],
     cta: "提交设计需求", href: "/consultation?plan=standard", highlight: true,
   },
   {
@@ -40,11 +40,11 @@ const FALLBACK_PLANS: PlanConfig[] = [
 // key到features/cta/href的映射
 const PLAN_EXTRAS: Record<string, { features: string[]; cta: string; href: string; highlight: boolean }> = {
   basic: {
-    features: ["AI 生成品牌 Logo（多方案可选）", "品牌色板 + 字体规范", "基础 VI 手册（10-12 页）", "PDF 电子版交付", "3 个工作日交付", "商用版权全归你"],
+    features: ["AI 生成品牌 Logo（多方案可选）", "品牌色板 + 字体规范", "PDF 电子版交付", "3-5 个工作日交付", "商用授权归你"],
     cta: "提交设计需求", href: "/consultation?plan=basic", highlight: false,
   },
   standard: {
-    features: ["基础版全部内容", "IP 公仔形象设计（设计师人工制作）", "完整 VI 手册（22+ 页）", "宣传物料 + 社媒模板", "PDF + PPTX 可编辑源文件", "1 次设计师精修", "5 个工作日交付", "商用版权全归你"],
+    features: ["基础版全部内容", "IP 公仔形象设计（设计师人工制作）", "完整 VI 手册（22+ 页）", "宣传物料 + 社媒模板", "PDF + PPTX 可编辑源文件", "2 次设计师精修", "3-5 个工作日交付", "商用授权归你"],
     cta: "提交设计需求", href: "/consultation?plan=standard", highlight: true,
   },
   manager: {

@@ -16,13 +16,13 @@ const TRUST_ITEMS = [
   },
   {
     icon: Copyright,
-    title: "版权全归您",
-    desc: "所有生成的Logo、VI素材商用版权100%归您所有",
+    title: "商用授权归您",
+    desc: "交付文件可自由商用，不用于其他客户",
   },
   {
     icon: RotateCcw,
-    title: "7天不满意退款",
-    desc: "交付后7天内不满意，全额退款，零风险",
+    title: "7天售后保障",
+    desc: "未进入人工服务可全额退，已交付源文件按规则修改或退款",
   },
   {
     icon: Lock,
@@ -85,7 +85,7 @@ export function TrustSection() {
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <p className="text-sm text-neutral-400">
-            已交付真实 VI 手册 ｜ 7 天不满意全额退款，零风险
+            已交付真实 VI 手册 ｜ 7 天售后保障，规则透明
           </p>
         </motion.div>
       </div>

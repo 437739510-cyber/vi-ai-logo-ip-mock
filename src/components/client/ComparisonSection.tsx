@@ -23,7 +23,7 @@ const COMPARISON_ROWS: ComparisonRow[] = [
   { label: "需要自己动手", designer: "要", agency: "反复沟通", bb: "填表即可" },
   { label: "价格", designer: "约 ¥1,000-5,000/套", agency: "约 ¥10,000-50,000/套", bb: PRICE_FALLBACK, dynamicPrice: true },
   { label: "交付时间", designer: "1-2 周", agency: "1-2 月", bb: "3-5 个工作日" },
-  { label: "版权归属", designer: "视约定", agency: "归客户", bb: "商用版权 100% 归客户" },
+  { label: "版权归属", designer: "视约定", agency: "归客户", bb: "商用授权归客户" },
 ];
 
 export function ComparisonSection() {
