@@ -21,6 +21,14 @@ interface ApproveInfo {
   initialPassword: string;
 }
 
+interface SettlementRules {
+  base: { ratio: number; level: string };
+  silver: { ratio: number; level: string };
+  gold: { ratio: number; level: string };
+  silverOrders: number;
+  goldOrders: number;
+}
+
 export default function StudentApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +37,7 @@ export default function StudentApplicationsPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
   const [approveInfo, setApproveInfo] = useState<ApproveInfo | null>(null);
+  const [rules, setRules] = useState<SettlementRules | null>(null);
 
   const fetchApplications = useCallback(async () => {
     setLoading(true);
@@ -48,7 +57,13 @@ export default function StudentApplicationsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchApplications(); }, [fetchApplications]);
+  useEffect(() => {
+    fetchApplications();
+    fetch("/api/admin/commission-rules")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setRules(d.rules || null); })
+      .catch(() => {});
+  }, [fetchApplications]);
 
   const handleApprove = async (app: Application) => {
     setActionLoading(app.id);
@@ -115,7 +130,9 @@ export default function StudentApplicationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-neutral-900">学生申请审核</h2>
-          <p className="text-sm text-neutral-500 mt-1">审核通过将一键创建大学生账号（提成默认30%），并回写申请状态</p>
+          <p className="text-sm text-neutral-500 mt-1">
+            审核通过将一键创建大学生账号（提成按累计已确认单数实时计算：新手 {rules?.base.ratio ?? "-"}% → 银级 {rules?.silver.ratio ?? "-"}%（满 {rules?.silverOrders ?? "-"} 单）→ 金级 {rules?.gold.ratio ?? "-"}%（满 {rules?.goldOrders ?? "-"} 单）），并回写申请状态
+          </p>
         </div>
         <button onClick={fetchApplications}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 text-sm">

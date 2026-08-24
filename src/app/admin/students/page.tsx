@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { GraduationCap, Phone, Plus, RefreshCw, Trash2, CheckCircle, XCircle, Coins, Pencil, Check, X, Link2, Unlink, Loader2, Inbox } from "lucide-react";
+import { GraduationCap, Phone, Plus, RefreshCw, Trash2, CheckCircle, XCircle, Link2, Unlink, Loader2, Inbox } from "lucide-react";
 
 interface Student {
   id: string;
@@ -12,6 +12,14 @@ interface Student {
   commission_rate: number;
   active: boolean;
   created_at: string;
+}
+
+interface SettlementRules {
+  base: { ratio: number; level: string };
+  silver: { ratio: number; level: string };
+  gold: { ratio: number; level: string };
+  silverOrders: number;
+  goldOrders: number;
 }
 
 interface Assignment {
@@ -48,12 +56,10 @@ export default function StudentsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState({ phone: "", name: "", password: "", commission_rate: 72 });
+  const [addForm, setAddForm] = useState({ phone: "", name: "", password: "" });
   const [addError, setAddError] = useState("");
   const [addLoading, setAddLoading] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingRate, setEditingRate] = useState<string>("");
-  const [rateSaving, setRateSaving] = useState(false);
+  const [rules, setRules] = useState<SettlementRules | null>(null);
 
   // 归属管理
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -70,6 +76,7 @@ export default function StudentsPage() {
       const res = await fetch("/api/admin/students");
       const data = await res.json();
       setStudents(data.students || []);
+      setRules(data.rules || null);
     } catch {
       console.error("获取大学生列表失败");
     } finally {
@@ -126,7 +133,7 @@ export default function StudentsPage() {
       const data = await res.json();
       if (data.success) {
         setShowAdd(false);
-        setAddForm({ phone: "", name: "", password: "", commission_rate: 72 });
+        setAddForm({ phone: "", name: "", password: "" });
         fetchStudents();
       } else {
         setAddError(data.error || "添加失败");
@@ -167,42 +174,6 @@ export default function StudentsPage() {
     }
   };
 
-  const handleSaveRate = async (id: string) => {
-    const rate = Number(editingRate);
-    if (isNaN(rate) || rate < 0 || rate > 100) {
-      alert("提成比例需在0-100之间");
-      return;
-    }
-    setRateSaving(true);
-    try {
-      const res = await fetch(`/api/admin/students/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ commission_rate: rate }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setStudents(prev => prev.map(s => s.id === id ? { ...s, commission_rate: rate } : s));
-        setEditingId(null);
-      } else {
-        alert(data.error || "保存失败");
-      }
-    } catch {
-      alert("网络错误");
-    } finally {
-      setRateSaving(false);
-    }
-  };
-
-  const startEditRate = (id: string, currentRate: number) => {
-    setEditingId(id);
-    setEditingRate(String(currentRate));
-  };
-
-  const cancelEditRate = () => {
-    setEditingId(null);
-    setEditingRate("");
-  };
 
   const handleConfirm = async (a: Assignment) => {
     setActionLoading(`${a.studentId}:${a.projectId}`);
@@ -281,6 +252,9 @@ export default function StudentsPage() {
         <div>
           <h2 className="text-xl font-bold text-neutral-900">大学生管理</h2>
           <p className="text-sm text-neutral-500 mt-1">管理大学生账号，并处理学生的客户归属申请</p>
+          <p className="text-xs text-neutral-400 mt-1">
+            提成按累计已确认单数实时计算：新手 {rules?.base.ratio ?? "-"}% → 银级 {rules?.silver.ratio ?? "-"}%（满 {rules?.silverOrders ?? "-"} 单）→ 金级 {rules?.gold.ratio ?? "-"}%（满 {rules?.goldOrders ?? "-"} 单）
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowAdd(true)}
@@ -349,17 +323,10 @@ export default function StudentsPage() {
                       placeholder="11位手机号" maxLength={11} className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-neutral-600 mb-1 block">登录密码</label>
-                    <input type="text" value={addForm.password} onChange={e => setAddForm({ ...addForm, password: e.target.value })}
-                      placeholder="设置登录密码" className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20" />
-                  </div>
-                  <div>
-                    <label className="text-sm text-neutral-600 mb-1 block">初始提成比例（%）</label>
-                    <input type="number" min={0} max={100} value={addForm.commission_rate} onChange={e => setAddForm({ ...addForm, commission_rate: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20" />
-                  </div>
+                <div>
+                  <label className="text-sm text-neutral-600 mb-1 block">登录密码</label>
+                  <input type="text" value={addForm.password} onChange={e => setAddForm({ ...addForm, password: e.target.value })}
+                    placeholder="设置登录密码" className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/20" />
                 </div>
                 {addError && <p className="text-sm text-red-500">{addError}</p>}
                 <div className="flex gap-3">
@@ -409,32 +376,9 @@ export default function StudentsPage() {
                       </td>
                       <td className="px-4 py-3 text-right text-neutral-700 font-medium">{s.total_orders}</td>
                       <td className="px-4 py-3 text-right">
-                        {editingId === s.id ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <input type="number" min={0} max={100} value={editingRate}
-                              onChange={e => setEditingRate(e.target.value)}
-                              onKeyDown={e => { if (e.key === "Enter") handleSaveRate(s.id); if (e.key === "Escape") cancelEditRate(); }}
-                              className="w-16 px-2 py-1 border border-neutral-300 rounded text-sm text-right focus:outline-none focus:ring-2 focus:ring-neutral-900/20"
-                              autoFocus />
-                            <span className="text-neutral-500 text-xs">%</span>
-                            <button onClick={() => handleSaveRate(s.id)} disabled={rateSaving}
-                              className="p-1 rounded bg-green-50 text-green-600 hover:bg-green-100 disabled:opacity-50">
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={cancelEditRate}
-                              className="p-1 rounded bg-red-50 text-red-500 hover:bg-red-100">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button onClick={() => startEditRate(s.id, s.commission_rate)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-amber-50 transition-colors group cursor-pointer"
-                            title="点击修改提成比例">
-                            <Coins className="w-3 h-3 text-amber-500" />
-                            <span className="font-medium text-neutral-700">{s.commission_rate}%</span>
-                            <Pencil className="w-3 h-3 text-neutral-300 group-hover:text-amber-500 transition-colors" />
-                          </button>
-                        )}
+                        <span className="font-medium text-neutral-700" title="按累计已确认单数实时计算，与结算逻辑一致">
+                          {s.commission_rate}%
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
