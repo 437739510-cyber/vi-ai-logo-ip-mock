@@ -173,15 +173,15 @@ export default function TemplatesPage() {
           <Grid3X3 className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
           <p className="text-sm text-neutral-400">暂无模板</p>
           <p className="text-xs text-neutral-300 mt-1">上传并分析参考 VI 手册后将自动生成模板</p>
-          <Link href="/admin/upload" className="inline-flex items-center gap-1 mt-4 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors">
-            去新增模板
-          </Link>
+          <span className="inline-flex items-center gap-1 mt-4 px-4 py-2 bg-neutral-100 text-neutral-400 text-sm font-medium rounded-lg cursor-not-allowed select-none">
+            新增模板功能即将上线
+          </span>
         </div>
       ) : filtered.length === 1 ? (
         <div>
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
             <p className="text-sm text-blue-700">目前仅有 1 个模板</p>
-            <Link href="/admin/upload" className="text-xs text-primary underline mt-1 inline-block">去新增模板 →</Link>
+            <span className="text-xs text-neutral-400 underline mt-1 inline-block cursor-not-allowed select-none">新增模板功能即将上线</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(tpl => (
