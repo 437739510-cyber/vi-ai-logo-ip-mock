@@ -11,10 +11,10 @@ interface FormFieldConfig {
 }
 
 const FIELD_TYPE_LABELS: Record<string, string> = {
-  text: "\u6587\u672c",
-  select: "\u4e0b\u62c9",
-  number: "\u6570\u5b57",
-  file: "\u6587\u4ef6",
+  text: "文本",
+  select: "下拉",
+  number: "数字",
+  file: "文件",
 };
 
 const FIELD_TYPE_COLORS: Record<string, string> = {
@@ -59,13 +59,13 @@ export default function BasicInfoPage() {
         setFields((prev) =>
           prev.map((f) => (f.field_key === fieldKey ? { ...f, required: !required } : f))
         );
-        showToast("error", "\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5");
+        showToast("error", "保存失败，请重试");
       }
     } catch {
       setFields((prev) =>
         prev.map((f) => (f.field_key === fieldKey ? { ...f, required: !required } : f))
       );
-      showToast("error", "\u7f51\u7edc\u9519\u8bef");
+      showToast("error", "网络错误");
     }
   };
 
@@ -95,18 +95,18 @@ export default function BasicInfoPage() {
           <SlidersHorizontal className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-neutral-900">\u57fa\u672c\u4fe1\u606f</h1>
-          <p className="text-xs text-neutral-500">\u63a7\u5236\u63d0\u4ea4\u8868\u5355\u4e2d\u5404\u5b57\u6bb5\u662f\u5426\u5fc5\u586b\uff0c\u70b9\u5f00\u5173\u5373\u65f6\u751f\u6548</p>
+          <h1 className="text-xl font-bold text-neutral-900">基本信息</h1>
+          <p className="text-xs text-neutral-500">控制提交表单中各字段是否必填，点开关即时生效</p>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
         <div className="px-5 py-3 bg-neutral-50 border-b border-neutral-200">
           <div className="grid grid-cols-12 gap-4 text-xs font-medium text-neutral-500">
-            <div className="col-span-5">\u5b57\u6bb5\u540d\u79f0</div>
-            <div className="col-span-2">\u7c7b\u578b</div>
-            <div className="col-span-3">\u72b6\u6001</div>
-            <div className="col-span-2">\u5fc5\u586b\u5f00\u5173</div>
+            <div className="col-span-5">字段名称</div>
+            <div className="col-span-2">类型</div>
+            <div className="col-span-3">状态</div>
+            <div className="col-span-2">必填开关</div>
           </div>
         </div>
         <div className="divide-y divide-neutral-100">
@@ -141,12 +141,15 @@ export default function BasicInfoPage() {
                       field.required ? "bg-red-500" : "bg-neutral-400"
                     }`}
                   />
-                  {field.required ? "\u5fc5\u586b" : "\u9009\u586b"}
+                  {field.required ? "必填" : "选填"}
                 </span>
               </div>
-              <div className="col-span-2 flex items-center">
+              <div className="col-span-2 flex items-center gap-2">
                 <button
                   type="button"
+                  role="switch"
+                  aria-checked={field.required}
+                  aria-label={`${field.label}（${field.field_key}）：${field.required ? "必填（开）" : "选填（关）"}，点击切换`}
                   onClick={() => toggleField(field.field_key, !field.required)}
                   className={`relative w-10 h-5 rounded-full transition-colors ${
                     field.required ? "bg-primary" : "bg-neutral-300"
@@ -158,6 +161,9 @@ export default function BasicInfoPage() {
                     }`}
                   />
                 </button>
+                <span className={`text-[10px] font-medium ${field.required ? "text-red-600" : "text-neutral-400"}`}>
+                  {field.required ? "开" : "关"}
+                </span>
               </div>
             </div>
           ))}
@@ -166,7 +172,7 @@ export default function BasicInfoPage() {
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
         <p className="text-sm text-amber-800">
-          <strong>\u63d0\u793a\uff1a</strong>\u4fee\u6539\u540e\u63d0\u4ea4\u8868\u5355\u7684\u5fc5\u586b\u6807\u8bb0\u548c\u6821\u9a8c\u903b\u8f91\u5373\u65f6\u751f\u6548\uff0c\u65e0\u9700\u91cd\u542f\u670d\u52a1\u3002\u9ed8\u8ba4\u914d\u7f6e\uff1a\u5e97\u5185\u7167\u7247\u3001\u5fae\u4fe1\u53f7\u3001\u90ae\u7bb1\u4e3a\u9009\u586b\uff0c\u5176\u4f59\u4e3a\u5fc5\u586b\u3002
+          <strong>提示：</strong>修改后提交表单的必填标记和校验逻辑即时生效，无需重启服务。默认配置：店内照片、微信号、邮箱为选填，其余为必填。
         </p>
       </div>
     </div>
