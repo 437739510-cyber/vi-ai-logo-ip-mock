@@ -81,7 +81,7 @@ async function fetchActiveSubmissions(db: Db): Promise<Row[]> {
     .from("submissions")
     .select("*")
     .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .order("submitted_at", { ascending: false });
   if (error) throw new ClientRecordsError(error.message, 500);
   return (data ?? []) as Row[];
 }
@@ -208,7 +208,7 @@ export async function listClientRecords(db: Db): Promise<ClientRecord[]> {
       industry: asString(sub.industry),
       budgetRange: sub.budget_range == null ? null : asString(sub.budget_range),
       description: sub.description == null ? null : asString(sub.description),
-      submittedAt: asString(sub.created_at ?? sub.submitted_at),
+      submittedAt: asString(sub.submitted_at),
       status: asString(sub.status),
       projectId: project ? asString(project.id) : null,
       projectStatus: project ? asString(project.status) : null,
