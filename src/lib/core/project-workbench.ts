@@ -131,6 +131,11 @@ export function deriveOperationalStatus(project: Project): OperationalStatus {
   return "pending";
 }
 
+/** 生成失败标记：内部技术状态或项目状态命中失败集合（TICKET-131 任务卡同源） */
+export function hasFailureMarker(project: Project): boolean {
+  return ANOMALY_STATUSES.has(getGenerationStatus(project)) || ANOMALY_STATUSES.has(project.status);
+}
+
 export type PrimaryActionKey =
   | "assign_owner"
   | "mark_paid"

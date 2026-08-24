@@ -1,11 +1,12 @@
 ﻿"use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { StatCard } from "@/components/admin/StatCard";
+import { useEffect, useState, useCallback, useMemo, type ReactNode } from "react";
+import Link from "next/link";
 import { RecentActivityList } from "@/components/admin/RecentActivityList";
 import { getProjects } from "@/lib/core/mock";
-import { FolderKanban, Clock, CheckCircle, AlertCircle, Wallet, RefreshCw, FileText, AlertTriangle, ImageIcon } from "lucide-react";
+import { Wallet, RefreshCw, FileText, AlertTriangle, ImageIcon, ClipboardCheck, AlarmClock } from "lucide-react";
 import type { Project } from "@/types";
+import { deriveDashboardTaskCards, type DashboardTaskKey } from "@/lib/core/dashboard-tasks";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 interface ApiBalance {
@@ -63,6 +64,7 @@ export default function DashboardPage() {
     localStorage.setItem("brandbrain_ip_enabled", String(ipEnabled));
   }, [ipEnabled]);
   const [loading, setLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState(false);
   const [deepseekBalance, setDeepseekBalance] = useState<ApiBalance | null>(null);
   const [arkBalance, setArkBalance] = useState<ApiBalance | null>(null);
   const [liblibaiBalance, setLiblibaiBalance] = useState<ApiBalance | null>(null);
@@ -109,27 +111,31 @@ export default function DashboardPage() {
     setLogsLoading(false);
   }, []);
 
-  useEffect(() => {
-    // All 3 data fetches are independent — run in parallel
-    Promise.allSettled([
-      getProjects(),
-      fetchBalances(),
-      fetchUsageLogs(),
-    ]).then(([projectsResult]) => {
-      if (projectsResult.status === "fulfilled") {
-        setProjects(projectsResult.value);
-      }
+  const loadProjects = useCallback(async () => {
+    setLoading(true);
+    setProjectsError(false);
+    try {
+      setProjects(await getProjects());
+    } catch {
+      setProjectsError(true);
+    } finally {
       setLoading(false);
-    });
-  }, [fetchBalances, fetchUsageLogs]);
+    }
+  }, []);
 
-  const pendingCount = projects.filter((p) => p.status === "submitted" || p.status === "paid").length;
-  const inProgressCount = projects.filter(
-    (p) =>
-      p.status === "ai_analysis" || p.status === "brand_analyzed" || p.status === "logo_generated" || p.status === "designing"
-  ).length;
-  const completedCount = projects.filter((p) => p.status === "completed").length;
-  const deliveredCount = projects.filter((p) => p.status === "delivered").length;
+  useEffect(() => {
+    // 3 路数据相互独立 — 并行拉取
+    Promise.allSettled([loadProjects(), fetchBalances(), fetchUsageLogs()]);
+  }, [loadProjects, fetchBalances, fetchUsageLogs]);
+
+  const taskCards = useMemo(() => deriveDashboardTaskCards(projects), [projects]);
+  const taskIcons: Record<DashboardTaskKey, ReactNode> = {
+    awaiting_payment: <Wallet className="w-5 h-5 text-amber-500" />,
+    review: <ClipboardCheck className="w-5 h-5 text-orange-500" />,
+    overdue: <AlarmClock className="w-5 h-5 text-red-500" />,
+    failed: <AlertTriangle className="w-5 h-5 text-rose-500" />,
+  };
+
   const totalCount = projects.length;
 
   // Chart data: derive from projects and usageLogs
@@ -237,11 +243,52 @@ export default function DashboardPage() {
           </span>
         </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="待处理" value={pendingCount} description="新提交/已付款" icon={<AlertCircle className="w-5 h-5" />} />
-        <StatCard title="进行中" value={inProgressCount} description="分析/Logo/设计中" icon={<Clock className="w-5 h-5" />} />
-        <StatCard title="已完成" value={completedCount} description="VI手册已生成" icon={<CheckCircle className="w-5 h-5" />} />
-        <StatCard title="已交付" value={deliveredCount} icon={<FolderKanban className="w-5 h-5" />} />
+      {/* 今日待办：四类任务卡（TICKET-131-R35） */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xs font-medium text-primary uppercase tracking-wider">今日待办</p>
+            <h3 className="text-lg font-bold text-neutral-900">需要处理的订单</h3>
+          </div>
+          <Link href="/admin/projects" className="text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
+            全部项目 →
+          </Link>
+        </div>
+        {projectsError ? (
+          <div className="flex items-center justify-between gap-3 p-4 bg-red-50 border border-red-100 rounded-2xl">
+            <p className="text-sm text-red-700">项目数据加载失败，请重试。</p>
+            <button
+              onClick={loadProjects}
+              disabled={loading}
+              className="flex items-center gap-1 text-xs font-medium text-red-700 border border-red-200 rounded-lg px-3 py-1.5 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
+              重试
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {taskCards.map((card) => (
+              <Link
+                key={card.key}
+                href={card.href}
+                className="group bg-white rounded-2xl border border-neutral-100 p-5 shadow-sm hover:shadow-md hover:border-primary/40 transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-neutral-500">{card.label}</p>
+                  {taskIcons[card.key]}
+                </div>
+                <p className="mt-2 text-3xl font-bold text-neutral-900">{card.count}</p>
+                <p className="mt-1 text-xs text-neutral-400">
+                  {card.count > 0 ? `最早等待 ${card.earliestWaitLabel}` : "暂无待办"}
+                </p>
+                <p className="mt-3 inline-flex items-center text-xs font-medium text-primary transition-all">
+                  查看列表 →
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* API 余额 */}
