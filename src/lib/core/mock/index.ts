@@ -12,10 +12,18 @@ import type {
   ViManual,
   Favorite,
   Employee,
-  ProjectFilters,
 } from "@/types";
 
 import { supabase } from "@/lib/core/supabase";
+import {
+  applyQueueView,
+  inDateRange,
+  isSoftDeleted,
+  matchesQueueSearch,
+  normalizeQueueView,
+  type ProjectQueueFilters,
+  type QueueContext,
+} from "@/lib/core/project-queue";
 
 
 // ========== 内存存储（提交的数据暂存在这里，管理端可读取）==========
@@ -57,7 +65,10 @@ export async function getSubmissionById(id: string): Promise<Submission | null> 
 
 // ========== 项目 ==========
 
-export async function getProjects(filters?: ProjectFilters): Promise<Project[]> {
+export async function getProjects(
+  filters?: ProjectQueueFilters,
+  ctx?: QueueContext,
+): Promise<Project[]> {
   let list = [...inMemoryProjects];
   // 加载 static JSON 中的项目
   const staticList = await loadJson<Project[]>("/mock/projects.json");
@@ -86,18 +97,46 @@ export async function getProjects(filters?: ProjectFilters): Promise<Project[]> 
     console.warn("[mock] Supabase projects query failed:", e);
   }
 
-  if (filters) {
-    if (filters.status !== "all") {
-      list = list.filter((p) => p.status === filters.status);
-    }
-    if (filters.search) {
-      const kw = filters.search.toLowerCase();
-      list = list.filter((p) => p.id.toLowerCase().includes(kw) || (p.clientName || "").toLowerCase().includes(kw));
-    }
+  // 无筛选：默认排除软删除，按更新时间倒序（保持原行为）
+  if (!filters) {
+    return list
+      .filter((p) => !isSoftDeleted(p))
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }
-  // 按更新时间倒序
-  list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  return list;
+
+  const view = normalizeQueueView(filters.view);
+  let phoneByProject: Map<string, string> | undefined;
+  if (filters.search) {
+    phoneByProject = await resolveProjectPhones(list);
+  }
+
+  let result = applyQueueView(list, view, ctx);
+  if (filters.search) {
+    result = result.filter((p) => matchesQueueSearch(p, filters.search || "", phoneByProject));
+  }
+  if (filters.dateFrom || filters.dateTo) {
+    result = result.filter((p) => inDateRange(p, filters.dateFrom, filters.dateTo));
+  }
+  return result;
+}
+
+/** 手机号解析：submission.phone / client_info.phone（R36 搜索“手机号后四位”用） */
+async function resolveProjectPhones(projects: Project[]): Promise<Map<string, string>> {
+  const phoneByProject = new Map<string, string>();
+  try {
+    const submissions = await getSubmissions();
+    const byId = new Map(submissions.map((s) => [s.id, s]));
+    for (const p of projects) {
+      if (!p.submissionId) continue;
+      const sub = byId.get(p.submissionId);
+      if (sub?.phone) phoneByProject.set(p.id, sub.phone);
+      const ci = (p as { client_info?: Record<string, unknown> }).client_info;
+      if (ci && typeof ci.phone === "string" && ci.phone) phoneByProject.set(p.id, ci.phone);
+    }
+  } catch (e) {
+    console.warn("[mock] resolve project phones failed:", e);
+  }
+  return phoneByProject;
 }
 
 export async function getProjectById(id: string): Promise<Project | null> {
@@ -116,8 +155,11 @@ export async function getProjectById(id: string): Promise<Project | null> {
     console.warn("[mock] Supabase query failed for project:", id, e);
   }
   // Fallback to mock JSON
-  const list = await getProjects();
-  return list.find((p) => p.id === id) ?? null;
+  const archived = await getProjects({ view: "archived" });
+  const foundArchived = archived.find((p) => p.id === id);
+  if (foundArchived) return foundArchived;
+  const active = await getProjects();
+  return active.find((p) => p.id === id) ?? null;
 }
 
 // ========== AI 方案 ==========
@@ -199,6 +241,7 @@ function mapProjectFromDb(row: Record<string, unknown>): Project {
     clientName: (row.client_name as string) || undefined,
     studentName: (row.student_name as string) || undefined,
     studentId: (row.student_id as string) || undefined,
+    deleted_at: (row.deleted_at as string) || undefined,
     client_info: row.client_info as Record<string, any> || undefined,
   } as Project;
 }
