@@ -10,10 +10,8 @@ import { ErrorState } from "@/components/shared/ErrorState";
 import { ProcessedAssetsViewer } from "@/components/admin/ProcessedAssetsViewer";
 import { getProjectById, getSubmissionById, getPlansByProject } from "@/lib/core/mock";
 import {
-  deriveOperationalStatus,
+  getBusinessStatusInfo,
   nextPrimaryAction,
-  OPERATIONAL_STATUS_LABELS,
-  OPERATIONAL_STATUS_COLORS,
   getGenerationStatus,
   getWorkbenchClientInfo,
   maskPhone,
@@ -665,7 +663,8 @@ export default function ProjectDetailPage({
   const clientInfo = getWorkbenchClientInfo(project);
   const owner = clientInfo.assignedTo?.name || project.assignedTo?.name || project.studentName || "-";
   const genStatus = getGenerationStatus(project);
-  const opsStatus = deriveOperationalStatus(project);
+  const bizInfo = getBusinessStatusInfo(project);
+  const bizKey = bizInfo.key;
   const primaryAction = nextPrimaryAction(project);
   const PAID_AFTER: string[] = [
     "paid", "confirmed", "ai_analysis", "designing", "reviewing", "delivered",
@@ -808,8 +807,8 @@ export default function ProjectDetailPage({
               <h2 className="text-lg font-semibold text-neutral-900 truncate">
                 {project.clientName || submission?.clientName || submission?.companyName || project.name || "未命名客户"}
               </h2>
-              <span className={`inline-flex items-center shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${OPERATIONAL_STATUS_COLORS[opsStatus]}`}>
-                {OPERATIONAL_STATUS_LABELS[opsStatus]}
+              <span className={`inline-flex items-center shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${bizInfo.color}`}>
+                {bizInfo.label}
               </span>
             </div>
             <p className="text-xs text-neutral-400 font-mono mt-0.5 truncate">
@@ -837,12 +836,11 @@ export default function ProjectDetailPage({
 
         <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-2 mt-3 text-xs">
           <SummaryCell label="付款状态" value={paymentLabel} />
-          <SummaryCell label="当前阶段" value={OPERATIONAL_STATUS_LABELS[opsStatus]} />
+          <SummaryCell label="当前阶段" value={bizInfo.label} />
           <SummaryCell label="负责人" value={owner} />
           <SummaryCell label="创建时间" value={formatDate(project.createdAt)} />
           <SummaryCell label="最后更新" value={formatDate(project.updatedAt)} />
           <SummaryCell label="SLA/等待" value={waitingDuration(project.updatedAt || project.createdAt)} />
-          <SummaryCell label="内部状态" value={genStatus} mono />
         </div>
 
         {/* 内部技术状态（收进“异常/详情”展开区） */}
@@ -1580,10 +1578,43 @@ export default function ProjectDetailPage({
           <section className="bg-white rounded-xl border border-neutral-100 p-5">
             <h3 className="text-sm font-semibold text-neutral-700 mb-2">交付操作</h3>
             <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-              <button disabled title="R34 状态机接入" className="px-3 py-1.5 font-medium text-neutral-400 bg-neutral-100 rounded-lg cursor-not-allowed">交付</button>
-              <button disabled title="R34 状态机接入" className="px-3 py-1.5 font-medium text-neutral-400 bg-neutral-100 rounded-lg cursor-not-allowed">撤回</button>
-              <button disabled title="R34 状态机接入" className="px-3 py-1.5 font-medium text-neutral-400 bg-neutral-100 rounded-lg cursor-not-allowed">重新上传</button>
-              <span className="text-[11px] text-neutral-400">交付/撤回/重新上传由 R34 生产状态机接入，当前为只读展示。</span>
+              <button
+                type="button"
+                onClick={() => alert("交付动作由现有交付 API 承接，本工单仅激活入口按钮")}
+                disabled={bizKey !== "delivering"}
+                title={bizKey === "delivering" ? "标记为已交付" : "仅「交付中」可执行交付"}
+                className={bizKey === "delivering" ? "px-3 py-1.5 font-medium text-white bg-primary rounded-lg hover:bg-primary-dark" : "px-3 py-1.5 font-medium text-neutral-400 bg-neutral-100 rounded-lg cursor-not-allowed"}
+              >
+                交付
+              </button>
+              <button
+                type="button"
+                onClick={() => alert("撤回动作由现有交付 API 承接，本工单仅激活入口按钮")}
+                disabled={bizKey !== "delivering" && bizKey !== "delivered"}
+                title={bizKey === "delivering" || bizKey === "delivered" ? "撤回交付" : "仅「交付中/已交付」可撤回"}
+                className={bizKey === "delivering" || bizKey === "delivered" ? "px-3 py-1.5 font-medium text-white bg-neutral-700 rounded-lg hover:bg-neutral-800" : "px-3 py-1.5 font-medium text-neutral-400 bg-neutral-100 rounded-lg cursor-not-allowed"}
+              >
+                撤回
+              </button>
+              <button
+                type="button"
+                onClick={() => alert("重新上传动作由现有交付 API 承接，本工单仅激活入口按钮")}
+                disabled={bizKey !== "delivering" && bizKey !== "delivered"}
+                title={bizKey === "delivering" || bizKey === "delivered" ? "重新上传交付文件" : "仅「交付中/已交付」可重新上传"}
+                className={bizKey === "delivering" || bizKey === "delivered" ? "px-3 py-1.5 font-medium text-white bg-neutral-700 rounded-lg hover:bg-neutral-800" : "px-3 py-1.5 font-medium text-neutral-400 bg-neutral-100 rounded-lg cursor-not-allowed"}
+              >
+                重新上传
+              </button>
+              <button
+                type="button"
+                onClick={() => alert("退款需人工处理：请线下确认后退款并锁定下载，再由管理员人工变更状态")}
+                disabled={bizKey !== "awaiting_customer" && bizKey !== "delivered"}
+                title={bizKey === "awaiting_customer" || bizKey === "delivered" ? "发起退款（退款中会锁定文件下载）" : "仅「待客户确认/已交付」可发起退款"}
+                className={bizKey === "awaiting_customer" || bizKey === "delivered" ? "px-3 py-1.5 font-medium text-white bg-red-600 rounded-lg hover:bg-red-700" : "px-3 py-1.5 font-medium text-neutral-400 bg-neutral-100 rounded-lg cursor-not-allowed"}
+              >
+                退款
+              </button>
+              <span className="text-[11px] text-neutral-400">交付/撤回/重新上传/退款按钮状态与业务状态机绑定；动作本身走现有 API，退款暂需人工处理。</span>
             </div>
           </section>
         </div>

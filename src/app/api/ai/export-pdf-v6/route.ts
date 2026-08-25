@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument } from "pdf-lib";
 import { readFile } from "fs/promises";
 import path from "path";
+import { evaluateDeliverableDownload } from "@/lib/core/project-workbench";
 
 async function fetchImageAsBuffer(url: string): Promise<Uint8Array | null> {
   try {
@@ -40,6 +41,24 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { projectId, pages } = body;
     console.log("[export-pdf-v6] projectId:", projectId, "pages:", pages?.length ?? "none");
+
+    // R34 下载门禁：退款中/未付款/已取消/待确认锁定；交付中/已交付可下载；测试工单豁免
+    if (projectId) {
+      try {
+        const { supabase, supabaseAdmin } = await import("@/lib/core/supabase");
+        const dbClient = supabaseAdmin ?? supabase;
+        const { data: pdfProject } = await dbClient.from("projects").select("id, status, client_info").eq("id", projectId).maybeSingle();
+        if (!pdfProject) {
+          return NextResponse.json({ error: "项目不存在，无法导出" }, { status: 404 });
+        }
+        const decision = evaluateDeliverableDownload(pdfProject);
+        if (!decision.allowed) {
+          return NextResponse.json({ error: decision.reason, code: "DOWNLOAD_LOCKED" }, { status: 403 });
+        }
+      } catch {
+        return NextResponse.json({ error: "无法验证订单状态，请稍后重试", code: "DOWNLOAD_LOCKED" }, { status: 403 });
+      }
+    }
 
     let pageList: { pageId: string; label: string; url: string }[] = [];
 

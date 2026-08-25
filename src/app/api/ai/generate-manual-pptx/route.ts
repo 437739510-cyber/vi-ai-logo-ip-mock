@@ -27,6 +27,7 @@ import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
 import { validateAndBlockAsync, checkColorNarrativeConsistency } from "@/lib/vi-manual/quality-check";
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from "@/lib/vi-manual/brand-visual-rules";
 import { checkLegacyWebGenerationGate } from "@/lib/core/legacy-web-generation-gate";
+import { canStartProduction, PRODUCTION_BLOCKED_CODE, PRODUCTION_BLOCKED_MESSAGE } from "@/lib/core/project-workbench";
 const _DEV = process.env.NODE_ENV === "development";
 
 
@@ -434,6 +435,21 @@ export async function POST(req: NextRequest) {
 
   if (!projectId) {
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
+  }
+
+  // R34 生产门禁：未付款不能生产（测试工单豁免）
+  try {
+    const { data: gateProject } = await supabaseAdmin
+      .from("projects").select("id, status, client_info").eq("id", projectId).single();
+    if (!gateProject) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+    if (!canStartProduction(gateProject)) {
+      return NextResponse.json({ error: PRODUCTION_BLOCKED_MESSAGE, code: PRODUCTION_BLOCKED_CODE }, { status: 403 });
+    }
+  } catch (e: any) {
+    console.warn("[generate-pptx] R34 gate check error:", e?.message);
+    return NextResponse.json({ error: "无法验证订单付款状态，请稍后重试", code: PRODUCTION_BLOCKED_CODE }, { status: 403 });
   }
 
   // V88: 已有完成结果且非强制重新生成 → 直接返回，避免重复烧钱

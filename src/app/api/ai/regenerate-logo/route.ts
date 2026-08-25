@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { ensurePaymentConfirmed, evaluatePaymentGate } from "@/lib/core/payment-gate";
+import { ensurePaymentConfirmed } from "@/lib/core/payment-gate";
+import { canStartProduction, PRODUCTION_BLOCKED_CODE, PRODUCTION_BLOCKED_MESSAGE } from "@/lib/core/project-workbench";
 
 /**
  * POST /api/ai/regenerate-logo
@@ -52,13 +53,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid password" }, { status: 403 });
     }
 
-    // 工单 077：查看密码只证明客户身份；付款证据仍必须独立成立。
-    const payment = evaluatePaymentGate(project.status, clientInfo);
-    if (!payment.allowed) {
-      return NextResponse.json({
-        error: "Payment confirmation required before logo regeneration",
-        code: "PAYMENT_REQUIRED",
-      }, { status: 402 });
+    // 工单 077 + R34：查看密码只证明客户身份；未付款不能生产（测试工单豁免）。
+    if (!canStartProduction(project)) {
+      return NextResponse.json({ error: PRODUCTION_BLOCKED_MESSAGE, code: PRODUCTION_BLOCKED_CODE }, { status: 403 });
     }
     const confirmedClientInfo = ensurePaymentConfirmed(clientInfo, new Date().toISOString());
     clientInfo.paymentConfirmed = confirmedClientInfo.paymentConfirmed;

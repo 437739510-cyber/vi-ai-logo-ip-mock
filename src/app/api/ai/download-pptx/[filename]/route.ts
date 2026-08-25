@@ -10,6 +10,8 @@ import {
   parseManualFilename,
   VI_MANUAL_CONTENT_TYPE,
 } from "@/lib/vi-manual/manual-delivery";
+import { evaluateDeliverableDownload } from "@/lib/core/project-workbench";
+import { supabaseAdmin } from "@/lib/core/supabase";
 
 export async function GET(
   _request: NextRequest,
@@ -19,6 +21,23 @@ export async function GET(
 
   const parsed = parseManualFilename(filename);
   if (!parsed) return NextResponse.json({ error: "invalid filename" }, { status: 400 });
+
+  // R34 下载门禁：退款中/未付款/已取消/待确认锁定；交付中/已交付可下载；测试工单豁免
+  try {
+    const { data: downloadProject } = await supabaseAdmin
+      .from("projects").select("id, status, client_info").eq("id", parsed.projectId).maybeSingle();
+    if (!downloadProject) {
+      return NextResponse.json({ error: "项目不存在，无法下载" }, { status: 404 });
+    }
+    const decision = evaluateDeliverableDownload(downloadProject);
+    if (!decision.allowed) {
+      return NextResponse.json({ error: decision.reason, code: "DOWNLOAD_LOCKED" }, { status: 403 });
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    console.error(`[download-pptx] R34 gate check failed: ${message}`);
+    return NextResponse.json({ error: "无法验证订单状态，请稍后重试" }, { status: 403 });
+  }
 
   const generatedRoot = path.resolve(process.cwd(), "public", "generated");
   const filePath = path.resolve(generatedRoot, filename);

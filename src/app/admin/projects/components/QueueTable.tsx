@@ -7,9 +7,8 @@ import { Archive, Download, FileText, FolderKanban, Loader2, MoreHorizontal } fr
 import { cn } from "@/lib/core/utils";
 import type { Project } from "@/types";
 import {
-  OPERATIONAL_STATUS_COLORS,
-  OPERATIONAL_STATUS_LABELS,
-  deriveOperationalStatus,
+  evaluateDeliverableDownload,
+  getBusinessStatusInfo,
   getWorkbenchClientInfo,
 } from "@/lib/core/project-workbench";
 import {
@@ -127,7 +126,8 @@ export function QueueTable({
           </thead>
           <tbody>
             {projects.map((project) => {
-              const ops = deriveOperationalStatus(project);
+              const biz = getBusinessStatusInfo(project);
+              const downloadDecision = evaluateDeliverableDownload(project);
               const ci = getWorkbenchClientInfo(project);
               const gs = ci.generationStatus || "";
               const pptx = ci.pptxResult;
@@ -176,10 +176,10 @@ export function QueueTable({
                     <span
                       className={cn(
                         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                        OPERATIONAL_STATUS_COLORS[ops]
+                        biz.color
                       )}
                     >
-                      {OPERATIONAL_STATUS_LABELS[ops]}
+                      {biz.label}
                     </span>
                   </td>
                   <td className="py-3 px-2">
@@ -212,13 +212,22 @@ export function QueueTable({
                   </td>
                   <td className="py-3 px-2 text-center">
                     {done && (pptx?.storageUrl || pptx?.url) ? (
-                      <a
-                        href={pptx?.storageUrl || pptx?.url}
-                        download
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <Download className="w-3 h-3" />下载
-                      </a>
+                      downloadDecision.allowed ? (
+                        <a
+                          href={pptx?.storageUrl || pptx?.url}
+                          download
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Download className="w-3 h-3" />下载
+                        </a>
+                      ) : (
+                        <span
+                          title={downloadDecision.reason}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-neutral-400 bg-neutral-100 rounded-lg cursor-not-allowed"
+                        >
+                          已锁定
+                        </span>
+                      )
                     ) : (
                       <span className="text-xs text-neutral-300">-</span>
                     )}

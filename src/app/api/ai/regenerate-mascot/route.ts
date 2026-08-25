@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { canStartProduction, PRODUCTION_BLOCKED_CODE, PRODUCTION_BLOCKED_MESSAGE } from "@/lib/core/project-workbench";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -19,12 +20,17 @@ export async function POST(req: NextRequest) {
 
     const { data: project, error } = await supabaseAdmin
       .from("projects")
-      .select("id, client_info")
+      .select("id, status, client_info")
       .eq("id", projectId)
       .single();
 
     if (error || !project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    // R34 生产门禁：未付款不能生产（测试工单豁免）
+    if (!canStartProduction(project)) {
+      return NextResponse.json({ error: PRODUCTION_BLOCKED_MESSAGE, code: PRODUCTION_BLOCKED_CODE }, { status: 403 });
     }
 
     const clientInfo = (project.client_info as Record<string, any>) || {};

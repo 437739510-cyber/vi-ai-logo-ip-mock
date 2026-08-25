@@ -17,6 +17,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { canStartProduction, PRODUCTION_BLOCKED_CODE, PRODUCTION_BLOCKED_MESSAGE } from "@/lib/core/project-workbench";
 import { recommendMascot } from "@/agents/mascot-designer";
 import type { MascotRecommendationInput } from "@/agents/mascot-designer";
 import { generateMascotPromptSet, type MascotPromptInput } from "@/lib/ip/mascot-prompt-strategy";
@@ -170,11 +171,11 @@ export async function POST(req: NextRequest) {
       .from("projects").select("id, status, client_info").eq("id", projectId).single();
     if (projErr || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
-    // 💰 收款门禁：未标记「已收款」一律拒绝生图（与 LOGO 的 mark-paid 触发逻辑一致）
-    if (project.status !== "paid") {
+    // R34 生产门禁：未付款不能生产（测试工单豁免）
+    if (!canStartProduction(project)) {
       return NextResponse.json(
-        { error: "请先标记「已收款」后再生成公仔", code: "PAYMENT_REQUIRED" },
-        { status: 402 }
+        { error: PRODUCTION_BLOCKED_MESSAGE, code: PRODUCTION_BLOCKED_CODE },
+        { status: 403 }
       );
     }
 

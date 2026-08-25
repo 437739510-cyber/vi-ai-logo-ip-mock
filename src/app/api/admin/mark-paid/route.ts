@@ -10,6 +10,7 @@ import {
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
 import { logAdminOperation } from "@/lib/core/admin-operation-log";
 import { activateSubscriptionForProject, SUBSCRIPTION_RULES } from "@/lib/brand-steward";
+import { deriveBusinessStatus } from "@/lib/core/project-workbench";
 
 export async function POST(req: NextRequest) {
   try {
@@ -70,6 +71,15 @@ export async function POST(req: NextRequest) {
         detail: { result: "reverted", projectId },
       });
       return NextResponse.json({ success: true, status: "reverted" });
+    }
+
+    // R34：仅待付款订单可确认收款（待付款 → 已付款 → 分析中流转由 Worker 接力）
+    if (deriveBusinessStatus(project) !== "awaiting_payment") {
+      return NextResponse.json({
+        success: false,
+        error: "仅待付款订单可确认收款",
+        code: "STATE_NOT_AWAITING_PAYMENT",
+      }, { status: 409 });
     }
 
     // 工单 025/077：一次 update 原子写入付款证据与本地 Worker 排队状态。

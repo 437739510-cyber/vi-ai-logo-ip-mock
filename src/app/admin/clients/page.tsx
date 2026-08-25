@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Modal } from "@/components/shared/Modal";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Users, Phone, Building2, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import { BUSINESS_STATUS_COLORS, BUSINESS_STATUS_LABELS, businessStatusFromProjectStatus } from "@/lib/core/project-workbench";
 
 interface ClientProtection {
   hasAssignments: boolean;
@@ -226,6 +227,7 @@ export default function ClientsPage() {
         {clients.map((client) => {
           const selected = selectedIds.has(client.id);
           const protectedReasons = client.protection.reasons;
+          const bizKey = businessStatusFromProjectStatus(client.projectStatus);
           return (
             <div
               key={client.id}
@@ -251,14 +253,24 @@ export default function ClientsPage() {
                         {client.clientName} · {client.industry || "未填写行业"}
                       </p>
                     </div>
-                    {client.projectId && (
-                      <Link
-                        href={`/admin/projects/${client.projectId}`}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        查看项目
-                      </Link>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {client.projectId && (
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${BUSINESS_STATUS_COLORS[bizKey]}`}
+                          title={client.projectStatus || ""}
+                        >
+                          {BUSINESS_STATUS_LABELS[bizKey]}
+                        </span>
+                      )}
+                      {client.projectId && (
+                        <Link
+                          href={`/admin/projects/${client.projectId}`}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          查看项目
+                        </Link>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-4 text-xs text-neutral-500">

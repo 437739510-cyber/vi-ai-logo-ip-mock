@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIndustryType, type IndustryType, getIndustryDefaults } from "@/lib/brand/industry-types";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { canStartProduction, PRODUCTION_BLOCKED_CODE, PRODUCTION_BLOCKED_MESSAGE } from "@/lib/core/project-workbench";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -72,7 +73,11 @@ export async function POST(req: NextRequest) {
     const { projectId } = body;
     if (!projectId) return NextResponse.json({ error: "projectId required" }, { status: 400 });
 
-    const { data: project } = await supabaseAdmin.from("projects").select("id, submission_id, client_info").eq("id", projectId).single();
+    const { data: project } = await supabaseAdmin.from("projects").select("id, submission_id, status, client_info").eq("id", projectId).single();
+    // R34 生产门禁：未付款不能生产（测试工单豁免）
+    if (project && !canStartProduction(project)) {
+      return NextResponse.json({ error: PRODUCTION_BLOCKED_MESSAGE, code: PRODUCTION_BLOCKED_CODE }, { status: 403 });
+    }
     let submission: any = null;
     if (project?.submission_id) {
       const { data: sub } = await supabaseAdmin.from("submissions").select("*").eq("id", project.submission_id).single();
