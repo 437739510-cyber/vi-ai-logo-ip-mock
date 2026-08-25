@@ -1,11 +1,16 @@
 export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/core/supabase';
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/core/admin-session';
 
 const _DEV = process.env.NODE_ENV === "development";
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await verifyAdminSession(request.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "无权限" }, { status: 403 });
+    }
     const { projectId, fileName } = await request.json();
     if (!projectId || !fileName) {
       return NextResponse.json({ error: 'Missing projectId or fileName' }, { status: 400 });

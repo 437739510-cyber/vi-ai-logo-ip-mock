@@ -8,6 +8,7 @@ import {
   evaluatePaymentRevocation,
 } from "@/lib/core/payment-gate";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
+import { logAdminOperation } from "@/lib/core/admin-operation-log";
 import { activateSubscriptionForProject, SUBSCRIPTION_RULES } from "@/lib/brand-steward";
 
 export async function POST(req: NextRequest) {
@@ -60,6 +61,14 @@ export async function POST(req: NextRequest) {
       if (!updatedProject) {
         return NextResponse.json({ success: false, error: "订单状态已变化，请刷新后重试" }, { status: 409 });
       }
+      await logAdminOperation(supabaseAdmin, {
+        operatorId: session.userId,
+        operatorRole: session.role,
+        action: "admin_mark_paid",
+        entityType: "projects",
+        entityIds: [projectId],
+        detail: { result: "reverted", projectId },
+      });
       return NextResponse.json({ success: true, status: "reverted" });
     }
 
@@ -100,6 +109,17 @@ export async function POST(req: NextRequest) {
     // 激活失败不阻塞付款确认（订单已收讫、Worker 正常排队），管理员可用
     // POST /api/admin/subscriptions { action: "activate", projectId } 重试。
     const paidPlan = String((ci as Record<string, unknown>).paidPlan || "").trim().toLowerCase();
+
+    // TICKET-133-R38：标记付款审计（best-effort）
+    await logAdminOperation(supabaseAdmin, {
+      operatorId: session.userId,
+      operatorRole: session.role,
+      action: "admin_mark_paid",
+      entityType: "projects",
+      entityIds: [projectId],
+      detail: { result: "paid", projectId, paidPlan: paidPlan || undefined },
+    });
+
     if (paidPlan === SUBSCRIPTION_RULES.plan) {
       try {
         await activateSubscriptionForProject(supabaseAdmin, projectId, session.userId);
