@@ -19,6 +19,7 @@ import {
   formatDateTime,
   waitingDuration,
   technicalStatusItems,
+  buildAiGenerationArchive,
   type PrimaryActionKey,
 } from "@/lib/core/project-workbench";
 import { PlanCard } from "@/components/admin/PlanCard";
@@ -67,6 +68,7 @@ const TABS = [
   { key: "production" as const, label: "生产进度", icon: Factory },
   { key: "plan" as const, label: "方案审核", icon: Palette },
   { key: "delivery" as const, label: "交付文件", icon: Package },
+  { key: "aiArchive" as const, label: "AI 档案", icon: Sparkles },
 ];
 
 /** Helper: strip leading slash for display */
@@ -88,10 +90,14 @@ export default function ProjectDetailPage({
   const router = useRouter();
 
   // 作业台工作区状态（TICKET-130-R33）
-  const [activeTab, setActiveTab] = useState<"customer" | "production" | "plan" | "delivery">("customer");
+  const [activeTab, setActiveTab] = useState<"customer" | "production" | "plan" | "delivery" | "aiArchive">("customer");
   const [notes, setNotes] = useState<any[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  // AI 生成档案「我的意见」（TICKET-137-R40）
+  const [aiReviewNotes, setAiReviewNotes] = useState<any[]>([]);
+  const [aiReviewDraft, setAiReviewDraft] = useState("");
+  const [savingAiReview, setSavingAiReview] = useState(false);
   const [showRawSubmission, setShowRawSubmission] = useState(false);
   const [showTechDetails, setShowTechDetails] = useState(false);
   const [enlargeLogo, setEnlargeLogo] = useState<{ index: number; url: string } | null>(null);
@@ -223,6 +229,7 @@ export default function ProjectDetailPage({
         // 作业台数据组装（TICKET-130-R33）：生成历史 / 内部备注 / 公仔资产 / 人工审核状态
         loadGenerationHistory();
         await loadNotes(p.id);
+        await loadAiReviewNotes(p.id);
         const ci0 = (p as any)?.client_info || {};
         if (ci0.mascotAssets) setMascotAssets(ci0.mascotAssets);
         if (ci0.manualReviewStatus) setManualReviewStatus(ci0.manualReviewStatus);
@@ -281,6 +288,41 @@ export default function ProjectDetailPage({
       alert("网络错误，请重试");
     } finally {
       setSavingNote(false);
+    }
+  };
+
+  /** 加载 AI 档案意见（TICKET-137-R40） */
+  const loadAiReviewNotes = async (projectId: string) => {
+    try {
+      const res = await fetch("/api/admin/project-notes?projectId=" + projectId + "&kind=aiReview");
+      if (res.ok) {
+        const data = await res.json();
+        setAiReviewNotes(data.notes || []);
+      }
+    } catch { /* ignore */ }
+  };
+
+  /** 添加 AI 档案意见（只保存不阻塞，不改项目状态、不触发重跑） */
+  const handleAddAiReviewNote = async () => {
+    if (!project || !aiReviewDraft.trim()) return;
+    setSavingAiReview(true);
+    try {
+      const res = await fetch("/api/admin/project-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: project.id, note: aiReviewDraft, kind: "aiReview" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiReviewNotes(data.notes || []);
+        setAiReviewDraft("");
+      } else {
+        alert(data.error || "保存意见失败");
+      }
+    } catch {
+      alert("网络错误，请重试");
+    } finally {
+      setSavingAiReview(false);
     }
   };
 
@@ -683,6 +725,7 @@ export default function ProjectDetailPage({
         : project.status || "-";
   const plan = clientInfo.paidPlan || "-";
   const techItems = technicalStatusItems(project);
+  const archive = buildAiGenerationArchive({ clientInfo, submission });
   const brandProfile = clientInfo.brandProfile || {};
   const logoGenStatus = clientInfo.logoGenerationStatus || {};
   const logoResults = Array.isArray(brandProfile.logoGenerationResults) ? brandProfile.logoGenerationResults : [];
@@ -1619,6 +1662,165 @@ export default function ProjectDetailPage({
           </section>
         </div>
       )}
+      {/* ============ 5/5 AI 生成档案（TICKET-137-R40） ============ */}
+      {activeTab === "aiArchive" && (
+        <div className="space-y-4">
+          {/* 客人提交原文 */}
+          <section className="bg-white rounded-xl border border-neutral-100 p-5">
+            <h3 className="text-sm font-semibold text-neutral-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-neutral-400" /> 客人提交原文
+            </h3>
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <Field label="公司名称" value={archive.submission.companyName || "未生成"} />
+              <Field label="联系人" value={archive.submission.clientName || "未生成"} />
+              <Field label="手机" value={maskPhone(archive.submission.phone || "")} />
+              <Field label="地区" value={[archive.submission.province, archive.submission.city].filter(Boolean).join(" ") || "未生成"} />
+              <Field label="行业" value={archive.submission.industry || "未生成"} />
+              <Field label="经营形态" value={archive.submission.businessForm || "未生成"} />
+              <Field label="主营产品" value={archive.submission.mainProducts || "未生成"} />
+              <Field label="LOGO 风格" value={archive.submission.logoStyle || "未生成"} />
+              <Field label="LOGO 用途" value={archive.submission.logoUsage || "未生成"} />
+              <Field label="品牌愿景" value={archive.submission.brandVision || "未生成"} />
+              <Field label="核心价值" value={archive.submission.coreValues || "未生成"} />
+              <Field label="目标客群" value={archive.submission.targetMarket || "未生成"} />
+            </div>
+            <div className="mt-4">
+              <p className="text-neutral-400 text-xs mb-1">需求描述</p>
+              <p className="text-neutral-700 whitespace-pre-line">{archive.submission.description || "未生成"}</p>
+            </div>
+          </section>
+
+          {/* 品牌分析 */}
+          <section className="bg-white rounded-xl border border-neutral-100 p-5">
+            <h3 className="text-sm font-semibold text-neutral-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-neutral-400" /> 品牌分析
+            </h3>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <Field label="品牌定位语" value={archive.brandProfile.brandPositioning || "未生成"} />
+              <Field label="视觉风格建议" value={archive.brandProfile.visualStyleSuggestion || "未生成"} />
+            </div>
+            {archive.brandProfile.brandToneKeywords.length > 0 && (
+              <div className="mt-4">
+                <p className="text-neutral-400 text-xs mb-1">品牌调性关键词</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {archive.brandProfile.brandToneKeywords.map((keyword: string) => (
+                    <span key={keyword} className="text-xs text-neutral-600 bg-neutral-50 border border-neutral-100 rounded-full px-2.5 py-0.5">{keyword}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {archive.brandProfile.colorPalette.length > 0 && (
+              <div className="mt-4">
+                <p className="text-neutral-400 text-xs mb-1">品牌色板</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {archive.brandProfile.colorPalette.map((color, i) => (
+                    <div key={String(color.hex || color.name || i)} className="rounded-lg border border-neutral-100 p-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded border border-neutral-200" style={{ backgroundColor: color.hex || "#eee" }} />
+                        <span className="text-xs text-neutral-700">{color.name || color.nameEn || ("色 " + (i + 1))}</span>
+                        {color.hex && <span className="text-[11px] font-mono text-neutral-400">{color.hex}</span>}
+                      </div>
+                      {color.meaning && <p className="mt-1.5 text-[11px] text-neutral-500 leading-relaxed">{color.meaning}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="mt-4">
+              <Field label="分析状态" value={archive.brandProfile.analysisStatus === "completed" ? "已完成" : (archive.brandProfile.analysisStatus || "未生成")} />
+            </div>
+          </section>
+
+          {/* LOGO 方案提示词 */}
+          <section className="bg-white rounded-xl border border-neutral-100 p-5">
+            <h3 className="text-sm font-semibold text-neutral-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-neutral-400" /> LOGO 方案提示词
+            </h3>
+            {archive.logoPrompts.length === 0 ? (
+              <p className="mt-4 text-sm text-neutral-400">未生成</p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {archive.logoPrompts.map((logo) => (
+                  <div key={String(logo.index) + "-" + logo.prompt} className="rounded-lg bg-neutral-50 border border-neutral-100 p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-neutral-700">方案 {logo.index + 1}</span>
+                      {logo.selected && (
+                        <span className="text-[10px] font-medium text-green-600 bg-green-50 border border-green-100 rounded-full px-2 py-0.5">已选中</span>
+                      )}
+                      {logo.error && <span className="text-[10px] font-medium text-red-500">生成失败</span>}
+                    </div>
+                    <p className="mt-1.5 text-xs text-neutral-600 font-mono break-words whitespace-pre-wrap">{logo.prompt}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* 场景提示词 */}
+          <section className="bg-white rounded-xl border border-neutral-100 p-5">
+            <h3 className="text-sm font-semibold text-neutral-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-neutral-400" /> 场景提示词
+            </h3>
+            {archive.brandProfile.sceneSuggestions.length === 0 ? (
+              <p className="mt-4 text-sm text-neutral-400">未生成</p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {archive.brandProfile.sceneSuggestions.map((scene, i) => (
+                  <div key={i} className="rounded-lg bg-neutral-50 border border-neutral-100 p-3">
+                    <p className="text-xs font-medium text-neutral-700">{scene.zh || ("场景 " + (i + 1))}</p>
+                    {scene.en && <p className="mt-1 text-xs text-neutral-500">{scene.en}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-[11px] text-neutral-400">注：最终拼装版提示词回写将在后续版本提供。</p>
+          </section>
+
+          {/* 生成结果 */}
+          <section className="bg-white rounded-xl border border-neutral-100 p-5">
+            <h3 className="text-sm font-semibold text-neutral-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-neutral-400" /> 生成结果
+            </h3>
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <Field label="LOGO 生成进度" value={archive.generation.logoTotal > 0 ? (String(archive.generation.logoCompleted) + " / " + String(archive.generation.logoTotal)) : "未开始"} />
+              <Field label="生成阶段" value={archive.generation.generationStatus || "未开始"} />
+              <Field label="生成消息" value={archive.generation.generationMessage || "-"} />
+            </div>
+          </section>
+
+          {/* 我的意见（选填，只保存不阻塞） */}
+          <section className="bg-white rounded-xl border border-neutral-100 p-5">
+            <h3 className="text-sm font-semibold text-neutral-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-neutral-400" /> 我的意见
+            </h3>
+            <p className="mt-1 text-xs text-neutral-400">选填：对以上 AI 生成内容的意见存档，仅供后续优化提示词参考；不改变项目状态、不触发重新生成。</p>
+            <div className="mt-3 flex gap-2 items-start">
+              <textarea
+                value={aiReviewDraft}
+                onChange={(e) => setAiReviewDraft(e.target.value)}
+                placeholder="输入意见（选填）"
+                rows={3}
+                className="flex-1 px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y"
+              />
+              <button onClick={handleAddAiReviewNote} disabled={savingAiReview || !aiReviewDraft.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-dark disabled:opacity-50 transition-colors">
+                {savingAiReview ? "保存中..." : "保存"}
+              </button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {aiReviewNotes.length === 0 && <p className="text-xs text-neutral-400">暂无意见</p>}
+              {aiReviewNotes.slice().sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((n: any, idx: number) => (
+                <div key={String(n.createdAt) + "-" + idx} className="flex items-start gap-2 text-xs bg-neutral-50 rounded-lg px-3 py-2">
+                  <span className="text-neutral-400 shrink-0 mt-0.5">{formatDateTime(n.createdAt)}</span>
+                  <p className="text-neutral-700 flex-1 whitespace-pre-wrap">{n.note}</p>
+                  <span className="text-neutral-400 shrink-0">{n.operator}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
+
       {/* ============ 时间线 ============ */}
       <section className="bg-white rounded-xl border border-neutral-100 p-5">
         <h3 className="text-sm font-semibold text-neutral-700 mb-4 flex items-center gap-2">

@@ -467,3 +467,173 @@ export function technicalStatusItems(project: ProjectLike): { label: string; val
     { label: "套餐", value: ci.paidPlan || "-" },
   ];
 }
+
+// ============================================================
+// AI 生成档案（TICKET-137-R40）：只读映射 + 我的意见写入
+// 只读映射不修改数据；意见写入只追加 client_info.aiReviewNotes，
+// 不改变项目状态机，不触发重跑。
+// ============================================================
+
+export interface AiReviewNote {
+  note: string;
+  createdAt: string;
+  operator: string;
+}
+
+export interface SceneSuggestion {
+  zh?: string;
+  en?: string;
+}
+
+export interface LogoPromptResult {
+  index: number;
+  prompt: string;
+  imageUrl?: string;
+  error?: string;
+  selected: boolean;
+}
+
+export interface AiGenerationArchive {
+  submission: {
+    companyName: string;
+    clientName: string;
+    phone: string;
+    province: string;
+    city: string;
+    industry: string;
+    mainProducts: string;
+    businessForm: string;
+    description: string;
+    brandVision: string;
+    coreValues: string;
+    targetMarket: string;
+    logoStyle: string;
+    logoUsage: string;
+  };
+  brandProfile: {
+    brandPositioning: string;
+    visualStyleSuggestion: string;
+    brandToneKeywords: string[];
+    colorPalette: Array<{ name?: string; nameEn?: string; hex?: string; meaning?: string }>;
+    analysisStatus: string;
+    sceneSuggestions: SceneSuggestion[];
+  };
+  logoPrompts: LogoPromptResult[];
+  generation: {
+    logoTotal: number;
+    logoCompleted: number;
+    generationStatus: string;
+    generationMessage: string;
+  };
+}
+
+/**
+ * 只读映射：把 client_info / submission 组装成后台「AI 生成档案」展示结构。
+ * brandProfile / logoGenerationStatus 缺失或形状异常时安全回退为空值。
+ */
+export function buildAiGenerationArchive(input: {
+  clientInfo: ClientInfoLike;
+  submission?: unknown;
+}): AiGenerationArchive {
+  const clientInfo = input.clientInfo as ClientInfoLike & Record<string, any>;
+  const sub = (input.submission || {}) as Record<string, any>;
+  const bp = (clientInfo.brandProfile || {}) as Record<string, any>;
+  const logoStatus = (clientInfo.logoGenerationStatus || {}) as Record<string, any>;
+
+  const rawLogoResults = Array.isArray(bp.logoGenerationResults) && bp.logoGenerationResults.length > 0
+    ? bp.logoGenerationResults
+    : Array.isArray(logoStatus.results)
+      ? logoStatus.results
+      : [];
+  const selectedLogoIndex = typeof bp.selectedLogo?.index === "number" ? bp.selectedLogo.index : -1;
+  const logoPrompts: LogoPromptResult[] = rawLogoResults.map((r: any, i: number) => {
+    const index = typeof r?.index === "number" ? r.index : i;
+    return {
+      index,
+      prompt: typeof r?.prompt === "string" ? r.prompt : "",
+      imageUrl: typeof r?.imageUrl === "string" ? r.imageUrl : undefined,
+      error: typeof r?.error === "string" ? r.error : undefined,
+      selected: index === selectedLogoIndex,
+    };
+  });
+
+  const sceneSuggestions: SceneSuggestion[] = Array.isArray(bp.sceneImageSuggestions)
+    ? bp.sceneImageSuggestions.map((s: any) => ({
+        zh: typeof s?.zh === "string" ? s.zh : "",
+        en: typeof s?.en === "string" ? s.en : "",
+      }))
+    : [];
+
+  const colorPalette: AiGenerationArchive["brandProfile"]["colorPalette"] = Array.isArray(bp.colorPalette)
+    ? bp.colorPalette.map((c: any) => ({
+        name: typeof c?.name === "string" ? c.name : undefined,
+        nameEn: typeof c?.nameEn === "string" ? c.nameEn : undefined,
+        hex: typeof c?.hex === "string" ? c.hex : undefined,
+        meaning: typeof c?.meaning === "string" ? c.meaning : undefined,
+      }))
+    : [];
+
+  return {
+    submission: {
+      companyName: sub.companyName || clientInfo.companyName || "",
+      clientName: sub.clientName || "",
+      phone: sub.phone || "",
+      province: sub.province || "",
+      city: sub.city || "",
+      industry: sub.industry || clientInfo.industry || "",
+      mainProducts: sub.mainProducts || clientInfo.mainProducts || "",
+      businessForm: sub.businessForm || "",
+      description: sub.description || "",
+      brandVision: sub.brandVision || "",
+      coreValues: sub.coreValues || "",
+      targetMarket: sub.targetMarket || "",
+      logoStyle: sub.logoStyle || sub.brandPersonality || "",
+      logoUsage: sub.logoUsage || "",
+    },
+    brandProfile: {
+      brandPositioning: typeof bp.brandPositioning === "string" ? bp.brandPositioning : "",
+      visualStyleSuggestion: typeof bp.visualStyleSuggestion === "string" ? bp.visualStyleSuggestion : "",
+      brandToneKeywords: Array.isArray(bp.brandToneKeywords)
+        ? bp.brandToneKeywords.filter((k: any) => typeof k === "string")
+        : [],
+      colorPalette,
+      analysisStatus: typeof bp.analysisStatus === "string" ? bp.analysisStatus : "",
+      sceneSuggestions,
+    },
+    logoPrompts,
+    generation: {
+      logoTotal: typeof logoStatus.total === "number" ? logoStatus.total : 0,
+      logoCompleted: typeof logoStatus.completed === "number" ? logoStatus.completed : 0,
+      generationStatus: typeof clientInfo.generationStatus === "string" ? clientInfo.generationStatus : "",
+      generationMessage: typeof clientInfo.generationMessage === "string" ? clientInfo.generationMessage : "",
+    },
+  };
+}
+
+/** 读取合法 aiReviewNotes 数组（异常元素剔除，不修改数据）。 */
+export function getAiReviewNotes(clientInfo: ClientInfoLike): AiReviewNote[] {
+  const raw = clientInfo.aiReviewNotes;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (n): n is AiReviewNote =>
+      !!n &&
+      typeof (n as AiReviewNote).note === "string" &&
+      typeof (n as AiReviewNote).createdAt === "string" &&
+      typeof (n as AiReviewNote).operator === "string",
+  );
+}
+
+/** 追加一条我的意见（只追加，不修改项目状态机）。 */
+export function appendAiReviewNote(
+  clientInfo: ClientInfoLike,
+  note: string,
+  operator: string,
+): ClientInfoLike {
+  const trimmed = typeof note === "string" ? note.trim() : "";
+  const next: AiReviewNote = {
+    note: trimmed,
+    createdAt: new Date().toISOString(),
+    operator: typeof operator === "string" && operator.trim() ? operator.trim() : "admin",
+  };
+  return { ...clientInfo, aiReviewNotes: [...getAiReviewNotes(clientInfo), next] };
+}

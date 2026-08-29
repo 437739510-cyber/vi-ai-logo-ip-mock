@@ -9,9 +9,12 @@ import {
   BUSINESS_STATUS_LABELS,
   BUSINESS_STATUS_NEXT_ACTIONS,
   businessStatusFromProjectStatus,
+  appendAiReviewNote,
+  buildAiGenerationArchive,
   canStartProduction,
   deriveBusinessStatus,
   evaluateDeliverableDownload,
+  getAiReviewNotes,
   getBusinessStatusInfo,
   isTestProjectId,
   type BusinessStatus,
@@ -142,6 +145,102 @@ assert(!evaluateDeliverableDownload(pAwaitingPayment).allowed, "未付款锁定�
 assert(!evaluateDeliverableDownload(pAwaitingConfirm).allowed, "待确认锁定下载");
 assert(evaluateDeliverableDownload(pTest).allowed, "TEST/ 测试工单下载豁免");
 assert(evaluateDeliverableDownload(pRefunding).reason.length > 0, "锁定下载时返回中文原因");
+
+// ---- TICKET-137-R40：AI 生成档案只读映射 + 我的意见写入 ----
+console.log("\n=== AI 生成档案（TICKET-137-R40） ===\n");
+
+const archiveClientInfo = {
+  companyName: "老碗香社区面馆",
+  industry: "美食",
+  mainProducts: "手擀面",
+  generationStatus: "logo_generated",
+  generationMessage: "Logo 生成完成",
+  brandProfile: {
+    brandPositioning: "社区温暖面馆",
+    visualStyleSuggestion: "温暖亲切实景风",
+    brandToneKeywords: ["温暖", "匠心"],
+    colorPalette: [{ name: "品牌主色", hex: "#37474F", meaning: "沉稳专业" }],
+    analysisStatus: "completed",
+    sceneImageSuggestions: [
+      { zh: "店面门头应用", en: "storefront sign with logo" },
+      { zh: "宣传海报应用", en: "promotional poster with logo" },
+    ],
+    logoGenerationResults: [
+      { index: 0, prompt: "方案A：老碗香现代扁平 logo", imageUrl: "/a.png" },
+      { index: 1, prompt: "方案B：老碗香简约 logo", imageUrl: "/b.png" },
+    ],
+    selectedLogo: { index: 1, imageUrl: "/b.png" },
+  },
+  logoGenerationStatus: {
+    total: 2,
+    completed: 2,
+    results: [
+      { index: 0, prompt: "方案A" },
+      { index: 1, prompt: "方案B" },
+    ],
+  },
+};
+
+const archiveSub = {
+  companyName: "老碗香社区面馆",
+  clientName: "测试用户-085A",
+  phone: "13413049752",
+  province: "广东省",
+  city: "深圳市",
+  industry: "美食",
+  mainProducts: "手擀面、刀削面",
+  businessForm: "实体店",
+  description: "社区老店，温暖接地气",
+  brandVision: "成为社区最温暖的面馆",
+};
+
+const archive = buildAiGenerationArchive({ clientInfo: archiveClientInfo, submission: archiveSub });
+assert(archive.submission.province === "广东省" && archive.submission.city === "深圳市", "档案：地区来自 submission");
+assert(archive.submission.mainProducts === "手擀面、刀削面", "档案：主营产品来自 submission");
+assert(archive.submission.companyName === "老碗香社区面馆", "档案：公司名称来自 submission");
+assert(archive.brandProfile.brandPositioning === "社区温暖面馆", "档案：品牌定位语");
+assert(archive.brandProfile.visualStyleSuggestion === "温暖亲切实景风", "档案：视觉风格建议");
+assert(archive.brandProfile.brandToneKeywords.length === 2, "档案：品牌调性关键词");
+assert(archive.brandProfile.colorPalette.length === 1 && archive.brandProfile.colorPalette[0].hex === "#37474F", "档案：品牌色板");
+assert(archive.brandProfile.sceneSuggestions.length === 2, "档案：场景提示词数量");
+assert(archive.brandProfile.sceneSuggestions[0].zh === "店面门头应用" && archive.brandProfile.sceneSuggestions[0].en === "storefront sign with logo", "档案：场景提示词 zh/en");
+assert(archive.logoPrompts.length === 2, "档案：LOGO 提示词来自 brandProfile.logoGenerationResults");
+assert(archive.logoPrompts[0].index === 0 && archive.logoPrompts[1].index === 1, "档案：LOGO 提示词 index");
+assert(archive.logoPrompts[0].prompt.indexOf("方案A") >= 0, "档案：LOGO 提示词内容");
+assert(archive.logoPrompts[1].selected === true, "档案：LOGO 选中标记（selectedLogo.index）");
+assert(archive.logoPrompts[0].selected === false, "档案：未选中方案无选中标记");
+assert(archive.generation.logoTotal === 2 && archive.generation.logoCompleted === 2, "档案：LOGO 生成进度 total/completed");
+assert(archive.generation.generationStatus === "logo_generated", "档案：generationStatus");
+assert(archive.generation.generationMessage === "Logo 生成完成", "档案：generationMessage");
+
+// logoGenerationStatus.results 兜底（brandProfile.logoGenerationResults 缺失时）
+const archiveFallback = buildAiGenerationArchive({
+  clientInfo: { ...archiveClientInfo, brandProfile: { ...archiveClientInfo.brandProfile, logoGenerationResults: null } },
+  submission: archiveSub,
+});
+assert(archiveFallback.logoPrompts.length === 2, "档案：LOGO 提示词兜底 logoGenerationStatus.results");
+assert(archiveFallback.logoPrompts[0].prompt === "方案A", "档案：兜底结果含 prompt");
+
+// 空数据安全回退
+const archiveEmpty = buildAiGenerationArchive({ clientInfo: {}, submission: null });
+assert(archiveEmpty.submission.companyName === "" && archiveEmpty.submission.province === "", "档案：空 submission 安全回退");
+assert(archiveEmpty.brandProfile.brandPositioning === "" && archiveEmpty.brandProfile.sceneSuggestions.length === 0, "档案：空 brandProfile 安全回退");
+assert(archiveEmpty.logoPrompts.length === 0, "档案：空 LOGO 提示词安全回退");
+assert(archiveEmpty.generation.logoTotal === 0 && archiveEmpty.generation.logoCompleted === 0, "档案：空生成进度安全回退");
+
+// 我的意见写入（纯函数，不触库）
+const notesBefore = getAiReviewNotes(archiveClientInfo);
+assert(notesBefore.length === 0, "意见：初始为空");
+const ciWithNote = appendAiReviewNote(archiveClientInfo, "  提示词建议更口语化  ", "admin");
+const notesAfter = getAiReviewNotes(ciWithNote);
+assert(notesAfter.length === 1, "意见：追加一条");
+assert(notesAfter[0].note === "提示词建议更口语化", "意见：note 去除首尾空白");
+assert(notesAfter[0].operator === "admin", "意见：operator 默认 admin");
+assert(typeof notesAfter[0].createdAt === "string" && notesAfter[0].createdAt.length > 0, "意见：createdAt 生成");
+assert(getAiReviewNotes(archiveClientInfo).length === 0, "意见：append 不改原 client_info");
+const ciWithTwo = appendAiReviewNote(ciWithNote, "第二条意见", "ops");
+const notesTwo = getAiReviewNotes(ciWithTwo);
+assert(notesTwo.length === 2 && notesTwo[1].note === "第二条意见", "意见：多条顺序追加");
 
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===\n`);
 process.exit(failed > 0 ? 1 : 0);
