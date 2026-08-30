@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { STORAGE_BUCKET } from "@/config/storage";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,10 @@ const STORAGE_LIMIT_MB = 100;
 // GET: 获取素材库列表
 export async function GET(req: NextRequest) {
   try {
+    const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "无权限" }, { status: 403 });
+    }
     const { searchParams } = new URL(req.url);
     const industry = searchParams.get("industry");
     const businessType = searchParams.get("business_type");
@@ -83,6 +88,10 @@ export async function GET(req: NextRequest) {
 // POST: 收集未选中的Logo到素材库
 export async function POST(req: NextRequest) {
   try {
+    const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "无权限" }, { status: 403 });
+    }
     const body = await req.json();
     const { projectId } = body;
 
@@ -243,6 +252,10 @@ export async function POST(req: NextRequest) {
 // DELETE: 单条删除(id参数) 或 批量清理最旧(free_mb参数)
 export async function DELETE(req: NextRequest) {
   try {
+    const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "无权限" }, { status: 403 });
+    }
     const { searchParams } = new URL(req.url);
     
     // 单条删除模式

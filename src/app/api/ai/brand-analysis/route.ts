@@ -15,6 +15,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { guardedDeepSeekCall, DEEPSEEK_MODEL } from '@/lib/core/billing/deepseek-guard';
+import { getIndustryType, getIndustryDefaults, buildIndustryContextParagraph, INDUSTRY_COLOR_RULES } from "@/lib/brand/industry-types";
+import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
 
 // 工单 023：品牌分析提示词模板版本（与 scripts/worker.mjs 的 LOGO_PROMPT_TEMPLATE_VERSION 对齐）
 const BRAND_ANALYSIS_TEMPLATE_VERSION = "023-chinese-v2";
@@ -80,6 +82,13 @@ export async function POST(req: NextRequest) {
     // 更新项目状态为"品牌分析中"
     await supabaseAdmin.from("projects").update({ status: "brand_analyzing", updated_at: new Date().toISOString() }).eq("id", projectId);
 
+    // TICKET-143 Phase A：行业知识层注入（与 worker 同款），模板版本不变、不触发存量重跑
+    const industryContext = buildIndustryContextParagraph(
+      getIndustryKnowledge(getIndustryType(clientInfo.industry)),
+      getIndustryDefaults(clientInfo.industry),
+      Boolean(clientInfo.brandColors || clientInfo.existingBrandColor),
+    );
+
     // 构建分析prompt
     const analysisPrompt = buildAnalysisPrompt(clientInfo);
 
@@ -93,6 +102,8 @@ export async function POST(req: NextRequest) {
             content: `你是一位资深的品牌战略分析师，精通中国本土市场的品牌定位与VI策略。
 
 你的任务是：根据客户提供的品牌基础信息，进行深度分析，输出品牌档案。
+
+${industryContext}
 
 ## 分析框架
 
@@ -130,6 +141,9 @@ export async function POST(req: NextRequest) {
 - 根据品牌名称、行业特征、地域文化特色，设计4个不同方向的Logo方案
 - 每个方案必须是完整中文生图提示词：把客户品牌名（公司名称字段）原样写入提示词并以品牌中文清晰为主视觉；默认现代简约/扁平/白色背景；若品牌调性适合，允许传统印章/篆书/仿古风格选项，但品牌中文必须逐字清晰正确（无错字无叠字）并过核字门；明确要求每个字只出现一次、无重复、无多余文字、无错字；模板中的 XXX 必须替换为真实品牌名，不得原样输出 XXX
 - Logo需简洁、辨识度高、适合各种尺寸应用
+
+## 颜色与行业绑定（强制）
+${INDUSTRY_COLOR_RULES}
 
 ## 输出格式
 返回严格JSON，不要markdown包裹：

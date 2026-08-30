@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
+import { logAdminOperation } from "@/lib/core/admin-operation-log";
 
 /**
  * 项目作业台：分配负责人（TICKET-130-R33）
@@ -46,5 +47,13 @@ export async function POST(req: NextRequest) {
     console.error("[project-assign-owner] update failed:", updateError.message);
     return NextResponse.json({ success: false, error: "保存负责人失败" }, { status: 500 });
   }
+  await logAdminOperation(supabaseAdmin, {
+    operatorId: session.userId,
+    operatorRole: session.role,
+    action: "admin_assign_owner",
+    entityType: "projects",
+    entityIds: [projectId],
+    detail: { projectId, ownerName: ownerName.trim(), assignedBy: session.userId || "admin" },
+  });
   return NextResponse.json({ success: true, assignedTo });
 }

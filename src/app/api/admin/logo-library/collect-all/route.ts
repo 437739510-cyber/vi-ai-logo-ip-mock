@@ -2,14 +2,19 @@
  * API: POST /api/admin/logo-library/collect-all
  * 批量收集所有项目中未选中的Logo到素材库
  */
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
 import { STORAGE_BUCKET } from "@/config/storage";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
+    const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "无权限" }, { status: 403 });
+    }
     // 获取所有已选择Logo的项目
     const { data: projects } = await supabaseAdmin
       .from("projects")

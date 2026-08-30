@@ -12,8 +12,8 @@ import { readPromptGateBlocksFromTable } from "@/lib/prompt-gate/upsert";
 export async function GET(req: NextRequest) {
   try {
     const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
-    if (!session) {
-      return NextResponse.json({ success: false, error: "未登录" }, { status: 401 });
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "无权限" }, { status: 403 });
     }
     const sp = req.nextUrl.searchParams;
     const filters = {

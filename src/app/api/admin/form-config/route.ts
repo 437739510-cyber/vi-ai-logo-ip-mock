@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic"
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/core/supabase';
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/core/admin-session';
+import { logAdminOperation } from '@/lib/core/admin-operation-log';
 
 interface FormFieldConfig {
   field_key: string;
@@ -51,6 +53,11 @@ export async function GET() {
 // PUT /api/admin/form-config — update field required status
 export async function PUT(req: NextRequest) {
   try {
+    const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+    if (!session || session.role !== 'admin') {
+      return NextResponse.json({ success: false, error: '无权限' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { field_key, required } = body;
 
@@ -66,6 +73,16 @@ export async function PUT(req: NextRequest) {
       console.error('[form-config] PUT error:', error.message);
       return NextResponse.json({ error: 'Failed to update config' }, { status: 500 });
     }
+
+    // TICKET-133-R38：字段配置保存审计（best-effort）
+    await logAdminOperation(supabaseAdmin, {
+      operatorId: session.userId,
+      operatorRole: session.role,
+      action: 'form_config_update',
+      entityType: 'project_form_config',
+      entityIds: [String(field_key)],
+      detail: { field_key: String(field_key), required },
+    });
 
     return NextResponse.json({ success: true, field_key, required });
   } catch (e) {

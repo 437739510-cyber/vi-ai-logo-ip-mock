@@ -13,7 +13,9 @@
 import { spawn, spawnSync } from 'child_process';
 import { isComfyUIAvailable } from '../src/lib/ip/ip-image-provider/comfyui-provider';
 
-const PYTHON = 'D:\\disk\\CODEX\\python312\\python.exe';
+// TICKET-139-R42：ComfyUI 改用 venv python（系统 python 缺 sqlalchemy/filelock 等依赖）；
+// 可用环境变量 COMFYUI_PYTHON 覆盖，缺省 D:\ComfyUI-backup\venv\Scripts\python.exe。
+const PYTHON = process.env.COMFYUI_PYTHON || 'D:\\ComfyUI-backup\\venv\\Scripts\\python.exe';
 const MAIN = 'D:\\ComfyUI-backup\\main.py';
 const CWD = 'D:\\ComfyUI-backup';
 const ARGS = ['--lowvram', '--reserve-vram', '2', '--disable-smart-memory'];
@@ -77,15 +79,17 @@ export function killComfyUI() {
 }
 
 /** 启动 ComfyUI（detached，隐藏窗口，不阻塞）。 */
-export async function startComfyUI() {
+export async function startComfyUI(log = (level, msg) => console.log(`[${level}] ${msg}`)) {
   // 工单 047：先杀残留再单实例启动，防两个实例抢 8188 端口（假活）。
   killComfyUI();
   await new Promise((r) => setTimeout(r, 1_000));
   try {
     const child = spawn(PYTHON, [MAIN, ...ARGS], { cwd: CWD, detached: true, stdio: 'ignore', windowsHide: true });
+    child.on('error', (err) => log('ERROR', `[COMFYUI-HEALTH] ComfyUI spawn 失败: ${err.message}`));
     child.unref();
     return true;
-  } catch {
+  } catch (err) {
+    log('ERROR', `[COMFYUI-HEALTH] ComfyUI 启动失败: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }
@@ -118,7 +122,7 @@ export async function ensureComfyUIReady(opts = {}) {
   // 工单 047：90s→180s，匹配本机 90~140s 启动时长，避免误判后重复实例。
   const readyTimeoutMs = opts.readyTimeoutMs ?? 180_000;
   const coolMs = opts.coolMs ?? 10_000;
-  const startFn = opts.startFn || startComfyUI;
+  const startFn = opts.startFn || (() => startComfyUI(log));
 
   if (await isComfyUIAvailable()) return true;
 
@@ -134,7 +138,7 @@ export async function ensureComfyUIReady(opts = {}) {
   for (let attempt = 1; attempt <= restartAttempts; attempt++) {
     killComfyUI();
     await new Promise((r) => setTimeout(r, 1_500));
-    const started = startFn();
+    const started = await startFn();
     log('INFO', `[COMFYUI-HEALTH] 重启尝试 ${attempt}/${restartAttempts}（started=${started}），等待就绪...`);
     const ready = await waitForComfyUIReady(readyTimeoutMs);
     if (ready) {
@@ -215,7 +219,7 @@ export async function waitForVramZero(options = 60_000) {
  */
 export async function killAndRestartComfyUI(opts = {}) {
   const log = opts.log || ((level, msg) => console.log(`[${level}] ${msg}`));
-  const startFn = opts.startFn || startComfyUI;
+  const startFn = opts.startFn || (() => startComfyUI(log));
   const readyTimeoutMs = opts.readyTimeoutMs ?? 180_000;
   const coolMs = opts.coolMs ?? 10_000;
 

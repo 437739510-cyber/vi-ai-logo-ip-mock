@@ -108,31 +108,78 @@ export function getIndustryType(industry?: string): IndustryType {
 
 // ========== 行业默认配色 ==========
 
-export const INDUSTRY_DEFAULTS: Record<string, { primary: string; secondary: string; accent: string }> = {
-  restaurant:  { primary: "#C62828", secondary: "#F9A825", accent: "#FFFFFF" },  // V95: 餐饮默认中国红+金
-  fastfood:    { primary: "#D32F2F", secondary: "#F9A825", accent: "#FFFFFF" },
-  beverage:    { primary: "#00695C", secondary: "#D84315", accent: "#FFB300" },
-  beauty:      { primary: "#E8576C", secondary: "#9B72CF", accent: "#F0D5A8" },
-  car:         { primary: "#1F3B4D", secondary: "#5C8D89", accent: "#F5F2E8" },
-  fashion:     { primary: "#1A1A2E", secondary: "#C9A96E", accent: "#E8D5B7" },
-  mother_baby: { primary: "#E8836B", secondary: "#5B9EA6", accent: "#F5C6AA" },
-  wedding:     { primary: "#8B6F4E", secondary: "#D4A574", accent: "#F5E6D3" },
-  fitness:     { primary: "#D32F2F", secondary: "#1B5E20", accent: "#FFC107" },
-  pharmacy:    { primary: "#1565C0", secondary: "#2E7D32", accent: "#BBDEFB" },
-  pet:         { primary: "#FF8F00", secondary: "#5D4037", accent: "#FFE082" },
-  retail:      { primary: "#1565C0", secondary: "#EF6C00", accent: "#78909C" },
-  education:   { primary: "#283593", secondary: "#00897B", accent: "#FF8F00" },
-  fresh_food:  { primary: "#2E7D32", secondary: "#F9A825", accent: "#FFFFFF" },
-  floral:      { primary: "#C2185B", secondary: "#F48FB1", accent: "#FCE4EC" },
-  home:        { primary: "#5D4037", secondary: "#A1887F", accent: "#EFEBE9" },
-  nail:        { primary: "#E8576C", secondary: "#9B72CF", accent: "#F0D5A8" },
-  tea:         { primary: "#33691E", secondary: "#D4A574", accent: "#F5E6D3" },
-  general:     { primary: "#37474F", secondary: "#00897B", accent: "#FFB300" },
+export interface IndustryDefaults {
+  primary: string;
+  secondary: string;
+  accent: string;
+  /** 行业场景摄影风格（英文，注入 ComfyUI 场景提示词）。TICKET-143 Phase A 补字段修复 worker.mjs:651 恒回退。 */
+  sceneStyle: string;
+}
+
+export const INDUSTRY_DEFAULTS: Record<IndustryType, IndustryDefaults> = {
+  restaurant:  { primary: "#C62828", secondary: "#F9A825", accent: "#FFFFFF", sceneStyle: "warm appetizing food photography" },  // V95: 餐饮默认中国红+金
+  fastfood:    { primary: "#D32F2F", secondary: "#F9A825", accent: "#FFFFFF", sceneStyle: "bold vibrant fast casual food photography" },
+  beverage:    { primary: "#00695C", secondary: "#D84315", accent: "#FFB300", sceneStyle: "fresh tropical product photography, clean bright" },
+  beauty:      { primary: "#E8576C", secondary: "#9B72CF", accent: "#F0D5A8", sceneStyle: "soft elegant beauty studio photography" },
+  car:         { primary: "#1F3B4D", secondary: "#5C8D89", accent: "#F5F2E8", sceneStyle: "clean professional automotive studio photography" },
+  fashion:     { primary: "#1A1A2E", secondary: "#C9A96E", accent: "#E8D5B7", sceneStyle: "editorial minimal fashion photography" },
+  mother_baby: { primary: "#E8836B", secondary: "#5B9EA6", accent: "#F5C6AA", sceneStyle: "soft warm family lifestyle photography" },
+  wedding:     { primary: "#8B6F4E", secondary: "#D4A574", accent: "#F5E6D3", sceneStyle: "romantic elegant wedding photography" },
+  fitness:     { primary: "#D32F2F", secondary: "#1B5E20", accent: "#FFC107", sceneStyle: "dynamic energy studio photography" },
+  pharmacy:    { primary: "#1565C0", secondary: "#2E7D32", accent: "#BBDEFB", sceneStyle: "clean trustworthy healthcare product photography" },
+  pet:         { primary: "#FF8F00", secondary: "#5D4037", accent: "#FFE082", sceneStyle: "playful warm pet lifestyle photography" },
+  retail:      { primary: "#1565C0", secondary: "#EF6C00", accent: "#78909C", sceneStyle: "bright modern retail product photography" },
+  education:   { primary: "#283593", secondary: "#00897B", accent: "#FF8F00", sceneStyle: "bright friendly education brand photography" },
+  fresh_food:  { primary: "#2E7D32", secondary: "#F9A825", accent: "#FFFFFF", sceneStyle: "fresh natural produce photography, clean bright" },
+  floral:      { primary: "#C2185B", secondary: "#F48FB1", accent: "#FCE4EC", sceneStyle: "soft elegant botanical photography" },
+  home:        { primary: "#5D4037", secondary: "#A1887F", accent: "#EFEBE9", sceneStyle: "warm cozy home interior photography" },
+  nail:        { primary: "#E8576C", secondary: "#9B72CF", accent: "#F0D5A8", sceneStyle: "soft elegant beauty studio photography" },
+  tea:         { primary: "#33691E", secondary: "#D4A574", accent: "#F5E6D3", sceneStyle: "serene traditional tea photography" },
+  general:     { primary: "#37474F", secondary: "#00897B", accent: "#FFB300", sceneStyle: "clean studio lighting" },
 };
 
-export function getIndustryDefaults(industry?: string): { primary: string; secondary: string; accent: string } {
+export function getIndustryDefaults(industry?: string): IndustryDefaults {
   const it = getIndustryType(industry);
   return INDUSTRY_DEFAULTS[it] || INDUSTRY_DEFAULTS.general;
+}
+
+// ========== 行业知识层注入（TICKET-143 Phase A）==========
+
+export const INDUSTRY_COLOR_RULES =
+  "配色优先级：客户真实品牌色 > 行业锚定色 > LLM 自由发挥；客户已提供品牌色时 colorPalette 必须 100% 使用客户真实色值，禁止修改或替换。" +
+  "\ncolorPalette 每项 meaning 必须绑定具体行业（如餐饮中国红呼应烟火气），禁止「温暖/活力/高级」等空话。";
+
+export interface IndustryContextSource {
+  label: string;
+  designStyle: string[];
+  colorTendency: string[];
+  typicalModules: string[];
+}
+
+/**
+ * 构建「行业上下文」段落。worker 品牌分析 user prompt 与网页 brand-analysis system prompt 共用，
+ * 保证两条生产提示词轨道同款不漂移（TICKET-143 Phase A）。
+ */
+export function buildIndustryContextParagraph(
+  knowledge: IndustryContextSource,
+  defaults: IndustryDefaults,
+  hasCustomerBrandColor: boolean,
+): string {
+  const priority =
+    "配色优先级：客户真实品牌色 > 行业锚定色 > LLM 自由发挥；" +
+    (hasCustomerBrandColor
+      ? "客户已提供品牌色时，colorPalette 必须 100% 使用客户真实色值，禁止修改或替换。"
+      : "客户未提供品牌色时，colorPalette 优先贴合行业锚定色板，再基于行业特征合理发挥。");
+  return [
+    "## 行业上下文（行业知识层，强制遵循）",
+    `行业：${knowledge.label}（行业知识层）`,
+    `行业设计风格：${knowledge.designStyle.join("、")}`,
+    `行业配色倾向：${knowledge.colorTendency.join("、")}`,
+    `行业典型VI模块：${knowledge.typicalModules.join("、")}`,
+    `行业锚定色板：主色 ${defaults.primary} / 辅助色 ${defaults.secondary} / 强调色 ${defaults.accent}`,
+    priority,
+    "颜色含义绑定行业：colorPalette 每项 meaning 必须绑定具体行业的关联（如餐饮中国红呼应烟火气），禁止写「温暖/活力/高级」等与行业无关的空话。",
+  ].join("\n");
 }
 
 // ========== Industry Material Lists (P0 quick fix) ==========

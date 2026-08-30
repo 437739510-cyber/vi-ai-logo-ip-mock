@@ -98,7 +98,7 @@ export function buildGateRules(ctx: Pick<PromptGateContext, "industryFamily" | "
     "不得出现可识别文字/乱码/品牌名以外的商标；画面中的招牌、屏幕、卡片、包装保持空白或仅允许品牌标识。",
     "禁止出现皇冠、盾牌、翅膀、火焰、红金土豪风等禁止元素。",
     ctx.mascotIntent === "no"
-      ? "无 IP 项目：提示词不得包含公仔、吉祥物、玩偶、卡通形象等 IP 字样或元素。"
+      ? "无 IP 项目：提示词不得要求/包含公仔、吉祥物、玩偶、卡通形象等 IP 元素。以否定式防护（no mascots / no 公仔 / 禁止吉祥物等）明确排除时属于合规表述，不得判为泄漏。"
       : "有 IP 项目：提示词允许包含指定公仔元素，但不得混入其它客户公仔/项目数据。",
     `已选场景/物料清单：${ctx.sceneKeys.join("、")}；提示词内容必须与这些场景/物料匹配。`,
     "提示词必须包含品牌主色板的核心色（若为英文提示词则用颜色名称等价表达），不得使用与品牌无关的色板。",
@@ -194,6 +194,7 @@ async function deepSeekGateCall(
 
 const CHECK_SYSTEM = `你是提示词合理性审核员。对照「门规则」与客户方案上下文，检查待检提示词是否：
 1) 出现异行业元素（串行业）；2) 品牌/色板/公仔意图写错；3) 地理矛盾（如海南椰汁出现雪景、北方品牌出现椰林）；4) 缺失必须要素（品牌主色、无 IP 禁公仔等）；5) 含其它项目/客户数据。
+注意：提示词中以否定形式出现公仔类词（如 "no mascots"、"no 公仔"、"no 玩偶"、"no 吉祥物"、"no dolls"、"no cartoon figures" 等）是「明确排除公仔」的合规防护表述，表示画面中不得出现公仔，不构成 mascot-leak；只有提示词要求/包含公仔元素（如 "with mascot"、"加上公仔"）才判 mascot-leak。
 只输出严格JSON：{"pass":true或false,"ruleId":"规则ID(如 cross-industry/geo-contradiction/mascot-leak/missing-core/other)","reason":"一句话","fixSuggestion":"修正建议片段(英文/中文均可，保持品牌与色板不变)"}。`;
 
 const FIX_SYSTEM = `你是提示词修正员。按门规则与客户方案上下文，只修改待检提示词中的问题片段；严禁改动行业、品牌名、品牌色板、公仔购买意图等核心信息。只输出严格JSON：{"fixedPrompt":"完整修正后的提示词","changedCore":true或false,"note":"一句话"}。`;

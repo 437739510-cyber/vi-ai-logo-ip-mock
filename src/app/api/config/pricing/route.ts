@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic"
  */
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/core/admin-session";
+import { logAdminOperation } from "@/lib/core/admin-operation-log";
 
 const DEFAULT_PRICING = {
   basic: { price: "19", name: "基础版", period: "一次性", desc: "品牌基建，适合新店起步", enabled: true },
@@ -50,11 +52,18 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
+    const session = await verifyAdminSession(req.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ success: false, error: "无权限" }, { status: 403 });
+    }
+
     const body = await req.json();
     const { pricing, logoPricing, commission } = body;
 
-    const updates = [];
+    const updates: Array<PromiseLike<{ error: unknown }>> = [];
+    const updatedKeys: string[] = [];
     if (pricing && typeof pricing === "object") {
+      updatedKeys.push("pricing");
       updates.push(
         supabaseAdmin
           .from("site_config")
@@ -62,6 +71,7 @@ export async function PUT(req: NextRequest) {
       );
     }
     if (logoPricing && typeof logoPricing === "object") {
+      updatedKeys.push("logo_pricing");
       updates.push(
         supabaseAdmin
           .from("site_config")
@@ -69,6 +79,7 @@ export async function PUT(req: NextRequest) {
       );
     }
     if (commission && typeof commission === "object") {
+      updatedKeys.push("commission");
       updates.push(
         supabaseAdmin
           .from("site_config")
@@ -81,11 +92,21 @@ export async function PUT(req: NextRequest) {
     }
 
     const results = await Promise.all(updates);
-    const errors = results.filter((r: any) => r.error);
+    const errors = results.filter((r) => r.error);
     if (errors.length > 0) {
       console.error("保存定价失败:", errors);
       return NextResponse.json({ error: "保存失败" }, { status: 500 });
     }
+
+    // TICKET-133-R38：定价/提成配置写入审计（best-effort，不阻塞主流程）
+    await logAdminOperation(supabaseAdmin, {
+      operatorId: session.userId,
+      operatorRole: session.role,
+      action: "site_config_update",
+      entityType: "site_config",
+      entityIds: updatedKeys,
+      detail: { keys: updatedKeys },
+    });
 
     return NextResponse.json({ success: true });
   } catch (e: any) {

@@ -43,18 +43,43 @@ function appendArbitrationAttempt(record) {
     writeFileSync(file, JSON.stringify(list, null, 2));
   } catch (e) { /* 日志失败不阻断 */ }
 }
+// TICKET-139-R42：VISION-ARB 失败标记（ollama_down / sensenova_down / deepseek_down / parse_failed），
+// 便于按通道定位故障。只影响日志标记，不改变既有判定逻辑（fail-closed 语义不变）。
+function classifyVisionArbFailure(arb, hints = {}) {
+  const reason = String((arb && arb.reason) || '').toLowerCase();
+  if (reason.includes('ollama')) return 'ollama_down';
+  if (reason.includes('sensenova')) return 'sensenova_down';
+  if (reason.includes('deepseek')) return 'deepseek_down';
+  if (reason.includes('disabled') || reason === 'n/a') return 'parse_failed';
+  const outcome = arb && arb.outcome;
+  const channels = (outcome && outcome.channels) || [];
+  const localRaw = String((channels[0] && channels[0].raw) || '').trim();
+  const online = channels[1] || {};
+  const onlineDown = Boolean(online.error) || !String(online.raw || '').trim();
+  const deepseek = outcome && outcome.deepseek;
+  const deepseekDown = deepseek ? deepseek.ok === false : Boolean(outcome && outcome.source === 'unavailable');
+  if (hints.ollamaReady === false) return 'ollama_down';
+  if (!localRaw) return 'ollama_down';
+  if (onlineDown) return 'sensenova_down';
+  if (deepseekDown) return 'deepseek_down';
+  if (reason.includes('fetch')) return 'ollama_down';
+  return 'parse_failed';
+}
 async function arbitrateVisionIfNeeded({ imageBase64, prompt, verdictKeys, log: logger }) {
   if (process.env.VISION_ARBITRATION_ENABLED !== '1') return null;
+  const ollamaReady = await ensureOllamaReady();
   const arb = await maybeArbitrateVision({ imageBase64, prompt, verdictKeys, reporter: appendArbitrationAttempt });
   if (arb.arbitrated && arb.outcome) {
-    logger('INFO', `[VISION-ARB] source=${arb.outcome.source} status=${arb.outcome.status} verdict=${JSON.stringify(arb.outcome.verdict || {})}`);
+    const arbMarker = arb.outcome.status === 'skipped' ? classifyVisionArbFailure(arb, { ollamaReady }) : undefined;
+    logger('INFO', `[VISION-ARB] source=${arb.outcome.source} status=${arb.outcome.status}${arbMarker ? ` marker=${arbMarker}` : ''} verdict=${JSON.stringify(arb.outcome.verdict || {})}`);
     return arb.outcome;
   }
-  logger('WARN', `[VISION-ARB] 仲裁不可用: ${arb.reason || 'n/a'}`);
+  logger('WARN', `[VISION-ARB] 仲裁不可用: ${arb.reason || 'n/a'} marker=${classifyVisionArbFailure(arb, { ollamaReady })}`);
   return { unavailable: true, reason: arb.reason || 'n/a' };
 }
 import { buildLogoCompositeFallbackPrompt, compositeLogoOnScene, combineThreeViewSheet, evaluateLogoSceneDeliveryGate, getLogoSceneLayout, overlayBrandTextOnScene, partitionLogoSceneRequests, pasteLogoOnScene, removeOpaqueWhiteBackground, resolveSceneTextGate } from '../src/lib/vi-manual/logo-scene-compositor';
-import { getIndustryType, getIndustryDefaults } from '../src/lib/brand/industry-types';
+import { getIndustryType, getIndustryDefaults, buildIndustryContextParagraph, INDUSTRY_COLOR_RULES } from '../src/lib/brand/industry-types';
+import { getIndustryKnowledge } from '../src/lib/brand/industry-knowledge';
 import { extractLogoElements, extractStyleTags, resolveLogoColorsFromProfile, resolveLogoColors } from '../src/lib/vi-manual/brand-visual-rules';
 import { normalizeLogoTextLanguage } from '../src/lib/core/consultation-schema';
 import { buildPaymentRequiredClientInfo, ensurePaymentConfirmed, evaluatePaymentGate } from '../src/lib/core/payment-gate';
@@ -68,7 +93,7 @@ import { ensureComfyUIReady, gpuSnapshot, comfyuiPids, killComfyUI, runWithMidGe
 import { runLogoBatchFlow } from './_logo-batch.mjs';
 import { promises as fs } from 'fs';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'path';
 import { promisify } from 'node:util';
@@ -108,8 +133,56 @@ const logoTextCache = new Map();
 
 const execFileAsync = promisify(execFile);
 
+// TICKET-139-R42：Ollama 自检自启。本地视觉调用前探测 /api/tags（2s 超时），不可达则尝试
+// 启动 ollama.exe（环境变量 OLLAMA_BIN 覆盖，缺省 G:\Programs\Ollama\ollama.exe），等待
+// 最多 ~15s；仍不可达仅明确日志「Ollama 不可用，视觉本地通道降级」，不改既有 fail-closed 判定。
+const OLLAMA_API_BASE = 'http://127.0.0.1:11434';
+const OLLAMA_PROBE_TIMEOUT_MS = 2_000;
+const OLLAMA_START_WAIT_MS = 15_000;
+const OLLAMA_START_POLL_MS = 500;
+const OLLAMA_BIN_DEFAULT = 'G:\\Programs\\Ollama\\ollama.exe';
+const OLLAMA_SELF_HEAL_COOLDOWN_MS = 60_000; // 降级后冷却，避免每个本地视觉调用都重试拉启
+let ollamaLastFailAt = 0;
+
+async function probeOllamaTags() {
+  try {
+    const res = await fetch(`${OLLAMA_API_BASE}/api/tags`, { signal: AbortSignal.timeout(OLLAMA_PROBE_TIMEOUT_MS) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureOllamaReady() {
+  if (await probeOllamaTags()) return true;
+  if (Date.now() - ollamaLastFailAt < OLLAMA_SELF_HEAL_COOLDOWN_MS) {
+    log('WARN', 'Ollama 不可用，视觉本地通道降级');
+    return false;
+  }
+  const bin = process.env.OLLAMA_BIN || OLLAMA_BIN_DEFAULT;
+  log('WARN', `[OLLAMA] ${OLLAMA_API_BASE}/api/tags 不可达，尝试启动 Ollama（${bin}）`);
+  try {
+    const child = spawn(bin, [], { detached: true, stdio: 'ignore', windowsHide: true });
+    child.unref();
+  } catch (err) {
+    log('ERROR', `[OLLAMA] 启动 Ollama 失败: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  const deadline = Date.now() + OLLAMA_START_WAIT_MS;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, OLLAMA_START_POLL_MS));
+    if (await probeOllamaTags()) {
+      log('INFO', '[OLLAMA] Ollama 已就绪');
+      return true;
+    }
+  }
+  ollamaLastFailAt = Date.now();
+  log('WARN', 'Ollama 不可用，视觉本地通道降级');
+  return false;
+}
+
 /** 与 vision-check 同机制的本地 Ollama OCR（curl.exe + 临时 JSON，temperature=0）。 */
 async function ollamaOcr(model, prompt, imageBase64) {
+  await ensureOllamaReady();
   const payload = {
     model,
     prompt,
@@ -300,7 +373,7 @@ async function callDeepSeek(systemPrompt, userPrompt, temperature = 0.7, maxToke
   return data.choices?.[0]?.message?.content || '';
 }
 
-function parseDeepSeekJSON(content) {
+export function parseDeepSeekJSON(content) {
   const cleaned = content
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/i, '')
@@ -312,7 +385,13 @@ function parseDeepSeekJSON(content) {
 const LOGO_PROMPT_TEMPLATE_VERSION = '023-chinese-v2';
 // ========== Brand Analysis Prompt ==========
 
-function buildAnalysisPrompt(clientInfo) {
+export function buildAnalysisPrompt(clientInfo) {
+  // 工单 143 Phase A：行业知识层注入（designStyle/colorTendency/typicalModules + 行业锚定色板 + 配色优先级）
+  const industryContext = buildIndustryContextParagraph(
+    getIndustryKnowledge(getIndustryType(clientInfo.industry)),
+    getIndustryDefaults(clientInfo.industry),
+    Boolean(clientInfo.brandColors || clientInfo.existingBrandColor),
+  );
   const parts = [
     '## 客户品牌基础信息',
     '',
@@ -345,13 +424,18 @@ function buildAnalysisPrompt(clientInfo) {
     }
   }
   parts.push('');
+  parts.push(industryContext);
+  parts.push('');
   parts.push('请基于以上信息，进行深度品牌分析，输出品牌档案JSON。');
   return parts.join('\n');
 }
 
-const BRAND_ANALYSIS_SYSTEM = `你是一位资深的品牌战略分析师，精通中国本土市场的品牌定位与VI策略。
+export const BRAND_ANALYSIS_SYSTEM = `你是一位资深的品牌战略分析师，精通中国本土市场的品牌定位与VI策略。
 
 你的任务是：根据客户提供的品牌基础信息，进行深度分析，输出品牌档案。
+
+## 颜色与行业绑定（强制）
+${INDUSTRY_COLOR_RULES}
 
 ## 输出格式
 返回严格JSON，不要markdown包裹：
@@ -502,6 +586,18 @@ const LOGO_SCENE_KEYS = [
 function logoPlacementForScene(sceneKey) {
   // 工单 091-R2：全部场景 AI 入景绘制（z-turbo 文生图，稳定），不再代码硬贴/空白底板。
   // 门头/海报原参考锚定（Flux2）在本机不稳（GPU 空转/超时），统一走 z-turbo AI 入景。
+  // 2026-08-28 修复：marketing-1（宣传海报）ai_drawn 连败 8+ 次（AI 画不出 LOGO，
+  // logoPresent=false）→ 改 composite（z-turbo 干净底板 + 代码合成 LOGO，确定性过验收）。
+  if (sceneKey === 'marketing-1') {
+    return {
+      strategy: 'composite',
+      fallback: null,
+      fidelitySource: 'selected_logo_asset',
+      promptIsFidelitySource: false,
+      executorStatus: 'ready',
+      message: 'composite 合成（z-turbo 底板 + LOGO 代码合成）',
+    };
+  }
   return {
     strategy: 'ai_drawn',
     fallback: null,
@@ -641,12 +737,14 @@ function buildScenePromptsFromSuggestions(suggestions, companyName, industryType
       prompt,
       logoPlacement: {
         // 工单 091-R2：全部场景 AI 入景绘制（z-turbo 文生图，稳定）。
-        strategy: 'ai_drawn',
+        // 2026-08-28 修复：marketing-1（宣传海报）ai_drawn 连败 8+ 次（AI 画不出 LOGO，
+        // logoPresent=false）→ composite（z-turbo 干净底板 + 代码合成 LOGO，确定性过验收）。
+        strategy: key === 'marketing-1' ? 'composite' : 'ai_drawn',
         fallback: null,
         fidelitySource: 'selected_logo_asset',
         promptIsFidelitySource: false,
         executorStatus: 'ready',
-        message: 'AI 入景绘制（z-turbo 文生图）执行器已就绪',
+        message: key === 'marketing-1' ? 'composite 合成（z-turbo 底板 + LOGO 代码合成）' : 'AI 入景绘制（z-turbo 文生图）执行器已就绪',
       },
     };
   });
@@ -3352,10 +3450,17 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  log('FATAL', `Worker crashed: ${err.message}`);
-  console.error(err);
-  process.exit(1);
-});
+// 工单 143 Phase A：导出纯函数供离线回归导入；仅作为主入口执行时才启动 worker 主循环。
+const isMainEntry =
+  (typeof import.meta.main === 'boolean' && import.meta.main) ||
+  (Boolean(process.argv[1]) && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url));
+
+if (isMainEntry) {
+  main().catch(err => {
+    log('FATAL', `Worker crashed: ${err.message}`);
+    console.error(err);
+    process.exit(1);
+  });
+}
 
 
