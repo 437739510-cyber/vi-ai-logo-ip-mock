@@ -19,7 +19,7 @@ import { getIndustryType, getIndustryDefaults, buildIndustryContextParagraph, IN
 import { getIndustryKnowledge } from "@/lib/brand/industry-knowledge";
 
 // 工单 023：品牌分析提示词模板版本（与 scripts/worker.mjs 的 LOGO_PROMPT_TEMPLATE_VERSION 对齐）
-const BRAND_ANALYSIS_TEMPLATE_VERSION = "023-chinese-v2";
+const BRAND_ANALYSIS_TEMPLATE_VERSION = "024-connotation-1";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -145,11 +145,37 @@ ${industryContext}
 ## 颜色与行业绑定（强制）
 ${INDUSTRY_COLOR_RULES}
 
+## 品牌内涵推导链（核心，必须逐条推导，不是填空）
+请按以下推理链推导品牌内涵；每一条都必须有商业理由，且与行业/人群/定位强绑定。
+1. 定位推导：从 产品 + 行业 + 人群 + 卖点，推导出品牌定位（不是复述客户输入）。
+2. 符号系统：选 4-6 个核心图形符号，每个必须给出商业理由（呼应品牌名/产地/工艺/人群/卖点）。
+3. 颜色含义：每个颜色说明「为什么是它」（行业关联 + 情感/卖点绑定），不是配色好看就选。
+4. 字体分级：按用途分级（品牌标识字 / 口号副标语字 / 正文通用字），并说明分级理由。
+5. 故事钩子：提炼 1-2 句记忆点 / 卖点叙事。
+6. 场景对准：每个应用场景说明对准的人群 / 卖点。
+颜色一致性（硬约束）：colorSystem 的颜色必须与 colorPalette 及 logoSpecs.logoColors 完全一致（同一客户同一色值），禁止互相矛盾。
+输出纪律（硬约束）：必须输出完整合法的 JSON——字符串值内禁止未转义换行、禁止截断；控制字段篇幅（品牌本质/故事钩子各 1 句、符号理由/颜色含义/用途各 1 句、logoConcept 3 句以内），宁可精炼，不可残缺。
+
 ## 输出格式
 返回严格JSON，不要markdown包裹：
 【强制要求】sceneImageSuggestions的每条en提示词必须逐条体现：该行业真实使用场景与物料、品牌色（用hex值，来自colorPalette或用户品牌色）、视觉风格（用visualStyleSuggestion中的风格词）与品牌LOGO呈现要求；下方模板句式仅作结构参考，禁止直接复用示例文本，示例中的[行业物料+使用场景]必须替换为具体且贴合的物料+场景描述（如修脚店→'foot spa membership card on a clean wooden counter'）；zh字段必须是与en内容逐句对应的完整中文生图提示词：行业物料+使用场景、品牌色（hex值与中文色名，来自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙）、视觉风格关键词（取自visualStyleSuggestion）与品牌LOGO呈现要求（清晰印制），供管理员在AI档案区阅读核签；禁止只写物料短标题或场景短描述。
 {
-  "analysisTemplateVersion": "023-chinese-v2",
+  "analysisTemplateVersion": "024-connotation-1",
+  "brandEssence": "品牌本质：定位+个性+人群的高度凝练，一句话（不是行业词堆砌）",
+  "storyHook": "故事钩子：1-2 句能让人记住的卖点叙事/记忆点（产地背书/工艺/人群情绪）",
+  "symbolSystem": [
+    {"symbol": "核心图形符号（如：椰树/海浪/太阳/哑铃）", "businessReason": "商业理由：为什么要这个符号"}
+  ],
+  "colorSystem": [
+    {"name": "品牌主色", "hex": "#RRGGBB", "role": "主色/辅助/强调", "meaning": "商业含义（为什么是它）", "usage": "用在哪（主标识/背景/点缀）"}
+  ],
+  "fontHierarchy": {
+    "display": "品牌标识字（如：定制手绘笔触体）",
+    "subhead": "口号/副标语字（如：现代圆体，亲和）",
+    "body": "正文/通用（思源黑体 / Montserrat）",
+    "usage": "字体分级理由（为什么这样分级）"
+  },
+  "logoConcept": "从品牌定位推导出的 LOGO 概念：主图形符号 + 构图形式 + 为什么这样设计（商业理由），非模板套话",
   "industryInsight": "行业洞察内容，2-3句话",
   "geoEnvironment": "地理环境分析，2-3句话",
   "competitiveLandscape": "竞品格局，2-3句话",
@@ -160,11 +186,11 @@ ${INDUSTRY_COLOR_RULES}
   "brandToneKeywords": ["关键词1", "关键词2", "关键词3"],
   "visualStyleSuggestion": "视觉风格建议，2-3句话",
   "sceneImageSuggestions": [
-    {"zh": "专业品牌应用摄影：【行业物料+使用场景，必须替换为具体贴合描述，如 足浴会员卡放在干净木柜台上、筷子套摆在餐桌上、水果贴纸贴在果篮上】，品牌色（品牌色hex与中文色名，取自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙），【视觉风格关键词，取自visualStyleSuggestion，如 中式养生、温润禅意、专业可信的实景风格】，品牌 LOGO 清晰印制，影棚灯光，产品完整可见", "en": "Professional brand application photography of a [行业物料+使用场景，必须替换为具体贴合描述，如 foot spa membership card on a clean wooden counter], in brand colors (品牌色hex，取自colorPalette), [视觉风格关键词，取自visualStyleSuggestion], with the brand logo printed clearly, studio lighting, product fully visible"},
-    {"zh": "专业品牌应用摄影：【行业物料+使用场景，必须替换为具体贴合描述，如 社区门店招牌、外卖袋、手提袋】，品牌色（品牌色hex与中文色名，取自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙），【视觉风格关键词，取自visualStyleSuggestion，如 中式养生、温润禅意、专业可信的实景风格】，品牌 LOGO 清晰印制，影棚灯光，产品完整可见", "en": "Professional brand application photography of a [行业物料+使用场景，必须替换为具体贴合描述], in brand colors (品牌色hex，取自colorPalette), [视觉风格关键词，取自visualStyleSuggestion], with the brand logo printed clearly, studio lighting, product fully visible"},
-    {"zh": "专业品牌应用摄影：【行业物料+使用场景，必须替换为具体贴合描述，如 足疗宣传海报贴在店内墙面、果篮包装、甲油瓶贴】，品牌色（品牌色hex与中文色名，取自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙），【视觉风格关键词，取自visualStyleSuggestion，如 中式养生、温润禅意、专业可信的实景风格】，品牌 LOGO 清晰印制，影棚灯光，产品完整可见", "en": "Professional brand application photography of a [行业物料+使用场景，必须替换为具体贴合描述], in brand colors (品牌色hex，取自colorPalette), [视觉风格关键词，取自visualStyleSuggestion], with the brand logo printed clearly, studio lighting, product fully visible"},
-    {"zh": "专业品牌应用摄影：【行业物料+使用场景，必须替换为具体贴合描述，如 前台价目表、桌牌、店面招牌】，品牌色（品牌色hex与中文色名，取自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙），【视觉风格关键词，取自visualStyleSuggestion，如 中式养生、温润禅意、专业可信的实景风格】，品牌 LOGO 清晰印制，影棚灯光，产品完整可见", "en": "Professional brand application photography of a [行业物料+使用场景，必须替换为具体贴合描述], in brand colors (品牌色hex，取自colorPalette), [视觉风格关键词，取自visualStyleSuggestion], with the brand logo printed clearly, studio lighting, product fully visible"},
-    {"zh": "专业品牌应用摄影：【行业物料+使用场景，必须替换为具体贴合描述，如 技师工服/员工围裙、员工围裙、营销海报】，品牌色（品牌色hex与中文色名，取自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙），【视觉风格关键词，取自visualStyleSuggestion，如 中式养生、温润禅意、专业可信的实景风格】，品牌 LOGO 清晰印制，影棚灯光，产品完整可见", "en": "Professional brand application photography of a [行业物料+使用场景，必须替换为具体贴合描述], in brand colors (品牌色hex，取自colorPalette), [视觉风格关键词，取自visualStyleSuggestion], with the brand logo printed clearly, studio lighting, product fully visible"}
+    {"zh": "专业品牌应用摄影：【行业物料+使用场景，必须替换为具体贴合描述，如 足浴会员卡放在干净木柜台上、筷子套摆在餐桌上、水果贴纸贴在果篮上】，品牌色（品牌色hex与中文色名，取自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙），【视觉风格关键词，取自visualStyleSuggestion，如 中式养生、温润禅意、专业可信的实景风格】，品牌 LOGO 清晰印制，影棚灯光，产品完整可见", "en": "Professional brand application photography of a [行业物料+使用场景，必须替换为具体贴合描述，如 foot spa membership card on a clean wooden counter], in brand colors (品牌色hex，取自colorPalette), [视觉风格关键词，取自visualStyleSuggestion], with the brand logo printed clearly, studio lighting, product fully visible", "targetAudience": "该场景对准的人群/卖点"},
+    {"zh": "专业品牌应用摄影：【行业物料+使用场景，必须替换为具体贴合描述，如 社区门店招牌、外卖袋、手提袋】，品牌色（品牌色hex与中文色名，取自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙），【视觉风格关键词，取自visualStyleSuggestion，如 中式养生、温润禅意、专业可信的实景风格】，品牌 LOGO 清晰印制，影棚灯光，产品完整可见", "en": "Professional brand application photography of a [行业物料+使用场景，必须替换为具体贴合描述], in brand colors (品牌色hex，取自colorPalette), [视觉风格关键词，取自visualStyleSuggestion], with the brand logo printed clearly, studio lighting, product fully visible", "targetAudience": "该场景对准的人群/卖点"},
+    {"zh": "专业品牌应用摄影：【行业物料+使用场景，必须替换为具体贴合描述，如 足疗宣传海报贴在店内墙面、果篮包装、甲油瓶贴】，品牌色（品牌色hex与中文色名，取自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙），【视觉风格关键词，取自visualStyleSuggestion，如 中式养生、温润禅意、专业可信的实景风格】，品牌 LOGO 清晰印制，影棚灯光，产品完整可见", "en": "Professional brand application photography of a [行业物料+使用场景，必须替换为具体贴合描述], in brand colors (品牌色hex，取自colorPalette), [视觉风格关键词，取自visualStyleSuggestion], with the brand logo printed clearly, studio lighting, product fully visible", "targetAudience": "该场景对准的人群/卖点"},
+    {"zh": "专业品牌应用摄影：【行业物料+使用场景，必须替换为具体贴合描述，如 前台价目表、桌牌、店面招牌】，品牌色（品牌色hex与中文色名，取自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙），【视觉风格关键词，取自visualStyleSuggestion，如 中式养生、温润禅意、专业可信的实景风格】，品牌 LOGO 清晰印制，影棚灯光，产品完整可见", "en": "Professional brand application photography of a [行业物料+使用场景，必须替换为具体贴合描述], in brand colors (品牌色hex，取自colorPalette), [视觉风格关键词，取自visualStyleSuggestion], with the brand logo printed clearly, studio lighting, product fully visible", "targetAudience": "该场景对准的人群/卖点"},
+    {"zh": "专业品牌应用摄影：【行业物料+使用场景，必须替换为具体贴合描述，如 技师工服/员工围裙、员工围裙、营销海报】，品牌色（品牌色hex与中文色名，取自colorPalette，如 #2F5233 深绿、#8C6B3F 暖棕、#C9A227 金橙），【视觉风格关键词，取自visualStyleSuggestion，如 中式养生、温润禅意、专业可信的实景风格】，品牌 LOGO 清晰印制，影棚灯光，产品完整可见", "en": "Professional brand application photography of a [行业物料+使用场景，必须替换为具体贴合描述], in brand colors (品牌色hex，取自colorPalette), [视觉风格关键词，取自visualStyleSuggestion], with the brand logo printed clearly, studio lighting, product fully visible", "targetAudience": "该场景对准的人群/卖点"}
   ],
   "sceneSectionTitles": {
     "stationery": "【该行业应用系统标题，如餐饮→餐饮应用系统、水果→生鲜应用系统、洗车→洗车应用系统】",
@@ -225,7 +251,7 @@ ${INDUSTRY_COLOR_RULES}
           },
         ],
         temperature: 0.7,
-        max_tokens: 4096,},
+        max_tokens: 16384,},
       timeoutMs: 45000,
     });
 
