@@ -523,10 +523,10 @@ ${INDUSTRY_COLOR_RULES}
 
 // ========== Scene Image Defaults ==========
 
-// 工单 066：A 类 logo 场景渲染要素（商业摄影风格，与 B 类配套的行业物料）
+// 工单 066：A 类 logo 场景渲染要素（电影级 editorial 高端质感，行业无关，禁止硬编码具体材质）
 const LOGO_SCENE_RENDER =
-  "professional product photography, studio quality render, volumetric lighting, soft shadows, " +
-  "extremely detailed, clean composition, high quality";
+  "cinematic editorial product photography, dramatic volumetric golden-hour light, rich depth of field, " +
+  "premium styling, soft rim light, deep soft shadows, aspirational high-end, ultra detailed, 8k quality";
 
 // A 类行业物料表（行业族→物料；禁止跨行业套用；洗车绝无餐纸餐盒）
 const LOGO_SCENE_MATERIALS = {
@@ -2933,7 +2933,7 @@ async function processMascotFullGeneration(project) {
   // 工单 086-R3：三视图已由平台子流程产出，批次只含 表情+场景。
   const allItems = [
     ...emotions.map((e) => ({ cat: "emotion", name: e.name, prompt: e.prompt + " Exactly one mascot character in frame, front-facing, single subject only; no additional characters; no watermark, no text." })),
-    ...scenes.map((s) => ({ cat: "scene", name: s.name, prompt: s.prompt + " Full-body mascot placed INSIDE a complete recognizable commercial scene with the environment fully visible (not a portrait or close-up); exactly one mascot character; face and outfit consistent with the character design; no other people or characters; no text, no watermark; the mascot is integrated naturally with matching lighting and a soft contact shadow under the feet, natural perspective, no hard cutout edges, no pasted look." })),
+    ...scenes.map((s) => ({ cat: "scene", name: s.name, prompt: s.prompt + " Full-body mascot placed INSIDE a complete recognizable commercial scene with the environment fully visible (not a portrait or close-up); exactly one mascot character; face and outfit consistent with the character design; no other people or characters; no text, no watermark; the mascot is integrated naturally with matching lighting and a soft contact shadow under the feet, natural perspective, no hard cutout edges, no pasted look. Cinematic editorial scene, dramatic volumetric golden-hour light, rich depth of field, premium styling, soft rim light, deep soft shadows, aspirational high-end, ultra detailed, 8k quality." })),
   ];
   const totalImages = 3 + emotions.length + scenes.length;
   const dynamicNegative = buildMascotTypeNegativePrompt(clientInfo.mascotTypePref, mascotBrief.roleType);
